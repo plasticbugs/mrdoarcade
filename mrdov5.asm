@@ -9469,11 +9469,11 @@ NEW_BACKGROUND_TUNE_P1:
     ; D4 (complements lower F) 10
     DB 064,190,128,007,099 
     ; D4 20
-    DB 064,190,128,010,106
+    DB 064,226,128,010,106
     ; D4 20
-    DB 064,190,128,010,106
+    DB 064,226,128,010,106
     ; D4 (short) 10
-    DB 064,190,128,007,099
+    DB 064,226,128,007,099
     ; D4 (complements lower F) 10
     DB 064,190,128,007,099
     ; C (complements lower E) 10
