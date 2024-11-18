@@ -101,6 +101,9 @@ SCORE_P2_RAM:        EQU $727F ;  $727F/80  2 BYTES SCORING FOR PLAYER#2
 WORK_BUFFER:         EQU $72EF
 DEFER_WRITES:        EQU $73C6
 
+STORED_COLOR_POINTER: EQU $73D0    ; 2 bytes for storing the pointer
+STORED_COLOR_DATA:    EQU $73D2    ; 12 bytes for actual color data
+
 FNAME "MR. Do! v1.rom"
 CPU Z80
 
@@ -8151,6 +8154,7 @@ LOC_B8EC:
     POP     IX
 RET
 
+
 SUB_B8F7:
     PUSH    IY
     LD      HL, $726E
@@ -8158,28 +8162,45 @@ SUB_B8F7:
 LOC_B8FE:
     BIT     7, (HL)
     JR      NZ, LOC_B8FE
+    
+    ; Set red flash colors (original code)
     LD      HL, PLAYFIELD_COLOR_FLASH_EXTRA
     LD      DE, 0
     LD      IY, 0CH
     LD      A, 4
     CALL    PUT_VRAM
-    LD      HL, 0
-LOC_B914:
-    DEC     HL
-    LD      A, L
-    OR      H
-    JR      NZ, LOC_B914
+    LD      BC, 1E2H
+    CALL    WRITE_REGISTER
+    
+    ; Store current level's color pointer
+    LD      A, (CURRENT_LEVEL_RAM)
+    DEC     A           ; Adjust for 0-based index
+    ADD     A, A        ; Multiply by 2 for word-sized entries
+    LD      HL, PLAYFIELD_COLORS
+    LD      B, 0
+    LD      C, A
+    ADD     HL, BC     ; HL now points to the correct pointer
+    LD      (STORED_COLOR_POINTER), HL
+    
+    POP     IY
+    RET
+PLAYFIELD_COLOR_FLASH_EXTRA:
+    DB 000,025,137,144,128,240,240,160,160,128,153,144,000
+RESTORE_PLAYFIELD_COLORS:
+    PUSH    IY
+    
+    ; Calculate correct level colors using original logic
     LD      A, ($726E)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
-    JR      Z, LOC_B926
+    JR      Z, USE_CURRENT_LEVEL
     LD      A, ($7275)
-LOC_B926:
+USE_CURRENT_LEVEL:
     CP      0BH
-    JR      C, LOC_B92E
+    JR      C, CONTINUE_RESTORE
     SUB     0AH
-    JR      LOC_B926
-LOC_B92E:
+    JR      USE_CURRENT_LEVEL
+CONTINUE_RESTORE:
     DEC     A
     ADD     A, A
     LD      C, A
@@ -8188,16 +8209,18 @@ LOC_B92E:
     ADD     IY, BC
     LD      L, (IY+0)
     LD      H, (IY+1)
+    
+    ; Restore the colors
     LD      DE, 0
     LD      IY, 0CH
     LD      A, 4
     CALL    PUT_VRAM
+    
     LD      BC, 1E2H
     CALL    WRITE_REGISTER
+    
     POP     IY
-RET
-PLAYFIELD_COLOR_FLASH_EXTRA:
-    DB 000,025,137,144,128,240,240,160,160,128,153,144,000
+    RET
 
 EXTRA_BEHAVIOR:
 	DW PHASE_01_EX
@@ -9420,6 +9443,7 @@ LOC_D3F9:
     AND     0FH
     CP      2
     JR      Z, LOC_D405
+    CALL    RESTORE_PLAYFIELD_COLORS
     CALL    PLAY_BACKGROUND_TUNE
 LOC_D405:
     CALL    SUB_999F
