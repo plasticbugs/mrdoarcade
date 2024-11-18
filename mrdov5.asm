@@ -8967,9 +8967,9 @@ INITIALIZE_THE_SOUND:
     JP      SOUND_INIT
 
 PLAY_OPENING_TUNE:
-    LD      B, OPENING_TUNE_SND_0A
+    LD      B, OPENING_TUNE_SND_0A    ; Play first part of opening tune
     CALL    PLAY_IT
-    LD      B, OPENING_TUNE_SND_0B
+    LD      B, OPENING_TUNE_SND_0B    ; Play second part of opening tune
     CALL    PLAY_IT
     LD      A, (SOUND_BANK_01_RAM)
     AND     0C0H
@@ -8979,7 +8979,13 @@ PLAY_OPENING_TUNE:
     AND     0C0H
     OR      4
     LD      (SOUND_BANK_02_RAM), A
-RET
+    RET
+PLAY_BACKGROUND_TUNE:
+    LD      B, BACKGROUND_TUNE_0A ; Play first part of background tune
+    CALL    PLAY_IT
+    LD      B, BACKGROUND_TUNE_0B ; Play second part of background tune
+    CALL    PLAY_IT
+    RET
 
 SUB_C97F:
     LD      A, 0FFH
