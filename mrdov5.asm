@@ -9420,7 +9420,7 @@ LOC_D3F9:
     AND     0FH
     CP      2
     JR      Z, LOC_D405
-    CALL    PLAY_OPENING_TUNE
+    CALL    PLAY_BACKGROUND_TUNE
 LOC_D405:
     CALL    SUB_999F
     JP      LOC_98A5
