@@ -1202,6 +1202,7 @@ SUB_87F4:
     LD      BC, 1E2H
     CALL    WRITE_REGISTER
     CALL    PLAY_OPENING_TUNE
+    CALL    DEAL_WITH_EXTRA_MR_DO
     LD      HL, 1
     XOR     A
     CALL    REQUEST_SIGNAL
@@ -6055,7 +6056,7 @@ LOC_A9F2:
     CALL    WRITE_REGISTER
     CALL    INITIALIZE_THE_SOUND
     CALL    PLAY_WIN_EXTRA_DO_TUNE
-    LD      HL, 180H
+    LD      HL, 300H
     XOR     A
     CALL    REQUEST_SIGNAL
     PUSH    AF
@@ -9168,9 +9169,9 @@ SOUND_TABLE:
     DW SOUND_BANK_01_RAM
     DW GAME_OVER_TUNE_P2
     DW SOUND_BANK_02_RAM
-    DW WIN_EXTRA_DO_TUNE_P1
+    DW NEW_WIN_EXTRA_DO_TUNE_P1
     DW SOUND_BANK_01_RAM
-    DW WIN_EXTRA_DO_TUNE_P2
+    DW NEW_WIN_EXTRA_DO_TUNE_P2
     DW SOUND_BANK_02_RAM
     DW END_OF_ROUND_TUNE_P1
     DW SOUND_BANK_01_RAM
@@ -9317,17 +9318,17 @@ END_OF_ROUND_TUNE_P1:
 END_OF_ROUND_TUNE_P2:
     ; HIGH NOTES
     ; C4 Middle
-    DB 064,213,096,007,099
+    DB 192,213,064,007,227 ;+3
     ; F4 
-    DB 064,160,096,007,099
+    DB 192,160,064,007,227 ;+3
     ; A4
-    DB 064,127,096,007,099
+    DB 192,127,064,007,227 ;+3
     ; C5
-    DB 064,106,096,010,106
+    DB 192,106,064,010,234 ;+10
     ; A4
-    DB 064,127,096,007,099
+    DB 192,127,064,007,227 ;+3
     ; C5
-    DB 064,106,096,030,099,080
+    DB 192,106,064,030,227,080 ;+3
 
 BLUE_CHOMPER_SOUND_0A:
     DB 065,255,115,004,020,017,104,088
@@ -9634,3 +9635,200 @@ NEW_BLUE_CHOMPER_SOUND_0B:
     DB 128,223,129,007,163
     ; E flat 10
     DB 128,103,129,007,163,152
+
+
+NEW_WIN_EXTRA_DO_TUNE_P1:
+    ; Long e x2
+    DB 064,169,096,010,106 ;20
+    DB 064,169,096,010,106 ;20
+    ; Short e
+    DB 064,169,096,007,099 ;10
+    ; Long f
+    DB 064,160,096,010,106 ;20
+    ; Short f#
+    DB 064,151,096,007,099 ;10
+    ; Very long g
+    DB 064,142,096,030,116 ;50
+
+    ; BEGIN 2
+
+    ; very short gf#g
+    DB 064,142,096,007,099 ;10
+    DB 064,151,096,007,099 ;10
+    DB 064,142,096,007,099 ;10
+
+    ;long a
+    DB 064,127,096,010,106 ;20
+    ;long a
+    DB 064,127,096,010,106 ;20
+    ;short a
+    DB 064,127,096,007,099 ;10
+    ;--------------------------------
+    ;long b
+    DB 064,113,096,010,106 ;20
+
+    ;short c
+    DB 064,106,096,007,099 ;10
+
+    ;very long e
+    DB 064,084,096,030,126 ;30
+
+    ;++++++++++++++++++++++++++++++++
+
+    ; BEGIN 3 (at end of long e)
+
+    ;20 pad (from above)
+
+    ; short f (plays over the c pad)
+    DB 064,80,096,007,099 ;10 
+
+    ; short e
+    DB 064,084,096,007,099 ;10
+
+    ; long D
+    DB 064,095,096,020,106 ;30
+
+    ; short a (over end of long f)
+    DB 064,127,096,007,099 ;10
+
+
+    ; e over 20 pad after long f
+    DB 064,084,096,007,099 ;10
+    ; d over 20 pad after long f
+    DB 064,095,096,007,099 ;10
+
+    ; (((((((())))))))
+
+    ; long c
+    DB 064,106,096,020,106 ;30
+
+    ; short g
+    DB 064,142,096,007,099 ;10
+
+    ; short f#
+    DB 064,151,096,007,099 ;10
+    
+    ; short g
+    DB 064,142,096,007,099 ;10
+
+    ; long a
+    DB 064,127,096,010,106 ;20
+
+    ;********************************
+    ; long a
+    DB 064,127,096,010,106 ;20
+    ; short b
+    DB 064,113,096,007,099 ;10
+    ; long a
+    DB 064,127,096,010,106 ;20
+    ; long g
+    DB 064,142,096,010,106 ;20
+
+    ; very long c
+    DB 064,106,096,030,106 ;40
+    ; short c
+    DB 064,106,096,010,080 ;10
+
+NEW_WIN_EXTRA_DO_TUNE_P2:
+    ; C
+    DB 128,171,113,007,163 ;10
+    ; G
+    DB 128,029,113,007,163 ;10
+    ; E
+    DB 128,083,113,007,163 ;10
+    ; G
+    DB 128,029,113,007,163 ;10
+
+    ; C
+    DB 128,171,113,007,163 ;10
+    ; G
+    DB 128,029,113,007,163 ;10
+    ; E
+    DB 128,083,113,007,163 ;10
+    ; G
+    DB 128,029,113,007,163 ;10
+
+    ; C
+    DB 128,171,113,007,163 ;10
+    ; G
+    DB 128,029,113,007,163 ;10
+    ; E
+    DB 128,083,113,007,163 ;10
+    ; G
+    DB 128,029,113,007,163 ;10
+
+    ; C
+    DB 128,171,113,007,163 ;10
+
+    ; BEGIN 2
+    ; G
+    DB 128,029,113,007,163 ;10
+    ; E
+    DB 128,083,113,007,163 ;10
+    ; G
+    DB 128,029,113,007,173 ;20
+
+    ; A (over second half of first long a)
+    DB 128,254,112,007,163 ;10
+    ; Short f (first half of second long a)
+    DB 128,064,113,007,163 ;10
+    ; A (over second half of second long a)
+    DB 128,254,112,007,173 ;20
+    ;--------------------------------
+
+    ; short a - long pause
+    DB 128,254,112,007,173 ;20
+
+    ; short a - short pause
+    DB 128,254,112,007,163 ;10
+
+    ; C
+    DB 128,171,113,010,170 ;20
+
+    ; C (up an octave)
+    DB 128,106,112,007,163 ;10
+
+    ;++++++++++++++++++++++++++++++++
+
+    ; BEGIN 3 (at end of C)
+
+    ; over first half of 20 pad
+    ; E
+    DB 128,083,113,007,163 ;10
+
+    ; over second half of 20 pad
+    ; C
+    DB 128,106,112,007,173 ;20
+
+    ; short c (over short e)
+    DB 128,106,112,007,163 ;10
+
+    ; very long f (over d and a)
+    DB 128,064,113,030,190 ;40 + 20 pad
+
+    ; (((((((())))))))
+
+    ; very long e
+    DB 128,083,113,030,200 ;40 + 30 pad
+
+    ; very short a
+    DB 128,254,112,007,163 ;10
+
+    ;********************************
+
+    ; short f#
+    DB 128,046,113,007,163 ;10
+    ; very short a
+    DB 128,254,112,007,163 ;10
+    ; very short e
+    DB 128,083,113,007,163 ;10
+
+    ; short g
+    DB 128,029,113,007,163 ;10
+    ; short f
+    DB 128,064,113,007,103 ;10 + 40 pad
+
+    ; short c
+    DB 128,171,113,010,170 ;20
+    ; short c
+    DB 128,171,113,010,144 ;10
