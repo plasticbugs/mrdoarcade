@@ -6056,7 +6056,7 @@ LOC_A9F2:
     CALL    WRITE_REGISTER
     CALL    INITIALIZE_THE_SOUND
     CALL    PLAY_WIN_EXTRA_DO_TUNE
-    LD      HL, 300H
+    LD      HL, 280H
     XOR     A
     CALL    REQUEST_SIGNAL
     PUSH    AF
@@ -9689,7 +9689,7 @@ NEW_WIN_EXTRA_DO_TUNE_P1:
     DB 064,095,096,020,106 ;30
 
     ; short a (over end of long f)
-    DB 064,127,096,007,099 ;10
+    DB 064,127,080,007,109 ;10
 
 
     ; e over 20 pad after long f
@@ -9703,7 +9703,7 @@ NEW_WIN_EXTRA_DO_TUNE_P1:
     DB 064,106,096,020,106 ;30
 
     ; short g
-    DB 064,142,096,007,099 ;10
+    DB 064,142,064,010,106 ;20
 
     ; short f#
     DB 064,151,096,007,099 ;10
@@ -9721,11 +9721,15 @@ NEW_WIN_EXTRA_DO_TUNE_P1:
     DB 064,113,096,007,099 ;10
     ; long a
     DB 064,127,096,010,106 ;20
-    ; long g
-    DB 064,142,096,010,106 ;20
+
+
+
+
+    ; short g
+    DB 064,142,096,007,099 ;10
 
     ; very long c
-    DB 064,106,096,030,106 ;40
+    DB 064,106,096,020,106 ;30
     ; short c
     DB 064,106,096,010,080 ;10
 
@@ -9804,12 +9808,12 @@ NEW_WIN_EXTRA_DO_TUNE_P2:
     DB 128,106,112,007,163 ;10
 
     ; very long f (over d and a)
-    DB 128,064,113,030,190 ;40 + 20 pad
+    DB 128,064,113,050,190 ;40 + 20 pad
 
     ; (((((((())))))))
 
     ; very long e
-    DB 128,083,113,030,200 ;40 + 30 pad
+    DB 128,083,113,050,190 ;50 + 30 pad
 
     ; very short a
     DB 128,254,112,007,163 ;10
@@ -9826,7 +9830,11 @@ NEW_WIN_EXTRA_DO_TUNE_P2:
     ; short g
     DB 128,029,113,007,163 ;10
     ; short f
-    DB 128,064,113,007,103 ;10 + 40 pad
+    DB 128,064,113,007,163 ;10
+
+
+    ; complementary G
+    DB 128,029,113,007,173 ;20
 
     ; short c
     DB 128,171,113,010,170 ;20
