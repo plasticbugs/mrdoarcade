@@ -110,7 +110,7 @@ CPU Z80
 
 	ORG $8000
 
-    DW COLECO_TITLE_ON         ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+    DW COLECO_TITLE_OFF         ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
     DW SPRITE_NAME_TABLE
     DW SPRITE_ORDER_TABLE
     DW WORK_BUFFER
@@ -9671,26 +9671,33 @@ NEW_WIN_EXTRA_DO_TUNE_P1:
     DB 064,106,096,007,099 ;10
 
     ;very long e
-    DB 064,084,096,030,126 ;30
-
+    DB 064,084,096,030,106 ;30 + 10 pad
     ;++++++++++++++++++++++++++++++++
 
     ; BEGIN 3 (at end of long e)
 
-    ;20 pad (from above)
+    DB 116 ; 20 pad
+
+
+
+
+
 
     ; short f (plays over the c pad)
     DB 064,80,096,007,099 ;10 
 
     ; short e
     DB 064,084,096,007,099 ;10
+  
+
+
 
     ; long D
     DB 064,095,096,020,106 ;30
 
+    
     ; short a (over end of long f)
-    DB 064,127,080,007,109 ;10
-
+    DB 064,127,080,010,106 ;20
 
     ; e over 20 pad after long f
     DB 064,084,096,007,099 ;10
@@ -9723,13 +9730,11 @@ NEW_WIN_EXTRA_DO_TUNE_P1:
     DB 064,127,096,010,106 ;20
 
 
-
-
     ; short g
     DB 064,142,096,007,099 ;10
 
     ; very long c
-    DB 064,106,096,020,106 ;30
+    DB 064,106,096,030,116 ;50
     ; short c
     DB 064,106,096,010,080 ;10
 
@@ -9790,9 +9795,11 @@ NEW_WIN_EXTRA_DO_TUNE_P2:
     DB 128,171,113,010,170 ;20
 
     ; C (up an octave)
-    DB 128,106,112,007,163 ;10
-
+    DB 128,106,112,010,170 ;20
+ 
     ;++++++++++++++++++++++++++++++++
+
+
 
     ; BEGIN 3 (at end of C)
 
@@ -9804,11 +9811,16 @@ NEW_WIN_EXTRA_DO_TUNE_P2:
     ; C
     DB 128,106,112,007,173 ;20
 
+
     ; short c (over short e)
     DB 128,106,112,007,163 ;10
 
+
+
+
     ; very long f (over d and a)
-    DB 128,064,113,050,190 ;40 + 20 pad
+    DB 128,064,113,050,180 ;50 + 20 pad
+
 
     ; (((((((())))))))
 
@@ -9834,7 +9846,7 @@ NEW_WIN_EXTRA_DO_TUNE_P2:
 
 
     ; complementary G
-    DB 128,029,113,007,173 ;20
+    DB 128,029,113,010,190 ;40
 
     ; short c
     DB 128,171,113,010,170 ;20
