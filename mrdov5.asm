@@ -117,7 +117,7 @@ CPU Z80
 
 	ORG $8000
 
-    DW COLECO_TITLE_OFF         ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+    DW COLECO_TITLE_ON         ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
     DW SPRITE_NAME_TABLE
     DW SPRITE_ORDER_TABLE
     DW WORK_BUFFER
@@ -1209,7 +1209,7 @@ SUB_87F4:
     LD      BC, 1E2H
     CALL    WRITE_REGISTER
     CALL    PLAY_OPENING_TUNE
-    CALL    DEAL_WITH_EXTRA_MR_DO
+    CALL    SUB_A99C
     LD      HL, 1
     XOR     A
     CALL    REQUEST_SIGNAL
@@ -6017,30 +6017,108 @@ LOC_A992:
     POP     AF
 RET
 
-SUB_A99C:
+RESTORE_GAME_GRAPHICS:
+    ; First restore VDP to Mode 1
+    LD      BC, 0000h    ; R0: Mode 1 base
+    CALL    WRITE_REGISTER
+    LD      BC, 01C2h    ; R1: 16K, sprites enabled, display on
+    CALL    WRITE_REGISTER
+    CALL    WAIT_VBLANK
+
+    ; Restore initial patterns
+    LD      IX, VARIOUTS_PATTERNS
+.pattern_loop:
+    LD      A, (IX+0)
+    AND     A
+    JR      Z, .restore_fonts
+    LD      B, 0
+    LD      C, A
+    PUSH    BC
+    POP     IY
+    LD      D, 0
+    LD      E, (IX+1)
+    LD      L, (IX+2)
+    LD      H, (IX+3)
+    LD      A, 3
+    PUSH    IX
+    CALL    PUT_VRAM
+    POP     IX
+    LD      BC, 4
+    ADD     IX, BC
+    JR      .pattern_loop
+
+.restore_fonts:
+    CALL    WAIT_VBLANK
+    ; Restore fonts
+    LD      HL, (NUMBER_TABLE)
+    LD      DE, 0D8H
+    LD      IY, 0AH
+    LD      A, 3
+    CALL    PUT_VRAM
+
+    CALL    WAIT_VBLANK
+    LD      HL, (ASCII_TABLE)
+    LD      DE, 0E2H
+    LD      IY, 1AH
+    LD      A, 3
+    CALL    PUT_VRAM
+
+    CALL    WAIT_VBLANK
+    ; Restore sprites
+    LD      HL, EXTRA_SPRITE_PAT
+    LD      DE, 60H
+    LD      IY, 40H
+    LD      A, 1
+    CALL    PUT_VRAM
+
+    CALL    WAIT_VBLANK
+    LD      HL, BALL_SPRITE_PAT
+    LD      DE, 0C0H
+    LD      IY, 18H
+    LD      A, 1
+    CALL    PUT_VRAM
+
+    CALL    WAIT_VBLANK
+    ; Restore colors
+    LD      HL, PHASE_01_COLORS
+    LD      DE, 0
+    LD      IY, 20H
+    LD      A, 4
+    CALL    PUT_VRAM
+
+    ; Final VDP settings
+    LD      BC, 700H     ; R7: Border color
+    CALL    WRITE_REGISTER
+    LD      BC, 1E2H     ; Game state register
+    CALL    WRITE_REGISTER
+    RET
+
+SUB_A99C: ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
     LD      HL, $726E
     SET     7, (HL)
 LOC_A9A1:
     BIT     7, (HL)
     JR      NZ, LOC_A9A1
-    LD      HL, 1000H
-    LD      DE, 300H
-    LD      A, 0
-    CALL    FILL_VRAM
-    LD      HL, 1900H
-    LD      DE, 80H
-    LD      A, 0
-    CALL    FILL_VRAM
-    LD      HL, SPRITE_NAME_TABLE
-    LD      B, 50H
-LOC_A9C0:
-    LD      (HL), 0
-    INC     HL
-    DJNZ    LOC_A9C0
-    LD      A, 6
-    CALL    DEAL_WITH_PLAYFIELD
-    LD      BC, 70CH
-    CALL    WRITE_REGISTER
+    CALL    DISPLAY_BITMAP
+
+;     LD      HL, 1000H ; Pattern generator table
+;     LD      DE, 300H  ; 768 characters
+;     LD      A, 0 ; fill with 0s
+;     CALL    FILL_VRAM
+;     LD      HL, 1900H ; 
+;     LD      DE, 80H ; 128 characters
+;     LD      A, 0 ; fill with 0s
+;     CALL    FILL_VRAM
+;     LD      HL, SPRITE_NAME_TABLE
+;     LD      B, 50H
+; LOC_A9C0:
+;     LD      (HL), 0
+;     INC     HL
+;     DJNZ    LOC_A9C0
+;     LD      A, 6
+;     CALL    DEAL_WITH_PLAYFIELD
+;     LD      BC, 70CH
+;     CALL    WRITE_REGISTER
     XOR     A
     LD      ($72BC), A
     LD      ($72BB), A
@@ -6063,7 +6141,6 @@ LOC_A9F2:
     CALL    WRITE_REGISTER
     CALL    INITIALIZE_THE_SOUND
     CALL    PLAY_WIN_EXTRA_DO_TUNE
-    CALL    DISPLAY_BITMAP
     LD      HL, 280H
     XOR     A
     CALL    REQUEST_SIGNAL
@@ -6075,15 +6152,20 @@ LOC_AA06:
     AND     A
     JR      Z, LOC_AA06
     POP     AF
+
+    CALL    INIT_VRAM
     LD      HL, $726E
     SET     7, (HL)
 LOC_AA14:
     BIT     7, (HL)
     JR      NZ, LOC_AA14
-    LD      BC, 700H
+
+    ; Original code's final register writes
+    LD      BC, 700H         ; R7: Border/background color
     CALL    WRITE_REGISTER
-    LD      BC, 1E2H
+    LD      BC, 1E2H         ; Original game state register
     CALL    WRITE_REGISTER
+
 RET
 
 SUB_AA25:
@@ -8409,7 +8491,7 @@ GET_READY_P1_GEN:
 	DB 232,230,245,000,243,230,226,229,250,000,241,237,226,250,230,243,000,217,255
 GET_READY_P2_GEN:
 	DB 232,230,245,000,243,230,226,229,250,000,241,237,226,250,230,243,000,218,255
-WIN_EXTRA_GEN:
+WIN_EXTRA_GEN: ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT
 	DB 228,240,239,232,243,226,245,246,237,226,245,234,240,239,244,000,253,001,255,254,076,250,240,246,000,248
 	DB 234,239,000,226,239,000,230,249,245,243,226,000,238,243,253,001,254,000,229,240,000,253,001,255,255
 GAME_OVER_P1_GEN:
@@ -9929,6 +10011,34 @@ SETRD:
     EI
     RET
 
+
+WAIT_VBLANK:
+    PUSH    AF
+.wait1:
+    IN      A, (CTRL_PORT)    ; Wait for start of VBLANK
+    AND     80H
+    JR      Z, .wait1
+.wait2:
+    IN      A, (CTRL_PORT)    ; Wait for end of VBLANK
+    AND     80H
+    JR      NZ, .wait2        ; This ensures we catch the full period
+    POP     AF
+    RET
+
+DISABLE_NMI:
+	ld      a,(073c4h)
+	and     0dfh
+DNMI1:
+	ld      c,a
+	ld      b,1
+	jp      01fd9h
+
+ENABLE_NMI:
+	ld      a,(073c4h)
+	or      020h
+	call    DNMI1
+	jp      01fdch
+
 ; Setup Screen 2,2
 SETSCREEN2:
 ;    CALL MODE_1
@@ -9955,7 +10065,7 @@ DISPLAY_BITMAP:
 
     ; Decompress and load bitmap data
     LD HL, TILESET_1_PAT_RL  ; Start of compressed bitmap data
-    LD DE, VRAM_PATTERN                       ; VRAM starting address
+    LD DE, VRAM_PATTERN
     CALL RLE_TO_VRAM
 
     LD HL, TILESET_2_PAT_RL
@@ -9968,7 +10078,7 @@ DISPLAY_BITMAP:
 
     ; Decompress and load color data
     LD HL, TILESET_1_COL_RL
-    LD DE, VRAM_COLOR              ; VRAM starting address for color data
+    LD DE, VRAM_COLOR
     CALL RLE_TO_VRAM
 
     LD HL, TILESET_2_COL_RL
@@ -9982,6 +10092,7 @@ DISPLAY_BITMAP:
     LD HL, SL__RL
     LD DE, VRAM_NAME
     CALL RLE_TO_VRAM
+
     RET
 
 
