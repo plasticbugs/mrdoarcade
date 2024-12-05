@@ -7949,7 +7949,7 @@ BYTE_B70B:
     DB 052,004,056,004,060,004,064,004,068,004,072,004,076,004,080,004,084,004,088,004,092,004,148,013    ; Digger sprite color (Dark Blue), last one defines enemy splat color
 
 BYTE_B757:
-    DB 000,000,136,008,140,008,144,008,152,015    ; Series using Medium Red, ending in White
+    DB 000,000,136,009,140,009,144,009,152,015    ; Series using Medium Red, ending in White
 
 BYTE_B761:
     DB 000,000,224,005,228,005,232,005,236,005,148,005    ; Series using Light Blue
