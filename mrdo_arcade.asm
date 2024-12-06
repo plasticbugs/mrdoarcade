@@ -666,7 +666,7 @@ LOC_83CB:
     JR      Z, LOC_8372
     JR      LOC_8375
 
-SUB_83D4:
+SUB_83D4: ; Initialize the game
     CALL    GET_GAME_OPTIONS
     CALL    INIT_VRAM
     XOR     A
@@ -795,7 +795,7 @@ LOAD_GRAPHICS:
     CALL    WRITE_REGISTER
 RET
 
-SUB_84F8:
+SUB_84F8:    ; Disables NMI, sets up the game
     PUSH    AF
     LD      HL, $726E
     SET     7, (HL)
@@ -818,11 +818,11 @@ LOC_8515:
     CALL    SUB_87F4
 RET
 
-SUB_851C:
+SUB_851C:   ; If we're here, the game just started
     LD      HL, 0
     LD      (SCORE_P1_RAM), HL
     LD      (SCORE_P2_RAM), HL
-    LD      A, 1
+    LD      A, 1    ; Set the starting level to 1
     LD      (CURRENT_LEVEL_RAM), A
     LD      ($7275), A
     XOR     A
@@ -830,9 +830,9 @@ SUB_851C:
     LD      ($727B), A
     LD      A, ($7271)
     CP      2
-    LD      A, 3
+    LD      A, 3        ; Set the number of lives to 3
     JR      NC, LOC_853F
-    LD      A, 5
+    LD      A, 5        ; Set the number of lives to 5
 LOC_853F:
     LD      (LIVES_LEFT_P1_RAM), A
     LD      (LIVES_LEFT_P2_RAM), A
@@ -1195,17 +1195,17 @@ MR_DO_UPPER:
 MR_DO_LOWER:
     DB 121
 
-SUB_87F4:
+SUB_87F4:   ; Start the level
     LD      IY, $7281
     XOR     A
     LD      (IY+6), A
     LD      (IY+7), A
     LD      A, 1
-    LD      (IY+1), A
+    LD      (IY+1), A       ; Set Mr. Do's starting direction
     LD      (IY+5), A
-    LD      (IY+3), 0B0H
-    LD      (IY+4), 78H
-    LD      (IY+0), 0C0H
+    LD      (IY+3), 0B0H    ; Set Mr. Do's starting Y coordinate
+    LD      (IY+4), 78H     ; Set Mr. Do's starting X coordinate
+    LD      (IY+0), 0C0H 
     LD      BC, 1E2H
     CALL    WRITE_REGISTER
     CALL    PLAY_OPENING_TUNE
@@ -1699,7 +1699,7 @@ SUB_8BB1:
     POP     BC
 RET
 
-SUB_8BC0:
+SUB_8BC0:   ; Mr. Do interesecting with a falling apple
     LD      A, ($7284)
     LD      D, A
     BIT     7, (IY+4)
@@ -1728,7 +1728,7 @@ LOC_8BF4:
     AND     A
 RET
 
-SUB_8BF6:
+SUB_8BF6:   ; Falling apple
     LD      A, ($72BA)
     LD      B, A
     LD      A, 1
@@ -1765,7 +1765,7 @@ LOC_8C38:
     AND     A
 RET
 
-SUB_8C3A:
+SUB_8C3A:   ; Falling apple
     LD      B, 7
     LD      IX, $728E
 LOC_8C40:
@@ -1810,7 +1810,7 @@ LOC_8C8D:
     DJNZ    LOC_8C40
 RET
 
-SUB_8C96:
+SUB_8C96:   ; Falling apple
     LD      B, 3
     LD      IX, $72C7
 LOC_8C9C:
@@ -1866,7 +1866,7 @@ LOC_8CF5:
     DJNZ    LOC_8C9C
 RET
 
-SUB_8CFE:
+SUB_8CFE:   ; Check if Mr. Do is intersecting with a falling apple
     PUSH    BC
     LD      C, 1
     LD      A, (IY+1)
@@ -2012,7 +2012,7 @@ LOC_8E05:
     AND     A
 RET
 
-SUB_8E10:
+SUB_8E10:   ; Falling apple logic
     CALL    SUB_8E48
     JR      Z, LOC_8E46
     LD      E, A
@@ -2820,7 +2820,7 @@ SUB_93B6:
     LD      (IY+3), A
 RET
 
-SUB_93CE:
+SUB_93CE:  ; Ball intersecting with sprite
     LD      A, (IY+5)
     ADD     A, 2
     LD      B, (IY+1)
@@ -2833,7 +2833,7 @@ SUB_93CE:
     LD      IX, $7281
     LD      B, (IX+3)
     LD      C, (IX+4)
-LOC_93ED:
+LOC_93ED: 
     LD      D, A
     LD      A, 4
     CALL    SUB_B629
@@ -2856,7 +2856,7 @@ LOC_9409:
     CP      4
     JR      C, LOC_9421
     LD      A, 4
-LOC_9421:
+LOC_9421:  ; Ball intersects with sprite
     ADD     A, A
     LD      E, A
     LD      D, 0
@@ -2889,7 +2889,7 @@ LEADS_TO_CHERRY_STUFF:
     XOR     A
     JR      LOCRET_94A8
 LOC_9463:
-    LD      IY, $7281
+    LD      IY, $7281  ; IY points to Mr. Do's sprite data
     LD      A, (IY+2)
     CALL    TEST_SIGNAL
     AND     A
@@ -2907,7 +2907,7 @@ LOC_9481:
     JR      LOC_9491
 LOC_9483:
     LD      (IY+1), A
-    CALL    SUB_95A1
+    CALL    SUB_95A1     ; Mr. Do sprite intersection logic
 LOC_9489:
     PUSH    AF
     CALL    DEAL_WITH_CHERRIES
@@ -3062,8 +3062,8 @@ LOC_9593:
     RES     6, (IY+0)
 RET
 
-SUB_95A1:
-    CALL    SUB_961F
+SUB_95A1:  ; Mr. Do Sprite intersection logic
+    CALL    SUB_961F  ; Mr. Do's sprite collision logic with the screen bounds
     AND     A
     JP      NZ, LOC_961C
     PUSH    BC
@@ -3075,7 +3075,7 @@ SUB_95A1:
     JR      NC, LOC_95CE
     LD      D, A
     LD      A, 1
-    CALL    SUB_AEE1
+    CALL    SUB_AEE1 ; Mr do is pushing an apple
     BIT     0, A
     JR      Z, LOC_95C8
     SET     5, (IY+0)
@@ -3083,9 +3083,9 @@ LOC_95C8:
     CP      2
     JR      NC, LOC_9617
     JR      LOC_95D5
-LOC_95CE:
+LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
     LD      D, A
-    CALL    SUB_B12D
+    CALL    SUB_B12D ; Returns A=0 if no collision, A=1 if collision
     AND     A
     JR      NZ, LOC_9617
 LOC_95D5:
@@ -3131,12 +3131,12 @@ LOC_961C:
 LOCRET_961E:
 RET
 
-SUB_961F:
+SUB_961F:  ; Mr. Do's sprite collision logic with the screen bounds
     LD      (IY+1), A
     LD      B, (IY+3)
     LD      C, (IY+4)
-    CP      3
-    JR      NC, LOC_964B
+    CP      3       ; Check if Mr. Do is facing up or down
+    JR      NC, LOC_964B  ; If facing up or down, jump to LOC_964B
     LD      A, B
     AND     0FH
     JR      NZ, LOC_966D
@@ -3179,7 +3179,7 @@ LOC_9661:
 LOC_966A:
     XOR     A
     JR      LOCRET_966F
-LOC_966D:
+LOC_966D: ; Mr. Do has collided with the bounds of the screen
     LD      A, 1
 LOCRET_966F:
 RET
@@ -4265,7 +4265,7 @@ LOC_9E17:
     SET     3, (IY+4)
     JR      LOC_9E3B
 LOC_9E31:
-    CALL    SUB_B12D
+    CALL    SUB_B12D    ; Returns A=1 if vertical apple collision
     LD      L, 0
     AND     A
     JR      Z, LOC_9E3B
@@ -6784,7 +6784,7 @@ LOC_AEDD:
 LOCRET_AEE0:
 RET
 
-SUB_AEE1:
+SUB_AEE1:   ; Apple Pushing/Intersection logic
     PUSH    AF
     LD      H, 0
 LOC_AEE4:
@@ -6930,7 +6930,7 @@ LOC_AFD0:
 LOC_AFD2:
     LD      E, 3
     JP      LOC_B063
-LOC_AFD7:
+LOC_AFD7:   ; BADGUY PUshes APPLE
     LD      A, ($7284)
     SUB     0CH
     CP      B
@@ -7012,7 +7012,7 @@ LOC_B050:
     POP     DE
     DEC     E
     JR      NZ, LOC_B00F
-LOC_B05A:
+LOC_B05A:   ; Mr. Do pushing an apple from the bottom
     DEC     H
     JR      NZ, LOC_AFFC
     LD      E, 1
@@ -7141,11 +7141,11 @@ LOC_B128:
     AND     A
 RET
 
-SUB_B12D:
-    LD      IX, $722C
-    LD      E, 5
+SUB_B12D: ; Mr. Do sprite intersection with apples from above and below
+    LD      IX, $722C   ; IX points to the first apple's sprite data
+    LD      E, 5        ; Number of apples to check
 LOC_B133:
-    BIT     7, (IX+0)
+    BIT     7, (IX+0)   ; Check if the apple is active
     JR      Z, LOC_B163
     LD      A, B
     BIT     1, D
@@ -7800,8 +7800,8 @@ RET
 BYTE_B5D4:
 	DB 125,114,036,000,127,114,068,000,000
 
-SUB_B5DD:
-    LD      A, B
+SUB_B5DD:   ; Ball collision detection
+    LD      A, B 
     SUB     7
     CP      (IY+1)
     JR      NC, LOC_B5FF
@@ -7946,10 +7946,10 @@ BYTE_B6FB:
 BYTE_B70B:
     DB 000,000,000,008,004,008,008,008,012,008,016,008,020,008,024,008,028,008,032,008,036,008,040,008,044,008    ; Badguy sprite color (Red)
     DB 000,007,004,007,008,007,012,007,016,007,020,007,024,007,028,007,032,007,036,007,040,007,044,007,048,015    ; Series using Cyan, ending in White
-    DB 052,004,056,004,060,004,064,004,068,004,072,004,076,004,080,004,084,004,088,004,092,004,148,013    ; Digger sprite color (Dark Blue), last one defines enemy splat color
+    DB 052,005,056,005,060,005,064,005,068,005,072,005,076,005,080,005,084,005,088,005,092,005,148,013    ; Digger sprite color (Light Blue), last one defines enemy splat color
 
 BYTE_B757:
-    DB 000,000,136,009,140,009,144,009,152,015    ; Series using Medium Red, ending in White
+    DB 000,000,136,008,140,008,144,008,152,015    ; Apple Sprite colors (Medium Red), ending in White
 
 BYTE_B761:
     DB 000,000,224,005,228,005,232,005,236,005,148,005    ; Series using Light Blue
