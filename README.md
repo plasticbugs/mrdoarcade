@@ -8,7 +8,7 @@ Changes:
 - Lose a life jingle
 - End of round jingle
 - "Extra" letter mode/chomper jingle
-- Updated sprite for the chompers (improved sprite from TIX@AtariAge)
+- Updated sprites (created by TIX@AtariAge)
 - Screen stays red for "Extra" letter/chomper mode
 - Extra Mr. Do image - currently a very rough temporary placeholder image until I figure out how to properly display an image without it being garbled
  
@@ -23,3 +23,4 @@ Wish list/To do list:
 - Two-color Mr. Do sprite 
 - Update EXTRA enemy sprites
 - Arcade Title screen
+- Fix final two notes in the "game over" tune
