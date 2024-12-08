@@ -3087,7 +3087,23 @@ LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
     LD      D, A
     CALL    SUB_B12D ; Returns A=0 if no collision, A=1 if collision
     AND     A
-    JR      NZ, LOC_9617
+    JR      Z, LOC_95D5
+
+    POP     BC
+    ; Back up 4 pixels based on direction
+    LD      A, D        ; Get direction
+    CP      3           ; Moving up?
+    JR      Z, BACKUP_DOWN
+    ; Moving down, so back up
+    LD      A, (IY+3)
+    SUB     4
+    LD      (IY+3), A
+    JP      LOC_961C
+BACKUP_DOWN:
+    LD      A, (IY+3)
+    ADD     A, 4
+    LD      (IY+3), A
+    JP      LOC_961C
 LOC_95D5:
     POP     BC
     LD      (IY+3), B
@@ -7165,7 +7181,7 @@ LOC_B149:
     JR      NC, LOC_B163
 LOC_B156:
     LD      A, (IX+2)
-    ADD     A, 9
+    ADD     A, 9          
     CP      C
     JR      C, LOC_B163
     SUB     12H
