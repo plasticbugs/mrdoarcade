@@ -3088,22 +3088,8 @@ LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
     CALL    SUB_B12D ; Returns A=0 if no collision, A=1 if collision
     AND     A
     JR      Z, LOC_95D5
-
     POP     BC
-;     ; Back up 4 pixels based on direction
-;     LD      A, D        ; Get direction
-;     CP      3           ; Moving up?
-;     JR      Z, BACKUP_DOWN
-;     ; Moving down, so back up
-;     LD      A, (IY+3)
-;     SUB     4
-;     LD      (IY+3), A
-;     JP      LOC_961C
-; BACKUP_DOWN:
-;     LD      A, (IY+3)
-;     ADD     A, 4
-;     LD      (IY+3), A
-    JP      LOC_961C
+    JP      LOC_961C ; Treat as a "wall" collision
 LOC_95D5:
     POP     BC
     LD      (IY+3), B
@@ -7160,11 +7146,13 @@ RET
 SUB_B12D: ; Mr. Do sprite intersection with apples from above and below
     LD      IX, $722C   ; IX points to the first apple's sprite data
     LD      E, 5        ; Number of apples to check
-
+    ; Modified to offset the value used to detect a vertical collision
+    ; with an apple so that Mr. Do doesn't get stuck in the apple from
+    ; above or below.
     LD      A, (IY+3)   ; Get Y position of Mr. Do
     BIT     1, D         ; Check if moving down
     JR      Z, CHECK_UP
-    SUB     4          ; Moving down, so sub 4 to Y position
+    SUB     4          ; Moving down, so sub 4 from Y position
     JR      START_CHECK
 CHECK_UP:
     ADD     A, 4           ; Moving up, so add 4 to Y position
