@@ -3217,7 +3217,7 @@ GRAB_SOME_CHERRIES:
     CP      8
     JR      C, LOC_96D5
     LD      (IY+7), 0
-    LD      DE, 32H
+    LD      DE, 2DH ; final cherry scores 500 not 550
     CALL    SUB_B601
     RES     1, (IY+0)
     JR      LOCRET_96E3
