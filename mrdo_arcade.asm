@@ -10086,17 +10086,25 @@ cvb_EXTRASCREEN:
 	CALL MYDISSCR
 	CALL cvb_MYCLS
 
-	LD	HL,0
-	PUSH HL
-	LD A,204
-	LD HL,cvb_IMAGE_CHAR
-	CALL define_char_unpack				; 	DEFINE CHAR PLETTER 0,204,image_char
+;	LD	HL,0
+;	PUSH HL
+;	LD A,204
+;	LD HL,cvb_IMAGE_CHAR
+;	CALL define_char_unpack				; 	DEFINE CHAR PLETTER 0,204,image_char
+;
+;	LD	HL,0
+;	PUSH HL
+;	LD A,204
+;	LD HL,cvb_IMAGE_COLOR
+;	CALL define_color_unpack			; 	DEFINE COLOR PLETTER 0,204,image_color
 
-	LD	HL,0
-	PUSH HL
-	LD A,204
+	LD DE,$0000
+	LD HL,cvb_IMAGE_CHAR
+	CALL unpack			
+
+	LD DE,$2000
 	LD HL,cvb_IMAGE_COLOR
-	CALL define_color_unpack			; 	DEFINE COLOR PLETTER 0,204,image_color
+	CALL unpack			
 
 	LD DE,$3800
 	LD HL,cvb_IMAGE_SPRITES
@@ -10198,7 +10206,8 @@ MYMODE1:
 	ld hl,mode
 	res 3,(hl)
 	ld bc,$0200
-	ld de,$ff03	; $2000 for color table, $0000 for bitmaps.
+;	ld de,$ff03	; $2000 for color table, $0000 for bitmaps.
+	ld de,$9F00	; $2000 for color table, $0000 for bitmaps.
 	jp vdp_chg_mode
 
 MYMODE2:
@@ -10287,43 +10296,43 @@ MYWRTVRM:
 	ret
 
 
-define_char_unpack:
-	ex de,hl
-	pop af
-	pop hl
-	push af
-	add hl,hl	; x2
-	add hl,hl	; x4
-	add hl,hl	; x8
-	ex de,hl
-	ld a,(mode)
-	and 8
-	jp z,unpack3
-	jp unpack
-
-define_color_unpack:
-	ex de,hl
-	pop af
-	pop hl
-	push af
-	add hl,hl	; x2
-	add hl,hl	; x4
-	add hl,hl	; x8
-	ex de,hl
-	set 5,d
-unpack3:
-	CALL .1
-	CALL .1
-.1:
-	push de
-	push hl
-	CALL unpack
-	pop hl
-	pop de
-	ld a,d
-	add a,8	
-	ld d,a
-	ret
+;define_char_unpack:
+;	ex de,hl
+;	pop af
+;	pop hl
+;	push af
+;	add hl,hl	; x2
+;	add hl,hl	; x4
+;	add hl,hl	; x8
+;	ex de,hl
+;	ld a,(mode)
+;	and 8
+;	jp z,unpack3
+;	jp unpack
+;
+;define_color_unpack:
+;	ex de,hl
+;	pop af
+;	pop hl
+;	push af
+;	add hl,hl	; x2
+;	add hl,hl	; x4
+;	add hl,hl	; x8
+;	ex de,hl
+;	set 5,d
+;unpack3:
+;	CALL .1
+;	CALL .1
+;.1:
+;	push de
+;	push hl
+;	CALL unpack
+;	pop hl
+;	pop de
+;	ld a,d
+;	add a,8	
+;	ld d,a
+;	ret
 
         ;
         ; Pletter-0.5c decompressor (XL2S Entertainment & Team Bomba)
