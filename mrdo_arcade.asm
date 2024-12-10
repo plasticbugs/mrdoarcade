@@ -13,7 +13,7 @@
 ASCII_TABLE:        EQU $006A
 NUMBER_TABLE:       EQU $006C
 PLAY_SONGS:         EQU $1F61
-GAME_OPT:           EQU $1F7C
+
 FILL_VRAM:          EQU $1F82
 INIT_TABLE:         EQU $1FB8
 PUT_VRAM:           EQU $1FBE
@@ -103,8 +103,11 @@ SPRITE_NAME_TABLE:  	RB 	80	;EQU $70E9	; SAT
 
 BADGUY_BHVR_CNT_RAM:	RB   1	;EQU $7139 ; HOW MANY BYTES IN TABLE
 BADGUY_BEHAVIOR_RAM:	RB  28	;EQU $713A ; BEHAVIOR TABLE. UP TO 28 ELEMENTS
-						RB 285	; ?? 
-								;EQU $726E ; NMI-ISR CONTROL BYTE (!!)
+						RB 280	; ?? 
+GAMECONTROL:			RB   1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players
+						RB   2  ; ??
+SKILLLEVEL:				RB   1	;EQU $7271 ; Skill Level 1-4
+						RB   1	; ??
 DIAMOND_RAM:        	RB   1	;EQU $7273
 CURRENT_LEVEL_RAM:  	RB   2	;EQU $7274
 LIVES_LEFT_P1_RAM:  	RB   1	;EQU $7276
@@ -183,7 +186,7 @@ NMI:
     LD      DE, $7307
     LD      BC, 18H
     LDIR
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     BIT     5, (HL)
     JR      Z, LOC_807E
     BIT     4, (HL)
@@ -193,7 +196,7 @@ NMI:
     CALL    SUB_8107
     JR      LOC_809F
 LOC_807E:
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     3, A
     JR      NZ, LOC_808D
     LD      A, 14H
@@ -213,7 +216,7 @@ LOC_809F:
     LD      DE, WORK_BUFFER
     LD      BC, 18H
     LDIR
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     BIT     7, (HL)
     JR      Z, LOC_80BB
     RES     7, (HL)
@@ -495,7 +498,7 @@ LOC_8282:
     AND     (HL)
     LD      ($72BC), A
     INC     HL
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, ($72B8)
     JR      Z, LOC_8297
@@ -545,7 +548,7 @@ SUB_82DE:
     BIT     0, (HL)
     JR      Z, LOC_8305
     RES     0, (HL)
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
     JR      Z, LOC_82F4
@@ -681,37 +684,11 @@ LOC_83CB:
     JR      LOC_8375
 
 SUB_83D4: ; Initialize the game
-    CALL    GET_GAME_OPTIONS
 	call 	cvb_ANIMATEDLOGO
     CALL    INIT_VRAM
     XOR     A
 	RET
 
-GET_GAME_OPTIONS:
-    CALL    GAME_OPT
-LOC_83DF:
-    CALL    POLLER
-    LD      A, (KEYBOARD_P1)
-    AND     A
-    JR      Z, LOC_83EC
-    CP      9
-    JR      C, LOC_83F6
-LOC_83EC:
-    LD      A, (KEYBOARD_P2)
-    AND     A
-    JR      Z, LOC_83DF
-    CP      9
-    JR      NC, LOC_83DF
-LOC_83F6:
-    LD      HL, $726E
-    RES     0, (HL)
-    CP      5
-    JR      C, LOC_8403
-    SET     0, (HL)
-    SUB     4
-LOC_8403:
-    LD      ($7271), A
-RET
 
 INIT_VRAM:
     LD      BC, 0
@@ -813,7 +790,7 @@ RET
 
 SUB_84F8:    ; Disables NMI, sets up the game
     PUSH    AF
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_84FE:
     BIT     7, (HL)
@@ -844,7 +821,7 @@ SUB_851C:   ; If we're here, the game just started
     XOR     A
     LD      ($727A), A
     LD      ($727B), A
-    LD      A, ($7271)
+    LD      A, (SKILLLEVEL)
     CP      2
     LD      A, 3        ; Set the number of lives to 3
     JR      NC, LOC_853F
@@ -852,9 +829,9 @@ SUB_851C:   ; If we're here, the game just started
 LOC_853F:
     LD      (LIVES_LEFT_P1_RAM), A
     LD      (LIVES_LEFT_P2_RAM), A
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     1
-    LD      ($726E), A
+    LD      (GAMECONTROL), A
     LD      A, 1
     CALL    SUB_B286
     LD      HL, $718A
@@ -886,10 +863,10 @@ SUB_8585:
     LD      ($72DD), A
     LD      ($7272), A
     LD      (DIAMOND_RAM), A
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     RES     6, (HL)
     LD      DE, 3400H
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     JR      Z, LOC_85A4
     LD      DE, 3600H
@@ -905,7 +882,7 @@ LOC_85B6:
     LD      (HL), A
     INC     HL
     DJNZ    LOC_85B6
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
     JR      Z, LOC_85C7
@@ -935,7 +912,7 @@ DEAL_WITH_BADGUY_BEHAVIOR:
     LD      HL, TIMER_TABLE
     LD      DE, TIMER_DATA_BLOCK
     CALL    INIT_TIMER
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
     JR      Z, LOC_8603
@@ -974,7 +951,7 @@ LOC_862E:
     AND     3FH
     LD      ($72BA), A
     LD      HL, $7278
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     3
     CP      3
     JR      NZ, LOC_8652
@@ -1019,7 +996,7 @@ LOOP_8691:
     LD      (HL), 0
     INC     HL
     DJNZ    LOOP_8691
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, 4
     JR      Z, LOC_86A1
@@ -1039,7 +1016,7 @@ LOC_86B2:
     AND     A
     JR      Z, LOC_86B2
     POP     AF
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_86C0:
     BIT     7, (HL)
@@ -1072,7 +1049,7 @@ LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
     CALL    DEAL_WITH_PLAYFIELD
     XOR     A
     CALL    PATTERNS_TO_VRAM
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     0, A
     JR      Z, LOC_8709
     LD      A, 0FH
@@ -1080,7 +1057,7 @@ LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
     LD      A, 1
     CALL    PATTERNS_TO_VRAM
 LOC_8709:
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
     JR      Z, LOC_8716
@@ -1114,7 +1091,7 @@ LOC_8739:
     LD      A, 2
     CALL    DEAL_WITH_PLAYFIELD
     LD      HL, $72B8
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     JR      Z, LOC_8753
     LD      HL, $72B9
@@ -1146,7 +1123,7 @@ SEND_EXTRA_TO_VRAM:
     LD      A, C
     CP      5
     JR      NZ, LOC_8759
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      HL, LIVES_LEFT_P1_RAM
     JR      Z, LOC_878C
@@ -1233,7 +1210,7 @@ SUB_87F4:   ; Start the level
 RET
 
 SUB_8828:
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (KEYBOARD_P1)
     JR      Z, CHECK_FOR_PAUSE
@@ -1241,7 +1218,7 @@ SUB_8828:
 CHECK_FOR_PAUSE:
     CP      0AH
     JP      NZ, LOCRET_88D0
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 ENTER_PAUSE:
     BIT     7, (HL)
@@ -1271,7 +1248,7 @@ LOC_8871:
     JR      NZ, LOC_8871
     DJNZ    LOOP_886E
 LOOP_TILL_UN_PAUSE:
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (KEYBOARD_P1)
     JR      Z, CHECK_TO_LEAVE_PAUSE
@@ -1280,7 +1257,7 @@ CHECK_TO_LEAVE_PAUSE:
     CP      0AH
     JR      NZ, LOOP_TILL_UN_PAUSE
     CALL    INITIALIZE_THE_SOUND
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_8891:
     BIT     7, (HL)
@@ -1300,7 +1277,7 @@ LOC_88AA:
     OR      H
     JR      NZ, LOC_88AA
     DJNZ    LOC_88A7
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_88B6:
     BIT     7, (HL)
@@ -1728,9 +1705,9 @@ LOC_8BCE:
     CALL    SUB_8CFE
     JR      NZ, LOC_8BF4
     SET     7, (IY+4)
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     SET     6, A
-    LD      ($726E), A
+    LD      (GAMECONTROL), A
     LD      A, D
 LOC_8BE4:
     LD      ($7284), A
@@ -2899,7 +2876,7 @@ BYTE_944E:
 	DB 060,000,120,000,240,000,104,001,224,001,000
 
 LEADS_TO_CHERRY_STUFF:
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     6, A
     JR      Z, LOC_9463
     XOR     A
@@ -2949,7 +2926,7 @@ RET
 
 SUB_94A9:
     LD      IX, $7088
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     JR      Z, LOC_94B8
     LD      IX, $708D
@@ -3270,7 +3247,7 @@ SUB_96E4:
     LD      A, 0AH
     LD      ($728C), A
     LD      HL, (SCORE_P1_RAM)
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     LD      C, A
     LD      A, (CURRENT_LEVEL_RAM)
     BIT     1, C
@@ -3957,7 +3934,7 @@ SUB_9BE2:
     PUSH    IX
     LD      D, 1
 LOC_9BE8:
-    LD      A, ($7271)
+    LD      A, (SKILLLEVEL)
     DEC     A
     LD      C, A
     LD      B, 0
@@ -3965,7 +3942,7 @@ LOC_9BE8:
     ADD     IX, BC
     LD      C, (IX+0)
     LD      HL, CURRENT_LEVEL_RAM
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     3
     CP      3
     JR      NZ, LOC_9C05
@@ -4073,7 +4050,7 @@ RET
 SUB_9CE0:
     PUSH    DE
     PUSH    HL
-    LD      A, ($7271)
+    LD      A, (SKILLLEVEL)
     DEC     A
     LD      E, A
     LD      D, 0
@@ -4081,7 +4058,7 @@ SUB_9CE0:
     ADD     HL, DE
     LD      E, (HL)
     LD      HL, CURRENT_LEVEL_RAM
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     3
     CP      3
     JR      NZ, LOC_9CFB
@@ -5413,7 +5390,7 @@ BYTE_A523:
 
 SUB_A527:
     PUSH    BC
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     LD      B, A
     LD      A, ($7278)
     BIT     0, B
@@ -5534,7 +5511,7 @@ SUB_A5F9:
     ADD     HL, BC
     LD      B, (HL)
     LD      HL, $72B8
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     3
     CP      3
     JR      NZ, LOC_A613
@@ -5553,7 +5530,7 @@ SUB_A61F:
     LD      HL, $727A
     LD      BC, (SCORE_P1_RAM)
     LD      HL, $727A
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     3
     CP      3
     JR      NZ, LOC_A637
@@ -5592,7 +5569,7 @@ LOC_A65F:
 RET
 
 SUB_A662:
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
     JR      Z, LOC_A66F
@@ -5745,7 +5722,7 @@ SUB_A788:
     BIT     6, A
     JR      Z, LOCRET_A7DB
 LOC_A796:
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      IX, $72B8
     JR      Z, LOC_A7A5
@@ -6036,34 +6013,16 @@ LOC_A992:
 RET
 
 SUB_A99C: ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_A9A1:
     BIT     7, (HL)
     JR      NZ, LOC_A9A1
 
-;     LD      HL, 1000H ; Pattern generator table
-;     LD      DE, 300H  ; 768 characters
-;     LD      A, 0 ; fill with 0s
-;     CALL    FILL_VRAM
-;     LD      HL, 1900H ; 
-;     LD      DE, 80H ; 128 characters
-;     LD      A, 0 ; fill with 0s
-;     CALL    FILL_VRAM
-;     LD      HL, SPRITE_NAME_TABLE
-;     LD      B, 50H
-; LOC_A9C0:
-;     LD      (HL), 0
-;     INC     HL
-;     DJNZ    LOC_A9C0
-;     LD      A, 6
-;     CALL    DEAL_WITH_PLAYFIELD
-;     LD      BC, 70CH
-;     CALL    WRITE_REGISTER
     XOR     A
     LD      ($72BC), A
     LD      ($72BB), A
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     BIT     1, (HL)
     JR      NZ, DEAL_WITH_EXTRA_MR_DO
     LD      ($72B8), A
@@ -6080,8 +6039,7 @@ LOC_A9EC:
 LOC_A9F2:
     LD      BC, 1E2H
     CALL    WRITE_REGISTER
-    CALL    INITIALIZE_THE_SOUND
-    CALL    PLAY_WIN_EXTRA_DO_TUNE
+
 
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%
 	; show the extra screen
@@ -6089,12 +6047,13 @@ LOC_A9F2:
 	SET	7,(hl)						; switch to intermission  mode
 	
     CALL    cvb_EXTRASCREEN
-
-    LD      HL, 280H
+    CALL    INITIALIZE_THE_SOUND
+    CALL    PLAY_WIN_EXTRA_DO_TUNE
+    LD      HL, 280H                ; music duration
     XOR     A
     CALL    REQUEST_SIGNAL
     PUSH    AF
-LOC_AA06:							; wait for music 
+LOC_AA06:							; wait for music to finish
     POP     AF
     PUSH    AF
     CALL    TEST_SIGNAL
@@ -6117,7 +6076,7 @@ LOC_A9C0:
 	RES	7,(hl)						; switch to game mode
 	
     CALL    INIT_VRAM
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_AA14:
     BIT     7, (HL)
@@ -6132,14 +6091,14 @@ LOC_AA14:
 RET
 
 SUB_AA25:
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_AA2A:
     BIT     7, (HL)
     JR      NZ, LOC_AA2A
     LD      HL, CURRENT_LEVEL_RAM
     LD      IX, $7278
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     JR      Z, LOC_AA43
     LD      HL, $7275
@@ -6151,7 +6110,7 @@ LOC_AA43:
     CALL    SUB_B286
     LD      HL, $718A
     LD      DE, 3400H
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     JR      Z, LOC_AA5C
     LD      DE, 3600H
@@ -6163,7 +6122,7 @@ LOC_AA5C:
 RET
 
 SUB_AA69:
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_AA6E:
     BIT     7, (HL)
@@ -6180,7 +6139,7 @@ LOC_AA7C:
     CALL    WRITE_REGISTER
     LD      IX, LIVES_LEFT_P1_RAM
     LD      IY, LIVES_LEFT_P2_RAM
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     BIT     1, (HL)
     JR      NZ, LOC_AABD
     DEC     (IX+0)
@@ -6225,7 +6184,7 @@ RET
 
 SUB_AADC:
     PUSH    AF
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_AAE2:
     BIT     7, (HL)
@@ -6267,7 +6226,7 @@ LOC_AB1E:
 RET
 
 SUB_AB28:
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_AB2D:
     BIT     7, (HL)
@@ -6318,7 +6277,7 @@ LOC_AB6C:
     CALL    TEST_SIGNAL
     AND     A
     JR      Z, LOC_AB6C
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_AB8F:
     BIT     7, (HL)
@@ -6335,7 +6294,7 @@ LOC_ABA5:
     XOR     A
     JR      LOCRET_ABB5
 LOC_ABA9:
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_ABAE:
     BIT     7, (HL)
@@ -7299,7 +7258,7 @@ DISPLAY_CHERRIES:
     JR      PLAYFIELD_TO_VRAM
 DISPLAY_PLAYFIELD:
     PUSH    BC
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
     JR      Z, LOC_B1E6
@@ -7877,7 +7836,7 @@ RET
 SUB_B601:
     LD      IX, SCORE_P1_RAM
     LD      C, 80H
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     JR      Z, LOC_B614
     LD      IX, SCORE_P2_RAM
@@ -7937,9 +7896,9 @@ LOC_B655:
     SET     7, A
 LOC_B66A:
     LD      (IX+3), A
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     SET     3, A
-    LD      ($726E), A
+    LD      (GAMECONTROL), A
     POP     AF
     ADD     A, A
     ADD     A, A
@@ -7952,9 +7911,9 @@ LOC_B66A:
     POP     HL
     LD      BC, 4
     LDIR
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     RES     3, A
-    LD      ($726E), A
+    LD      (GAMECONTROL), A
 RET
 
 OFF_B691: ; Sprite color data
@@ -8030,7 +7989,7 @@ LOC_B781:
     ADD     HL, BC
     LD      B, (HL)
     LD      HL, $72B8
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     3
     CP      3
     JR      NZ, LOC_B7AA
@@ -8067,7 +8026,7 @@ SUB_B7C4:
     LD      D, 0
     CALL    SUB_B629
     LD      HL, $7278
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     AND     3
     CP      3
     JR      NZ, LOC_B7E7
@@ -8230,7 +8189,7 @@ RET
 
 SUB_B8F7:
     PUSH    IY
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_B8FE:
     BIT     7, (HL)
@@ -8263,7 +8222,7 @@ RESTORE_PLAYFIELD_COLORS:
     PUSH    IY
     
     ; Calculate correct level colors using original logic
-    LD      A, ($726E)
+    LD      A, (GAMECONTROL)
     BIT     1, A
     LD      A, (CURRENT_LEVEL_RAM)
     JR      Z, USE_CURRENT_LEVEL
@@ -8833,76 +8792,76 @@ FIVE_HUNDRED_SCORE_PAT:
    DB 000,000,000,000,000,140,082,082
    DB 082,082,140,000,000,000,000,000
 DIGGER_RIGHT_01_PAT:
-    DB 007,029,054,124,212,063,045,120
-    DB 215,055,120,222,033,126,000,000
-    DB 224,016,104,104,008,248,176,000
-    DB 252,254,006,066,240,000,000,000
+   DB 007,029,054,124,212,063,045,120
+   DB 215,055,120,222,033,126,000,000
+   DB 224,016,104,072,008,248,176,000
+   DB 252,254,006,066,240,000,000,000
 DIGGER_RIGHT_02_PAT:
     DB 007,029,054,124,212,062,045,123
     DB 215,058,127,211,124,001,000,000
     DB 224,016,104,000,120,252,196,160
     DB 096,224,192,000,128,240,000,000
 BADGUY_RIGHT_WALK_01_PAT:
-    DB 000,000,031,063,062,062,062,031
-    DB 006,029,063,125,016,062,000,000
-    DB 000,000,240,248,060,252,060,248
-    DB 032,252,254,128,064,248,000,000
+   DB 000,000,031,063,062,062,063,031
+   DB 006,029,063,125,016,062,000,000
+   DB 000,000,240,056,220,156,028,248
+   DB 032,252,254,128,064,248,000,000
 BADGUY_RIGHT_WALK_02_PAT:
-    DB 000,031,063,062,062,063,030,005
-    DB 061,029,026,006,012,008,000,000
-    DB 000,240,248,060,252,000,252,254
-    DB 128,100,108,248,016,016,000,000
+   DB 000,031,063,062,062,063,030,005
+   DB 061,029,026,006,012,008,000,000
+   DB 000,240,056,220,156,000,252,254
+   DB 128,100,108,248,016,016,000,000
 CHOMPER_RIGHT_CLOSED_PAT:
    DB 000,000,014,031,025,014,017,063
    DB 056,053,056,063,059,017,000,000
    DB 000,000,056,124,100,184,192,252
    DB 000,084,000,252,220,136,000,000
 CHOMPER_RIGHT_OPEN_PAT:
-   DB 014,025,025,014,017,063,056,049
-   DB 052,048,050,056,063,036,000,000
+   DB 014,025,025,014,017,063,056,053
+   DB 048,048,050,056,063,036,000,000
    DB 056,100,100,184,192,252,000,084
    DB 000,000,168,000,252,036,000,000
 EXTRA_SPRITE_PAT:
-   DB 006,025,057,063,096,071,068,071 ; E Left foot down
-   DB 068,068,103,048,031,006,060,000
-   DB 096,152,156,252,006,242,002,194
-   DB 002,002,246,012,240,062,000,000
-   DB 000,006,025,063,112,103,068,071 ; E Right foot down
-   DB 068,068,103,048,015,124,000,000
-   DB 000,096,152,252,014,246,002,194
-   DB 002,002,246,012,248,096,048,028
-   DB 000,006,025,063,112,102,067,064 ; X Right foot down
-   DB 065,067,102,048,015,124,000,000
-   DB 000,096,152,252,014,054,098,194
-   DB 130,098,054,012,248,096,048,028
-   DB 006,025,057,063,096,070,067,064 ; X Left foot down
-   DB 065,067,102,048,031,006,060,000
-   DB 096,152,156,252,006,050,098,194
-   DB 130,098,054,012,240,062,000,000
-   DB 006,025,057,063,096,071,064,064 ; T Left foot down
-   DB 064,064,096,048,031,006,060,000
-   DB 096,152,156,252,006,242,130,130
-   DB 130,130,134,012,240,062,000,000
-   DB 000,006,025,063,112,103,064,064 ; T Right foot down
-   DB 064,064,096,048,015,124,000,000
-   DB 000,096,152,252,014,246,130,130
-   DB 130,130,134,012,248,096,048,028
-   DB 000,006,025,063,112,103,068,068 ; R Right foot down
-   DB 071,068,100,048,015,124,000,000
-   DB 000,096,152,252,014,230,050,050
-   DB 226,066,118,012,248,096,048,028
-   DB 006,025,057,063,096,071,068,068 ; R Left Foot Down
-   DB 071,068,100,048,031,006,060,000
-   DB 096,152,156,252,006,226,050,050
-   DB 226,066,118,012,240,062,000,000
-   DB 006,025,057,063,096,065,067,070 ; A Left foot down
-   DB 068,071,100,048,031,006,060,000
-   DB 096,152,156,252,006,194,098,050
-   DB 018,242,022,012,240,062,000,000
-   DB 000,006,025,063,112,097,067,070 ; A Right foot down
-   DB 068,071,100,048,015,124,000,000
-   DB 000,096,152,252,014,198,098,050
-   DB 018,242,022,012,248,096,048,028
+   DB 030,057,057,096,071,068,071,068 ; E Left foot down
+   DB 068,039,048,015,006,060,000,000
+   DB 120,156,156,006,242,002,194,002
+   DB 002,244,012,240,126,000,000,000
+   DB 000,030,057,032,064,064,064,064 ; Right foot down
+   DB 064,096,048,031,126,000,000,000
+   DB 000,120,156,004,002,002,002,002
+   DB 002,006,012,248,096,060,000,000
+   DB 000,030,057,032,064,064,064,064 ; Right foot down
+   DB 064,096,048,031,126,000,000,000
+   DB 000,120,156,004,002,002,002,002
+   DB 002,006,012,248,096,060,000,000
+   DB 030,057,057,096,070,067,064,065 ; X Left foot down
+   DB 067,038,048,015,006,060,000,000
+   DB 120,156,156,006,050,098,194,130
+   DB 098,052,012,240,126,000,000,000
+   DB 030,057,057,096,071,064,064,064 ; T Left foot down
+   DB 064,032,048,015,006,060,000,000
+   DB 120,156,156,006,242,130,130,130
+   DB 130,132,012,240,126,000,000,000
+   DB 000,030,057,032,064,064,064,064 ; Right foot down
+   DB 064,096,048,031,126,000,000,000
+   DB 000,120,156,004,002,002,002,002
+   DB 002,006,012,248,096,060,000,000
+   DB 000,030,057,032,064,064,064,064 ; Right foot down
+   DB 064,096,048,031,126,000,000,000
+   DB 000,120,156,004,002,002,002,002
+   DB 002,006,012,248,096,060,000,000
+   DB 030,057,057,096,071,068,068,071 ; R Left foot down
+   DB 068,036,048,015,006,060,000,000
+   DB 120,156,156,006,226,050,050,226
+   DB 066,116,012,240,126,000,000,000
+   DB 030,057,057,096,065,067,070,068 ; A Left foot down
+   DB 071,036,048,015,006,060,000,000
+   DB 120,156,156,006,194,098,050,018
+   DB 242,020,012,240,126,000,000,000
+   DB 000,030,057,032,064,064,064,064 ; Right foot down
+   DB 064,096,048,031,126,000,000,000
+   DB 000,120,156,004,002,002,002,002
+   DB 002,006,012,248,096,060,000,000
    DB 000,001,001,013,030,063,063,063 ; Apple
    DB 063,063,031,015,015,006,000,000
    DB 000,128,000,112,200,228,244,244
@@ -9000,10 +8959,10 @@ WHEAT_SQUARE_PAT:
     DB 063,062,049,015,063,056,000,000
     DB 240,008,248,248,000,000,000,000
 BADGUY_OUTLINE_PAT:
-   DB 000,000,031,048,033,034,034,049
-   DB 016,016,048,096,063,062,000,000
-   DB 000,000,240,024,140,068,068,140
-   DB 024,016,016,048,224,248,000,000
+   DB 000,000,000,031,048,033,034,034
+   DB 049,016,016,048,096,063,062,000
+   DB 000,000,000,240,024,140,068,068
+   DB 140,024,016,016,048,224,248,000
 HUD_PATS_01:
    DB 000,056,092,240,172,234,218,172 ; Mr. Do extra life sprite
    DB 024,036,122,110,056,028,000,000
@@ -9015,11 +8974,11 @@ HUD_PATS_01:
     DB 000,000,224,144,072,036,028,228
     DB 020,018,009,004,002,001,000,000
     DB 040,072,144,032,064,128,000,000
-    DB 000,000,254,128,248,128,128,254 ; E
-    DB 000,000,198,108,024,048,108,198 ; XTRA
-    DB 000,000,254,016,016,016,016,016
-    DB 000,000,252,134,134,252,136,142
-    DB 000,000,056,108,198,130,254,130
+    DB 000,254,128,248,128,128,254,000 ; E
+    DB 000,198,108,024,048,108,198,000 ; XTRA
+    DB 000,254,016,016,016,016,016,000
+    DB 000,252,134,134,252,136,142,000
+    DB 000,056,108,198,130,254,130,000
 HUD_PATS_02:
     DB 063,043,010,001,001,003,000,000 ; Bottom of Ice Cream, Extra border
     DB 252,180,096,128,128,192,000,000
@@ -9038,11 +8997,11 @@ HUD_PATS_02:
     DB 047,040,040,168,104,040,047,000
     DB 000,128,128,128,128,128,000,000
 EXTRA_PATS:
-	DB 000,000,254,128,248,128,128,254 ; EXTRA TEXT HUD (RED)
-    DB 000,000,198,108,024,048,108,198
-    DB 000,000,254,016,016,016,016,016
-    DB 000,000,252,134,134,252,136,142
-    DB 000,000,056,108,198,130,254,130
+    DB 000,254,128,248,128,128,254,000 ; EXTRA TEXT HUD (RED)
+    DB 000,198,108,024,048,108,198,000
+    DB 000,254,016,016,016,016,016,000
+    DB 000,252,134,134,252,136,142,000
+    DB 000,056,108,198,130,254,130,000
 PLAYFIELD_PATS:
 	DB 030,030,255,255,225,225,255,255 ; Brick pattern
     DB 241,227,199,143,031,062,124,248 ; Diagonal Stripes
@@ -9366,12 +9325,12 @@ GAME_OVER_TUNE_P1:
     DB 064,160,048,022,064,107,048,007,100,064,107,048,007,100,064,127,048,011,107,064,160
     DB 048,011,107,064,160,048,022,064,107,048,007,100,064,107,048,007,100,064,127,048,011
     DB 107,064,160,048,011,107,064,143,048,011,107,064,107,048,007,100,064,107,048,007,100
-    DB 064,107,048,022,118,118,064,085,048,011,107,064,080,048,011,080
+    DB 064,107,048,022,118,118,064,213,048,011,107,064,160,048,011,080
 GAME_OVER_TUNE_P2:
     DB 182,182,128,064,081,022,128,214,080,007,164,128,214,080,007,164,128,254,080,011,171
     DB 128,064,081,011,171,128,064,081,022,128,214,080,007,164,128,214,080,007,164,128,240
     DB 096,011,171,128,254,096,011,171,128,029,097,011,171,128,087,099,007,164,128,087,099
-    DB 007,164,128,087,099,022,128,214,112,011,107,128,064,113,011,144
+    DB 007,164,128,087,099,022,128,086,115,011,107,128,128,114,011,144
 WIN_EXTRA_DO_TUNE_P1:
     DB 065,170,048,002,170,020,065,214,048,002,170,232,066,170,048,010,052,021,065,190,048
     DB 002,245,024,066,254,048,010,052,021,065,202,048,002,170,024,065,254,048,002,170,228
@@ -9439,7 +9398,7 @@ LOC_D326:
     CALL    SUB_B8F7
     PUSH    IY
     CALL    SUB_CA24
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_D333:
     BIT     7, (HL)
@@ -9451,7 +9410,7 @@ LOC_D333:
     JP      LOC_B8AB
 LOC_D345:
     CALL    SUB_CA2D
-    LD      HL, $726E
+    LD      HL, GAMECONTROL
     SET     7, (HL)
 LOC_D34D:
     BIT     7, (HL)
@@ -9938,18 +9897,19 @@ nmi_handler:
 	push af
 	push hl
 	ld hl,mode
-	bit 0,(hl)			; 0 -> ISR Enabled, 1 -> ISR disabled
+	bit 0,(hl)				; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
 	jr z,.1
-	set 1,(hl)			; ISR not executed
+							
+	set 1,(hl)				; ISR disabled, B1 == 1 -> ISR not executed
 	pop hl
 	pop af
 	retn
 
-.0:	res 1,(hl)
+.0:	res 1,(hl)				; B1 == 0 -> ISR executed
 
-.1:	
+.1:							; ISR Enabled
 	bit 7,(hl)
-	jr z,.2				; 0 -> Game Mode, 1 -> intermission mode
+	jr z,.2					; 0 -> Game Mode, 1 -> intermission mode
 
 	pop hl
 	in a,(CTRL_PORT)
@@ -9957,14 +9917,12 @@ nmi_handler:
 	call FakeNmi
 	retn
 	
-
 .2:	
-	pop hl				; Game Mode
+	pop hl					; Game Mode
 	pop af
 	jp NMI
 
-
-FakeNmi:				; Intermission Mode
+FakeNmi:					; Intermission Mode
     PUSH    AF
     PUSH    BC
     PUSH    DE
@@ -9977,9 +9935,9 @@ FakeNmi:				; Intermission Mode
     PUSH    HL
     PUSH    IX
     PUSH    IY
-    CALL    TIME_MGR	
-    CALL    POLLER	
-    CALL    SUB_C952
+    CALL    TIME_MGR		; udate timers
+    CALL    POLLER			; update controllers
+    CALL    SUB_C952		; PLAY MUSIC
     POP     IY
     POP     IX
     POP     HL
@@ -9992,6 +9950,94 @@ FakeNmi:				; Intermission Mode
     POP     DE
     POP     BC
     POP     AF
+	RET
+
+; Proper text
+ShowPlyrNum:
+	CALL MyNMI_off	
+	LD BC,8
+	LD DE,$1800+11+32*15
+	LD HL,Plyr1Slct
+	CALL MYLDIRVM
+	LD BC,9
+	LD DE,$1800+11+32*17
+	LD HL,Plyr2Slct
+	CALL MYLDIRVM
+	JP MyNMI_on
+
+Plyr1Slct: DB $6A,$68,$5B,$5D,$66,$5F,$59,$5A,$65		;1.PLAYER
+Plyr2Slct: DB $64,$68,$5B,$5D,$66,$5F,$59,$5A,$65,$68	;2.PLAYERS
+
+ShowSkill:
+	CALL MyNMI_off	
+	LD BC,6
+	LD DE,$1800+11+32*13
+	LD HL,Skill1
+	CALL MYLDIRVM
+	LD BC,10
+	LD DE,$1800+11+32*15
+	LD HL,Skill2
+	CALL MYLDIRVM
+	LD BC,8
+	LD DE,$1800+11+32*17
+	LD HL,Skill3
+	CALL MYLDIRVM
+	LD BC,5
+	LD DE,$1800+11+32*19
+	LD HL,Skill4
+	CALL MYLDIRVM
+	JP MyNMI_on
+
+Skill1:	DB $6A,$68,$59,$66,$65,$5F						;1.EASY
+Skill2:	DB $64,$68,$66,$5C,$5E,$66,$58,$63,$59,$5C		;2.ADVANCED
+Skill3: DB $60,$68,$66,$5A,$63,$66,$5C,$59				;3.ARCADE
+Skill4: DB $67,$68,$5B,$5A,$62							;4.PRO
+
+; Select  Number of Players and Skill
+
+GET_GAME_OPTIONS:
+	CALL	ShowPlyrNum			; Show 1 or 2 Players
+PlyrNumWait:
+    CALL    POLLER
+    LD      A, (KEYBOARD_P1)
+    DEC		A					; 0-1	valid range
+    CP      2
+    JR      C, .SetPlyrNum
+    LD      A, (KEYBOARD_P2)
+    DEC		A
+    CP      2
+    JR      NC, PlyrNumWait
+.SetPlyrNum:
+    LD      HL, GAMECONTROL
+    RES     0, (HL)
+    DEC		A					; If A==1 -> set 2 players
+    JR      NZ, .OnePlyr
+    SET     0, (HL)
+.OnePlyr:	
+
+.WaitKeyRelease:
+    CALL    POLLER
+    LD      A, (KEYBOARD_P1)
+	CP 		15
+	JR		NZ,.WaitKeyRelease
+	LD      A, (KEYBOARD_P2)
+	CP 		15
+	JR		NZ,.WaitKeyRelease
+
+	CALL	ShowSkill			; Show Select skill 1-4
+SkillWait:
+    CALL    POLLER
+    LD      A, (KEYBOARD_P1)
+    DEC     A					; 0-3 valid range
+    CP      4
+    JR      C, .SetSkill
+    LD      A, (KEYBOARD_P2)
+    DEC     A
+    CP      4
+    JR      NC, SkillWait
+.SetSkill:
+	INC		A					; The game is expecting 1-4
+    LD      (SKILLLEVEL), A
 	RET
 
 
@@ -10008,8 +10054,11 @@ cvb_ANIMATEDLOGO:
 	CALL unpack		
 	LD DE,$1800
 	LD HL,cvb_PNT
-	CALL unpack		
-	LD HL,cvb_COLORSET1
+	CALL unpack
+
+	CALL PNTHACK		; hide the text under the logo
+
+	LD HL,cvb_COLORSET0
 	CALL CLRFRM
 
 	ld a,208
@@ -10018,7 +10067,7 @@ cvb_ANIMATEDLOGO:
 	
 	CALL MYENASCR
 	; 
-	CALL cvb_MYPAUSE
+	CALL GET_GAME_OPTIONS
 	; 	
 	LD HL,cvb_COLORSET1
 	CALL CLRFRM
@@ -10065,19 +10114,11 @@ CLRFRM:
 	HALT
 	HALT
 	HALT
-	LD BC,18
+	LD BC,32
 	LD DE,$2000
 	CALL MyNMI_off
 	CALL MYLDIRVM
 	JP MyNMI_on
-
-cvb_MYPAUSE:
-	; 	FOR T=0 TO 120:WAIT: NEXT
-	LD B,120
-cv3:
-	HALT
-	djnz cv3
-	RET
 
 	; MAKE SURE TO BE IN INTERMISSION MODE BEFORE CALLING
 	
@@ -10085,18 +10126,6 @@ cvb_EXTRASCREEN:
 	CALL MYMODE1
 	CALL MYDISSCR
 	CALL cvb_MYCLS
-
-;	LD	HL,0
-;	PUSH HL
-;	LD A,204
-;	LD HL,cvb_IMAGE_CHAR
-;	CALL define_char_unpack				; 	DEFINE CHAR PLETTER 0,204,image_char
-;
-;	LD	HL,0
-;	PUSH HL
-;	LD A,204
-;	LD HL,cvb_IMAGE_COLOR
-;	CALL define_color_unpack			; 	DEFINE COLOR PLETTER 0,204,image_color
 
 	LD DE,$0000
 	LD HL,cvb_IMAGE_CHAR
@@ -10144,12 +10173,18 @@ MyNMI_on:
 	pop hl
 	pop af
 	ret
+
+PNTHACK:
+	ld hl,$1800+15*32
+	ld bc,32*7			; hide 7 lines under the MrDo logo
+	ld a,$30			; blank tile 
+	jp cvb_MYCLS.0
 	
 cvb_MYCLS:
 	ld hl,$1800
 	ld bc,$0300
 	xor a
-	CALL MyNMI_off
+.0:	CALL MyNMI_off
 	push af
     LD A,L
     OUT (CTRL_PORT),A
@@ -10179,15 +10214,13 @@ CPYBLK22x24:
 	push de
 	ld bc,22
 	CALL MYLDIRVM
-	pop de
 	pop hl
-	ld bc,22
-	add hl,bc
-
-	ex de,hl
 	ld bc,32
 	add hl,bc
 	ex de,hl
+	pop hl
+	ld bc,22
+	add hl,bc
 
 	pop bc
 	djnz .1
@@ -10206,8 +10239,7 @@ MYMODE1:
 	ld hl,mode
 	res 3,(hl)
 	ld bc,$0200
-;	ld de,$ff03	; $2000 for color table, $0000 for bitmaps.
-	ld de,$9F00	; $2000 for color table, $0000 for bitmaps.
+	ld de,$9F00	; $2000 for color table, $0000 for bitmaps - Mirror Mode.
 	jp vdp_chg_mode
 
 MYMODE2:
@@ -10295,45 +10327,7 @@ MYWRTVRM:
 	out (DATA_PORT),a
 	ret
 
-
-;define_char_unpack:
-;	ex de,hl
-;	pop af
-;	pop hl
-;	push af
-;	add hl,hl	; x2
-;	add hl,hl	; x4
-;	add hl,hl	; x8
-;	ex de,hl
-;	ld a,(mode)
-;	and 8
-;	jp z,unpack3
-;	jp unpack
-;
-;define_color_unpack:
-;	ex de,hl
-;	pop af
-;	pop hl
-;	push af
-;	add hl,hl	; x2
-;	add hl,hl	; x4
-;	add hl,hl	; x8
-;	ex de,hl
-;	set 5,d
-;unpack3:
-;	CALL .1
-;	CALL .1
-;.1:
-;	push de
-;	push hl
-;	CALL unpack
-;	pop hl
-;	pop de
-;	ld a,d
-;	add a,8	
-;	ld d,a
-;	ret
-
+	
         ;
         ; Pletter-0.5c decompressor (XL2S Entertainment & Team Bomba)
         ;
@@ -10477,7 +10471,7 @@ unpack:
 	dw      .mode5
 	dw      .mode6
 
-
+	;	EXTRA MrDo Intermission Screen - Compressed data
 	; 	
 	; 	' Start tile = 0. Total_tiles = 204
 	; image_char:
@@ -11056,235 +11050,153 @@ cvb_SPRITE_OVERLAY:
 	DB $9d,$38,$5c,$0c
 	DB 208
 
+	;	ANIMATED LOGO - Compressed data
 	; 
 	; TILESET:
 cvb_TILESET:
-	; 	DATA BYTE $3e,$00,$86,$00,$01,$03,$89,$00
-	DB $3e,$00,$86,$00,$01,$03,$89,$00
-	; 	DATA BYTE $07,$00,$0e,$e1,$11,$0f,$07,$c6
-	DB $07,$00,$0e,$e1,$11,$0f,$07,$c6
-	; 	DATA BYTE $00,$03,$01,$21,$1b,$01,$17,$0f
-	DB $00,$03,$01,$21,$1b,$01,$17,$0f
-	; 	DATA BYTE $1f,$1f,$9c,$10,$22,$3f,$ca,$08
-	DB $1f,$1f,$9c,$10,$22,$3f,$ca,$08
-	; 	DATA BYTE $05,$13,$b0,$12,$13,$3f,$7f,$6c
-	DB $05,$13,$b0,$12,$13,$3f,$7f,$6c
-	; 	DATA BYTE $7f,$2d,$80,$69,$c0,$2b,$34,$06
-	DB $7f,$2d,$80,$69,$c0,$2b,$34,$06
-	; 	DATA BYTE $f0,$0e,$5a,$ff,$00,$6d,$55,$07
-	DB $f0,$0e,$5a,$ff,$00,$6d,$55,$07
-	; 	DATA BYTE $6c,$3f,$07,$03,$6c,$0f,$07,$04
-	DB $6c,$3f,$07,$03,$6c,$0f,$07,$04
-	; 	DATA BYTE $65,$0e,$07,$5c,$3c,$41,$3f,$27
-	DB $65,$0e,$07,$5c,$3c,$41,$3f,$27
-	; 	DATA BYTE $69,$80,$07,$39,$52,$9f,$07,$03
-	DB $69,$80,$07,$39,$52,$9f,$07,$03
-	; 	DATA BYTE $d6,$16,$00,$19,$5b,$ff,$3f,$73
-	DB $d6,$16,$00,$19,$5b,$ff,$3f,$73
-	; 	DATA BYTE $cc,$1e,$f0,$0f,$0e,$20,$78,$fe
-	DB $cc,$1e,$f0,$0f,$0e,$20,$78,$fe
-	; 	DATA BYTE $ff,$00,$36,$18,$fc,$07,$0c,$ff
-	DB $ff,$00,$36,$18,$fc,$07,$0c,$ff
-	; 	DATA BYTE $7f,$3f,$3f,$94,$1c,$0f,$09,$60
-	DB $7f,$3f,$3f,$94,$1c,$0f,$09,$60
-	; 	DATA BYTE $c0,$24,$e0,$e0,$c0,$80,$f1,$7a
-	DB $c0,$24,$e0,$e0,$c0,$80,$f1,$7a
-	; 	DATA BYTE $ff,$f4,$07,$3e,$02,$6d,$00,$2a
-	DB $ff,$f4,$07,$3e,$02,$6d,$00,$2a
-	; 	DATA BYTE $77,$29,$07,$69,$20,$3b,$f1,$07
-	DB $77,$29,$07,$69,$20,$3b,$f1,$07
-	; 	DATA BYTE $07,$01,$b2,$07,$1f,$08,$d1,$07
-	DB $07,$01,$b2,$07,$1f,$08,$d1,$07
-	; 	DATA BYTE $81,$7c,$17,$5c,$ff,$f2,$08,$d2
-	DB $81,$7c,$17,$5c,$ff,$f2,$08,$d2
-	; 	DATA BYTE $06,$c0,$e0,$f8,$2d,$08,$c0,$5e
-	DB $06,$c0,$e0,$f8,$2d,$08,$c0,$5e
-	; 	DATA BYTE $0b,$00,$f8,$f0,$68,$ba,$0a,$1c
-	DB $0b,$00,$f8,$f0,$68,$ba,$0a,$1c
-	; 	DATA BYTE $72,$db,$07,$9e,$39,$c0,$19,$00
-	DB $72,$db,$07,$9e,$39,$c0,$19,$00
-	; 	DATA BYTE $ff,$fe,$21,$95,$22,$05,$00,$51
-	DB $ff,$fe,$21,$95,$22,$05,$00,$51
-	; 	DATA BYTE $07,$08,$02,$f0,$f8,$e1,$b1,$24
-	DB $07,$08,$02,$f0,$f8,$e1,$b1,$24
-	; 	DATA BYTE $00,$fc,$12,$ff,$20,$fe,$0d,$fc
-	DB $00,$fc,$12,$ff,$20,$fe,$0d,$fc
-	; 	DATA BYTE $fc,$f8,$f8,$af,$10,$0a,$9e,$1a
-	DB $fc,$f8,$f8,$af,$10,$0a,$9e,$1a
-	; 	DATA BYTE $00,$b8,$00,$08,$74,$06,$b3,$0c
-	DB $00,$b8,$00,$08,$74,$06,$b3,$0c
-	; 	DATA BYTE $7d,$10,$c3,$73,$d1,$7d,$07,$51
-	DB $7d,$10,$c3,$73,$d1,$7d,$07,$51
-	; 	DATA BYTE $cd,$be,$93,$44,$85,$6b,$78,$11
-	DB $cd,$be,$93,$44,$85,$6b,$78,$11
-	; 	DATA BYTE $78,$30,$00,$b2,$c2,$c9,$e0,$7f
-	DB $78,$30,$00,$b2,$c2,$c9,$e0,$7f
-	; 	DATA BYTE $f3,$78,$e7,$32,$3f,$8d,$00,$7f
-	DB $f3,$78,$e7,$32,$3f,$8d,$00,$7f
-	; 	DATA BYTE $96,$cf,$00,$dc,$0d,$8f,$71,$ba
-	DB $96,$cf,$00,$dc,$0d,$8f,$71,$ba
-	; 	DATA BYTE $4e,$00,$07,$f0,$be,$37,$33,$57
-	DB $4e,$00,$07,$f0,$be,$37,$33,$57
-	; 	DATA BYTE $54,$c7,$bf,$bc,$29,$4e,$c3,$65
-	DB $54,$c7,$bf,$bc,$29,$4e,$c3,$65
-	; 	DATA BYTE $fd,$fd,$b5,$79,$f8,$cf,$65,$01
-	DB $fd,$fd,$b5,$79,$f8,$cf,$65,$01
-	; 	DATA BYTE $00,$f4,$fd,$f6,$f0,$00,$06,$06
-	DB $00,$f4,$fd,$f6,$f0,$00,$06,$06
-	; 	DATA BYTE $04,$7c,$04,$1d,$7c,$dc,$00,$87
-	DB $04,$7c,$04,$1d,$7c,$dc,$00,$87
-	; 	DATA BYTE $99,$7e,$79,$05,$00,$c4,$1d,$20
-	DB $99,$7e,$79,$05,$00,$c4,$1d,$20
-	; 	DATA BYTE $60,$99,$61,$9f,$67,$73,$8b,$21
-	DB $60,$99,$61,$9f,$67,$73,$8b,$21
-	; 	DATA BYTE $d2,$60,$60,$20,$20,$c6,$8f,$dc
-	DB $d2,$60,$60,$20,$20,$c6,$8f,$dc
-	; 	DATA BYTE $1f,$d3,$c9,$fb,$c0,$00,$aa,$c0
-	DB $1f,$d3,$c9,$fb,$c0,$00,$aa,$c0
-	; 	DATA BYTE $87,$18,$3c,$3e,$6c,$7e,$4f,$80
-	DB $87,$18,$3c,$3e,$6c,$7e,$4f,$80
-	; 	DATA BYTE $cb,$a3,$e2,$df,$3c,$cb,$bf,$33
-	DB $cb,$a3,$e2,$df,$3c,$cb,$bf,$33
-	; 	DATA BYTE $a8,$f1,$f1,$a9,$c5,$08,$f0,$ed
-	DB $a8,$f1,$f1,$a9,$c5,$08,$f0,$ed
-	; 	DATA BYTE $00,$da,$22,$55,$08,$7b,$7c,$00
-	DB $00,$da,$22,$55,$08,$7b,$7c,$00
-	; 	DATA BYTE $a8,$ee,$3a,$fb,$04,$10,$df,$e8
-	DB $a8,$ee,$3a,$fb,$04,$10,$df,$e8
-	; 	DATA BYTE $cf,$07,$1f,$87,$03,$1c,$3e,$7f
-	DB $cf,$07,$1f,$87,$03,$1c,$3e,$7f
-	; 	DATA BYTE $31,$cb,$04,$8f,$07,$da,$12,$55
-	DB $31,$cb,$04,$8f,$07,$da,$12,$55
-	; 	DATA BYTE $a8,$00,$0c,$b3,$e7,$86,$8e,$9f
-	DB $a8,$00,$0c,$b3,$e7,$86,$8e,$9f
-	; 	DATA BYTE $f1,$87,$56,$df,$e0,$01,$00,$e1
-	DB $f1,$87,$56,$df,$e0,$01,$00,$e1
-	; 	DATA BYTE $e3,$e7,$e7,$ef,$ef,$a9,$7c,$de
-	DB $e3,$e7,$e7,$ef,$ef,$a9,$7c,$de
-	; 	DATA BYTE $d1,$ff,$75,$bb,$35,$58,$79,$57
-	DB $d1,$ff,$75,$bb,$35,$58,$79,$57
-	; 	DATA BYTE $00,$86,$ff,$80,$48,$7f,$1f,$03
-	DB $00,$86,$ff,$80,$48,$7f,$1f,$03
-	; 	DATA BYTE $c3,$c1,$39,$c1,$80,$1f,$7f,$a5
-	DB $c3,$c1,$39,$c1,$80,$1f,$7f,$a5
-	; 	DATA BYTE $0f,$94,$cf,$f9,$0c,$81,$60,$11
-	DB $0f,$94,$cf,$f9,$0c,$81,$60,$11
-	; 	DATA BYTE $3b,$03,$1f,$13,$3a,$08,$b8,$6d
-	DB $3b,$03,$1f,$13,$3a,$08,$b8,$6d
-	; 	DATA BYTE $83,$45,$0a,$b5,$0f,$00,$b6,$ed
-	DB $83,$45,$0a,$b5,$0f,$00,$b6,$ed
-	; 	DATA BYTE $86,$3e,$dd,$17,$c9,$6b,$f7,$7f
-	DB $86,$3e,$dd,$17,$c9,$6b,$f7,$7f
-	; 	DATA BYTE $ff,$ff,$ff,$fe
-	DB $ff,$ff,$ff,$fe
+	DB $5a,$00,$1a,$00,$01,$03,$23,$00
+	DB $07,$00,$0e,$00,$63,$00,$0f,$07
+	DB $8c,$00,$03,$01,$1b,$43,$01,$17
+	DB $0f,$1f,$1f,$39,$10,$22,$3f,$95
+	DB $08,$05,$13,$60,$12,$13,$3f,$7f
+	DB $7f,$d8,$2d,$80,$c0,$d2,$2b,$06
+	DB $68,$f0,$0e,$ff,$b4,$00,$55,$da
+	DB $07,$3f,$d8,$07,$03,$0f,$d8,$07
+	DB $04,$0e,$ca,$07,$5c,$41,$78,$3f
+	DB $27,$80,$d2,$07,$52,$73,$9f,$07
+	DB $03,$ac,$16,$00,$5b,$33,$ff,$3f
+	DB $73,$98,$1e,$f0,$0f,$20,$1c,$78
+	DB $fe,$ff,$00,$18,$6c,$fc,$07,$ff
+	DB $18,$7f,$3f,$3f,$94,$1c,$0f,$09
+	DB $60,$c0,$24,$e0,$e0,$c0,$80,$f1
+	DB $7a,$ff,$f4,$07,$3e,$02,$6d,$00
+	DB $2a,$77,$29,$07,$69,$20,$3b,$f1
+	DB $07,$07,$01,$b2,$07,$1f,$08,$d1
+	DB $07,$81,$7c,$17,$5c,$ff,$f2,$08
+	DB $d2,$03,$c0,$e0,$f8,$16,$08,$c0
+	DB $5e,$85,$00,$f8,$f0,$68,$dd,$0a
+	DB $1c,$6d,$72,$07,$cf,$39,$c0,$0c
+	DB $00,$ff,$fe,$21,$ca,$22,$05,$00
+	DB $a8,$07,$08,$02,$f0,$f8,$f0,$b1
+	DB $49,$00,$fc,$12,$ff,$03,$20,$fe
+	DB $fc,$fc,$f8,$f8,$6b,$10,$0a,$e7
+	DB $1a,$00,$be,$11,$00,$09,$01,$00
+	DB $79,$7f,$16,$88,$31,$3c,$00,$7b
+	DB $00,$e6,$0b,$18,$00,$00,$dd,$fd
+	DB $3d,$3c,$1f,$0e,$06,$07,$06,$c6
+	DB $e6,$e6,$0f,$31,$0f,$bd,$00,$60
+	DB $88,$00,$f7,$00,$f0,$3d,$1d,$3d
+	DB $fd,$dd,$13,$10,$c5,$9f,$9e,$86
+	DB $c6,$83,$21,$c3,$e1,$f9,$79,$10
+	DB $4a,$43,$89,$19,$9f,$9f,$1f,$00
+	DB $5d,$23,$00,$2b,$c8,$33,$81,$00
+	DB $c3,$8c,$c4,$00,$de,$00,$cc,$2e
+	DB $ed,$c0,$04,$0b,$21,$ce,$ce,$34
+	DB $e3,$e3,$e9,$84,$00,$ec,$ec,$09
+	DB $c7,$30,$c7,$e1,$00,$f3,$f3,$2b
+	DB $e1,$ed,$13,$00,$8b,$3b,$ed,$ed
+	DB $0e,$98,$13,$f0,$0b,$e0,$cd,$00
+	DB $f8,$bf,$00,$c1,$be,$a2,$ae,$a2
+	DB $be,$c1,$81,$76,$c1,$9c,$9e,$c0
+	DB $fc,$a5,$07,$01,$74,$02,$07,$0d
+	DB $9f,$c2,$de,$f7,$63,$e7,$41,$e3
+	DB $d4,$9f,$20,$ff,$9e,$8e,$a6,$b2
+	DB $31,$b8,$bc,$dc,$06,$bf,$83,$bf
+	DB $bf,$01,$2f,$81,$bc,$bc,$81,$bb
+	DB $b8,$b5,$07,$10,$c5,$07,$be,$be
+	DB $09,$57,$07,$0b,$00,$41,$1f,$0d
+	DB $9c,$dd,$c9,$e3,$55,$07,$06,$05
+	DB $58,$83,$37,$fc,$e1,$fc,$8e,$6f
+	DB $80,$f7,$00,$eb,$77,$21,$88,$0f
+	DB $c0,$9f,$2e,$9f,$c0,$d6,$87,$11
+	DB $07,$c7,$f1,$c4,$17,$e3,$c9,$20
+	DB $80,$40,$be,$07,$f1,$e5,$cd,$9d
+	DB $80,$6c,$fd,$bc,$8c,$cf,$cf,$17
+	DB $e7,$3e,$e3,$fc,$af,$37,$43,$00
+	DB $08,$06,$a9,$fb,$0c,$10,$f6,$8b
+	DB $eb,$99,$7c,$07,$99,$fa,$86,$d6
+	DB $db,$cd,$73,$b3,$09,$78,$78,$30
+	DB $00,$fa,$f4,$91,$bc,$00,$1b,$7c
+	DB $fe,$32,$3f,$f1,$00,$7f,$b5,$97
+	DB $6d,$00,$0d,$cf,$d7,$a5,$82,$00
+	DB $3a,$07,$f0,$86,$6e,$67,$57,$54
+	DB $97,$87,$bc,$29,$4e,$c7,$65,$fd
+	DB $83,$d4,$5d,$a6,$97,$3f,$b3,$3f
+	DB $bc,$7e,$be,$00,$99,$ef,$04,$04
+	DB $f3,$1d,$7c,$72,$00,$99,$0e,$7e
+	DB $05,$f3,$00,$88,$1d,$20,$60,$99
+	DB $60,$9f,$b3,$73,$d3,$56,$9a,$eb
+	DB $67,$20,$20,$0d,$8f,$ba,$1f,$9b
+	DB $d4,$c3,$c0,$00,$d5,$60,$87,$18
+	DB $1b,$3c,$3e,$7e,$32,$4f,$80,$eb
+	DB $fc,$df,$2c,$3c,$87,$d9,$f0,$8e
+	DB $f1,$f1,$8d,$d3,$08,$f0,$db,$00
+	DB $b4,$22,$08,$ab,$7b,$7c,$00,$50
+	DB $ee,$3a,$fb,$04,$10,$df,$ec,$97
+	DB $07,$43,$1f,$03,$1c,$3e,$7f,$8c
+	DB $cb,$04,$8f,$76,$07,$12,$8a,$a8
+	DB $00,$b6,$0c,$e7,$38,$8e,$34,$b9
+	DB $fe,$1c,$56,$df,$e0,$00,$e1,$06
+	DB $e3,$e7,$e7,$ef,$ef,$a7,$7c,$77
+	DB $99,$00,$bf,$93,$00,$75,$f8,$86
+	DB $97,$d8,$00,$bf,$74,$88,$17,$cf
+	DB $07,$03,$c3,$c1,$c1,$80,$34,$1f
+	DB $7f,$0f,$9c,$d4,$b9,$b8,$c1,$30
+	DB $60,$11,$03,$1f,$ec,$13,$08,$e4
+    DB $f8,$83,$da,$45,$f5,$0a,$0f,$00
+    DB $f6,$73,$c6,$77,$3e,$17,$3d,$89
+    DB $7e,$7f,$ff,$ff,$ff,$ff,$c0
 
-	; COLORSET1:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b
-cvb_COLORSET1:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b
-	DB $0b,$0b
-	; COLORSET2:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$cb,$cb,$b,$b
-cvb_COLORSET2:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$cb,$cb
-	DB $0b,$0b
-	; COLORSET3:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$b,$b,$b,$cb,$cb,$b,$b,$4b,$4b,$b,$b
-cvb_COLORSET3:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b
-	DB $0b,$0b,$cb,$cb,$0b,$0b,$4b,$4b
-	DB $0b,$0b
-	; COLORSET4:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$cb,$b,$b,$4b,$4b,$b,$b,$7b,$7b,$b,$b
-cvb_COLORSET4:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$cb
-	DB $0b,$0b,$4b,$4b,$0b,$0b,$7b,$7b
-	DB $0b,$0b
-	; COLORSET5:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$4b,$b,$b,$7b,$7b,$cb,$cb,$3b,$3b,$b,$b
-cvb_COLORSET5:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$4b
-	DB $0b,$0b,$7b,$7b,$cb,$cb,$3b,$3b
-	DB $0b,$0b
-	; COLORSET6:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$b,$b
-cvb_COLORSET6:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$7b
-	DB $cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b
-	DB $0b,$0b
-	; COLORSET7:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$3b,$4b,$4b,$6b,$6b,$7b,$7b,$ab,$ab,$cb,$cb
-cvb_COLORSET7:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$3b
-	DB $4b,$4b,$6b,$6b,$7b,$7b,$ab,$ab
-	DB $cb,$cb
-	; COLORSET8:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$6b,$7b,$7b,$ab,$ab,$3b,$3b,$cb,$cb,$4b,$4b
-cvb_COLORSET8:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$6b
-	DB $7b,$7b,$ab,$ab,$3b,$3b,$cb,$cb
-	DB $4b,$4b
-	; COLORSET9:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$ab,$3b,$3b,$cb,$cb,$6b,$6b,$4b,$4b,$7b,$7b
-cvb_COLORSET9:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$ab
-	DB $3b,$3b,$cb,$cb,$6b,$6b,$4b,$4b
-	DB $7b,$7b
-	; COLORSET10:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$cb,$6b,$6b,$4b,$4b,$ab,$ab,$7b,$7b,$3b,$3b
-cvb_COLORSET10:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$cb
-	DB $6b,$6b,$4b,$4b,$ab,$ab,$7b,$7b
-	DB $3b,$3b
-	; COLORSET11:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$4b,$ab,$ab,$7b,$7b,$cb,$cb,$3b,$3b,$6b,$6b
-cvb_COLORSET11:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$4b
-	DB $ab,$ab,$7b,$7b,$cb,$cb,$3b,$3b
-	DB $6b,$6b
-	; COLORSET12:	DATA BYTE $b,$b,$b,$b,$b,$b,$b,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$ab,$ab
-cvb_COLORSET12:
-	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$7b
-	DB $cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b
-	DB $ab,$ab
+
+cvb_COLORSET0:
+cvb_COLORSET1:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$bb,$0b,$0b
+cvb_COLORSET2:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$cb,$cb,$bb,$0b,$0b
+cvb_COLORSET3:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$0b,$0b,$0b,$cb,$cb,$0b,$0b,$4b,$4b,$bb,$0b,$0b
+cvb_COLORSET4:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$cb,$0b,$0b,$4b,$4b,$0b,$0b,$7b,$7b,$bb,$0b,$0b
+cvb_COLORSET5:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$4b,$0b,$0b,$7b,$7b,$cb,$cb,$3b,$3b,$bb,$0b,$0b
+cvb_COLORSET6:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$bb,$0b,$0b
+cvb_COLORSET7:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$3b,$4b,$4b,$6b,$6b,$7b,$7b,$ab,$ab,$bb,$cb,$cb
+cvb_COLORSET8:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$6b,$7b,$7b,$ab,$ab,$3b,$3b,$cb,$cb,$bb,$4b,$4b
+cvb_COLORSET9:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$ab,$3b,$3b,$cb,$cb,$6b,$6b,$4b,$4b,$bb,$7b,$7b
+cvb_COLORSET10:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$cb,$6b,$6b,$4b,$4b,$ab,$ab,$7b,$7b,$bb,$3b,$3b
+cvb_COLORSET11:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$4b,$ab,$ab,$7b,$7b,$cb,$cb,$3b,$3b,$bb,$6b,$6b
+cvb_COLORSET12:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$bb,$ab,$ab
+
+
 
 
 cvb_PNT:
-	; 	DATA BYTE $1b,$31,$ae,$c0,$00,$28,$1c,$1e
-	DB $1b,$31,$ae,$c0,$00,$28,$1c,$1e
-	; 	DATA BYTE $1d,$29,$11,$29,$2e,$1f,$00,$20
-	DB $1d,$29,$11,$29,$2e,$1f,$00,$20
-	; 	DATA BYTE $24,$c3,$0f,$30,$22,$23,$78,$1e
-	DB $24,$c3,$0f,$30,$22,$23,$78,$1e
-	; 	DATA BYTE $2f,$8a,$00,$44,$60,$03,$53,$70
-	DB $2f,$8a,$00,$44,$60,$03,$53,$70
-	; 	DATA BYTE $87,$46,$62,$1c,$3b,$58,$07,$10
-	DB $87,$46,$62,$1c,$3b,$58,$07,$10
-	; 	DATA BYTE $27,$37,$71,$06,$80,$1f,$2c,$89
-	DB $27,$37,$71,$06,$80,$1f,$2c,$89
-	; 	DATA BYTE $4a,$69,$3e,$55,$00,$72,$83,$48
-	DB $4a,$69,$3e,$55,$00,$72,$83,$48
-	; 	DATA BYTE $67,$3c,$5c,$73,$19,$03,$1b,$21
-	DB $67,$3c,$5c,$73,$19,$03,$1b,$21
-	; 	DATA BYTE $31,$50,$79,$02,$78,$1f,$26,$85
-	DB $31,$50,$79,$02,$78,$1f,$26,$85
-	; 	DATA BYTE $00,$42,$64,$3d,$54,$01,$09,$41
-	DB $00,$42,$64,$3d,$54,$01,$09,$41
-	; 	DATA BYTE $65,$00,$00,$5a,$77,$86,$45,$61
-	DB $65,$00,$00,$5a,$77,$86,$45,$61
-	; 	DATA BYTE $18,$51,$37,$75,$08,$80,$1f,$25
-	DB $18,$51,$37,$75,$08,$80,$1f,$25
-	; 	DATA BYTE $0d,$11,$0f,$0b,$0b,$30,$0a,$1a
-	DB $0d,$11,$0f,$0b,$0b,$30,$0a,$1a
-	; 	DATA BYTE $1f,$56,$78,$03,$80,$47,$68,$04
-	DB $1f,$56,$78,$03,$80,$47,$68,$04
-	; 	DATA BYTE $52,$05,$5c,$a4,$00,$2b,$88,$43
-	DB $52,$05,$5c,$a4,$00,$2b,$88,$43
-	; 	DATA BYTE $66,$3a,$5c,$76,$81,$06,$40,$6a
-	DB $66,$3a,$5c,$76,$81,$06,$40,$6a
-	; 	DATA BYTE $38,$57,$14,$b8,$1f,$2a,$00,$84
-	DB $38,$57,$14,$b8,$1f,$2a,$00,$84
-	; 	DATA BYTE $4b,$6b,$3f,$5b,$74,$82,$49,$0d
-	DB $4b,$6b,$3f,$5b,$74,$82,$49,$0d
-	; 	DATA BYTE $63,$39,$59,$10,$71,$1f,$2d,$40
-	DB $63,$39,$59,$10,$71,$1f,$2d,$40
-	; 	DATA BYTE $62,$00,$0e,$16,$15,$0c,$13,$1b
-	DB $62,$00,$0e,$16,$15,$0c,$13,$1b
-	; 	DATA BYTE $17,$12,$31,$eb,$e7,$00,$ff,$ff
-	DB $17,$12,$31,$eb,$e7,$00,$ff,$ff
-	; 	DATA BYTE $ff,$fe
-	DB $ff,$fe
-	; 
-	; 	
-	; 
+	DB $1e,$30,$bb,$00,$00,$27,$1b,$1d
+	DB $1c,$28,$28,$2d,$47,$1e,$00,$1f
+	DB $23,$0d,$0f,$2f,$21,$22,$e0,$1e
+	DB $2e,$ca,$7c,$98,$00,$02,$8b,$a8
+	DB $c7,$7e,$9a,$73,$90,$70,$06,$10
+	DB $26,$a9,$05,$de,$1f,$00,$2b,$c9
+	DB $82,$a1,$76,$8d,$aa,$c3,$00,$80
+	DB $9f,$74,$94,$ab,$18,$1a,$20,$0d
+	DB $30,$88,$b1,$01,$e0,$1f,$25,$c5
+	DB $7a,$9c,$00,$75,$8c,$00,$08,$79
+	DB $9d,$b8,$92,$00,$af,$c6,$7d,$99
+	DB $17,$89,$ad,$07,$de,$1f,$00,$24
+	DB $0c,$10,$0e,$0a,$0a,$09,$19,$c0
+	DB $1f,$8e,$b0,$c0,$7f,$0d,$a0,$03
+	DB $8a,$04,$70,$a4,$2a,$c8,$00,$7b
+	DB $9e,$72,$94,$ae,$c1,$78,$a2,$1a
+	DB $70,$8f,$13,$e0,$1f,$29,$c4,$83
+	DB $00,$a3,$77,$93,$ac,$c2,$81,$9b
+	DB $71,$35,$91,$0f,$c5,$1f,$2c,$62
+	DB $00,$00,$0d,$15,$14,$0b,$12,$16
+	DB $11,$6b,$30,$ab,$00,$00,$6a,$68
+	DB $5b,$5d,$66,$5f,$59,$68,$5a,$0a
+	DB $59,$1b,$66,$65,$5f,$f8,$3f,$64
+	DB $f1,$3f,$65,$c0,$0a,$66,$5c,$5e
+	DB $66,$58,$1e,$63,$59,$5c,$ec,$8a
+	DB $60,$89,$3f,$5a,$63,$42,$59,$ef
+	DB $c8,$ca,$67,$8a,$5a,$62,$d7,$80
+	DB $18,$3d,$47,$39,$45,$3e,$3b,$0f
+	DB $3c,$38,$49,$4a,$04,$10,$69,$58
+	DB $65,$b1,$61,$17,$30,$63,$62,$08
+    DB $00,$0e,$44,$48,$3a,$4b,$4c,$3f
+	DB $40,$00,$41,$46,$43,$42,$30,$50
+	DB $54,$51,$3f,$52,$53,$ff,$ff,$ff
+	DB $f0
