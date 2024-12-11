@@ -6,7 +6,7 @@ Changes:
 - Arcade Title screen
 - Redesigned sprites (created by TIX@AtariAge)
 - Fix full screen image intermission for Extra Mr. Do
-- - Extra Mr. Do tune (Astro Boy theme song)
+- Extra Mr. Do tune (Astro Boy theme song)
 - Main background music (the Can Can song)
 - Lose a life jingle
 - End of round jingle
