@@ -9951,46 +9951,43 @@ FakeNmi:					; Intermission Mode
 	POP		AF
 	RET
 
-; Proper text
+; select 1/2 players
 ShowPlyrNum:
 	CALL MyNMI_off
-	LD BC,8
 	LD DE,$1800+11+32*15
 	LD HL,Plyr1Slct
-	CALL MYLDIRVM
-	LD BC,9
+	CALL MYPRINT
 	LD DE,$1800+11+32*17
 	LD HL,Plyr2Slct
-	CALL MYLDIRVM
+	CALL MYPRINT
 	JP MyNMI_on
 
-Plyr1Slct: DB $6A,$68,$5B,$5D,$66,$5F,$59,$5A,$65		;1.PLAYER
-Plyr2Slct: DB $64,$68,$5B,$5D,$66,$5F,$59,$5A,$65,$68	;2.PLAYERS
+; Proper text
 
+Plyr1Slct: 	DC "8]PLAYER"
+Plyr2Slct: 	DC "9]PLAYERS"
+
+; select skill 1-4
 ShowSkill:
 	CALL MyNMI_off
-	LD BC,6
 	LD DE,$1800+11+32*13
 	LD HL,Skill1
-	CALL MYLDIRVM
-	LD BC,10
+	CALL MYPRINT
 	LD DE,$1800+11+32*15
 	LD HL,Skill2
-	CALL MYLDIRVM
-	LD BC,9
+	CALL MYPRINT
 	LD DE,$1800+11+32*17
 	LD HL,Skill3
-	CALL MYLDIRVM
-	LD BC,5
+	CALL MYPRINT
 	LD DE,$1800+11+32*19
 	LD HL,Skill4
-	CALL MYLDIRVM
+	CALL MYPRINT
 	JP MyNMI_on
 
-Skill1:	DB $6A,$68,$59,$66,$65,$5F						;1.EASY
-Skill2:	DB $64,$68,$66,$5C,$5E,$66,$58,$63,$59,$5C		;2.ADVANCED
-Skill3: DB $60,$68,$66,$5A,$63,$66,$5C,$59,$30			;3.ARCADE_
-Skill4: DB $67,$68,$5B,$5A,$62							;4.PRO
+Skill1:		DC "8]EASY"
+Skill2:		DC "9]ADVANCED"
+Skill3: 	DC ":]ARCADE/"
+Skill4:		DC ";]PRO"
 
 ; Select  Number of Players and Skill
 
@@ -10039,7 +10036,7 @@ SkillWait:
 	LD		(SKILLLEVEL), A
 	RET
 
-
+StrINSERTCOIN: 	DC "INSERT COIN "
 
 cvb_ANIMATEDLOGO:
 	LD	HL,mode
@@ -10048,21 +10045,27 @@ cvb_ANIMATEDLOGO:
 	CALL MYMODE2
 	CALL MYDISSCR
 	CALL cvb_MYCLS
+	
 	LD DE,$0000
 	LD HL,cvb_TILESET
 	CALL unpack
 	LD DE,$1800
 	LD HL,cvb_PNT
 	CALL unpack
-
-	CALL PNTHACK		; hide the text under the logo
+									; LOAD ARCADE FONTS
+	LD DE,$0000 + 8*0d7h			; start tiles here
+	LD HL,ARCADEFONTS
+	CALL unpack
 
 	LD HL,cvb_COLORSET0
 	CALL NXTFRM
 
-	; ld a,208
-	; ld hl,$1b00		; remove all sprites (may be $1900 ??)
-	; call MYWRTVRM
+	CALL MyNMI_off
+	LD	HL,StrINSERTCOIN
+	LD	DE,$1800+23*32
+	CALL MYPRINT
+	CALL MyNMI_on
+	
 
 	CALL MYENASCR
 	;
@@ -10113,10 +10116,16 @@ NXTFRM:
 	HALT
 	HALT
 	HALT
-	LD BC,32
+	LD BC,23
 	LD DE,$2000
 	CALL MyNMI_off
 	CALL MYLDIRVM
+	
+	LD		HL, $2000+23
+	LD		DE, 9
+	LD		A,$F1
+	CALL	FILL_VRAM
+	
 	JP MyNMI_on
 
 
@@ -10317,6 +10326,24 @@ MYENASCR:
 	ld a,$81
 	out (CTRL_PORT),a
 	jp MyNMI_on
+
+MYPRINT:
+	ld a,e
+	out (CTRL_PORT),a
+	ld a,d
+	or $40
+	out (CTRL_PORT),a
+
+.1:	ld a,(hl)
+	and $7F
+	add a,226-65
+	out (DATA_PORT),a
+	ld a,(hl)
+	bit 7,a
+	ret nz	
+	inc hl
+	jp .1
+
 
 MYLDIRVM:
 	ld a,e
@@ -10847,106 +10874,84 @@ cvb_TILESET:
 	DB $be,$c1,$81,$76,$c1,$9c,$9e,$c0
 	DB $fc,$a5,$07,$01,$74,$02,$07,$0d
 	DB $9f,$c2,$de,$f7,$63,$e7,$41,$e3
-	DB $d4,$9f,$20,$ff,$9e,$8e,$a6,$b2
-	DB $31,$b8,$bc,$dc,$06,$bf,$83,$bf
-	DB $bf,$01,$2f,$81,$bc,$bc,$81,$bb
-	DB $b8,$b5,$07,$10,$c5,$07,$be,$be
-	DB $09,$57,$07,$0b,$00,$41,$1f,$0d
-	DB $9c,$dd,$c9,$e3,$55,$07,$06,$05
-	DB $58,$83,$37,$fc,$e1,$fc,$8e,$6f
-	DB $80,$f7,$00,$eb,$77,$21,$88,$0f
-	DB $c0,$9f,$2e,$9f,$c0,$d6,$87,$11
-	DB $07,$c7,$f1,$c4,$17,$e3,$c9,$20
-	DB $80,$40,$be,$07,$f1,$e5,$cd,$9d
-	DB $80,$6c,$fd,$bc,$8c,$cf,$cf,$17
-	DB $e7,$3e,$e3,$fc,$af,$37,$43,$00
-	DB $08,$06,$a9,$fb,$0c,$10,$f6,$8b
-	DB $eb,$99,$7c,$07,$99,$fa,$86,$d6
-	DB $db,$cd,$73,$b3,$09,$78,$78,$30
-	DB $00,$fa,$f4,$91,$bc,$00,$1b,$7c
-	DB $fe,$32,$3f,$f1,$00,$7f,$b5,$97
-	DB $6d,$00,$0d,$cf,$d7,$a5,$82,$00
-	DB $3a,$07,$f0,$86,$6e,$67,$57,$54
-	DB $97,$87,$bc,$29,$4e,$c7,$65,$fd
-	DB $83,$d4,$5d,$a6,$97,$3f,$b3,$3f
-	DB $bc,$7e,$be,$00,$99,$ef,$04,$04
-	DB $f3,$1d,$7c,$72,$00,$99,$0e,$7e
-	DB $05,$f3,$00,$88,$1d,$20,$60,$99
-	DB $60,$9f,$b3,$73,$d3,$56,$9a,$eb
-	DB $67,$20,$20,$0d,$8f,$ba,$1f,$9b
-	DB $d4,$c3,$c0,$00,$d5,$60,$87,$18
-	DB $1b,$3c,$3e,$7e,$32,$4f,$80,$eb
-	DB $fc,$df,$2c,$3c,$87,$d9,$f0,$8e
-	DB $f1,$f1,$8d,$d3,$08,$f0,$db,$00
-	DB $b4,$22,$08,$ab,$7b,$7c,$00,$50
-	DB $ee,$3a,$fb,$04,$10,$df,$ec,$97
-	DB $07,$43,$1f,$03,$1c,$3e,$7f,$8c
-	DB $cb,$04,$8f,$76,$07,$12,$8a,$a8
-	DB $00,$b6,$0c,$e7,$38,$8e,$34,$b9
-	DB $fe,$1c,$56,$df,$e0,$00,$e1,$06
-	DB $e3,$e7,$e7,$ef,$ef,$a7,$7c,$77
-	DB $99,$00,$bf,$93,$00,$75,$f8,$86
-	DB $97,$d8,$00,$bf,$74,$88,$17,$cf
-	DB $07,$03,$c3,$c1,$c1,$80,$34,$1f
-	DB $7f,$0f,$9c,$d4,$b9,$b8,$c1,$30
-	DB $60,$11,$03,$1f,$ec,$13,$08,$e4
-	DB $f8,$83,$da,$45,$f5,$0a,$0f,$00
-	DB $f6,$73,$c6,$77,$3e,$17,$3d,$89
-	DB $7e,$7f,$ff,$ff,$ff,$ff,$c0
+	DB $f4,$9f,$27,$08,$06,$43,$bb,$0c
+	DB $10,$e9,$cb,$ce,$d9,$07,$f8,$d9
+	DB $f3,$c6,$a4,$9b,$8d,$a2,$f3,$78
+	DB $12,$78,$30,$00,$ba,$e5,$d1,$78
+	DB $00,$1b,$fe,$f9,$32,$3f,$e3,$00
+	DB $7f,$66,$d7,$00,$db,$0d,$97,$97
+	DB $2a,$c2,$00,$07,$72,$f0,$c6,$dc
+	DB $57,$cf,$54,$1f,$c7,$79,$29,$4e
+	DB $87,$65,$fd,$fd,$6b,$79,$f2,$d7
+	DB $c3,$f3,$e5,$fc,$eb,$fe,$d2,$00
+	DB $af,$3e,$04,$04,$1d,$6e,$7c,$41
+	DB $00,$99,$7e,$de,$05,$71,$00,$1d
+	DB $20,$60,$0c,$99,$9f,$16,$73,$59
+	DB $93,$da,$c8,$ab,$20,$20,$e1,$8f
+	DB $b7,$1f,$3a,$db,$83,$1a,$c0,$00
+	DB $ac,$87,$03,$18,$3c,$3e,$7e,$66
+	DB $4f,$80,$4f,$ab,$85,$df,$3c,$93
+	DB $c7,$29,$b0,$f1,$f1,$d2,$cd,$08
+	DB $7b,$f0,$76,$00,$22,$95,$08,$7b
+	DB $7c,$6a,$00,$07,$ee,$fb,$5b,$04
+	DB $10,$fd,$d7,$08,$07,$1f,$03,$1c
+	DB $3e,$71,$7f,$cb,$9d,$04,$8f,$f4
+	DB $b6,$a8,$55,$00,$0c,$b1,$e7,$c1
+	DB $8e,$a5,$f9,$f0,$56,$df,$e0,$e0
+	DB $00,$e1,$e3,$e7,$e7,$35,$ef,$ef
+	DB $3a,$7c,$d9,$bd,$00,$fc,$00,$bb
+	DB $75,$91,$f9,$00,$87,$bf,$6e,$b5
+	DB $1f,$07,$03,$c3,$c1,$c1,$80,$34
+	DB $1f,$7f,$0f,$9c,$d4,$b9,$b8,$c1
+	DB $30,$60,$11,$03,$1f,$ec,$13,$08
+	DB $e4,$f8,$83,$da,$45,$f5,$0a,$0f
+	DB $00,$f6,$73,$c6,$77,$3e,$17,$3d
+	DB $89,$7e,$7f,$ff,$ff,$ff,$ff,$c0
 
 
 cvb_COLORSET0:
-cvb_COLORSET1:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$bb,$0b,$0b
-cvb_COLORSET2:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$cb,$cb,$bb,$0b,$0b
-cvb_COLORSET3:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$0b,$0b,$0b,$cb,$cb,$0b,$0b,$4b,$4b,$bb,$0b,$0b
-cvb_COLORSET4:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$cb,$0b,$0b,$4b,$4b,$0b,$0b,$7b,$7b,$bb,$0b,$0b
-cvb_COLORSET5:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$4b,$0b,$0b,$7b,$7b,$cb,$cb,$3b,$3b,$bb,$0b,$0b
-cvb_COLORSET6:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$bb,$0b,$0b
-cvb_COLORSET7:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$3b,$4b,$4b,$6b,$6b,$7b,$7b,$ab,$ab,$bb,$cb,$cb
-cvb_COLORSET8:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$6b,$7b,$7b,$ab,$ab,$3b,$3b,$cb,$cb,$bb,$4b,$4b
-cvb_COLORSET9:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$ab,$3b,$3b,$cb,$cb,$6b,$6b,$4b,$4b,$bb,$7b,$7b
-cvb_COLORSET10:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$cb,$6b,$6b,$4b,$4b,$ab,$ab,$7b,$7b,$bb,$3b,$3b
-cvb_COLORSET11:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$4b,$ab,$ab,$7b,$7b,$cb,$cb,$3b,$3b,$bb,$6b,$6b
-cvb_COLORSET12:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0f,$0f,$0f,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$bb,$ab,$ab
-
-
+cvb_COLORSET1:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$bb,$0b,$0b
+cvb_COLORSET2:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0b,$0b,$0b,$0b,$0b,$0b,$0b,$cb,$cb,$bb,$0b,$0b
+cvb_COLORSET3:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$0b,$0b,$0b,$cb,$cb,$0b,$0b,$4b,$4b,$bb,$0b,$0b
+cvb_COLORSET4:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$cb,$0b,$0b,$4b,$4b,$0b,$0b,$7b,$7b,$bb,$0b,$0b
+cvb_COLORSET5:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$4b,$0b,$0b,$7b,$7b,$cb,$cb,$3b,$3b,$bb,$0b,$0b
+cvb_COLORSET6:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$bb,$0b,$0b
+cvb_COLORSET7:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$3b,$4b,$4b,$6b,$6b,$7b,$7b,$ab,$ab,$bb,$cb,$cb
+cvb_COLORSET8:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$6b,$7b,$7b,$ab,$ab,$3b,$3b,$cb,$cb,$bb,$4b,$4b
+cvb_COLORSET9:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$ab,$3b,$3b,$cb,$cb,$6b,$6b,$4b,$4b,$bb,$7b,$7b
+cvb_COLORSET10:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$cb,$6b,$6b,$4b,$4b,$ab,$ab,$7b,$7b,$bb,$3b,$3b
+cvb_COLORSET11:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$4b,$ab,$ab,$7b,$7b,$cb,$cb,$3b,$3b,$bb,$6b,$6b
+cvb_COLORSET12:	DB $0b,$0b,$0b,$0b,$0b,$0b,$0b,$0a,$0a,$0a,$08,$7b,$cb,$cb,$3b,$3b,$4b,$4b,$6b,$6b,$bb,$ab,$ab
 
 
 cvb_PNT:
 	DB $1e,$30,$bb,$00,$00,$27,$1b,$1d
 	DB $1c,$28,$28,$2d,$47,$1e,$00,$1f
 	DB $23,$0d,$0f,$2f,$21,$22,$e0,$1e
-	DB $2e,$ca,$7c,$98,$00,$02,$8b,$a8
-	DB $c7,$7e,$9a,$73,$90,$70,$06,$10
-	DB $26,$a9,$05,$de,$1f,$00,$2b,$c9
-	DB $82,$a1,$76,$8d,$aa,$c3,$00,$80
-	DB $9f,$74,$94,$ab,$18,$1a,$20,$0d
-	DB $30,$88,$b1,$01,$e0,$1f,$25,$c5
-	DB $7a,$9c,$00,$75,$8c,$00,$08,$79
-	DB $9d,$b8,$92,$00,$af,$c6,$7d,$99
-	DB $17,$89,$ad,$07,$de,$1f,$00,$24
+	DB $2e,$b2,$64,$80,$00,$02,$73,$90
+	DB $af,$66,$82,$5b,$78,$70,$06,$10
+	DB $26,$91,$05,$de,$1f,$00,$2b,$b1
+	DB $6a,$89,$5e,$75,$92,$ab,$00,$68
+	DB $87,$5c,$7c,$93,$18,$1a,$20,$0d
+	DB $30,$70,$99,$01,$e0,$1f,$25,$ad
+	DB $62,$84,$00,$5d,$74,$00,$08,$61
+	DB $85,$a0,$7a,$00,$97,$ae,$65,$81
+	DB $17,$71,$95,$07,$de,$1f,$00,$24
 	DB $0c,$10,$0e,$0a,$0a,$09,$19,$c0
-	DB $1f,$8e,$b0,$c0,$7f,$0d,$a0,$03
-	DB $8a,$04,$70,$a4,$2a,$c8,$00,$7b
-	DB $9e,$72,$94,$ae,$c1,$78,$a2,$1a
-	DB $70,$8f,$13,$e0,$1f,$29,$c4,$83
-	DB $00,$a3,$77,$93,$ac,$c2,$81,$9b
-	DB $71,$35,$91,$0f,$c5,$1f,$2c,$62
+	DB $1f,$76,$98,$a8,$67,$0d,$88,$03
+	DB $72,$04,$70,$a4,$2a,$b0,$00,$63
+	DB $86,$5a,$7c,$96,$a9,$60,$8a,$1a
+	DB $58,$77,$13,$e0,$1f,$29,$ac,$6b
+	DB $00,$8b,$5f,$7b,$94,$aa,$69,$83
+	DB $59,$35,$79,$0f,$c5,$1f,$2c,$62
 	DB $00,$00,$0d,$15,$14,$0b,$12,$16
-	DB $11,$6b,$30,$ab,$00,$00,$6a,$68
-	DB $5b,$5d,$66,$5f,$59,$68,$5a,$0a
-	DB $59,$1b,$66,$65,$5f,$f8,$3f,$64
-	DB $f1,$3f,$65,$c0,$0a,$66,$5c,$5e
-	DB $66,$58,$1e,$63,$59,$5c,$ec,$8a
-	DB $60,$89,$3f,$5a,$63,$42,$59,$ef
-	DB $c8,$ca,$67,$8a,$5a,$62,$d7,$80
-	DB $18,$3d,$47,$39,$45,$3e,$3b,$0f
-	DB $3c,$38,$49,$4a,$04,$10,$69,$58
-	DB $65,$b1,$61,$17,$30,$63,$62,$08
-	DB $00,$0e,$44,$48,$3a,$4b,$4c,$3f
-	DB $40,$00,$41,$46,$43,$42,$30,$50
-	DB $54,$51,$3f,$52,$53,$ff,$ff,$ff
-	DB $f0
+	DB $11,$6f,$30,$ee,$c0,$00,$3d,$47
+	DB $39,$45,$3e,$06,$3b,$3c,$38,$49
+	DB $4a,$ec,$1f,$44,$00,$48,$3a,$4b
+	DB $4c,$3f,$40,$41,$46,$00,$43,$42
+	DB $30,$50,$54,$51,$52,$53,$ff,$ff
+	DB $ff,$ff,$c0
+
 
 
 ARCADEFONTS:
