@@ -8,6 +8,22 @@
 ; MARKED AS MR_DO_UNUSED_PUSH_ANIM_01_PAT, MR_DO_UNUSED_PUSH_ANIM_02_PAT AND MR_DO_UNUSED_PUSH_ANIM_03_PAT
 ; LET THE HISTORY BOOKS BE KNOWN ON 10 NOVEMBER 2023 CAPTAIN COZMOS, I DISCOVERED THIS AFTER 40 YEARS BEING HIDDEN WITHIN THE CODE...
 
+; About moving the game to screen 2.... 
+; In screen 2 the tables have to be allocated in this way:
+;  
+; Pattern Table: 	0000h-17FFh (for HW constraints) - Normal mode (3 banks)
+; Name Table: 		1800h-1AFFh - 256*3 tiles
+; SAT: 				1B00h (can be elsewhere but here fits well)
+; Color Table: 		2000h-27FFh (for HW constraints) - Mirror mode (1 bank for all the screen)
+; SPT: 				3800h (256*8 bytes)
+; 
+; The current layout in the game is:
+; 
+; Pattern Table: 	0000h-07FFh (256*8 bytes in screen 1)
+; Name Table: 		1000h-12FFh - 256*3 tiles
+; Color Table: 		1800h (32 bytes)
+; SAT: 				1900h
+; SPT: 				2000h (256*8 bytes)
 
 ; BIOS DEFINITIONS **************************
 ASCII_TABLE:		EQU $006A
@@ -629,7 +645,8 @@ LOC_8340:
 ;	JP		LOC_8372
 LOC_8372:
 
-	CALL 	EXTRASCREEN	; TEST EXTRA MRDO SCREEN
+;	CALL 	EXTRASCREEN	; TEST EXTRA MRDO SCREEN
+	CALL 	INTERMISSION	; INTERMISSION
 	
 	CALL	GameInit
 LOC_8375:
@@ -10186,7 +10203,8 @@ cvb_EXTRASCREEN:
 
 	LD HL,cvb_IMAGE_PATTERN	+ 32*10
 	LD DE,$1800
-	LD	BC,10*256+4
+	LD BC,10*256+4
+	LD A,32
 	CALL CPYBLK_MxN
 
 	LD BC,128
@@ -10201,6 +10219,7 @@ cvb_EXTRASCREEN_FRM1:
 	LD HL,cvb_IMAGE_PATTERN
 	LD DE,$1800	+ 13 + 17*32
 	LD BC,5*256+4
+	LD A,32	
 	CALL CPYBLK_MxN
 	CALL MyNMI_off
 	ld a,2+17*8
@@ -10213,13 +10232,296 @@ cvb_EXTRASCREEN_FRM2:
 	LD HL,cvb_IMAGE_PATTERN	+ 5*32
 	LD DE,$1800	+ 13 + 17*32
 	LD BC,5*256+4
+	LD A,32	
 	CALL CPYBLK_MxN
 	CALL MyNMI_off
 	ld a,209
 	ld hl,$1b00		; remove sprite 0
 	call MYWRTVRM
 	JP MyNMI_on
+	
+INTERMISSION:
+	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	; Show the intermission screen 
+	;
+	LD	HL,mode
+	SET	7,(hl)						; switch to intermission  mode
 
+	CALL	cvb_INTERMISSION
+	CALL	INITIALIZE_THE_SOUND
+	CALL	PLAY_WIN_EXTRA_DO_TUNE
+
+	LD		HL, 280H				; music duration
+	XOR		A
+	CALL	REQUEST_SIGNAL
+
+	PUSH	AF						; wait for music to finish
+.1:
+	CALL	cvb_INTERMISSION_FRM1	; animate the monsters
+	CALL	WAIT8
+	CALL	cvb_INTERMISSION_FRM2
+	CALL	WAIT8
+	POP		AF
+	PUSH	AF
+	CALL	TEST_SIGNAL
+	AND		A
+	JR		Z, .1
+	POP		AF
+
+	CALL 	MYDISSCR
+
+	LD		HL, SPRITE_NAME_TABLE
+	LD		B, 50H				; remove 20 sprites
+.2:
+	LD		(HL), 0
+	INC		HL
+	DJNZ	.2
+
+	LD		HL, 0000H
+	LD		DE, 4000H
+	xor		a					; fill with space
+	CALL	FILL_VRAM
+
+
+	LD	HL,mode
+	RES	7,(hl)						; switch to game mode
+
+	CALL	INIT_VRAM
+	LD		HL, GAMECONTROL
+	SET		7, (HL)
+.3:
+	BIT		7, (HL)
+	JR		NZ, .3
+
+	; Original code's final register writes
+	LD		BC, 700H		 ; R7: Border/background color
+	CALL	WRITE_REGISTER
+	LD		BC, 1E2H		 ; Original game state register
+	CALL	WRITE_REGISTER
+	RET	
+
+cvb_INTERMISSION:
+	CALL MYMODE1
+	CALL MYDISSCR					
+	CALL cvb_MYCLS
+
+	LD		HL, $2000
+	LD		DE, 256*8
+	LD		A,$F0
+	CALL	FILL_VRAM
+	
+									; LOAD ARCADE FONTS
+	LD DE,$0000 + 8*0d7h			; start tiles here
+	LD HL,ARCADEFONTS
+	CALL unpack
+	LD DE,$0800 + 8*0d7h			; start tiles here
+	LD HL,ARCADEFONTS
+	CALL unpack
+	LD DE,$1000 + 8*0d7h			; start tiles here
+	LD HL,ARCADEFONTS
+	CALL unpack
+	
+	LD DE,$0000 
+	LD HL,intermission_char
+	CALL unpack
+	LD DE,$0800 
+	LD HL,intermission_char
+	CALL unpack
+	LD DE,$1000 
+	LD HL,intermission_char
+	CALL unpack
+
+	LD DE,$2000 
+	LD HL,intermission_color
+	CALL unpack
+
+	LD DE,$3800
+	LD HL,intermission_sprites
+	CALL unpack
+
+	LD DE,$1800+12+32*10
+	LD HL,VERYGOOD
+	CALL MYPRINT
+		
+	CALL MYENASCR
+
+	RET
+	
+VERYGOOD: 	DB "VERY GOOD ", 94,222		; "!!"
+	
+cvb_INTERMISSION_FRM1:
+	LD BC,41
+	LD DE,$1B00
+	LD HL,cvb_SP1
+	CALL MyNMI_off
+	CALL MYLDIRVM
+	CALL MyNMI_on
+
+	LD BC,5*256+14
+	LD DE,$1800+10+13*32
+	LD HL,cvb_FR1
+	ld a,14
+	JP CPYBLK_MxN
+	
+cvb_INTERMISSION_FRM2:
+	LD BC,41
+	LD DE,$1B00
+	LD HL,cvb_SP2
+	CALL MyNMI_off
+	CALL MYLDIRVM
+	CALL MyNMI_on
+
+	LD BC,5*256+14
+	LD DE,$1800+10+13*32
+	LD HL,cvb_FR2
+	ld a,14
+	JP CPYBLK_MxN
+
+	
+	
+	
+
+; 61 tiles - compressed
+intermission_char:
+	DB $3f,$00,$03,$00,$03,$30,$78,$78
+	DB $30,$00,$07,$ff,$06,$66,$60,$7f
+	DB $06,$00,$ef,$00,$c0,$c0,$c2,$18
+	DB $ff,$ff,$68,$1f,$1b,$80,$3c,$c0
+	DB $80,$24,$00,$f9,$ef,$06,$0f,$f9
+	DB $f9,$03,$e0,$04,$f0,$7f,$f8,$f0
+	DB $e0,$00,$a0,$20,$80,$20,$04,$70
+	DB $30,$18,$38,$70,$38,$1d,$07,$0f
+	DB $1f,$74,$3f,$41,$00,$19,$00,$04
+	DB $0e,$3c,$60,$bf,$3f,$7f,$98,$70
+	DB $26,$3d,$e0,$f8,$fc,$71,$fc,$1f
+	DB $01,$03,$04,$21,$03,$f7,$cf,$1f
+	DB $17,$7f,$1c,$ff,$fc,$ff,$00,$1e
+	DB $62,$e0,$5b,$e0,$4d,$00,$f0,$f8
+	DB $0c,$0e,$0f,$0f,$07,$03,$82,$23
+	DB $f8,$78,$38,$9f,$7a,$08,$7f,$07
+	DB $7f,$c0,$26,$0c,$20,$00,$71,$21
+	DB $30,$e0,$e3,$c3,$02,$c6,$3b,$f7
+	DB $10,$33,$8d,$00,$03,$ff,$80,$00
+	DB $c7,$03,$03,$01,$01,$ff,$9c,$02
+	DB $fe,$3f,$60,$03,$ff,$e0,$1f,$c1
+	DB $83,$02,$19,$1d,$f1,$1a,$28,$2a
+	DB $f9,$50,$43,$f0,$ff,$01,$7e,$ff
+	DB $cf,$cf,$78,$7c,$7c,$4b,$7c,$00
+	DB $f8,$29,$88,$9d,$00,$40,$e0,$04
+	DB $40,$0c,$0c,$ff,$c0,$00,$70,$11
+	DB $1c,$fc,$60,$26,$60,$cf,$16,$c6
+	DB $74,$85,$b4,$60,$8f,$1e,$1f,$14
+	DB $5e,$ef,$2f,$00,$03,$c8,$51,$28
+	DB $80,$80,$25,$fe,$fe,$40,$e1,$55
+	DB $60,$5d,$41,$f9,$ff,$3e,$c0,$56
+	DB $87,$cf,$1c,$3f,$10,$bf,$bf,$1f
+	DB $b1,$81,$50,$e0,$67,$dd,$fe,$a2
+	DB $27,$c3,$be,$41,$08,$3e,$1f,$07
+	DB $01,$58,$45,$16,$00,$e0,$d1,$b3
+	DB $02,$f0,$fc,$1f,$f3,$f1,$07,$a9
+	DB $20,$09,$cf,$c7,$c7,$c3,$60,$40
+	DB $64,$be,$bc,$18,$62,$10,$5f,$fe
+	DB $be,$6e,$78,$21,$ae,$55,$56,$7f
+	DB $12,$38,$7c,$fe,$1c,$0f,$0a,$aa
+	DB $66,$6c,$51,$00,$06,$fd,$fc,$6c
+	DB $60,$60,$60,$17,$b6,$7f,$63,$e0
+	DB $ee,$ac,$7f,$3c,$77,$7c,$7f,$83
+	DB $ce,$1e,$24,$7a,$7e,$f6,$7c,$7f
+	DB $51,$78,$83,$18,$18,$ac,$4f,$fe
+	DB $a5,$15,$c3,$1f,$14,$8a,$54,$09
+	DB $8c,$cf,$24,$ff,$ff,$ff,$fc
+
+intermission_color:
+	DB $3f,$f1,$03,$00,$81,$c8,$c8,$c1
+	DB $c1,$96,$07,$f8,$00,$55,$03,$07
+	DB $00,$07,$6c,$14,$1b,$81,$78,$c1
+	DB $25,$fc,$b8,$1c,$28,$fc,$fc,$b6
+	DB $2c,$00,$6d,$81,$1f,$f3,$06,$81
+	DB $61,$06,$b8,$f8,$21,$2b,$00,$82
+	DB $00,$07,$cf,$16,$a7,$1f,$48,$c8
+	DB $7c,$00,$3d,$fc,$be,$14,$09,$78
+	DB $fc,$60,$fc,$aa,$02,$00,$25,$60
+	DB $ce,$09,$8a,$3c,$9d,$3e,$00,$7d
+	DB $f8,$07,$d9,$00,$05,$f3,$08,$81
+	DB $33,$54,$16,$b4,$58,$60,$eb,$4b
+	DB $46,$eb,$68,$00,$e7,$3f,$fc,$99
+	DB $37,$19,$a6,$5a,$7b,$4f,$6c,$60
+	DB $00,$82,$d3,$56,$36,$1c,$05,$ee
+	DB $58,$42,$ce,$5c,$53,$c7,$5f,$fc
+	DB $9f,$00,$3c,$98,$d3,$56,$0c,$00
+	DB $8e,$b8,$8f,$97,$64,$58,$07,$84
+	DB $e3,$8a,$63,$09,$8c,$a7,$09,$8c
+	DB $06,$21,$25,$d3,$17,$b6,$55,$f7
+	DB $36,$80,$73,$46,$ed,$52,$43,$97
+	DB $2f,$5b,$17,$0f,$98,$ef,$7f,$b6
+	DB $27,$e5,$36,$2f,$da,$47,$22,$d3
+	DB $17,$cf,$4f,$ff,$ff,$ff,$fc
+
+
+intermission_sprites:
+	DB $26,$c8,$86,$00,$b0,$00,$f8,$f0
+	DB $f0,$e0,$06,$c0,$e0,$e0,$f0,$80
+	DB $0b,$f8,$00,$1c,$0c,$04,$06,$38
+	DB $70,$78,$11,$07,$0c,$00,$1c,$38
+	DB $30,$38,$bd,$fd,$01,$72,$d9,$28
+	DB $80,$a1,$26,$80,$80,$6f,$07,$03
+	DB $00,$72,$ff,$f0,$30,$06,$59,$0e
+	DB $3e,$1f,$02,$02,$01,$5c,$0c,$2c
+	DB $2b,$f0,$8f,$58,$c0,$00,$c0,$00
+	DB $10,$00,$60,$00,$7c,$be,$0c,$7c
+	DB $f8,$08,$e0,$00,$2b,$98,$08,$66
+	DB $1a,$f2,$2c,$3d,$f5,$9c,$00,$80
+	DB $03,$77,$8d,$ab,$d0,$1c,$78,$f8
+	DB $c1,$04,$3c,$7c,$fc,$a8,$10,$01
+	DB $73,$01,$04,$02,$db,$25,$8f,$ff
+	DB $70,$00,$83,$00,$7f,$c3,$6a,$12
+	DB $ab,$30,$bf,$c2,$0c,$39,$00,$17
+	DB $b0,$a7,$03,$77,$0f,$91,$2d,$7b
+	DB $00,$13,$4a,$3b,$da,$8c,$0b,$d4
+	DB $42,$63,$ce,$03,$de,$b7,$7b,$f9
+	DB $bf,$72,$c0,$73,$40,$00,$af,$05
+	DB $56,$c7,$1a,$1c,$fc,$bf,$ff,$ff
+	DB $ff,$ff,$e0
+	
+cvb_SP1:	
+	DB 64+41,80,0,1
+	DB 64+41,97,4,15
+	DB 64+46,92,8,8
+	DB 64+48,160,12,1
+	DB 64+57,88,16,8
+	DB 64+42,88,20,12
+	DB 64+62,95,24,15
+	DB 64+56,161,28,8
+	DB 64+58,112,32,1
+	DB 64+60,80,36,1
+	DB 208
+cvb_FR1:
+	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	DB $05,$06,$07,$08,$09,$0a,$0b,$0c,$00,$00,$0d,$0e,$0f,$10
+	DB $11,$12,$13,$14,$15,$16,$17,$18,$00,$00,$19,$1a,$1b,$1c
+	DB $1d,$1e,$1f,$20,$21,$22,$23,$24,$00,$00,$25,$26,$27,$28
+	DB $29,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$30,$31,$32,$33
+
+cvb_SP2:
+	DB 105,80,40,1
+	DB 105,97,44,15
+	DB 110,92,48,8
+	DB 112,160,52,1
+	DB 121,85,56,8
+	DB 119,81,60,12
+	DB 126,95,64,15
+	DB 124,166,68,12
+	DB 122,112,72,1
+	DB 208
+cvb_FR2:	
+	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00	
+	DB $05,$06,$07,$08,$09,$0a,$0b,$0c,$00,$00,$0d,$0e,$0f,$10
+	DB $11,$12,$13,$14,$15,$16,$17,$18,$00,$00,$19,$1a,$1b,$1c
+	DB $34,$1e,$1f,$20,$21,$22,$23,$24,$00,$00,$35,$36,$37,$38
+	DB $39,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$3a,$3b,$3c,$00
+
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 MyNMI_off:
 	push hl
 	ld hl,mode
@@ -10239,11 +10541,6 @@ MyNMI_on:
 	pop af
 	ret
 
-PNTHACK:
-	ld hl,$1800+15*32
-	ld bc,32*7			; hide 7 lines under the MrDo logo
-	ld a,$30			; blank tile
-	jp cvb_MYCLS.0
 
 cvb_MYCLS:
 	ld hl,$1800
@@ -10271,10 +10568,12 @@ cvb_MYCLS:
 	;	DE->VRAM
 	;	B -> Y size
 	;	C -> X size
+	;	A -> source width
 
 CPYBLK_MxN:
 	CALL MyNMI_off
 .1:	push bc
+	push af
 	push hl
 	push de
 	ld	b,0
@@ -10284,7 +10583,8 @@ CPYBLK_MxN:
 	add hl,bc
 	ex de,hl
 	pop hl
-;	ld bc,32
+	pop af
+	ld  c,a
 	add hl,bc
 	pop bc
 	djnz .1
