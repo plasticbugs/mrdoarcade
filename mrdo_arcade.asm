@@ -703,9 +703,6 @@ GameInit:		; Initialize the game
 
 	call	cvb_ANIMATEDLOGO
 	CALL	INIT_VRAM
-
-;	call	ExtraMrDo		; test the	Extra MrDo! screen
-
 	XOR		A
 	RET
 
@@ -1200,7 +1197,6 @@ SUB_87F4:	; Start the level
 	LD		(IY+0), 0C0H
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
-	
 	CALL	PLAY_OPENING_TUNE
 	LD		HL, 1
 	XOR		A
