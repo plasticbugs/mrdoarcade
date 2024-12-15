@@ -3039,6 +3039,7 @@ LOC_95C8:
 	JR		LOC_95D5
 LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
 	LD		D, A
+	LD    H, 4 ; Mr. Do collision offset to fix stuck in apple bug
 	CALL	SUB_B12D ; Returns A=0 if no collision, A=1 if collision
 	AND		A
 	JR		Z, LOC_95D5
@@ -4215,6 +4216,7 @@ LOC_9E17:
 	SET		3, (IY+4)
 	JR		LOC_9E3B
 LOC_9E31:
+	LD    H, 0 ; Monster collision offset
 	CALL	SUB_B12D	; Returns A=1 if vertical apple collision
 	LD		L, 0
 	AND		A
@@ -7103,15 +7105,20 @@ SUB_B12D: ; Mr. Do sprite intersection with apples from above and below
 	; Modified to offset the value used to detect a vertical collision
 	; with an apple so that Mr. Do doesn't get stuck in the apple from
 	; above or below.
+
+  LD    A, H
+  CP    4  ; Check if H is 4 (Mr. Do collision offset)
+  JR    NZ, LOC_B133
 	LD		A, (IY+3)	; Get Y position of Mr. Do
 	BIT		1, D		 ; Check if moving down
 	JR		Z, CHECK_UP
-	SUB		4		   ; Moving down, so sub 4 from Y position
+	SUB		H		   ; Moving down, so sub 4 from Y position
 	JR		START_CHECK
 CHECK_UP:
-	ADD		A, 4		   ; Moving up, so add 4 to Y position
+	ADD		A, H		   ; Moving up, so add 4 to Y position
 START_CHECK:
 	LD		B, A	; Store the new Y position in B for checks
+
 LOC_B133:
 	BIT		7, (IX+0)	; Check if the apple is active
 	JR		Z, LOC_B163
