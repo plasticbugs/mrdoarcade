@@ -622,8 +622,9 @@ START:
 
 LOC_8372:
 	; DEBUGGER
-  ;	CALL 	EXTRASCREEN	; TEST EXTRA MRDO SCREEN
-	; CALL 	INTERMISSION	; INTERMISSION
+	; CALL 	EXTRASCREEN		; TEST EXTRA MRDO SCREEN
+	; CALL 	INTERMISSION	; TEST INTERMISSION
+	CALL 	CONGRATULATION	; CONGRATULATION
 	
 	; Initialize the game
 
@@ -10593,9 +10594,6 @@ cvb_INTERMISSION_FRM2:
 	ld a,14
 	JP CPYBLK_MxN
 
-	
-	
-	
 
 ; 61 tiles - compressed
 intermission_char:
@@ -10735,6 +10733,402 @@ cvb_FR2:
 	DB $11,$12,$13,$14,$15,$16,$17,$18,$00,$00,$19,$1a,$1b,$1c
 	DB $34,$1e,$1f,$20,$21,$22,$23,$24,$00,$00,$35,$36,$37,$38
 	DB $39,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$3a,$3b,$3c,$00
+
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+CONGRATULATION:
+	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	; Show the congratulation screen 
+	;
+	LD	HL,mode
+	SET	7,(hl)						; switch to intermission  mode
+
+	CALL	cvb_CONGRATULATION
+	CALL	INITIALIZE_THE_SOUND
+	CALL	PLAY_VERY_GOOD_TUNE
+
+	LD		HL, 200H				; music duration
+	XOR		A
+	CALL	REQUEST_SIGNAL
+
+	PUSH	AF						; wait for music to finish
+.1:
+	CALL	cvb_CONGRATULATION_FRM0	; animate the diamond
+	CALL	WAIT8
+	CALL	cvb_CONGRATULATION_FRM1
+	CALL	WAIT8
+	CALL	cvb_CONGRATULATION_FRM2
+	CALL	WAIT8
+	POP		AF
+	PUSH	AF
+	CALL	TEST_SIGNAL
+	AND		A
+	JR		Z, .1
+	POP		AF
+
+	CALL 	MYDISSCR
+
+	LD		HL, SPRITE_NAME_TABLE
+	LD		B, 50H				; remove 20 sprites
+.2:
+	LD		(HL), 0
+	INC		HL
+	DJNZ	.2
+
+	LD		HL, 0000H
+	LD		DE, 4000H
+	xor		a					; fill with space
+	CALL	FILL_VRAM
+
+
+	LD	HL,mode
+	RES	7,(hl)						; switch to game mode
+
+	CALL	INIT_VRAM
+	LD		HL, GAMECONTROL
+	SET		7, (HL)
+.3:
+	BIT		7, (HL)
+	JR		NZ, .3
+
+	; Original code's final register writes
+	LD		BC, 700H		 ; R7: Border/background color
+	CALL	WRITE_REGISTER
+	LD		BC, 1E2H		 ; Original game state register
+	CALL	WRITE_REGISTER
+	RET	
+
+cvb_CONGRATULATION:
+	CALL MYMODE1
+	CALL MYDISSCR					
+	CALL cvb_MYCLS
+
+	LD		HL, $2000
+	LD		DE, 256*8
+	LD		A,$F0
+	CALL	FILL_VRAM
+	
+									; LOAD ARCADE FONTS
+	LD DE,$0000 + 8*0d7h			; start tiles here
+	LD HL,ARCADEFONTS
+	CALL unpack
+	LD DE,$0800 + 8*0d7h			; start tiles here
+	LD HL,ARCADEFONTS
+	CALL unpack
+	LD DE,$1000 + 8*0d7h			; start tiles here
+	LD HL,ARCADEFONTS
+	CALL unpack
+	
+	LD DE,$0000 
+	LD HL,congratulation_char
+	CALL unpack
+	LD DE,$0800 
+	LD HL,congratulation_char
+	CALL unpack
+	LD DE,$1000 
+	LD HL,congratulation_char
+	CALL unpack
+
+	LD DE,$2000 
+	LD HL,congratulation_color
+	CALL unpack
+
+	LD DE,$3800
+	LD HL,congratulation_sprites
+	CALL unpack
+
+	LD BC,4*256+21
+	LD DE,$1800+17*32+7
+	LD HL,cvb_universal
+	ld A,C
+	CALL CPYBLK_MxN
+
+	LD BC,10*256+7
+	LD DE,$1800+1
+	LD HL,cvb_congratulation_pattern
+	ld A,C	
+	CALL CPYBLK_MxN
+	
+	LD BC,4*10+1
+	LD DE,$1B00
+	LD HL,cvb_FSB
+	CALL MyNMI_off
+	CALL MYLDIRVM
+	CALL MyNMI_on
+	
+	
+	LD DE,$1800+10+32*10
+	LD HL,CONGRATULATIONS
+	CALL MYPRINT
+		
+	CALL MYENASCR
+
+	RET
+	
+CONGRATULATIONS: 	DC "CONGRATULATIONS !!"
+	
+cvb_CONGRATULATION_FRM0:
+	LD BC,4*5+1
+	LD DE,$1B00+10*4
+	LD HL,cvb_FS0
+	CALL MyNMI_off
+	CALL MYLDIRVM
+	CALL MyNMI_on
+
+	LD BC,3*256+4
+	LD DE,$1800+10*32
+	LD HL,cvb_FRC0
+	ld A,C
+	JP CPYBLK_MxN
+	
+cvb_CONGRATULATION_FRM1:
+	LD BC,4*5+1
+	LD DE,$1B00+10*4
+	LD HL,cvb_FS1
+	CALL MyNMI_off
+	CALL MYLDIRVM
+	CALL MyNMI_on
+
+	LD BC,3*256+4
+	LD DE,$1800+10*32
+	LD HL,cvb_FRC1
+	LD A,C
+	JP CPYBLK_MxN
+
+cvb_CONGRATULATION_FRM2:
+	LD BC,4*5+1
+	LD DE,$1B00+10*4
+	LD HL,cvb_FS2
+	CALL MyNMI_off
+	CALL MYLDIRVM
+	CALL MyNMI_on
+
+	LD BC,3*256+4
+	LD DE,$1800+10*32
+	LD HL,cvb_FRC2
+	LD A,C
+	JP CPYBLK_MxN
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+cvb_FS0:	
+	DB 79,9,40,2
+	DB 81,1,44,3
+	DB 83,18,48,3
+	DB 86,8,52,1
+	DB 85,8,56,2
+	DB 208
+cvb_FS1:
+	DB 119-40,9,60,3
+	DB 121-40,1,64,4
+	DB 123-40,11,68,3
+	DB 126-40,12,72,2
+	DB 125-40,8,76,1
+	DB 208
+cvb_FS2:
+	DB 159-80,7,80,3
+	DB 161-80,21,84,4
+	DB 163-80,5,88,3
+	DB 166-80,8,92,1
+	DB 165-80,8,96,2
+	DB 208
+
+cvb_FRC0:
+	DB $33,$34,$35,$36
+	DB $37,$38,$39,$3a
+	DB $00,$3b,$3c,$00
+cvb_FRC1:
+	DB $3d,$3e,$3f,$40
+	DB $41,$42,$43,$3a
+	DB $00,$44,$45,$00
+cvb_FRC2:
+	DB $6d,$6e,$3e,$6f
+	DB $37,$42,$43,$75
+	DB $00,$76,$77,$00
+	
+	
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+cvb_universal:
+	DB $46,$47,$48,$49,$4a,$46,$47,$48,$4b,$4c,$46,$47,$4d,$4e,$4f,$50,$51,$46,$51,$4a,$00
+	DB $52,$53,$51,$54,$55,$52,$56,$57,$00,$58,$59,$5a,$5b,$5c,$5d,$5e,$5f,$60,$00,$55,$00
+	DB $52,$53,$51,$61,$55,$52,$62,$63,$00,$64,$65,$53,$66,$67,$68,$69,$6a,$6b,$00,$55,$6c	
+	DB $70,$71,$48,$72,$4a,$46,$51,$46,$51,$4c,$46,$47,$73,$4b,$74,$71,$47,$48,$4b,$4c,$46	
+
+cvb_FSB:
+	DB 255,16,0,1
+	DB 15,8,4,1
+	DB 19,44,8,8
+	DB 23,22,12,8
+	DB 32,16,16,1
+	DB 35,36,20,2
+	DB 41,29,24,1
+	DB 47,18,28,15
+	DB 42,48,32,2
+	DB 56,16,36,8
+	DB 208
+
+	; Width = 7, height = 10
+cvb_congratulation_pattern:
+	DB $00,$01,$02,$00,$00,$00,$00
+	DB $03,$04,$05,$00,$00,$00,$00
+	DB $06,$07,$08,$00,$09,$0a,$00
+	DB $0b,$0c,$0d,$0e,$0f,$10,$11
+	DB $00,$12,$13,$14,$15,$16,$17
+	DB $18,$19,$1a,$1b,$00,$1c,$1d
+	DB $1e,$1f,$20,$21,$22,$23,$24
+	DB $25,$26,$27,$28,$29,$2a,$2b
+	DB $2c,$2d,$2e,$2f,$00,$00,$00
+	DB $30,$31,$32,$00,$00,$00,$00
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	; Start tile = 0. Total_tiles = 120
+congratulation_char:
+	DB $3b,$00,$c3,$00,$01,$03,$07,$45
+	DB $07,$fc,$00,$a0,$07,$03,$0f,$1f
+	DB $00,$0c,$18,$19,$c1,$ff,$ff,$fe
+	DB $fc,$00,$f8,$f8,$f0,$e0,$f8,$7f
+	DB $7f,$3f,$08,$e3,$c1,$3f,$7f,$00
+	DB $81,$c3,$a2,$0f,$00,$fc,$fe,$19
+	DB $21,$c0,$e0,$00,$c0,$c0,$80,$e1
+	DB $40,$07,$1f,$b1,$07,$20,$70,$41
+	DB $24,$2b,$1e,$0e,$06,$02,$0c,$39
+	DB $87,$03,$01,$00,$2c,$1f,$7f,$2b
+	DB $47,$04,$f8,$00,$c1,$f7,$fc,$37
+	DB $1f,$14,$07,$7f,$03,$00,$6d,$0f
+	DB $02,$ff,$7c,$7e,$80,$c0,$e1,$18
+	DB $c3,$37,$3c,$7c,$04,$00,$78,$03
+	DB $04,$38,$1c,$4e,$0c,$04,$f0,$56
+	DB $59,$c0,$5d,$3c,$a5,$38,$47,$88
+	DB $36,$c0,$25,$0f,$07,$01,$07,$f8
+	DB $04,$06,$06,$03,$f0,$31,$7e,$78
+	DB $00,$f0,$f1,$b8,$a0,$4d,$1f,$77
+	DB $77,$58,$e0,$18,$95,$71,$b1,$66
+	DB $0d,$43,$6c,$3f,$21,$f0,$9a,$0c
+	DB $40,$16,$d2,$3f,$0c,$02,$02,$00
+	DB $27,$05,$ae,$13,$00,$c3,$02,$fb
+	DB $fb,$71,$20,$08,$19,$8c,$73,$80
+	DB $00,$00,$51,$7f,$bf,$70,$78,$7c
+	DB $7f,$c0,$81,$48,$f7,$f3,$e3,$c3
+	DB $03,$96,$39,$69,$69,$02,$61,$80
+	DB $33,$30,$10,$e0,$0f,$0f,$80,$da
+	DB $3f,$71,$df,$70,$30,$df,$ff,$d7
+	DB $c6,$31,$70,$db,$37,$02,$fa,$87
+	DB $cf,$e7,$24,$53,$06,$07,$3e,$70
+	DB $4b,$0f,$0c,$30,$70,$84,$a0,$31
+	DB $f1,$c7,$83,$32,$83,$c7,$43,$9a
+	DB $23,$2e,$00,$80,$71,$f3,$a6,$00
+	DB $47,$c0,$01,$87,$fd,$fc,$dc,$98
+	DB $96,$11,$1d,$d1,$16,$c0,$2c,$33
+	DB $07,$0c,$84,$68,$4c,$95,$c2,$73
+	DB $1f,$1f,$07,$80,$0e,$60,$70,$40
+	DB $40,$60,$1f,$aa,$8b,$0e,$8b,$6e
+	DB $58,$c3,$22,$9d,$15,$64,$0f,$00
+	DB $1f,$e1,$08,$e3,$1f,$1e,$3c,$90
+	DB $9c,$ba,$26,$80,$a9,$08,$04,$02
+	DB $01,$a0,$35,$00,$9f,$bf,$7f,$80
+	DB $f1,$4f,$f8,$b5,$47,$2b,$f7,$57
+	DB $0d,$4f,$38,$3c,$1e,$f2,$4f,$00
+	DB $64,$3c,$17,$47,$03,$84,$47,$06
+	DB $0c,$08,$47,$40,$3c,$80,$fc,$00
+	DB $78,$3f,$00,$0f,$f3,$00,$46,$9e
+	DB $df,$0f,$c3,$f0,$1e,$00,$c3,$3c
+	DB $00,$ff,$00,$e7,$e7,$a2,$00,$d8
+	DB $25,$e7,$17,$fe,$86,$17,$3c,$3c
+	DB $cf,$4f,$03,$1e,$00,$30,$3c,$00
+	DB $0c,$00,$e1,$a5,$70,$07,$a1,$38
+	DB $c0,$9a,$00,$0f,$14,$0e,$0e,$07
+	DB $26,$8e,$0e,$d5,$15,$47,$14,$d5
+	DB $e3,$00,$b6,$35,$1a,$90,$5a,$21
+	DB $17,$09,$84,$c1,$d1,$ee,$cd,$e3
+	DB $8b,$ff,$3f,$6f,$9d,$f5,$99,$fe
+	DB $f5,$b6,$21,$ef,$03,$9c,$0c,$18
+	DB $1c,$ae,$55,$34,$36,$a4,$17,$1b
+	DB $0e,$44,$9c,$ab,$17,$1b,$41,$6e
+	DB $61,$27,$aa,$15,$14,$05,$f4,$e9
+	DB $43,$b0,$da,$bc,$b3,$2b,$67,$30
+	DB $2d,$a5,$8c,$5c,$fc,$7c,$18,$d0
+	DB $94,$d0,$83,$3b,$fe,$fe,$4b,$ab
+	DB $25,$16,$00,$e8,$cf,$7e,$7e,$8d
+	DB $0b,$18,$18,$45,$f7,$e0,$b3,$c5
+	DB $3b,$fa,$34,$85,$70,$ab,$34,$c1
+	DB $6f,$ae,$11,$00,$b9,$f6,$a5,$46
+	DB $cf,$c7,$1f,$4d,$d3,$80,$e9,$d7
+	DB $c0,$b5,$d7,$ff,$ff,$ff,$ff,$80
+
+congratulation_color:
+	DB $3e,$f1,$f2,$00,$81,$00,$c4,$05
+	DB $f8,$05,$82,$74,$82,$0f,$09,$f2
+	DB $4c,$f2,$09,$21,$00,$79,$82,$00
+	DB $74,$19,$0d,$00,$81,$f9,$30,$21
+	DB $b6,$07,$66,$11,$00,$df,$21,$6c
+	DB $29,$11,$f1,$f3,$3c,$cc,$42,$3f
+	DB $db,$24,$ef,$72,$35,$31,$3b,$61
+	DB $0b,$eb,$71,$1a,$97,$1f,$f2,$63
+	DB $f7,$00,$d6,$54,$20,$a7,$6b,$76
+	DB $11,$0d,$ad,$29,$d5,$00,$42,$46
+	DB $71,$00,$08,$f8,$f8,$f5,$77,$32
+	DB $5e,$12,$00,$3b,$7f,$81,$1a,$b7
+	DB $00,$1f,$8a,$8b,$eb,$14,$a6,$57
+	DB $95,$1b,$ce,$1f,$45,$db,$3f,$4c
+	DB $06,$12,$d5,$b9,$6f,$c6,$cb,$5a
+	DB $2b,$34,$37,$52,$cf,$0f,$f8,$00
+	DB $31,$31,$73,$41,$00,$43,$d8,$00
+	DB $32,$32,$ac,$17,$00,$52,$1b,$32
+	DB $43,$41,$5d,$00,$11,$00,$7d,$19
+	DB $07,$f1,$17,$42,$42,$a2,$2f,$21
+	DB $07,$ea,$09,$07,$11,$e2,$bc,$0e
+	DB $f6,$00,$d4,$2e,$bb,$08,$58,$52
+	DB $4f,$19,$d4,$07,$ba,$39,$1c,$38
+	DB $6c,$41,$07,$a1,$ff,$c3,$00,$f1
+	DB $a1,$77,$e9,$00,$b3,$d7,$6d,$76
+	DB $1d,$de,$37,$05,$fb,$4b,$7b,$15
+	DB $6b,$a5,$55,$be,$79,$25,$f3,$f7
+	DB $6c,$32,$f7,$cf,$d9,$8d,$0f,$42
+	DB $7e,$dd,$3e,$9f,$be,$cf,$ad,$01
+	DB $bf,$07,$ff,$ff,$ff,$f0
+
+
+congratulation_sprites:
+	DB $3a,$00,$c7,$00,$c0,$00,$f0,$00
+	DB $07,$0f,$1f,$68,$e0,$15,$80,$70
+	DB $80,$05,$e0,$f0,$f8,$7f,$fc,$41
+	DB $23,$00,$0c,$f8,$78,$08,$aa,$3a
+	DB $14,$08,$00,$06,$37,$60,$40,$94
+	DB $5d,$c0,$00,$05,$30,$7a,$3d,$39
+	DB $28,$80,$5c,$80,$f1,$0d,$54,$24
+	DB $fd,$5f,$e3,$25,$40,$1c,$3a,$e0
+	DB $57,$0f,$f4,$17,$12,$f0,$ff,$01
+	DB $04,$01,$00,$ee,$0b,$05,$92,$28
+	DB $60,$25,$e0,$00,$e5,$0f,$10,$00
+	DB $18,$03,$20,$94,$09,$38,$01,$38
+	DB $30,$20,$30,$38,$3a,$00,$5a,$7b
+	DB $00,$c7,$3b,$2e,$02,$b4,$4a,$e9
+	DB $57,$3d,$63,$f7,$79,$88,$94,$31
+	DB $39,$78,$31,$00,$c6,$07,$3e,$fc
+	DB $1f,$fc,$1a,$fc,$78,$78,$c0,$55
+	DB $0f,$0f,$02,$02,$07,$4f,$07,$05
+	DB $01,$80,$3d,$c0,$0c,$1c,$38,$78
+	DB $f0,$8b,$08,$0e,$06,$18,$5c,$d7
+	DB $0d,$78,$38,$0e,$06,$03,$03,$1d
+	DB $e1,$82,$c0,$34,$e3,$68,$94,$ee
+	DB $8b,$83,$c0,$d9,$ff,$14,$39,$33
+	DB $37,$9e,$3f,$de,$21,$0f,$c3,$e3
+	DB $f1,$f9,$c7,$33,$80,$b0,$9f,$f0
+	DB $7c,$70,$9f,$73,$b5,$1e,$05,$3c
+	DB $38,$11,$9f,$75,$3c,$1c,$ce,$c3
+	DB $a9,$73,$bc,$0d,$01,$13,$e1,$61
+	DB $61,$3f,$03,$0d,$af,$88,$cb,$ae
+	DB $b7,$5f,$39,$87,$6a,$18,$3f,$00
+	DB $00,$48,$00,$c0,$f6,$0f,$04,$8f
+	DB $9f,$40,$40,$e0,$d6,$36,$f0,$85
+	DB $e8,$05,$84,$03,$3f,$3f,$1e,$1e
+	DB $0c,$0c,$51,$cf,$54,$0e,$c4,$53
+	DB $1c,$c5,$71,$07,$0a,$87,$0f,$60
+	DB $c0,$cf,$d8,$d7,$78,$3f,$7b,$d8
+	DB $65,$e6,$07,$03,$89,$fa,$03,$bd
+	DB $87,$86,$86,$d6,$bf,$5a,$00,$a3
+	DB $bf,$6a,$00,$cf,$bf,$ff,$ff,$ff
+	DB $fe
 
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
