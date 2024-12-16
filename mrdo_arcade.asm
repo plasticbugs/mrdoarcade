@@ -442,7 +442,7 @@ BYTE_8215:
 	DB 000,001,002,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000
 
 SUB_8229:
-	LD		HL, $7281	; Mr. Do's sprite data
+	LD		HL, $7281			; Mr. Do's sprite data
 	BIT		7, (HL)
 	RET		Z
 	RES		7, (HL)
@@ -451,7 +451,7 @@ SUB_8229:
 	AND		A
 	JR		Z, LOC_8241
 	ADD		A, 1BH
-	CALL	DEAL_WITH_SPRITES
+	CALL	DEAL_WITH_SPRITES	; rotate the current frame of the player
 	LD		D, 0
 LOC_8241:
 	LD		A, ($7284)
@@ -621,9 +621,9 @@ START:
 	LD		(HL), A
 
 LOC_8372:
-
-;	CALL 	EXTRASCREEN	; TEST EXTRA MRDO SCREEN
-;	CALL 	INTERMISSION	; INTERMISSION
+	; DEBUGGER
+  ;	CALL 	EXTRASCREEN	; TEST EXTRA MRDO SCREEN
+	; CALL 	INTERMISSION	; INTERMISSION
 	
 	; Initialize the game
 
@@ -732,7 +732,7 @@ LOC_844E:
 	JR		LOC_844E
 LOAD_FONTS:
 
-	LD		A, 1BH
+	LD		A, 1BH				; Load enemies in the SPT
 LOAD_GRAPHICS:
 	PUSH	AF
 	CALL	DEAL_WITH_SPRITES
@@ -1172,6 +1172,7 @@ SUB_87F4:	; Start the level
 	LD		(IY+0), 0C0H
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
+	
 	CALL	PLAY_OPENING_TUNE
 	LD		HL, 1
 	XOR		A
@@ -3039,6 +3040,7 @@ LOC_95C8:
 	JR		LOC_95D5
 LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
 	LD		D, A
+	LD    H, 4 ; Mr. Do collision offset to fix stuck in apple bug
 	CALL	SUB_B12D ; Returns A=0 if no collision, A=1 if collision
 	AND		A
 	JR		Z, LOC_95D5
@@ -4215,6 +4217,7 @@ LOC_9E17:
 	SET		3, (IY+4)
 	JR		LOC_9E3B
 LOC_9E31:
+	LD    H, 0 ; Monster collision offset
 	CALL	SUB_B12D	; Returns A=1 if vertical apple collision
 	LD		L, 0
 	AND		A
@@ -6054,7 +6057,7 @@ WAIT8:
 	HALT
 RET
 
-SUB_AA25:
+SUB_AA25: ; Level complete, load next level
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
 LOC_AA2A:
@@ -6068,8 +6071,27 @@ LOC_AA2A:
 	LD		HL, $7275
 	LD		IX, $7279
 LOC_AA43:
+	; Current level (either p1 or p2) is loaded into HL
+	LD      A, (HL)     ; Load level number
+  LD      B, A        ; Save original
+
+
+; Get modulo 3
+MOD_3:
+    SUB     3           ; Subtract 3
+    JR      NC, MOD_3  ; If result >= 0, continue
+    ADD     A, 3       ; Add back 3 to get remainder (0-2)
+
+    ; Now A contains just 0,1,2
+	; if A==0 the level Number is multiple of 3
+
+    PUSH    HL				; Play intermission 
+    CALL    Z, INTERMISSION
+    POP     HL
+
+CONTINUE_NEXT_LEVEL:
 	LD		(IX+0), 7
-	INC		(HL)
+	INC		(HL)     ; Increment the level number
 	LD		A, (HL)
 	CALL	SUB_B286
 	LD		HL, $718A
@@ -6437,21 +6459,17 @@ DEAL_WITH_SPRITES:
 	RL		B
 	ADD		IX, BC			; 5 bytes per entry
 	LD		A, (IX+0)
-	AND		A
-	JR		NZ, LOC_AD32
 	LD		E, (IX+1)
 	LD		D, (IX+2)
 	LD		L, (IX+3)
 	LD		H, (IX+4)
+	AND		A
+	JR		NZ, LOC_AD32
 	LD		IY, 4
 	LD		A, 1
 	CALL	PUT_VRAM
 	RET
 LOC_AD32:
-	LD		L, (IX+3)
-	LD		H, (IX+4)
-	LD		E, (IX+1)
-	LD		D, (IX+2)
 	PUSH	DE
 	POP		IX
 	LD		B, 4
@@ -6459,7 +6477,6 @@ LOOP_AD43:
 	PUSH	BC
 	PUSH	AF
 	PUSH	HL
-	PUSH	IX
 	LD		IY, $72E7
 	CP		1
 	JR		NZ, LOC_AD55
@@ -6483,14 +6500,13 @@ LOC_AD67:
 LOC_AD70:
 	CALL	SUB_AE0C
 LOC_AD73:
-	POP		IX
 	LD		E, (IX+0)
 	LD		D, 0
 	INC		IX
-	PUSH	IX
 	LD		HL, $72E7
 	LD		IY, 1
 	LD		A, 1
+	PUSH	IX
 	CALL	PUT_VRAM
 	POP		IX
 	POP		HL
@@ -7103,15 +7119,20 @@ SUB_B12D: ; Mr. Do sprite intersection with apples from above and below
 	; Modified to offset the value used to detect a vertical collision
 	; with an apple so that Mr. Do doesn't get stuck in the apple from
 	; above or below.
+
+  LD    A, H
+  CP    4  ; Check if H is 4 (Mr. Do collision offset)
+  JR    NZ, LOC_B133
 	LD		A, (IY+3)	; Get Y position of Mr. Do
 	BIT		1, D		 ; Check if moving down
 	JR		Z, CHECK_UP
-	SUB		4		   ; Moving down, so sub 4 from Y position
+	SUB		H		   ; Moving down, so sub 4 from Y position
 	JR		START_CHECK
 CHECK_UP:
-	ADD		A, 4		   ; Moving up, so add 4 to Y position
+	ADD		A, H		   ; Moving up, so add 4 to Y position
 START_CHECK:
 	LD		B, A	; Store the new Y position in B for checks
+
 LOC_B133:
 	BIT		7, (IX+0)	; Check if the apple is active
 	JR		Z, LOC_B163
@@ -8703,26 +8724,48 @@ BYTE_C294:		DB 178,176,179,177
 BYTE_C298:		DB 234,235,232,233
 BYTE_C29C:		DB 238,239,236,237
 
+MR_DO_WALK_RIGHT_F1:
+ DB $00,$00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00,$00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c
+MR_DO_WALK_RIGHT_F2:
+ DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
+MR_DO_WALK_RIGHT_F3:
+ DB $00,$00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00,$00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0
+MR_DO_WALK_RIGHT_F4: 
+ DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
+MR_DO_PUSH_RIGHT_F1:
+ DB $00,$00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00,$00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c
+MR_DO_PUSH_RIGHT_F2:
+ DB $00,$00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0
+MR_DO_PUSH_RIGHT_F3:
+ DB $00,$00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0d,$17,$3c,$00,$00,$00,$e0,$58,$fc,$a0,$c0,$00,$00,$80,$f0,$fc,$5c,$e0,$c0,$00,$00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3e,$00,$00,$00,$a0,$00,$5c,$16,$36,$1c,$30,$01,$03,$a3,$00,$3c,$00
+MR_DO_PUSH_RIGHT_F4:
+ DB $00,$00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0
+MR_DO_DEATH_F1:
+ DB $00,$00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30,$00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f
+MR_DO_DEATH_F2:
+ DB $00,$00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40,$00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80
+MR_DO_DEATH_F3: 
+ DB $00,$00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00,$00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0
+MR_DO_DEATH_F4:
+ DB $00,$00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00,$00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0
+
+
 MR_DO_WALK_RIGHT_01_PAT:
-;	DB $00,$00,$0f,$1a,$be,$74,$1c,$08,$0c,$00,$0c,$1f,$3b,$3e,$1b,$06,$00,$00,$80,$c0,$00,$00,$00,$00,$00,$00,$00,$70,$f0,$c0,$80,$f0,$00,$00,$00,$04,$00,$09,$01,$03,$01,$03,$00,$00,$04,$01,$04,$00,$00,$00,$00,$00,$00,$c0,$60,$60,$c0,$00,$80,$08,$08,$00,$00,$00
 	DB 000,007,013,095,058,014,005,006
 	DB 001,002,007,013,015,005,003,000
 	DB 000,192,096,000,224,176,176,224
 	DB 128,064,176,248,088,128,224,000
 MR_DO_WALK_RIGHT_02_PAT:
-;	DB $00,$00,$07,$0b,$1e,$38,$6c,$88,$0c,$58,$74,$0f,$fa,$ef,$82,$81,$00,$00,$80,$40,$00,$00,$00,$00,$00,$00,$c0,$b0,$f0,$80,$e0,$f8,$00,$00,$00,$04,$00,$05,$11,$03,$01,$a3,$88,$00,$05,$10,$01,$00,$00,$00,$00,$80,$00,$c0,$60,$60,$c0,$00,$00,$48,$08,$00,$00,$00
 	DB 000,003,006,011,030,054,077,006
 	DB 025,126,103,011,062,025,012,000
 	DB 000,192,224,000,224,176,176,224
 	DB 128,064,176,248,216,224,120,000
 MR_DO_PUSH_RIGHT_01_PAT:
-;	DB $00,$00,$0f,$1a,$be,$74,$1c,$08,$04,$18,$3c,$2f,$3b,$1f,$0a,$0f,$00,$00,$80,$c0,$00,$00,$00,$00,$00,$00,$80,$e0,$e0,$00,$00,$80,$00,$00,$00,$04,$00,$09,$01,$03,$01,$03,$00,$10,$04,$00,$04,$00,$00,$00,$00,$00,$00,$c0,$60,$60,$c0,$00,$08,$18,$18,$00,$00,$00
 	DB 000,015,026,190,117,029,011,005
 	DB 027,060,047,059,031,010,015,000
 	DB 000,128,192,000,192,096,096,192
 	DB 000,136,248,248,000,000,128,000
 MR_DO_PUSH_RIGHT_02_PAT:
-;	DB $00,$00,$03,$05,$0e,$1c,$36,$44,$06,$00,$06,$0b,$ff,$ed,$83,$81,$00,$00,$c0,$a0,$00,$00,$00,$00,$00,$00,$60,$d8,$78,$80,$c0,$f8,$00,$00,$00,$02,$00,$02,$08,$01,$00,$01,$00,$04,$00,$12,$00,$00,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$02,$26,$86,$00,$00,$00
 	DB 000,007,013,022,061,109,155,013
 	DB 003,012,031,251,223,130,129,000
 	DB 000,128,192,000,192,096,096,192
@@ -8837,13 +8880,13 @@ EXTRA_SPRITE_PAT:
    DB 000,000,000,000,000,000,000,000
    DB 000,000,012,126,204,062,000,000
   DB 000,000,014,021,059,076,055,031 ; Diamond
-  DB 011,005,002,001,000,000,000,000
-  DB 000,000,224,080,184,100,216,240
-  DB 160,064,128,000,000,000,000,000
-	DB 000,000,000,000,000,000,000,001 ; Mr Do Ball
-	DB 001,000,000,000,000,000,000,000
-	DB 000,000,000,000,000,000,000,128
-	DB 128,000,000,000,000,000,000,000
+   DB 011,005,002,001,000,000,000,000
+   DB 000,000,224,080,184,100,216,240
+   DB 160,064,128,000,000,000,000,000
+   DB 000,000,000,000,000,000,000,001 ; Mr Do Ball
+   DB 001,000,000,000,000,000,000,000
+   DB 000,000,000,000,000,000,000,128
+   DB 128,000,000,000,000,000,000,000
 BALL_SPRITE_PAT:
 	DB 000,000,000,000,000,000,001,002
 	DB 001,000,000,000,000,000,000,000
@@ -8924,19 +8967,19 @@ BADGUY_OUTLINE_PAT:
 HUD_PATS_01:
    DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
    DB 204,018,061,055,028,014,000,000
-   DB 000,000,000,000,001,003,013,030 ; Ice Cream dessert unaligned
-   DB 000,000,000,000,128,192,176,120
-   DB 000,000,000,003,007,015,031,063
-   DB 000,000,000,192,248,248,248,232
-   DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
-   DB 000,000,224,080,184,100,216,240
-   DB 011,005,002,001,000,000,000,000
-   DB 160,064,128,000,000,000,000,000
-   DB 000,254,128,248,128,128,254,000 ; E
-   DB 000,198,108,024,048,108,198,000 ; XTRA
-   DB 000,254,016,016,016,016,016,000
-   DB 000,252,134,134,252,136,142,000
-   DB 000,056,108,198,130,254,130,000
+	DB 000,000,000,000,001,003,013,030 ; Ice Cream dessert unaligned
+	DB 000,000,000,000,128,192,176,120
+	DB 000,000,000,003,007,015,031,063
+	DB 000,000,000,192,248,248,248,232
+    DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
+    DB 000,000,224,080,184,100,216,240
+    DB 011,005,002,001,000,000,000,000
+    DB 160,064,128,000,000,000,000,000
+	DB 000,254,128,248,128,128,254,000 ; E
+	DB 000,198,108,024,048,108,198,000 ; XTRA
+	DB 000,254,016,016,016,016,016,000
+	DB 000,252,134,134,252,136,142,000
+	DB 000,056,108,198,130,254,130,000
 HUD_PATS_02:
 	DB 063,043,010,001,001,003,000,000 ; Bottom of Ice Cream, Extra border
 	DB 252,180,096,128,128,192,000,000
@@ -10161,8 +10204,8 @@ ShowPlyrNum:
 
 ; Proper text
 
-Plyr1Slct: 	DC "8]PLAYER"
-Plyr2Slct: 	DC "9]PLAYERS"
+Plyr1Slct: 	DC "1.PLAYER"
+Plyr2Slct: 	DC "2.PLAYERS"
 
 ; select skill 1-4
 ShowSkill:
@@ -10181,10 +10224,10 @@ ShowSkill:
 	CALL MYPRINT
 	JP MyNMI_on
 
-Skill1:		DC "8]EASY"
-Skill2:		DC "9]ADVANCED"
-Skill3: 	DC ":]ARCADE/"
-Skill4:		DC ";]PRO"
+Skill1:		DC "1.EASY"
+Skill2:		DC "2.ADVANCED"
+Skill3: 	DC "3.ARCADE "	; " " needed to remove the S from "PLAYERS"
+Skill4:		DC "4.PRO"
 
 ; Select  Number of Players and Skill
 
@@ -10424,7 +10467,7 @@ INTERMISSION:
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_VERY_GOOD_TUNE
 
-	LD		HL, 280H				; music duration
+	LD		HL, 200H				; music duration
 	XOR		A
 	CALL	REQUEST_SIGNAL
 
@@ -10520,7 +10563,7 @@ cvb_INTERMISSION:
 
 	RET
 	
-VERYGOOD: 	DB "VERY GOOD ", 94,222		; "!!"
+VERYGOOD: 	DC "VERY GOOD !!"
 	
 cvb_INTERMISSION_FRM1:
 	LD BC,41
@@ -10830,13 +10873,45 @@ MYPRINT:
 
 .1:	ld a,(hl)
 	and $7F
-	add a,226-65
+	sub "0"
+	cp  "9"-"0"+1
+	jr nc,.2	; not in range 0-9
+	add a,216	; position of "0" in the tileset
+	jr .99
+.2:	add a,"0"-"A"
+	cp "Z"-"A"+1
+	jr nc,.3	; not in range A-Z
+	add a,226	; position of "A" in the tileset
+	jr .99
+.3: add a,"A"
+	cp " "
+	jr nz,.4
+	ld a,215	; position of " " in the tileset
+	jr .99
+.4:	cp "!"
+	jr nz,.5
+	ld a,255	; position of "!" in the tileset
+	jr .99
+.5:	cp "."
+	jr nz,.6
+	ld a,254	; position of "." in the tileset
+	jr .99
+.6:	cp "-"
+	jr nz,.7
+	ld a,253	; position of "-" in the tileset
+	jr .99
+.7:	cp ","
+	jr nz,.8
+	ld a,252	; position of "," in the tileset
+	jr .99
+.8:	ld a,215	; any other tile is mapped by " "	
+.99:
 	out (DATA_PORT),a
 	ld a,(hl)
 	bit 7,a
 	ret nz	
 	inc hl
-	jp .1
+	jr .1
 
 
 MYLDIRVM:
