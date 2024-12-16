@@ -621,9 +621,9 @@ START:
 	LD		(HL), A
 
 LOC_8372:
-
-;	CALL 	EXTRASCREEN	; TEST EXTRA MRDO SCREEN
-;	CALL 	INTERMISSION	; INTERMISSION
+	; DEBUGGER
+  ;	CALL 	EXTRASCREEN	; TEST EXTRA MRDO SCREEN
+	; CALL 	INTERMISSION	; INTERMISSION
 	
 	; Initialize the game
 
@@ -6056,12 +6056,13 @@ WAIT8:
 	HALT
 RET
 
-SUB_AA25:
+SUB_AA25: ; Level complete, load next level
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
 LOC_AA2A:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA2A
+
 	LD		HL, CURRENT_LEVEL_RAM
 	LD		IX, $7278
 	LD		A, (GAMECONTROL)
@@ -6070,8 +6071,34 @@ LOC_AA2A:
 	LD		HL, $7275
 	LD		IX, $7279
 LOC_AA43:
+	; Current level (either p1 or p2) is loaded into HL
+	LD      A, (HL)     ; Load level number
+  LD      B, A        ; Save original
+
+
+; Get ones digit (modulo 10)
+MOD_10:
+    SUB     10          ; Subtract 10
+    JR      NC, MOD_10  ; If result >= 0, continue
+    ADD     A, 10       ; Add back 10 to get remainder (0-9)
+
+    ; Now A contains just the ones digit
+    ; Check if it's 3, 6, or 9
+    CP      3
+    JR      Z, DO_INTERMISSION
+    CP      6
+    JR      Z, DO_INTERMISSION
+    CP      9
+    JR      NZ, CONTINUE_NEXT_LEVEL
+
+DO_INTERMISSION:
+    PUSH    HL
+    CALL    INTERMISSION
+    POP     HL
+
+CONTINUE_NEXT_LEVEL:
 	LD		(IX+0), 7
-	INC		(HL)
+	INC		(HL)     ; Increment the level number
 	LD		A, (HL)
 	CALL	SUB_B286
 	LD		HL, $718A
@@ -10431,7 +10458,7 @@ INTERMISSION:
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_VERY_GOOD_TUNE
 
-	LD		HL, 280H				; music duration
+	LD		HL, 200H				; music duration
 	XOR		A
 	CALL	REQUEST_SIGNAL
 
