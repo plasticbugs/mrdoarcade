@@ -465,6 +465,18 @@ LOC_8241:
 	LD		C, A				; BC = YX
 	LD		A, 81H
 	CALL	SUB_B629			; put sprite   BC = Y,X
+	
+	;		CRAPPY HACK TO ADD A SECOND LAYER
+	LD		HL, SPRITE_NAME_TABLE+8
+	ld 		a,(ix+0)
+	LD		(HL),a
+	INC HL
+	ld 		a,(ix+1)
+	LD		(HL),a
+	INC HL
+	LD		(HL),45*4
+	INC HL
+	LD		(HL),15
 RET
 
 SUB_8251:
@@ -7840,7 +7852,7 @@ SUB_B629:							; put sprite   BC = Y,X
 	LD		IX, $72DF
 	BIT		7, A
 	JR		Z, LOC_B637
-	LD		IX, $72E7
+	LD		IX, $72E7				; SAT in RAM
 	AND		7FH
 LOC_B637:
 	PUSH	AF
