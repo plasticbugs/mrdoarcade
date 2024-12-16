@@ -143,7 +143,6 @@ STORED_COLOR_DATA:		RB	 12	;EQU $73D2	  ; 12 bytes for actual color data
 mode:				 EQU $73FD	; maybe unused used by OS 
 
 
-
 FNAME "mrdo_arcade.rom"
 ;	CPU Z80
 
@@ -673,7 +672,7 @@ LOC_83C0:
 	CALL	DEAL_WITH_APPLE_FALLING
 	JR		LOC_83AB
 LOC_83C5:
-	CP		0
+	AND A	; CP		0
 	JR		NZ, LOC_83CB
 	LD		A, 1
 LOC_83CB:
@@ -1366,10 +1365,10 @@ SUB_8972:
 	BIT		5, A
 	JR		NZ, LOC_8992
 	LD		HL, 19H
-	LD		A, (IY+4)
-	AND		30H
-	CP		20H
-	JR		LOC_8992
+;	LD		A, (IY+4)		; unused
+;	AND		30H
+;	CP		20H
+;	JR		LOC_8992
 
 LOC_8992:
 	XOR		A
@@ -1474,7 +1473,7 @@ LOC_8A47:
 	POP		IX
 	POP		DE
 	POP		BC
-	AND		A
+;	AND		A	; unused
 RET
 
 DEAL_WITH_APPLE_HITTING_SOMETHING:
@@ -1525,10 +1524,12 @@ LOC_8A80:
 	AND		7
 	CP		5
 	JR		NC, APPLE_FELL_ON_SOMETHING
-	LD		A, 80H
-	LD		(IY+0), A
-	LD		A, 10H
-	LD		(IY+4), A
+;	LD		A, 80H
+;	LD		(IY+0), A
+	LD		(IY+0), 80H
+;	LD		A, 10H
+;	LD		(IY+4), A
+	LD		(IY+4), 10H
 	XOR		A
 	JR		LOC_8AD7
 APPLE_FELL_ON_SOMETHING:
@@ -1675,7 +1676,7 @@ LOC_8BCE:
 	LD		A, ($7285)
 	LD		E, A
 	CALL	SUB_8CFE
-	JR		NZ, LOC_8BF4
+	RET		NZ			;	JR		NZ, LOC_8BF4
 	SET		7, (IY+4)
 	LD		A, (GAMECONTROL)
 	SET		6, A
@@ -1689,8 +1690,8 @@ LOC_8BE4:
 	SET		7, A
 	LD		($7281), A
 	XOR		A
-LOC_8BF4:
-	AND		A
+;LOC_8BF4:
+;	AND		A
 RET
 
 SUB_8BF6:	; Falling apple
@@ -1809,7 +1810,7 @@ LOC_8CD0:
 	POP		HL
 	XOR		A
 	LD		DE, $72C7
-	AND		A
+;	AND		A		; CF==0  already
 	SBC		HL, DE
 	JR		Z, LOC_8CEA
 	LD		DE, 6
@@ -3207,13 +3208,13 @@ SUB_96E4:
 	LD		(HL), A
 	LD		A, 0AH
 	LD		($728C), A
-	LD		HL, (SCORE_P1_RAM)
+;	LD		HL, (SCORE_P1_RAM)		; unused
 	LD		A, (GAMECONTROL)
 	LD		C, A
 	LD		A, (CURRENT_LEVEL_RAM)
 	BIT		1, C
 	JR		Z, LOC_971B
-	LD		HL, (SCORE_P2_RAM)
+;	LD		HL, (SCORE_P2_RAM)		; unused
 	LD		A, ($7275)
 LOC_971B:
 	LD		HL, 0
@@ -3224,11 +3225,11 @@ LOC_9721:
 	JP		P, LOC_9721
 	EX		DE, HL
 	CALL	SUB_B601
-	PUSH	IY
-	NOP
-	NOP
-	NOP
-	POP		IY
+;	PUSH	IY
+;	NOP
+;	NOP
+;	NOP
+;	POP		IY
 RET
 
 SUB_9732:
@@ -3457,15 +3458,16 @@ SUB_98CE:
 	JR		Z, LOC_9928
 	CALL	SUB_9980
 	JR		Z, LOC_991E
-	LD		BC, 6078H
+;	LD		BC, 6078H	; unused
 	CALL	SUB_992B
 	JR		Z, LOC_98F6
 	LD		HL, 1
 	JR		LOC_9915
 LOC_98F6:
 	CALL	SUB_9962
-	LD		A, 5
-	LD		(IY+5), A
+;	LD		A, 5
+;	LD		(IY+5), A
+	LD		(IY+5), 5
 	CALL	SUB_9980
 	JR		Z, LOC_991E
 	LD		HL, 0D2H
@@ -3526,10 +3528,12 @@ LOC_995E:
 RET
 
 SUB_9962:
-	LD		A, 28H
-	LD		(IY+0), A
-	LD		A, 81H
-	LD		(IY+4), A
+;	LD		A, 28H
+;	LD		(IY+0), A
+	LD		(IY+0), 28H
+;	LD		A, 81H
+;	LD		(IY+4), A
+	LD		(IY+4), 81H
 	XOR		A
 	LD		HL, 6
 	CALL	REQUEST_SIGNAL
@@ -4776,7 +4780,7 @@ LOC_A193:
 	SBC		HL, BC
 	JR		NC, LOC_A1A0
 	LD		BC, 50H
-	XOR		A
+;	XOR		A	; unused
 	ADD		HL, BC
 LOC_A1A0:
 	INC		L
@@ -4818,12 +4822,12 @@ LOC_A1D0:
 	AND		B
 	JR		NZ, LOC_A1D8
 	LD		A, 2
-	JR		LOC_A1DD
+	RET		;JR		LOC_A1DD
 LOC_A1D8:
 	CALL	SUB_9E7A
 	LD		A, 1
-LOC_A1DD:
-	AND		A
+;LOC_A1DD:
+;	AND		A	; unused
 RET
 
 SUB_A1DF:
@@ -5050,7 +5054,7 @@ LOC_A346:
 	POP		IX
 	POP		HL
 	POP		DE
-	AND		A
+;	AND		A		; unused
 RET
 
 SUB_A34C:
@@ -5088,7 +5092,7 @@ LOC_A37C:
 	POP		IX
 	POP		HL
 	POP		DE
-	AND		A
+;	AND		A	; unused
 RET
 
 SUB_A382:
@@ -5198,9 +5202,10 @@ LOC_A412:
 LOC_A433:
 	CP		11H
 	JR		NC, LOC_A44D
-	LD		H, 0
+	; LD		H, 0
 	LD		A, (IY+1)
-	LD		L, 0E0H
+	; LD		L, 0E0H
+	LD		HL, 00E0H
 	CP		(IX+2)
 	JR		Z, LOC_A459
 	RES		7, L
@@ -5483,7 +5488,6 @@ BYTE_A617:
 	DB 001,002,004,008,016,008,004,002
 
 SUB_A61F:
-	LD		HL, $727A
 	LD		BC, (SCORE_P1_RAM)
 	LD		HL, $727A
 	LD		A, (GAMECONTROL)
@@ -6074,14 +6078,13 @@ LOC_AA2A:
 LOC_AA43:
 	; Current level (either p1 or p2) is loaded into HL
 	LD      A, (HL)     ; Load level number
-  LD      B, A        ; Save original
+	LD      B, 3        ; Save original
 
-
-; Get modulo 3
-MOD_3:
-    SUB     3           ; Subtract 3
-    JR      NC, MOD_3  ; If result >= 0, continue
-    ADD     A, 3       ; Add back 3 to get remainder (0-2)
+; Get modulo B
+MOD_B:
+    SUB     B			; Subtract B
+    JR      NC, MOD_B	; If result >= 0, continue
+    ADD     A, B		; Add back B to get remainder in 0-(B-1)
 
     ; Now A contains just 0,1,2
 	; if A==0 the level Number is multiple of 3
@@ -6304,7 +6307,7 @@ LOC_ABC7:
 	LD		E, A
 LOC_ABC8:
 	LD		A, E
-	CP		0
+	AND		A		;	CP		0
 	JR		Z, LOC_ABD4
 	LD		A, C
 	ADD		A, 10H
@@ -6313,7 +6316,7 @@ LOC_ABC8:
 	JR		LOC_ABC8
 LOC_ABD4:
 	LD		A, D
-	CP		0
+	AND 	A 		;	CP		0
 	RET		Z
 	LD		A, B
 	ADD		A, 10H
@@ -7121,21 +7124,21 @@ SUB_B12D: ; Mr. Do sprite intersection with apples from above and below
 	; with an apple so that Mr. Do doesn't get stuck in the apple from
 	; above or below.
 
-  LD    A, H
-  CP    4  ; Check if H is 4 (Mr. Do collision offset)
-  JR    NZ, LOC_B133
-	LD		A, (IY+3)	; Get Y position of Mr. Do
-	BIT		1, D		 ; Check if moving down
+	LD    A, H
+	CP    4  				; Check if H is 4 (Mr. Do collision offset)
+	JR    NZ, LOC_B133
+	LD		A, (IY+3)		; Get Y position of Mr. Do
+	BIT		1, D		 	; Check if moving down
 	JR		Z, CHECK_UP
-	SUB		H		   ; Moving down, so sub 4 from Y position
+	SUB		H		   		; Moving down, so sub 4 from Y position
 	JR		START_CHECK
 CHECK_UP:
-	ADD		A, H		   ; Moving up, so add 4 to Y position
+	ADD		A, H		   	; Moving up, so add 4 to Y position
 START_CHECK:
-	LD		B, A	; Store the new Y position in B for checks
+	LD		B, A			; Store the new Y position in B for checks
 
 LOC_B133:
-	BIT		7, (IX+0)	; Check if the apple is active
+	BIT		7, (IX+0)		; Check if the apple is active
 	JR		Z, LOC_B163
 	LD		A, B
 	BIT		1, D
@@ -7991,8 +7994,8 @@ BYTE_B7BC:
 SUB_B7C4:
 	PUSH	HL
 	PUSH	IX
-	LD		A, 0C0H
-	LD		(IX+4), A
+	; LD		A, 0C0H
+	LD		(IX+4), 0CH		; LD		(IX+4), A
 	LD		A, 8
 	LD		B, A
 	LD		C, A
@@ -8020,9 +8023,9 @@ SUB_B7EF:
 	PUSH	HL
 	PUSH	IX
 	POP		HL
-	LD		DE, $728E
-	AND		A
-	SBC		HL, DE
+						;	LD		DE, $728E
+	LD		DE, -$728E	;	AND		A
+	ADD		HL,DE		;	SBC		HL, DE
 	LD		A, L
 	LD		H, 0
 	AND		A
@@ -10205,8 +10208,8 @@ ShowPlyrNum:
 
 ; Proper text
 
-Plyr1Slct: 	DC "1.PLAYER"
-Plyr2Slct: 	DC "2.PLAYERS"
+Plyr1Slct: 	dc "1.PLAYER"
+Plyr2Slct: 	dc "2.PLAYERS"
 
 ; select skill 1-4
 ShowSkill:
@@ -10225,10 +10228,10 @@ ShowSkill:
 	CALL MYPRINT
 	JP MyNMI_on
 
-Skill1:		DC "1.EASY"
-Skill2:		DC "2.ADVANCED"
-Skill3: 	DC "3.ARCADE "	; " " needed to remove the S from "PLAYERS"
-Skill4:		DC "4.PRO"
+Skill1:		dc "1.EASY"
+Skill2:		dc "2.ADVANCED"
+Skill3: 	dc "3.ARCADE "	; " " needed to remove the S from "PLAYERS"
+Skill4:		dc "4.PRO"
 
 ; Select  Number of Players and Skill
 
@@ -10277,7 +10280,7 @@ SkillWait:
 	LD		(SKILLLEVEL), A
 	RET
 
-StrINSERTCOIN: 	DC "INSERT COIN "
+StrINSERTCOIN: 	dc "INSERT COIN "
 
 cvb_ANIMATEDLOGO:
 	LD	HL,mode
@@ -10421,7 +10424,7 @@ cvb_EXTRASCREEN:
 	LD HL,cvb_IMAGE_PATTERN
 	LD DE,$1800+5
 	LD BC,24*256+22
-	LD A,22
+	LD A,C
 	CALL CPYBLK_MxN
 
 	LD BC,128
@@ -10436,7 +10439,7 @@ cvb_EXTRASCREEN_FRM1:
 	LD HL,cvb_IMAGE_PATTERN_FR1
 	LD DE,$1800	+ 13 + 17*32
 	LD BC,5*256+4
-	LD A,4	
+	LD A,C
 	CALL CPYBLK_MxN
 	CALL MyNMI_off
 	ld a,2+17*8
@@ -10449,7 +10452,7 @@ cvb_EXTRASCREEN_FRM2:
 	LD HL,cvb_IMAGE_PATTERN_FR2
 	LD DE,$1800	+ 13 + 17*32
 	LD BC,5*256+4
-	LD A,4
+	LD A,C
 	CALL CPYBLK_MxN
 	CALL MyNMI_off
 	ld a,209
@@ -10564,7 +10567,7 @@ cvb_INTERMISSION:
 
 	RET
 	
-VERYGOOD: 	DC "VERY GOOD !!"
+VERYGOOD: 	dc "VERY GOOD !!"
 	
 cvb_INTERMISSION_FRM1:
 	LD BC,41
@@ -10866,7 +10869,7 @@ cvb_CONGRATULATION:
 
 	RET
 	
-CONGRATULATIONS: 	DC "CONGRATULATIONS !!"
+CONGRATULATIONS: 	dc "CONGRATULATIONS !!"
 	
 cvb_CONGRATULATION_FRM0:
 	LD BC,4*5+1
