@@ -125,10 +125,13 @@ GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B
 SKILLLEVEL:				RB	 1	;EQU $7271 ; Skill Level 1-4
 						RB	 1	; ??
 DIAMOND_RAM:			RB	 1	;EQU $7273
-CURRENT_LEVEL_RAM:		RB	 2	;EQU $7274
+CURRENT_LEVEL_P1:		RB	 1	;EQU $7274
+CURRENT_LEVEL_P2:		RB	 1	;EQU $7275
 LIVES_LEFT_P1_RAM:		RB	 1	;EQU $7276
 LIVES_LEFT_P2_RAM:		RB	 1	;EQU $7277
-						RB	 5	;EQU $7278 ?? Initialised at 7 by LOC_8573
+ENEMY_NUM_P1:			RB	 1	;EQU $7278 Initialised at 7 by LOC_8573
+ENEMY_NUM_P2:			RB	 1	;EQU $7279 Initialised at 7 by LOC_8573
+						RB	 3	;EQU $727A ?? 
 
 SCORE_P1_RAM:			RB	 2	;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
 SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
@@ -455,24 +458,29 @@ SUB_8229:
 	CALL	DEAL_WITH_SPRITES	; rotate the current frame of the player
 	POP AF
 	ADD		A,(new-SPRITE_GENERATOR)/5-1
-	CALL	DEAL_WITH_SPRITES	; Place Layer 2
+	CALL	DEAL_WITH_SPRITES	; Place Layer 2 in the SPT
 	LD		D, 0
 LOC_8241:
-	LD		A, ($7284)			; MrDo's Y
-	SUB		1
-	LD		B, A
-	LD		A, ($7285)			; MrDo's X
-	LD		C, A				; BC = YX
+	LD 		HL,($7284)			; HL = MrDo's X,Y
+	DEC L
+	LD		B,L
+	LD		C,H
 	LD		A, 81H
 	CALL	SUB_B629			; put sprite   BC = Y,X
 	
-	;		CRAPPY HACK TO ADD A SECOND LAYER
+								; CRAPPY HACK TO ADD A SECOND COLOR LAYER
 	LD		HL, SPRITE_NAME_TABLE+8
-	ld 		a,(ix+0)
+	LD 		A,(ix+2)		
+	CP 		148			; smashed player
+	JP 		NZ,.patch	; Patch only if the player is not smashed
+	LD 		(HL),209	; Hide the second layer if player is smashed
+	RET
+.patch:
+	LD 		A,(ix+0)
 	LD		(HL),a
 	INC HL
-	ld 		a,(ix+1)
-	LD		(HL),a
+	LD 		A,(ix+1)
+	LD		(HL),A
 	INC HL
 	LD		(HL),45*4
 	INC HL
@@ -567,7 +575,7 @@ SUB_82DE:
 	RES		0, (HL)
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_82F4
 	LD		A, ($7275)
 LOC_82F4:
@@ -640,7 +648,7 @@ LOC_8372:
 	; DEBUGGER
 	; CALL 	EXTRASCREEN		; TEST EXTRA MRDO SCREEN
 	; CALL 	INTERMISSION	; TEST INTERMISSION
-	CALL 	CONGRATULATION	; CONGRATULATION
+	; CALL 	CONGRATULATION	; CONGRATULATION
 	
 	; Initialize the game
 
@@ -805,7 +813,7 @@ SUB_851C:	; If we're here, the game just started
 	LD		(SCORE_P1_RAM), HL
 	LD		(SCORE_P2_RAM), HL
 	LD		A, 1	; Set the starting level to 1
-	LD		(CURRENT_LEVEL_RAM), A
+	LD		(CURRENT_LEVEL_P1), A
 	LD		($7275), A
 	XOR		A
 	LD		($727A), A
@@ -841,9 +849,9 @@ LOC_8573:
 	DJNZ	LOC_8573
 	LD		A, 8
 	LD		($72BA), A
-	LD		A, 7
-	LD		($7278), A
-	LD		($7279), A
+	LD		A, 7				; Enemy Number
+	LD		(ENEMY_NUM_P1), A
+	LD		(ENEMY_NUM_P2), A
 RET
 
 SUB_8585:
@@ -873,7 +881,7 @@ LOC_85B6:
 	DJNZ	LOC_85B6
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_85C7
 	LD		A, ($7275)
 LOC_85C7:
@@ -903,7 +911,7 @@ DEAL_WITH_BADGUY_BEHAVIOR:
 	CALL	INIT_TIMER
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_8603
 	LD		A, ($7275)
 LOC_8603:
@@ -939,12 +947,12 @@ LOC_862E:
 	LD		A, ($72BA)
 	AND		3FH
 	LD		($72BA), A
-	LD		HL, $7278
+	LD		HL, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
 	AND		3
 	CP		3
 	JR		NZ, LOC_8652
-	INC		HL
+	INC		HL		; point to ENEMY_NUM_P2
 LOC_8652:
 	LD		A, (HL)
 	CP		7
@@ -1047,7 +1055,7 @@ LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
 LOC_8709:
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_8716
 	LD		A, ($7275)
 LOC_8716:
@@ -3228,7 +3236,7 @@ SUB_96E4:
 ;	LD		HL, (SCORE_P1_RAM)		; unused
 	LD		A, (GAMECONTROL)
 	LD		C, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	BIT		1, C
 	JR		Z, LOC_971B
 ;	LD		HL, (SCORE_P2_RAM)		; unused
@@ -3920,7 +3928,7 @@ LOC_9BE8:
 	LD		IX, BYTE_9D1A
 	ADD		IX, BC
 	LD		C, (IX+0)
-	LD		HL, CURRENT_LEVEL_RAM
+	LD		HL, CURRENT_LEVEL_P1
 	LD		A, (GAMECONTROL)
 	AND		3
 	CP		3
@@ -4036,7 +4044,7 @@ SUB_9CE0:
 	LD		HL, BYTE_9D1A
 	ADD		HL, DE
 	LD		E, (HL)
-	LD		HL, CURRENT_LEVEL_RAM
+	LD		HL, CURRENT_LEVEL_P1
 	LD		A, (GAMECONTROL)
 	AND		3
 	CP		3
@@ -5370,12 +5378,12 @@ SUB_A527:
 	PUSH	BC
 	LD		A, (GAMECONTROL)
 	LD		B, A
-	LD		A, ($7278)
+	LD		A, (ENEMY_NUM_P1)
 	BIT		0, B
 	JR		Z, LOC_A53A
 	BIT		1, B
 	JR		Z, LOC_A53A
-	LD		A, ($7279)
+	LD		A, (ENEMY_NUM_P2)
 LOC_A53A:
 	CP		1
 	POP		BC
@@ -5548,7 +5556,7 @@ RET
 SUB_A662:
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_A66F
 	LD		A, ($7275)
 LOC_A66F:
@@ -5980,7 +5988,7 @@ LOC_A992:
 	POP		AF
 RET
 
-ExtraMrDo: ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
+ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
 LOC_A9A1:
@@ -6079,54 +6087,92 @@ WAIT8:
 	HALT
 RET
 
-SUB_AA25: ; Level complete, load next level
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+SUB_AA25:						; Level complete, load next level
+    LD      HL, GAMECONTROL
+    SET     7, (HL)
 LOC_AA2A:
-	BIT		7, (HL)
-	JR		NZ, LOC_AA2A
-	LD		HL, CURRENT_LEVEL_RAM
-	LD		IX, $7278
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_AA43
-	LD		HL, $7275
-	LD		IX, $7279
+    BIT     7, (HL)
+    JR      NZ, LOC_AA2A
+    LD      HL, CURRENT_LEVEL_P1	; Player 1
+    LD      IX, ENEMY_NUM_P1
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, LOC_AA43
+    INC      HL			; $7275	; Player 2 data 
+    INC      IX			; $7279 ; Player 2 data
 LOC_AA43:
-	; Current level (either p1 or p2) is loaded into HL
-	LD      A, (HL)     ; Load level number
-	LD      B, 3        ; Save original
-
-; Get modulo B
-MOD_B:
-    SUB     B			; Subtract B
-    JR      NC, MOD_B	; If result >= 0, continue
-    ADD     A, B		; Add back B to get remainder in 0-(B-1)
-
-    ; Now A contains just 0,1,2
-	; if A==0 the level Number is multiple of 3
-
-    PUSH    HL				; Play intermission 
-    CALL    Z, INTERMISSION
-    POP     HL
-
-CONTINUE_NEXT_LEVEL:
-	LD		(IX+0), 7
-	INC		(HL)     ; Increment the level number
-	LD		A, (HL)
-	CALL	SUB_B286
-	LD		HL, $718A
-	LD		DE, 3400H
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_AA5C
-	LD		DE, 3600H
+    LD      (IX+0), 7
+    INC     (HL)
+    LD      A, (HL)
+    CALL    SUB_B286
+    LD      HL, $718A
+    LD      DE, 3400H
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, LOC_AA5C
+    LD      DE, 3600H
 LOC_AA5C:
-	LD		BC, 0D4H
-	CALL	WRITE_VRAM
-	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
+    LD      BC, 0D4H
+    CALL    WRITE_VRAM
+    LD      BC, 1E2H
+    CALL    WRITE_REGISTER
 RET
+
+;SUB_AA25: ; Level complete, load next level
+;	LD		HL, GAMECONTROL
+;	SET		7, (HL)
+;LOC_AA2A:
+;	BIT		7, (HL)
+;	JR		NZ, LOC_AA2A
+;	LD		HL, CURRENT_LEVEL_P1
+;	LD		IX, $7278
+;	LD		A, (GAMECONTROL)
+;	BIT		1, A
+;	JR		Z, LOC_AA43
+;	LD		HL, $7275
+;	LD		IX, $7279
+;LOC_AA43:
+;	; Current level (either p1 or p2) is loaded into HL
+;	LD      A, (HL)     ; Load level number
+;	LD      B, 3        ; Save original
+;
+;	CALL MOD_B	; Get modulo B
+;
+;   ; Now A contains just 0,1,2
+;	; if A==0 the level Number is multiple of 3
+;
+;    PUSH    IX				; Play intermission 
+;    PUSH    HL	
+;    CALL    Z, INTERMISSION
+;    POP     HL
+;    POP     IX 
+;
+;CONTINUE_NEXT_LEVEL:
+;	LD		(IX+0), 7
+;	INC		(HL)     ; Increment the level number
+;	LD		A, (HL)
+;	CALL	SUB_B286
+;	LD		HL, $718A
+;	LD		DE, 3400H
+;	LD		A, (GAMECONTROL)
+;	BIT		1, A
+;	JR		Z, LOC_AA5C
+;	LD		DE, 3600H
+;LOC_AA5C:
+;	LD		BC, 0D4H
+;	CALL	WRITE_VRAM
+;	LD		BC, 1E2H
+;	CALL	WRITE_REGISTER
+;RET
+
+
+;; Get A modulo B
+;MOD_B:
+;    SUB     B			; Subtract B
+;    JR      NC, MOD_B	; If result >= 0, continue
+;    ADD     A, B		; Add back B to get remainder in 0-(B-1)
+;	 RET 
+
 
 SUB_AA69:
 	LD		HL, GAMECONTROL
@@ -7257,7 +7303,7 @@ DISPLAY_PLAYFIELD:
 	PUSH	BC
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_B1E6
 	LD		A, ($7275)
 LOC_B1E6:
@@ -8011,7 +8057,7 @@ BYTE_B7BC:
 SUB_B7C4:
 	PUSH	HL
 	PUSH	IX
-	; LD		A, 0C0H
+							; LD		A, 0C0H
 	LD		(IX+4), 0CH		; LD		(IX+4), A
 	LD		A, 8
 	LD		B, A
@@ -8020,18 +8066,18 @@ SUB_B7C4:
 	ADD		A, 5
 	LD		D, 0
 	CALL	SUB_B629
-	LD		HL, $7278
+	LD		HL, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
 	AND		3
 	CP		3
 	JR		NZ, LOC_B7E7
-	INC		HL
+	INC		HL				; point to ENEMY_NUM_P2
 LOC_B7E7:
 	LD		A, (HL)
 	DEC		A
-	LD		(HL), A
-	POP		IX
-	POP		HL
+	LD		(HL), A			; one enemy killed 
+	POP		IX				; This seems fine 
+	POP		HL				; maybe the problem is in th enemy generation ?
 	AND		A
 RET
 
@@ -8200,7 +8246,7 @@ LOC_B8FE:
 	CALL	WRITE_REGISTER
 
 	; Store current level's color pointer
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	DEC		A			; Adjust for 0-based index
 	ADD		A, A		; Multiply by 2 for word-sized entries
 	LD		HL, PLAYFIELD_COLORS
@@ -8219,7 +8265,7 @@ RESTORE_PLAYFIELD_COLORS:
 	; Calculate correct level colors using original logic
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	LD		A, (CURRENT_LEVEL_RAM)
+	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, USE_CURRENT_LEVEL
 	LD		A, ($7275)
 USE_CURRENT_LEVEL:
