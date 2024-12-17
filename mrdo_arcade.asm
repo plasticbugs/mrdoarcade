@@ -6096,6 +6096,9 @@ LOC_AA2A:
 LOC_AA43:
 	; Current level (either p1 or p2) is loaded into HL
 	LD      A, (HL)     ; Load level number
+	PUSH    AF          ; Preserve original level number
+	PUSH    BC          ; Preserve BC
+	PUSH    DE          ; Preserve DE
   LD      B, A        ; Save original
 
 
@@ -6108,16 +6111,22 @@ MOD_10:
     ; Now A contains just the ones digit
     ; Check if it's 3, 6, or 9
     CP      3
-    JR      Z, DO_INTERMISSION
+    JR      Z, SKIP_INTERMISSION
     CP      6
-    JR      Z, DO_INTERMISSION
+    JR      Z, SKIP_INTERMISSION
     CP      9
-    JR      NZ, CONTINUE_NEXT_LEVEL
+    JR      NZ, SKIP_INTERMISSION
 
 DO_INTERMISSION:
     PUSH    HL
     CALL    INTERMISSION
     POP     HL
+
+SKIP_INTERMISSION:
+    POP     DE          ; Restore DE
+    POP     BC          ; Restore BC
+    POP     AF          ; Restore original level number
+
 
 CONTINUE_NEXT_LEVEL:
 	LD		(IX+0), 7
