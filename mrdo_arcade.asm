@@ -622,7 +622,7 @@ BYTE_8333:
 START:
 	LD		HL, $7000			; clean user ram
 	LD		DE, $7000+1
-	LD		BC, $3B7			; all zeros till to the stack head
+	LD		BC, $3B0			; all zeros till to the stack head
 	LD		(HL), 0
 	LDIR
 	ld		hl,mode
@@ -756,7 +756,6 @@ LOC_844E:
 	ADD		IX, BC
 	JR		LOC_844E
 LOAD_FONTS:
-
 	LD		A, 1BH				; Load enemies in the SPT
 LOAD_GRAPHICS:
 	PUSH	AF
@@ -782,12 +781,13 @@ LOAD_GRAPHICS:
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 
-	CALL MYDISSCR					; LOAD ARCADE FONTS
-	LD DE,$0000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	JP MYENASCR
+	CALL 	MYDISSCR					; LOAD ARCADE FONTS
+	LD 		DE,$0000 + 8*0d7h			; start tiles here
+	LD 		HL,ARCADEFONTS
+	CALL 	unpack
+	CALL 	MYENASCR
 
+RET
 
 SUB_84F8:	 ; Disables NMI, sets up the game
 	PUSH	AF
@@ -1947,7 +1947,7 @@ DEAL_WITH_LOOSING_LIFE:
 	JR		NZ, LOC_8E05
 LOC_8D9B:
 	LD		IX, $728E
-	LD		B, 7
+	LD		B, 7			; test each enemy 
 LOC_8DA1:
 	PUSH	BC
 	LD		A, (IX+4)
@@ -1968,9 +1968,10 @@ LOC_8DA1:
 	PUSH	BC
 LOC_8DC5:
 	LD		DE, 6
-	ADD		IX, DE
+	ADD		IX, DE		; next enemy
 	POP		BC
 	DJNZ	LOC_8DA1
+	
 	LD		IX, $72C7
 	LD		B, 3
 LOOP_8DD3:
