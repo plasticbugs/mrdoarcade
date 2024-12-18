@@ -6079,72 +6079,64 @@ WAIT8:
 	HALT
 RET
 
+
+
 SUB_AA25: ; Level complete, load next level
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+  LD      HL, GAMECONTROL
+  SET     7, (HL)
 LOC_AA2A:
-	BIT		7, (HL)
-	JR		NZ, LOC_AA2A
+  BIT     7, (HL)
+  JR      NZ, LOC_AA2A
+  LD      HL, CURRENT_LEVEL_RAM
+  LD      IX, $7278
+  LD      A, (GAMECONTROL)
+  BIT     1, A
+  JR      Z, BEGIN_INTERMISSION_CHECK
+  LD      HL, $7275
+  LD      IX, $7279
 
-	LD		HL, CURRENT_LEVEL_RAM
-	LD		IX, $7278
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_AA43
-	LD		HL, $7275
-	LD		IX, $7279
-LOC_AA43:
-	; Current level (either p1 or p2) is loaded into HL
-	LD      A, (HL)     ; Load level number
-	PUSH    AF          ; Preserve original level number
-	PUSH    BC          ; Preserve BC
-	PUSH    DE          ; Preserve DE
-  LD      B, A        ; Save original
+BEGIN_INTERMISSION_CHECK:
+  LD    A, (HL)
 
-
-; Get ones digit (modulo 10)
 MOD_10:
-    SUB     10          ; Subtract 10
-    JR      NC, MOD_10  ; If result >= 0, continue
-    ADD     A, 10       ; Add back 10 to get remainder (0-9)
+  SUB     10          ; Subtract 10
+  JR      NC, MOD_10  ; If result >= 0, continue
+  ADD     A, 10       ; Add back 10 to get remainder (0-9)
 
-    ; Now A contains just the ones digit
-    ; Check if it's 3, 6, or 9
-    CP      3
-    JR      Z, SKIP_INTERMISSION
-    CP      6
-    JR      Z, SKIP_INTERMISSION
-    CP      9
-    JR      NZ, SKIP_INTERMISSION
+  ; Now A contains just the ones digit
+  ; Check if it's 3, 6, or 9
+  CP      3
+  JR      Z, DO_INTERMISSION
+  CP      6
+  JR      Z, DO_INTERMISSION
+  CP      9
+  JR      NZ, CONTINUE_NEXT_LEVEL
 
 DO_INTERMISSION:
     PUSH    HL
+    PUSH    IX
     CALL    INTERMISSION
+    POP     IX
     POP     HL
 
-SKIP_INTERMISSION:
-    POP     DE          ; Restore DE
-    POP     BC          ; Restore BC
-    POP     AF          ; Restore original level number
-
-
 CONTINUE_NEXT_LEVEL:
-	LD		(IX+0), 7
-	INC		(HL)     ; Increment the level number
-	LD		A, (HL)
-	CALL	SUB_B286
-	LD		HL, $718A
-	LD		DE, 3400H
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_AA5C
-	LD		DE, 3600H
+    LD      (IX+0), 7
+    INC     (HL)
+    LD      A, (HL)
+    CALL    SUB_B286
+    LD      HL, $718A
+    LD      DE, 3400H
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, LOC_AA5C
+    LD      DE, 3600H
 LOC_AA5C:
-	LD		BC, 0D4H
-	CALL	WRITE_VRAM
-	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
+    LD      BC, 0D4H
+    CALL    WRITE_VRAM
+    LD      BC, 1E2H
+    CALL    WRITE_REGISTER
 RET
+
 
 SUB_AA69:
 	LD		HL, GAMECONTROL
