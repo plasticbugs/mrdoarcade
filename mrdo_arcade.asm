@@ -580,7 +580,7 @@ SUB_82DE:
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_82F4
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 LOC_82F4:
 	DEC		A
 	CP		0AH
@@ -6124,25 +6124,25 @@ SUB_AA25: ; Level complete, load next level
 LOC_AA2A:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA2A
-	LD		HL, CURRENT_LEVEL_P1
-	LD		IX, $7278
+    	LD      HL, CURRENT_LEVEL_P1	; Player 1
+    	LD      IX, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
 	BIT		1, A
 	JR		Z, LOC_AA43
-	LD		HL, CURRENT_LEVEL_P2
-	LD		IX, $7279
+    	INC      HL			; $7275	; Player 2 data 
+    	INC      IX			; $7279 ; Player 2 data
 LOC_AA43:
 	; Current level (either p1 or p2) is loaded into HL
 	LD      A, (HL)     ; Load level number
-	LD      B, 3        ; Save original
+	LD      B, 3        
 
 	CALL MOD_B	; Get modulo B
 
    ; Now A contains just 0,1,2
 	; if A==0 the level Number is multiple of 3
 
-    PUSH    IX				; Play intermission 
-    PUSH    HL	
+    PUSH    IX				; Save Player data pointer 
+    PUSH    HL				; Save Level Pointer
     CALL    Z, INTERMISSION
     POP     HL
     POP     IX 
@@ -8077,7 +8077,7 @@ LOC_B7E7:
 	LD		(HL), A			; one enemy killed 
 	POP		IX				; This seems fine 
 	POP		HL				; maybe the problem is in the enemy generation ?
-	AND		A				; Nddeded -> ZF is tester from the caller
+	AND		A				; Needed -> ZF is tested from the caller
 RET
 
 SUB_B7EF:
