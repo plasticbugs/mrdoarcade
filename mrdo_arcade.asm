@@ -131,14 +131,17 @@ LIVES_LEFT_P1_RAM:		RB	 1	;EQU $7276
 LIVES_LEFT_P2_RAM:		RB	 1	;EQU $7277
 ENEMY_NUM_P1:			RB	 1	;EQU $7278 Initialised at 7 by LOC_8573
 ENEMY_NUM_P2:			RB	 1	;EQU $7279 Initialised at 7 by LOC_8573
-						RB	 3	;EQU $727A ?? 
+						RB	 2	;EQU $727A ?? 
+						RB	 1	;EQU $727C FLAG about SCORE ???
 
 SCORE_P1_RAM:			RB	 2	;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
 SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
 MRDO_DATA:				RB   8	;EQU $7281	; Mr. Do's sprite data
-						RB 102	;EQU $7289	; ??
+						RB   5	;EQU $7289	; ??
+ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 6*7 bytes
+						RB  48	;EQU $72BE	??
 WORK_BUFFER:			RB  24	;EQU $72EF
-						RB 191	;EQU $7307	; ???
+						RB 191	;EQU $7307	; ??
 DEFER_WRITES:			RB	 2	;EQU $73C6
 						RB	 8	; ??
 STORED_COLOR_POINTER:	RB	 2	;EQU $73D0	  ; 2 bytes for storing the pointer
@@ -466,9 +469,9 @@ LOC_8241:
 	LD		B,L
 	LD		C,H
 	LD		A, 81H
-	CALL	SUB_B629			; put sprite   BC = Y,X
+	CALL	SUB_B629			; put sprite A at BC = Y-1	,X with step D
 	
-								; CRAPPY HACK TO ADD A SECOND COLOR LAYER
+								; HACK TO ADD A SECOND COLOR LAYER
 	LD		HL, SPRITE_NAME_TABLE+8
 	LD 		A,(ix+2)		
 	CP 		148			; smashed player
@@ -609,8 +612,8 @@ LOC_8310:
 	JR		NZ, LOC_8329
 	LD		D, 4
 LOC_8329:
-	LD		A, (HL)
-	XOR		1
+	LD		A, (HL)			
+	XOR		1				; animate frames ? (two steps)
 	LD		(HL), A
 	LD		A, 8DH
 	CALL	SUB_B629
@@ -655,7 +658,7 @@ LOC_8372:
 	call	cvb_ANIMATEDLOGO
 	CALL	INIT_VRAM
 	XOR		A
-LOC_8375:
+LOC_8375:									; GAME MAIN
 	CALL	SUB_84F8
 LOC_8378:
 	CALL	SUB_8828
@@ -684,8 +687,8 @@ LOC_8378:
 	CP		1
 	JR		NZ, LOC_83CB
 LOC_83AB:
-	LD		IX, $722C
-	LD		B, 5
+	LD		IX, $722C		; apple data array
+	LD		B, 5			; apple nember
 LOOP_83B1:
 	BIT		3, (IX+0)
 	JR		NZ, LOC_83C0
@@ -739,7 +742,7 @@ INIT_VRAM:
 LOC_844E:
 	LD		A, (IX+0)
 	AND		A
-	JR		Z, LOAD_FONTS
+	JR		Z, .LOAD_FONTS_AND_GRAPHICS
 	LD		B, 0
 	LD		C, A
 	PUSH	BC
@@ -755,7 +758,7 @@ LOC_844E:
 	LD		BC, 4
 	ADD		IX, BC
 	JR		LOC_844E
-LOAD_FONTS:
+.LOAD_FONTS_AND_GRAPHICS:
 	LD		A, 1BH				; Load enemies in the SPT
 LOAD_GRAPHICS:
 	PUSH	AF
@@ -814,7 +817,7 @@ SUB_851C:	; If we're here, the game just started
 	LD		(SCORE_P2_RAM), HL
 	LD		A, 1	; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1), A
-	LD		($7275), A
+	LD		(CURRENT_LEVEL_P2), A
 	XOR		A
 	LD		($727A), A
 	LD		($727B), A
@@ -883,7 +886,7 @@ LOC_85B6:
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_85C7
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 LOC_85C7:
 	CP		0BH
 	JR		C, DEAL_WITH_BADGUY_BEHAVIOR
@@ -913,7 +916,7 @@ DEAL_WITH_BADGUY_BEHAVIOR:
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_8603
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 LOC_8603:
 	CP		0BH
 	JR		C, SEND_PHASE_COLORS_TO_VRAM
@@ -1057,7 +1060,7 @@ LOC_8709:
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_8716
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 LOC_8716:
 	LD		HL, $72E7
 	LD		D, 0D8H
@@ -1391,9 +1394,9 @@ SUB_8972:
 	JR		NZ, LOC_8992
 	LD		HL, 19H
 ;	LD		A, (IY+4)		; unused
-;	AND		30H
-;	CP		20H
-;	JR		LOC_8992
+;	AND		30H			; unused
+;	CP		20H			; unused
+;	JR		LOC_8992		; unused
 
 LOC_8992:
 	XOR		A
@@ -1758,7 +1761,7 @@ RET
 
 SUB_8C3A:	; Falling apple
 	LD		B, 7
-	LD		IX, $728E
+	LD		IX, ENEMY_DATA_ARRAY
 LOC_8C40:
 	PUSH	BC
 	BIT		7, (IX+4)
@@ -1835,7 +1838,7 @@ LOC_8CD0:
 	POP		HL
 	XOR		A
 	LD		DE, $72C7
-;	AND		A		; CF==0  already
+					;	AND		A		; CF==0  already
 	SBC		HL, DE
 	JR		Z, LOC_8CEA
 	LD		DE, 6
@@ -1946,7 +1949,7 @@ DEAL_WITH_LOOSING_LIFE:
 	LD		L, 3
 	JR		NZ, LOC_8E05
 LOC_8D9B:
-	LD		IX, $728E
+	LD		IX, ENEMY_DATA_ARRAY		; enemy data starts here = 6*7 bytes
 	LD		B, 7			; test each enemy 
 LOC_8DA1:
 	PUSH	BC
@@ -1961,7 +1964,7 @@ LOC_8DA1:
 	LD		A, ($722A)
 	CP		B
 	JR		NZ, LOC_8DC5
-	CALL	SUB_B7C4
+	CALL	SUB_B7C4	; outupt = ZF and A 
 	POP		BC
 	LD		L, 2
 	JR		Z, LOC_8E05
@@ -2311,7 +2314,7 @@ LOC_8FF1:
 	LD		A, (IY+3)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_9071
+	RET 	Z			;JR		Z, LOC_9071
 	LD		A, (IY+0)
 	BIT		6, A
 	JR		Z, BALL_RETURNS_TO_DO
@@ -2366,7 +2369,7 @@ BALL_RETURNS_TO_DO:
 LOC_906E:
 	CALL	SUB_93CE
 LOC_9071:
-	LD		A, 0
+	XOR 	A
 RET
 
 SUB_9074:
@@ -2689,7 +2692,7 @@ LOC_92E8:
 RET
 
 SUB_92F2:
-	LD		IX, $728E
+	LD		IX, ENEMY_DATA_ARRAY
 	LD		C, 0
 LOC_92F8:
 	BIT		7, (IX+4)
@@ -2715,12 +2718,12 @@ LOC_9316:
 	XOR		A
 	RET
 LOC_9324:
-	CALL	SUB_B7C4
+	CALL	SUB_B7C4			; outupt = ZF and A 
 	PUSH	AF
 	LD		DE, 32H
 	CALL	SUB_B601
 	POP		AF
-	AND		A
+;	AND		A					; already in AF
 	LD		A, 2
 	RET		Z
 	LD		A, 1
@@ -3068,13 +3071,13 @@ LOC_95C8:
 	JR		LOC_95D5
 LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
 	LD		D, A
-	LD    H, 4 ; Mr. Do collision offset to fix stuck in apple bug
-	CALL	SUB_B12D ; Returns A=0 if no collision, A=1 if collision
+	SCF 				; CF==1 Mr. Do collision offset to fix stuck in apple bug
+	CALL	SUB_B12D 	; Returns A=0 if no collision, A=1 if collision
 	AND		A
 	JR		Z, LOC_95D5
 
 	POP		BC
-	JP		LOC_961C ; Treat as a "wall" collision
+	JP		LOC_961C 	; Treat as a "wall" collision
 LOC_95D5:
 	POP		BC
 	LD		(IY+3), B
@@ -3200,7 +3203,7 @@ GRAB_SOME_CHERRIES:
 	CP		8
 	JR		C, LOC_96D5
 	LD		(IY+7), 0
-	LD		DE, 2DH ; final cherry scores 500 not 550
+	LD		DE, 2DH 			; final cherry scores 500 not 550
 	CALL	SUB_B601
 	RES		1, (IY+0)
 	RET
@@ -3241,7 +3244,7 @@ SUB_96E4:
 	BIT		1, C
 	JR		Z, LOC_971B
 ;	LD		HL, (SCORE_P2_RAM)		; unused
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 LOC_971B:
 	LD		HL, 0
 	LD		DE, 32H
@@ -3422,7 +3425,7 @@ SUB_9842:
 	LD		($728C), A
 	JR		Z, LOC_9892
 LOC_986C:
-	LD		IY, $728E
+	LD		IY, ENEMY_DATA_ARRAY
 	LD		B, 7
 LOC_9872:
 	BIT		7, (IY+4)
@@ -3520,8 +3523,8 @@ RET
 
 SUB_992B:
 	PUSH	IY
-	LD		IY, $728E
-	LD		BC, 700H
+	LD		IY, ENEMY_DATA_ARRAY		; enemy data starts here = 6*7 bytes
+	LD		BC, 700H		; B = enemy number
 LOC_9934:
 	LD		A, (IY+4)
 	BIT		7, A
@@ -3539,7 +3542,7 @@ LOC_9948:
 	INC		C
 LOC_994D:
 	LD		DE, 6
-	ADD		IY, DE
+	ADD		IY, DE			; next enemy
 	DJNZ	LOC_9934
 	LD		A, C
 	CP		2
@@ -3554,11 +3557,11 @@ LOC_995E:
 RET
 
 SUB_9962:
-;	LD		A, 28H
-;	LD		(IY+0), A
+							;	LD		A, 28H
+							;	LD		(IY+0), A
 	LD		(IY+0), 28H
-;	LD		A, 81H
-;	LD		(IY+4), A
+							;	LD		A, 81H
+							;	LD		(IY+4), A
 	LD		(IY+4), 81H
 	XOR		A
 	LD		HL, 6
@@ -3570,7 +3573,7 @@ SUB_9962:
 RET
 
 SUB_9980:
-	LD		IY, $728E
+	LD		IY, ENEMY_DATA_ARRAY
 	LD		L, 7
 	LD		DE, 6
 LOC_9989:
@@ -3626,7 +3629,7 @@ LOC_99E4:
 LOC_99E9:
 	LD		E, 7
 	LD		BC, 6
-	LD		IY, $728E
+	LD		IY, ENEMY_DATA_ARRAY
 LOC_99F2:
 	LD		H, (IY+4)
 	SET		5, H
@@ -3653,7 +3656,7 @@ SUB_9A12:
 	LD		HL, BYTE_9A24
 	ADD		HL, BC
 	LD		C, (HL)
-	LD		IY, $728E
+	LD		IY, ENEMY_DATA_ARRAY
 	ADD		IY, BC
 RET
 
@@ -4168,7 +4171,7 @@ SUB_9DA7:
 	CP		3
 	JR		C, LOC_9E01
 	LD		C, A
-	LD		IX, $728E
+	LD		IX, ENEMY_DATA_ARRAY
 	LD		HL, 7
 LOC_9DB6:
 	BIT		7, (IX+4)
@@ -4248,7 +4251,7 @@ LOC_9E17:
 	SET		3, (IY+4)
 	JR		LOC_9E3B
 LOC_9E31:
-	LD    H, 0 ; Monster collision offset
+	AND		A 			; CF==0 Monster collision offset
 	CALL	SUB_B12D	; Returns A=1 if vertical apple collision
 	LD		L, 0
 	AND		A
@@ -5514,6 +5517,7 @@ BYTE_A617:
 	DB 001,002,004,008,016,008,004,002
 
 SUB_A61F:
+						;    LD      HL, $727A ; duplicated
 	LD		BC, (SCORE_P1_RAM)
 	LD		HL, $727A
 	LD		A, (GAMECONTROL)
@@ -5559,7 +5563,7 @@ SUB_A662:
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_A66F
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 LOC_A66F:
 	CP		0BH
 	JR		C, LOC_A677
@@ -6078,101 +6082,96 @@ LOC_AA14:
 RET
 
 WAIT8:
-	HALT
-	HALT
-	HALT
-	HALT
-	HALT
-	HALT
-	HALT
-	HALT
+	LD	B,8
+.1:	HALT
+	DJNZ .1
 RET
 
-SUB_AA25:						; Level complete, load next level
-    LD      HL, GAMECONTROL
-    SET     7, (HL)
-LOC_AA2A:
-    BIT     7, (HL)
-    JR      NZ, LOC_AA2A
-    LD      HL, CURRENT_LEVEL_P1	; Player 1
-    LD      IX, ENEMY_NUM_P1
-    LD      A, (GAMECONTROL)
-    BIT     1, A
-    JR      Z, LOC_AA43
-    INC      HL			; $7275	; Player 2 data 
-    INC      IX			; $7279 ; Player 2 data
-LOC_AA43:
-    LD      (IX+0), 7
-    INC     (HL)
-    LD      A, (HL)
-    CALL    SUB_B286
-    LD      HL, $718A
-    LD      DE, 3400H
-    LD      A, (GAMECONTROL)
-    BIT     1, A
-    JR      Z, LOC_AA5C
-    LD      DE, 3600H
-LOC_AA5C:
-    LD      BC, 0D4H
-    CALL    WRITE_VRAM
-    LD      BC, 1E2H
-    CALL    WRITE_REGISTER
-RET
-
-;SUB_AA25: ; Level complete, load next level
-;	LD		HL, GAMECONTROL
-;	SET		7, (HL)
+;SUB_AA25:						; Level complete, load next level
+;    LD      HL, GAMECONTROL
+;    SET     7, (HL)
 ;LOC_AA2A:
-;	BIT		7, (HL)
-;	JR		NZ, LOC_AA2A
-;	LD		HL, CURRENT_LEVEL_P1
-;	LD		IX, $7278
-;	LD		A, (GAMECONTROL)
-;	BIT		1, A
-;	JR		Z, LOC_AA43
-;	LD		HL, $7275
-;	LD		IX, $7279
+;    BIT     7, (HL)
+;    JR      NZ, LOC_AA2A
+;    LD      HL, CURRENT_LEVEL_P1	; Player 1
+;    LD      IX, ENEMY_NUM_P1
+;    LD      A, (GAMECONTROL)
+;    BIT     1, A
+;    JR      Z, LOC_AA43
+;    INC      HL			; $7275	; Player 2 data 
+;    INC      IX			; $7279 ; Player 2 data
 ;LOC_AA43:
-;	; Current level (either p1 or p2) is loaded into HL
-;	LD      A, (HL)     ; Load level number
-;	LD      B, 3        ; Save original
-;
-;	CALL MOD_B	; Get modulo B
-;
-;   ; Now A contains just 0,1,2
-;	; if A==0 the level Number is multiple of 3
-;
-;    PUSH    IX				; Play intermission 
-;    PUSH    HL	
-;    CALL    Z, INTERMISSION
-;    POP     HL
-;    POP     IX 
-;
-;CONTINUE_NEXT_LEVEL:
-;	LD		(IX+0), 7
-;	INC		(HL)     ; Increment the level number
-;	LD		A, (HL)
-;	CALL	SUB_B286
-;	LD		HL, $718A
-;	LD		DE, 3400H
-;	LD		A, (GAMECONTROL)
-;	BIT		1, A
-;	JR		Z, LOC_AA5C
-;	LD		DE, 3600H
+;    LD      (IX+0), 7
+;    INC     (HL)
+;    LD      A, (HL)
+;    CALL    SUB_B286
+;    LD      HL, $718A
+;    LD      DE, 3400H
+;    LD      A, (GAMECONTROL)
+;    BIT     1, A
+;    JR      Z, LOC_AA5C
+;    LD      DE, 3600H
 ;LOC_AA5C:
-;	LD		BC, 0D4H
-;	CALL	WRITE_VRAM
-;	LD		BC, 1E2H
-;	CALL	WRITE_REGISTER
+;    LD      BC, 0D4H
+;    CALL    WRITE_VRAM
+;    LD      BC, 1E2H
+;    CALL    WRITE_REGISTER
 ;RET
 
+SUB_AA25: ; Level complete, load next level
+	LD		HL, GAMECONTROL
+	SET		7, (HL)
+LOC_AA2A:
+	BIT		7, (HL)
+	JR		NZ, LOC_AA2A
+	LD		HL, CURRENT_LEVEL_P1
+	LD		IX, $7278
+	LD		A, (GAMECONTROL)
+	BIT		1, A
+	JR		Z, LOC_AA43
+	LD		HL, CURRENT_LEVEL_P2
+	LD		IX, $7279
+LOC_AA43:
+	; Current level (either p1 or p2) is loaded into HL
+	LD      A, (HL)     ; Load level number
+	LD      B, 3        ; Save original
 
-;; Get A modulo B
-;MOD_B:
-;    SUB     B			; Subtract B
-;    JR      NC, MOD_B	; If result >= 0, continue
-;    ADD     A, B		; Add back B to get remainder in 0-(B-1)
-;	 RET 
+	CALL MOD_B	; Get modulo B
+
+   ; Now A contains just 0,1,2
+	; if A==0 the level Number is multiple of 3
+
+    PUSH    IX				; Play intermission 
+    PUSH    HL	
+    CALL    Z, INTERMISSION
+    POP     HL
+    POP     IX 
+
+CONTINUE_NEXT_LEVEL:
+	LD		(IX+0), 7
+	INC		(HL)     ; Increment the level number
+	LD		A, (HL)
+	CALL	SUB_B286
+	LD		HL, $718A
+	LD		DE, 3400H
+	LD		A, (GAMECONTROL)
+	BIT		1, A
+	JR		Z, LOC_AA5C
+	LD		DE, 3600H
+LOC_AA5C:
+	LD		BC, 0D4H
+	CALL	WRITE_VRAM
+	LD		BC, 1E2H
+	CALL	WRITE_REGISTER
+RET
+
+
+; Get A modulo B
+MOD_B:
+    SUB     A,B			; Subtract B
+    JR      NC, MOD_B	; If result >= 0, continue
+    ADD     A, B		; Add back B to get remainder in 0-(B-1)
+RET 
 
 
 SUB_AA69:
@@ -6926,7 +6925,7 @@ LOC_AF76:
 	JR		NZ, LOC_AFD7
 	PUSH	DE
 	PUSH	HL
-	LD		IX, $728E
+	LD		IX, ENEMY_DATA_ARRAY
 	LD		L, 7
 LOC_AF8B:
 	BIT		7, (IX+4)
@@ -7067,7 +7066,7 @@ RET
 SUB_B066:
 	PUSH	IY
 	PUSH	HL
-	LD		IY, $728E
+	LD		IY, ENEMY_DATA_ARRAY
 	LD		HL, 207H
 LOC_B070:
 	LD		A, (IY+4)
@@ -7188,16 +7187,15 @@ SUB_B12D: ; Mr. Do sprite intersection with apples from above and below
 	; with an apple so that Mr. Do doesn't get stuck in the apple from
 	; above or below.
 
-	LD    A, H
-	CP    4  				; Check if H is 4 (Mr. Do collision offset)
-	JR    NZ, LOC_B133
+	JR    	NC, LOC_B133	; CF==0 -> monsters, CF==1 ->MrDo
+	
 	LD		A, (IY+3)		; Get Y position of Mr. Do
 	BIT		1, D		 	; Check if moving down
 	JR		Z, CHECK_UP
-	SUB		H		   		; Moving down, so sub 4 from Y position
+	SUB		4		   		; Moving down, so sub 4 from Y position
 	JR		START_CHECK
 CHECK_UP:
-	ADD		A, H		   	; Moving up, so add 4 to Y position
+	ADD		A, 4		   	; Moving up, so add 4 to Y position
 START_CHECK:
 	LD		B, A			; Store the new Y position in B for checks
 
@@ -7306,7 +7304,7 @@ DISPLAY_PLAYFIELD:
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, LOC_B1E6
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 LOC_B1E6:
 	CP		0BH
 	JR		C, LOC_B1EE
@@ -7876,7 +7874,7 @@ LOC_B5FF:
 	XOR		A
 RET
 
-SUB_B601:
+SUB_B601:							; add DE to the SCORE of the active player
 	LD		IX, SCORE_P1_RAM
 	LD		C, 80H
 	LD		A, (GAMECONTROL)
@@ -7895,7 +7893,7 @@ LOC_B614:
 	LD		($727C), A
 RET
 
-SUB_B629:							; put sprite   BC = Y,X
+SUB_B629:							; put sprite A with step D at  BC = Y,X
 	LD		IX, $72DF
 	BIT		7, A
 	JR		Z, LOC_B637
@@ -7907,7 +7905,7 @@ LOC_B637:
 	ADD		A, A
 	LD		E, A
 	LD		D, 0
-	LD		HL, OFF_B691
+	LD		HL, OFF_B691			; color table (pointer)
 	ADD		HL, DE
 	LD		E, (HL)
 	INC		HL
@@ -8058,11 +8056,11 @@ BYTE_B7BC:
 SUB_B7C4:
 	PUSH	HL
 	PUSH	IX
-							; LD		A, 0C0H
-	LD		(IX+4), 0CH		; LD		(IX+4), A
-	LD		A, 8
-	LD		B, A
-	LD		C, A
+								;	LD		A, 0C0H
+	LD		(IX+4), 0C0H		;	LD		(IX+4), A
+								;	LD		A, 8	; unused
+								;	LD		B, A
+	LD		BC,0808H			;	LD		C, A
 	CALL	SUB_B7EF
 	ADD		A, 5
 	LD		D, 0
@@ -8078,8 +8076,8 @@ LOC_B7E7:
 	DEC		A
 	LD		(HL), A			; one enemy killed 
 	POP		IX				; This seems fine 
-	POP		HL				; maybe the problem is in th enemy generation ?
-	AND		A
+	POP		HL				; maybe the problem is in the enemy generation ?
+	AND		A				; Nddeded -> ZF is tester from the caller
 RET
 
 SUB_B7EF:
@@ -8087,8 +8085,8 @@ SUB_B7EF:
 	PUSH	HL
 	PUSH	IX
 	POP		HL
-						;	LD		DE, $728E
-	LD		DE, -$728E	;	AND		A
+						;	LD		DE, ENEMY_DATA_ARRAY
+	LD		DE, -ENEMY_DATA_ARRAY	;	AND		A
 	ADD		HL,DE		;	SBC		HL, DE
 	LD		A, L
 	LD		H, 0
@@ -8268,7 +8266,7 @@ RESTORE_PLAYFIELD_COLORS:
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
 	JR		Z, USE_CURRENT_LEVEL
-	LD		A, ($7275)
+	LD		A, (CURRENT_LEVEL_P2)
 USE_CURRENT_LEVEL:
 	CP		0BH
 	JR		C, CONTINUE_RESTORE
@@ -9090,7 +9088,7 @@ EXTRA_SPRITE_PAT:
    DB 000,000,048,126,051,124,000,000
    DB 000,000,000,000,000,000,000,000
    DB 000,000,012,126,204,062,000,000
-  DB 000,000,014,021,059,076,055,031 ; Diamond
+   DB 000,000,014,021,059,076,055,031 ; Diamond
    DB 011,005,002,001,000,000,000,000
    DB 000,000,224,080,184,100,216,240
    DB 160,064,128,000,000,000,000,000
@@ -9178,19 +9176,19 @@ BADGUY_OUTLINE_PAT:
 HUD_PATS_01:
    DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
    DB 204,018,061,055,028,014,000,000
-	DB 000,000,000,000,001,003,013,030 ; Ice Cream dessert unaligned
-	DB 000,000,000,000,128,192,176,120
-	DB 000,000,000,003,007,015,031,063
-	DB 000,000,000,192,248,248,248,232
-    DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
-    DB 000,000,224,080,184,100,216,240
-    DB 011,005,002,001,000,000,000,000
-    DB 160,064,128,000,000,000,000,000
-	DB 000,254,128,248,128,128,254,000 ; E
-	DB 000,198,108,024,048,108,198,000 ; XTRA
-	DB 000,254,016,016,016,016,016,000
-	DB 000,252,134,134,252,136,142,000
-	DB 000,056,108,198,130,254,130,000
+   DB 000,000,000,000,001,003,013,030 ; Ice Cream dessert unaligned
+   DB 000,000,000,000,128,192,176,120
+   DB 000,000,000,003,007,015,031,063
+   DB 000,000,000,192,248,248,248,232
+   DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
+   DB 000,000,224,080,184,100,216,240
+   DB 011,005,002,001,000,000,000,000
+   DB 160,064,128,000,000,000,000,000
+   DB 000,254,128,248,128,128,254,000 ; E
+   DB 000,198,108,024,048,108,198,000 ; XTRA
+   DB 000,254,016,016,016,016,016,000
+   DB 000,252,134,134,252,136,142,000
+   DB 000,056,108,198,130,254,130,000
 HUD_PATS_02:
 	DB 063,043,010,001,001,003,000,000 ; Bottom of Ice Cream, Extra border
 	DB 252,180,096,128,128,192,000,000
@@ -9677,7 +9675,7 @@ LOC_D383:
 	AND		A
 	JP		Z, LOC_D3A6
 	LD		A, ($72C3)
-	XOR		1
+	XOR		1			; animate frames ?? (two steps)
 	LD		($72C3), A
 	LD		HL, 78H
 	BIT		0, A
@@ -9951,23 +9949,14 @@ NEW_WIN_EXTRA_DO_TUNE_P1:
 
 	DB 116 ; 20 pad
 
-
-
-
-
-
 	; short f (plays over the c pad)
 	DB 064,80,096,007,099 ;10
 
 	; short e
 	DB 064,084,096,007,099 ;10
 
-
-
-
 	; long D
 	DB 064,095,096,020,106 ;30
-
 
 	; short a (over end of long f)
 	DB 064,127,080,010,106 ;20
@@ -10072,8 +10061,6 @@ NEW_WIN_EXTRA_DO_TUNE_P2:
 
 	;++++++++++++++++++++++++++++++++
 
-
-
 	; BEGIN 3 (at end of C)
 
 	; over first half of 20 pad
@@ -10087,8 +10074,6 @@ NEW_WIN_EXTRA_DO_TUNE_P2:
 
 	; short c (over short e)
 	DB 128,106,112,007,163 ;10
-
-
 
 
 	; very long f (over d and a)
@@ -10304,16 +10289,16 @@ VERY_GOOD_TUNE_P2:
 	DB 128,166,066,014,144 ;14
 
 VERY_GOOD_TUNE_P3:
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
 
 	; G
 	DB 192,058,146,011,227 ; 14
@@ -10321,27 +10306,27 @@ VERY_GOOD_TUNE_P3:
 	DB 192,128,146,011,227 ; 14
 
 	DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
 	DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
 
 	; G
 	DB 192,058,146,011,227 ; 14
 	; F
 	DB 192,128,146,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,011,227 ; 14
-  DB 192,086,147,014,208 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,011,227 ; 14
+	DB 192,086,147,014,208 ; 14
 
 nmi_handler:
 	push af
