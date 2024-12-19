@@ -8022,7 +8022,7 @@ SUB_B7C4:
 	PUSH	HL
 	PUSH	IX
 	; LD		A, 0C0H
-	LD		(IX+4), 0CH		; LD		(IX+4), A
+	LD		(IX+4), 0C0H		; LD		(IX+4), A
 	LD		A, 8
 	LD		B, A
 	LD		C, A
