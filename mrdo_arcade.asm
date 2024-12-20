@@ -98,6 +98,7 @@ BLUE_CHOMPER_SND_0B:   EQU $1C
 VERY_GOOD_TUNE_0A:	   EQU $1D
 VERY_GOOD_TUNE_0B:	   EQU $1E
 VERY_GOOD_TUNE_0C:	   EQU $1F
+SFX_COIN_INSERT_SND:   EQU $20
 
 
 ; RAM DEFINITIONS ***************************
@@ -9395,6 +9396,10 @@ PLAY_VERY_GOOD_TUNE:
 	LD    B, VERY_GOOD_TUNE_0C
 	JP    PLAY_IT
 
+PLAY_COIN_INSERT_SFX:
+  LD    B, SFX_COIN_INSERT_SND
+  JP    PLAY_IT
+
 PLAY_END_OF_ROUND_TUNE:
 	CALL	INITIALIZE_THE_SOUND
 	LD		B, END_OF_ROUND_TUNE_0A
@@ -9490,6 +9495,8 @@ SOUND_TABLE:
 	DW SOUND_BANK_02_RAM
 	DW VERY_GOOD_TUNE_P3
 	DW SOUND_BANK_03_RAM
+  DW SFX_COIN_INSERT
+  DW SOUND_BANK_01_RAM
 
 GRAB_CHERRIES_SOUND:
 	DB 193,214,048,002,051,149,193,214,048,002,051,149,193,214,048,002,051,149,234,193,190,048
@@ -10400,6 +10407,66 @@ VERY_GOOD_TUNE_P3:
 	DB 192,086,147,011,227 ; 14
 	DB 192,086,147,014,208 ; 14
 
+SFX_COIN_INSERT:
+; AY volume to SN volume: SN_vol = 0xF - AY_vol
+; AY period to SN period: SN_period = AY_period / 2 (integer division)
+; Pos 000: AY period 0x05F(95) → SN period 95/2=47=0x2F
+ 
+; Pos 000: SN=0x2F → doubled=0x5E
+  DB 0x40,0x5E,0x60,1
+
+; 001: 0x32→0x64
+  DB 0x40,0x64,0x60,2
+
+; 002: 0x23→0x46
+  DB 0x40,0x46,0x60,1
+
+; 003: 0x25→0x4A
+  DB 0x40,0x4A,0x60,2
+
+; 004: 0x25→0x4A
+  DB 0x40,0x4A,0x60,1
+
+; 005: 0x20→0x40
+  DB 0x40,0x40,0x60,2
+
+; 006: 0x20→0x40
+  DB 0x40,0x40,0x60,1
+
+; 007: 0x23→0x46
+  DB 0x40,0x46,0x60,2
+
+; 008: 0x25→0x4A
+  DB 0x40,0x4A,0x60,1
+
+; 009: 0x1B→0x36
+  DB 0x40,0x36,0x60,2
+
+; 00A: 0x1E→0x3C
+  DB 0x40,0x3C,0x60,1
+
+; 00B: 0x1E→0x3C
+  DB 0x40,0x3C,0x60,2
+
+; 00C: 0x19→0x32
+  DB 0x40,0x32,0x60,1
+
+; 00D: 0x19→0x32
+  DB 0x40,0x32,0x70,2
+
+; 00E: 0x1B→0x36
+  DB 0x40,0x36,0x80,1
+
+; 00F: 0x1F→0x3E
+  DB 0x40,0x3E,0x90,2
+
+; 010: 0x14→0x28
+  DB 064,040,0xA0,01
+  DB 064,040,0xB0,01
+  DB 064,040,0xC0,01
+
+  DB 0x50
+
 nmi_handler:
 	push af
 	push hl
@@ -10512,6 +10579,7 @@ PlyrNumWait:
 	CP		2
 	JR		NC, PlyrNumWait
 .SetPlyrNum:
+	CALL PLAY_COIN_INSERT_SFX
 	LD		HL, GAMECONTROL
 	RES		0, (HL)
 	DEC		A					; If A==1 -> set 2 players
@@ -10540,6 +10608,7 @@ SkillWait:
 	CP		4
 	JR		NC, SkillWait
 .SetSkill:
+  CALL PLAY_COIN_INSERT_SFX
 	INC		A					; The game is expecting 1-4
 	LD		(SKILLLEVEL), A
 	RET
