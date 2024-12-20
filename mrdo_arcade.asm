@@ -25,6 +25,13 @@
 ; SAT: 				1900h
 ; SPT: 				2000h (256*8 bytes)
 
+; in game VRAM tables
+PT:		EQU	$0000
+PNT:	EQU	$1000
+CT:		EQU	$1800
+SAT:	EQU	$1900
+SPT:	EQU	$2000
+
 ; BIOS DEFINITIONS **************************
 ASCII_TABLE:		EQU $006A
 NUMBER_TABLE:		EQU $006C
@@ -91,6 +98,7 @@ BLUE_CHOMPER_SND_0B:   EQU $1C
 VERY_GOOD_TUNE_0A:	   EQU $1D
 VERY_GOOD_TUNE_0B:	   EQU $1E
 VERY_GOOD_TUNE_0C:	   EQU $1F
+SFX_COIN_INSERT_SND:   EQU $20
 
 
 ; RAM DEFINITIONS ***************************
@@ -118,7 +126,7 @@ TIMER_TABLE:			RB	75	;EQU $709E
 SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT
 
 BADGUY_BHVR_CNT_RAM:	RB	 1	;EQU $7139 ; HOW MANY BYTES IN TABLE
-BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 28 ELEMENTS
+BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 						RB 280	; ??
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players
 						RB	 2	; ??
@@ -139,7 +147,9 @@ SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
 MRDO_DATA:				RB   8	;EQU $7281	; Mr. Do's sprite data
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 6*7 bytes
-						RB  48	;EQU $72BE	??
+						RB  32	;EQU $72BE	??
+SATBUFF1:				RB   8	;EQU $72DF	; ?? SAT buffer
+SATBUFF2:				RB   8	;EQU $72E7	; ?? SAT buffer
 WORK_BUFFER:			RB  24	;EQU $72EF
 						RB 191	;EQU $7307	; ??
 DEFER_WRITES:			RB	 2	;EQU $73C6
@@ -720,23 +730,23 @@ INIT_VRAM:
 	CALL	WRITE_REGISTER
 
 	XOR		A			; SAT
-	LD		HL, 1900H
+	LD		HL, SAT
 	CALL	INIT_TABLE
 	LD		A, 1		; SPT
-	LD		HL, 2000H	
+	LD		HL, SPT
 	CALL	INIT_TABLE
 	LD		A, 2		; PNT
-	LD		HL, 1000H
+	LD		HL, PNT
 	CALL	INIT_TABLE
 	LD		A, 3		; PT
-	LD		HL, 0
+	LD		HL, PT
 	CALL	INIT_TABLE
-	LD		A, 4
-	LD		HL, 1800H	; CT
+	LD		A, 4		; CT
+	LD		HL, CT
 	CALL	INIT_TABLE
 	LD		HL, 0
 	LD		DE, 4000H
-	XOR		A
+	XOR		A			; CLEAR VRAM
 	CALL	FILL_VRAM
 	LD		IX, VARIOUTS_PATTERNS
 LOC_844E:
@@ -784,13 +794,27 @@ LOAD_GRAPHICS:
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 
-	CALL 	MYDISSCR					; LOAD ARCADE FONTS
-	LD 		DE,$0000 + 8*0d7h			; start tiles here
+	CALL 	MYDISSCR				; LOAD ARCADE FONTS
+	LD 		DE,PT + 8*0d7h			; start tiles here
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
 	CALL 	MYENASCR
 
+; screen 2 hack
+
+;	LD		BC, $0002
+;	CALL	WRITE_REGISTER
+;	LD		BC, $01A2
+;	CALL	WRITE_REGISTER
+;	LD		BC, $0206			; PNT at 1800h
+;	CALL	WRITE_REGISTER
+;	LD		BC, $039F			; $2000 for color table - Mirror Mode,
+;	CALL	WRITE_REGISTER
+;	LD		BC, $0400			; $0000 for pattern table - Mirror Mode,
+;	CALL	WRITE_REGISTER
+
 RET
+
 
 SUB_84F8:	 ; Disables NMI, sets up the game
 	PUSH	AF
@@ -6124,21 +6148,37 @@ SUB_AA25: ; Level complete, load next level
 LOC_AA2A:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA2A
-    	LD      HL, CURRENT_LEVEL_P1	; Player 1
-    	LD      IX, ENEMY_NUM_P1
+	LD      HL, CURRENT_LEVEL_P1	; Player 1
+	LD      IX, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
 	BIT		1, A
-	JR		Z, LOC_AA43
-    	INC      HL			; $7275	; Player 2 data 
-    	INC      IX			; $7279 ; Player 2 data
-LOC_AA43:
+	JR		Z, .PLAYERONE
+	INC      HL			; $7275	; Player 2 data 
+	INC      IX			; $7279 ; Player 2 data
+.PLAYERONE:
+
 	; Current level (either p1 or p2) is loaded into HL
 	LD      A, (HL)     ; Load level number
-	LD      B, 3        
-
+	LD      B, 10        
+	CALL MOD_B	; Get modulo B
+	
+	; test if we completed level 10xN
+	; if A==0 then go to WONDERFUL SCREEN
+	
+	JR NZ,.TEST_INTERMISSION
+    PUSH    IX				; Save Player data pointer 
+    PUSH    HL				; Save Level Pointer
+	CALL 	WONDERFUL
+    POP     HL
+    POP     IX 
+	JR .CONTINUE_NEXT_LEVEL
+	
+.TEST_INTERMISSION:
+	; here A is in 0-9
+	LD      B, 3
 	CALL MOD_B	; Get modulo B
 
-   ; Now A contains just 0,1,2
+	; now A contains just 0,1,2
 	; if A==0 the level Number is multiple of 3
 
     PUSH    IX				; Save Player data pointer 
@@ -6147,7 +6187,7 @@ LOC_AA43:
     POP     HL
     POP     IX 
 
-CONTINUE_NEXT_LEVEL:
+.CONTINUE_NEXT_LEVEL:
 	LD		(IX+0), 7
 	INC		(HL)     ; Increment the level number
 	LD		A, (HL)
@@ -7894,10 +7934,10 @@ LOC_B614:
 RET
 
 SUB_B629:							; put sprite A with step D at  BC = Y,X
-	LD		IX, $72DF
+	LD		IX, SATBUFF1			; SAT buffer in RAM (8 bytes)
 	BIT		7, A
 	JR		Z, LOC_B637
-	LD		IX, $72E7				; SAT in RAM
+	LD		IX, SATBUFF2				; SAT buffer in RAM (8 bytes)
 	AND		7FH
 LOC_B637:
 	PUSH	AF
@@ -8507,7 +8547,7 @@ PLAYFIELD_COLORS:
 	DW PHASE_10_COLORS
     ; CONTROL_BYTE,BLACK CHERRY STEM+BG, MED RED CHERRY+BG,.......BG1+BG2,BG Walls + Invisible Corridor)
 PHASE_01_COLORS: ; Med Green + Light Green
-	DB $00,$12,$82,$90,$80,$F0,$F0,$A0,$A0,$80,$23,$20,$C0,$C0,$80,$E0,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$F0,$F0,$F0,$F0,$F0
+	DB $00,$12,$82,$90,$80,$F0,$F0,$A0,$A0,$80,$23,$20,$C0,$C0,$80,$E0,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$B1,$F0,$F0,$F0,$F0,$F0			; NOTE the $B1 is for the 500/1000 bonus in the tileset
 PHASE_02_COLORS: ; Dark Blue + Cyan  
 	DB $00,$17,$87,$90,$80,$F0,$F0,$A0,$A0,$80,$47,$70
 PHASE_03_COLORS: ; Magenta + Cyan
@@ -8760,8 +8800,8 @@ old:
 	DB 005
 	DW BYTE_C294
 	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 000, 44*4, 000
-	DW FIVE_HUNDRED_SCORE_PAT
+;	DB 000, 44*4, 000
+;	DW FIVE_HUNDRED_SCORE_PAT
 new:	
 	DB 000,45*4,000
 	DW MR_DO_WALK_RIGHT_01_PATW
@@ -8918,13 +8958,13 @@ BYTE_C290N:		DB 45*4+3,45*4+1,45*4+2,45*4+0
 BYTE_C294N:		DB 45*4+2,45*4+0,45*4+3,45*4+1
 
 MR_DO_WALK_RIGHT_01_PAT:
- DB $00,$00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0
+ DB $00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00
 MR_DO_WALK_RIGHT_01_PATW:
- DB $00,$00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c
+ DB $00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c,$00
 MR_DO_WALK_RIGHT_02_PAT: 
- DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80
+ DB $00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00
 MR_DO_WALK_RIGHT_02_PATW:
- DB $00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
+ DB $00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78,$00
 ;MR_DO_WALK_RIGHT_F3:
 ; DB $00,$00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00
 ; DB $00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0
@@ -8932,13 +8972,13 @@ MR_DO_WALK_RIGHT_02_PATW:
 ; DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80
 ; DB $00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
 MR_DO_PUSH_RIGHT_01_PAT:
- DB $00,$00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0
+ DB $00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00
 MR_DO_PUSH_RIGHT_01_PATW:
- DB $00,$00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c
+ DB $00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c,$00
 MR_DO_PUSH_RIGHT_02_PAT:
- DB $00,$00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00
+ DB $00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00
 MR_DO_PUSH_RIGHT_02_PATW:
- DB $00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0
+ DB $00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0,$00
 ;MR_DO_PUSH_RIGHT_F3:
 ; DB $00,$00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0d,$17,$3c,$00,$00,$00,$e0,$58,$fc,$a0,$c0,$00,$00,$80,$f0,$fc,$5c,$e0,$c0,$00
 ; DB $00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3e,$00,$00,$00,$a0,$00,$5c,$16,$36,$1c,$30,$01,$03,$a3,$00,$3c,$00
@@ -8996,11 +9036,11 @@ MR_DO_PUSH_RIGHT_02_PATW:
 ;	DB 000,000,192,224,144,176,224,200
 ;	DB 248,056,128,128,128,000,000,000
 
-FIVE_HUNDRED_SCORE_PAT:
-   DB 000,000,000,000,000,113,066,114
-   DB 010,074,049,000,000,000,000,000
-   DB 000,000,000,000,000,140,082,082
-   DB 082,082,140,000,000,000,000,000
+;FIVE_HUNDRED_SCORE_PAT:
+;   DB 000,000,000,000,000,113,066,114
+;   DB 010,074,049,000,000,000,000,000
+;   DB 000,000,000,000,000,140,082,082
+;   DB 082,082,140,000,000,000,000,000
 DIGGER_RIGHT_01_PAT:
    DB 007,029,054,124,212,063,045,120
    DB 215,055,120,222,033,126,000,000
@@ -9147,7 +9187,19 @@ VARIOUTS_PATTERNS:
 	DW BADGUY_OUTLINE_PAT
 	DB 002,120
 	DW HUD_PATS_01
+	DB 006,208
+	DW Bonus
 	DB 000
+	
+Bonus:
+	DB $00,$00,$1e,$1e,$10,$10,$10,$1c	; 5 up
+	DB $1e,$02,$02,$12,$12,$0c,$0c,$00	; 5 dwn
+	DB $00,$00,$44,$ee,$aa,$aa,$aa,$aa	; 00 up
+	DB $aa,$aa,$aa,$aa,$aa,$ee,$44,$00	; 00 dwn
+	DB $00,$00,$24,$6e,$2a,$2a,$2a,$2a	; 10 up
+	DB $2a,$2a,$2a,$2a,$2a,$2e,$74,$00	; 10 dwn
+	
+	
 BLANK_LINE_PAT:
 	DB 000,000,000,000,000,000,000,000
 CHERRY_TOP_PAT:
@@ -9157,17 +9209,17 @@ CHERRY_BOTTOM_PAT:
    DB 014,029,031,031,014,000,000,000
    DB 056,116,124,124,056,000,000,000
 GUMDROP_PAT:
-	DB 000,000,001,003,007,014,028,029
-	DB 000,000,128,192,224,240,248,248
-	DB 057,059,031,015,003,000,000,000
-	DB 252,252,248,240,192,000,000,000
+   DB 000,000,003,007,011,012,031,031
+   DB 000,000,192,224,208,048,176,088
+   DB 030,013,003,001,000,000,000,000
+   DB 096,160,088,188,052,024,000,000
 WHEAT_SQUARE_PAT:
-	DB 000,000,042,063,022,063,023,063
-	DB 000,000,192,128,192,128,108,248
-	DB 031,053,003,001,003,003,000,000
-	DB 108,248,252,104,252,084,000,000
-	DB 063,062,049,015,063,056,000,000
-	DB 240,008,248,248,000,000,000,000
+   DB 000,000,054,063,022,056,059,019
+   DB 000,000,192,192,128,000,108,252
+   DB 057,051,003,001,003,003,000,000
+   DB 104,252,252,104,252,108,000,000
+   DB 048,012,051,012,003,000,000,000 ; Cake bottom
+   DB 028,100,152,096,128,000,000,000
 BADGUY_OUTLINE_PAT:
    DB 000,000,000,031,048,033,034,034
    DB 049,016,016,048,096,063,062,000
@@ -9176,10 +9228,10 @@ BADGUY_OUTLINE_PAT:
 HUD_PATS_01:
    DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
    DB 204,018,061,055,028,014,000,000
-   DB 000,000,000,000,001,003,013,030 ; Ice Cream dessert unaligned
-   DB 000,000,000,000,128,192,176,120
-   DB 000,000,000,003,007,015,031,063
-   DB 000,000,000,192,248,248,248,232
+   DB 000,000,001,003,001,014,031,030 ; Ice Cream dessert top unaligned
+   DB 000,000,128,200,144,032,080,184
+   DB 000,000,003,006,019,060,031,003 ; Top of Cake
+   DB 000,000,000,128,060,252,240,128
    DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
    DB 000,000,224,080,184,100,216,240
    DB 011,005,002,001,000,000,000,000
@@ -9190,8 +9242,8 @@ HUD_PATS_01:
    DB 000,252,134,134,252,136,142,000
    DB 000,056,108,198,130,254,130,000
 HUD_PATS_02:
-	DB 063,043,010,001,001,003,000,000 ; Bottom of Ice Cream, Extra border
-	DB 252,180,096,128,128,192,000,000
+	DB 032,031,007,001,003,007,000,000 ; Bottom of Ice Cream, Extra border
+	DB 004,248,224,128,192,224,000,000
 	DB 255,255,192,192,192,192,192,192
 	DB 192,192,192,192,192,192,192,192
 	DB 192,192,192,192,192,192,255,255 ; Extra Border Box
@@ -9360,6 +9412,10 @@ PLAY_VERY_GOOD_TUNE:
 	LD    B, VERY_GOOD_TUNE_0C
 	JP    PLAY_IT
 
+PLAY_COIN_INSERT_SFX:
+  LD    B, SFX_COIN_INSERT_SND
+  JP    PLAY_IT
+
 PLAY_END_OF_ROUND_TUNE:
 	CALL	INITIALIZE_THE_SOUND
 	LD		B, END_OF_ROUND_TUNE_0A
@@ -9455,6 +9511,8 @@ SOUND_TABLE:
 	DW SOUND_BANK_02_RAM
 	DW VERY_GOOD_TUNE_P3
 	DW SOUND_BANK_03_RAM
+  DW SFX_COIN_INSERT
+  DW SOUND_BANK_01_RAM
 
 GRAB_CHERRIES_SOUND:
 	DB 193,214,048,002,051,149,193,214,048,002,051,149,193,214,048,002,051,149,234,193,190,048
@@ -9558,6 +9616,43 @@ GAME_OVER_TUNE_P1:
 	DB 048,011,107,064,160,048,022,064,107,048,007,100,064,107,048,007,100,064,127,048,011
 	DB 107,064,160,048,011,107,064,143,048,011,107,064,107,048,007,100,064,107,048,007,100
 	DB 064,107,048,022,118,118,064,213,048,011,107,064,160,048,011,080
+; GAME_OVER_TUNE_P1:
+; 	DB 064,$50,096,010,106 ; F
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$3F,096,017,099 ; A
+;   DB 064,$50,096,017,099 ; F
+;   DB 064,$50,096,010,106 ; F
+
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$3F,096,017,099 ; A
+;   DB 064,$50,096,017,099 ; F
+
+;   DB 064,$47,096,010,106 ; G
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,040,116 ; C
+;   DB 096,$6A,096,010,106 ; lower C
+;   DB 064,$50,096,010,106,080 ; F
+
+; GAME_OVER_TUNE_P2:
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$8E,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$8E,096,017,163
+;   DB 128,$6A,096,020,180
+;   DB 128,171,097,010,170
+;   DB 128,064,097,020,144
+
+
 GAME_OVER_TUNE_P2:
 	DB 182,182,128,064,081,022,128,214,080,007,164,128,214,080,007,164,128,254,080,011,171
 	DB 128,064,081,011,171,128,064,081,022,128,214,080,007,164,128,214,080,007,164,128,240
@@ -10328,6 +10423,66 @@ VERY_GOOD_TUNE_P3:
 	DB 192,086,147,011,227 ; 14
 	DB 192,086,147,014,208 ; 14
 
+SFX_COIN_INSERT:
+; AY volume to SN volume: SN_vol = 0xF - AY_vol
+; AY period to SN period: SN_period = AY_period / 2 (integer division)
+; Pos 000: AY period 0x05F(95) → SN period 95/2=47=0x2F
+ 
+; Pos 000: SN=0x2F → doubled=0x5E
+  DB 0x40,0x5E,0xA0,1
+
+; 001: 0x32→0x64
+  DB 0x40,0x64,0x90,2
+
+; 002: 0x23→0x46
+  DB 0x40,0x46,0x80,1
+
+; 003: 0x25→0x4A
+  DB 0x40,0x4A,0x70,2
+
+; 004: 0x25→0x4A
+  DB 0x40,0x4A,0x60,1
+
+; 005: 0x20→0x40
+  DB 0x40,0x40,0x60,2
+
+; 006: 0x20→0x40
+  DB 0x40,0x40,0x60,1
+
+; 007: 0x23→0x46
+  DB 0x40,0x46,0x60,2
+
+; 008: 0x25→0x4A
+  DB 0x40,0x4A,0x60,1
+
+; 009: 0x1B→0x36
+  DB 0x40,0x36,0x60,2
+
+; 00A: 0x1E→0x3C
+  DB 0x40,0x3C,0x60,1
+
+; 00B: 0x1E→0x3C
+  DB 0x40,0x3C,0x60,2
+
+; 00C: 0x19→0x32
+  DB 0x40,0x32,0x60,1
+
+; 00D: 0x19→0x32
+  DB 0x40,0x32,0x70,2
+
+; 00E: 0x1B→0x36
+  DB 0x40,0x36,0x80,1
+
+; 00F: 0x1F→0x3E
+  DB 0x40,0x3E,0x90,2
+
+; 010: 0x14→0x28
+  DB 064,040,0xA0,01
+  DB 064,040,0xB0,01
+  DB 064,040,0xC0,01
+
+  DB 0x50
+
 nmi_handler:
 	push af
 	push hl
@@ -10440,6 +10595,7 @@ PlyrNumWait:
 	CP		2
 	JR		NC, PlyrNumWait
 .SetPlyrNum:
+	CALL PLAY_COIN_INSERT_SFX
 	LD		HL, GAMECONTROL
 	RES		0, (HL)
 	DEC		A					; If A==1 -> set 2 players
@@ -10468,6 +10624,7 @@ SkillWait:
 	CP		4
 	JR		NC, SkillWait
 .SetSkill:
+  CALL PLAY_COIN_INSERT_SFX
 	INC		A					; The game is expecting 1-4
 	LD		(SKILLLEVEL), A
 	RET
@@ -10550,7 +10707,7 @@ cvb_ANIMATEDLOGO:
 
 	CALL 	MYDISSCR
 	
-	LD		HL, $1900				; remove sprites in the new position of the SAT
+	LD		HL, PNT				; remove sprites in the new position of the SAT
 	LD		A,208
 	CALL MyNMI_off
 	CALL MYWRTVRM
@@ -10572,8 +10729,8 @@ NXTFRM:
 	CALL MyNMI_off
 	CALL MYLDIRVM
 	
-	LD		HL, $2000+23
-	LD		DE, 9
+	LD		HL, $2000+6*32/8
+	LD		DE, 8
 	LD		A,$F1
 	CALL	FILL_VRAM
 	
@@ -10651,6 +10808,9 @@ cvb_EXTRASCREEN_FRM2:
 	ld hl,$1b00		; remove sprite 0
 	call MYWRTVRM
 	JP MyNMI_on
+
+	;% place here the other intermission each 10xN levels
+WONDERFUL:
 	
 INTERMISSION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -11413,7 +11573,7 @@ MYMODE1:
 
 MYMODE2:
 	ld hl,mode
-	set 3,(hl)
+	set 7,(hl)			; intermission mode
 	ld bc,$0000
 	ld de,$8000	; $2000 for color table, $0000 for bitmaps.
 
