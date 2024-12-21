@@ -6223,14 +6223,12 @@ LOC_AA5C:
 	CALL	WRITE_REGISTER
 RET
 
-
 ; Get A modulo B
 MOD_B:
     SUB     A,B			; Subtract B
     JR      NC, MOD_B	; If result >= 0, continue
     ADD     A, B		; Add back B to get remainder in 0-(B-1)
 RET 
-
 
 SUB_AA69:
 	LD		HL, GAMECONTROL
