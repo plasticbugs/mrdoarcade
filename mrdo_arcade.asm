@@ -10547,7 +10547,7 @@ PlyrNumWait:
 .OnePlyr:
 
     ; Add a delay and more robust key release check
-    LD      B, 15               ; Wait ~0.25 second (15 frames)
+    LD      B, 30               ; Wait ~0.5 second (15 frames)
 .WaitDelay:
     HALT                        ; Wait for next frame
     DJNZ    .WaitDelay
