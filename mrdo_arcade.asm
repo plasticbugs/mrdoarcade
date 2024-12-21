@@ -325,7 +325,7 @@ SUB_8107:
 	LD		($72E8), A
 	LD		HL, $72F2
 	LD		IY, $70F5
-	LD		B, 11H
+	LD		B, 11H			; number of actual sprites rotated: PROBABLY INTRODUCING IN THE ROTATION MRDO's SPRITES WOULD IMPROVE THE FINAL RESULT
 LOC_8125:
 	LD		A, (HL)
 	AND		A
@@ -486,7 +486,7 @@ SUB_8229:
 	; 4 push right02
 	; 
 	ADD		A, 1BH				; MrDo Position offeset = 27+1 in SPRITE_GENERATOR
-	LD		IY, 8				; number of 8x8 tiles to process (8 => 2 layers)
+	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
 	CALL	DEAL_WITH_SPRITES	; rotate the current frame of the player
 
 	LD		D, 0
@@ -824,14 +824,13 @@ LOAD_GRAPHICS:
 ;	CALL	WRITE_REGISTER
 ;	LD		BC, $01A2
 ;	CALL	WRITE_REGISTER
-;	LD		BC, $0206			; PNT at 1800h
-;	CALL	WRITE_REGISTER
 ;	LD		BC, $039F			; $2000 for color table - Mirror Mode,
 ;	CALL	WRITE_REGISTER
 ;	LD		BC, $0400			; $0000 for pattern table - Mirror Mode,
 ;	CALL	WRITE_REGISTER
 
 RET
+
 
 SUB_84F8:	 ; Disables NMI, sets up the game
 	PUSH	AF
@@ -874,7 +873,7 @@ LOC_853F:
 	AND		1
 	LD		(GAMECONTROL), A
 	LD		A, 1
-	CALL	SUB_B286
+	CALL	SUB_B286		; build level 1
 	LD		HL, GAMESTATE
 	LD		DE, 3400H		; VRAM area for P1 data
 	LD		BC, 0D4H		; save in VRAM 212 bytes of game state pro P1 
@@ -6128,41 +6127,10 @@ WAIT8:
 	DJNZ .1
 RET
 
-;SUB_AA25:						; Level complete, load next level
-;    LD      HL, GAMECONTROL
-;    SET     7, (HL)
-;LOC_AA2A:
-;    BIT     7, (HL)
-;    JR      NZ, LOC_AA2A
-;    LD      HL, CURRENT_LEVEL_P1	; Player 1
-;    LD      IX, ENEMY_NUM_P1
-;    LD      A, (GAMECONTROL)
-;    BIT     1, A
-;    JR      Z, LOC_AA43
-;    INC      HL			; $7275	; Player 2 data 
-;    INC      IX			; $7279 ; Player 2 data
-;LOC_AA43:
-;    LD      (IX+0), 7
-;    INC     (HL)
-;    LD      A, (HL)
-;    CALL    SUB_B286
-;    LD      HL, GAMESTATE
-;    LD      DE, 3400H
-;    LD      A, (GAMECONTROL)
-;    BIT     1, A
-;    JR      Z, LOC_AA5C
-;    LD      DE, 3600H
-;LOC_AA5C:
-;    LD      BC, 0D4H
-;    CALL    WRITE_VRAM
-;    LD      BC, 1E2H
-;    CALL    WRITE_REGISTER
-;RET
-
 
 SUB_AA25: ; Level complete, load next level
-  LD      HL, GAMECONTROL
-  SET     7, (HL)
+	LD		HL, GAMECONTROL
+	SET		7, (HL)
 LOC_AA2A:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA2A
@@ -6186,7 +6154,7 @@ LOC_AA2A:
 	JR NZ,.TEST_INTERMISSION
     PUSH    IX				; Save Player data pointer 
     PUSH    HL				; Save Level Pointer
-	CALL 	WONDERFUL
+	CALL 	INTERMISSION	;CALL 	WONDERFUL
     POP     HL
     POP     IX 
 	JR .CONTINUE_NEXT_LEVEL
@@ -6207,9 +6175,9 @@ LOC_AA2A:
 
 .CONTINUE_NEXT_LEVEL:
 	LD		(IX+0), 7
-	INC		(HL)     ; Increment the level number
+	INC		(HL)     	; Increment the level number
 	LD		A, (HL)
-	CALL	SUB_B286
+	CALL	SUB_B286	; buld level in A
 	LD		HL, GAMESTATE
 	LD		DE, 3400H
 	LD		A, (GAMECONTROL)
@@ -7523,7 +7491,7 @@ CHERRIES_TXT:
 PLAYFIELD_PATTERNS:
 	DB 080,081,082,082,082,082,083,083,083,080
 
-SUB_B286:
+SUB_B286:					; build level in A
 	CP		0BH
 	JR		C, LOC_B28E
 	SUB		0AH
@@ -8784,7 +8752,7 @@ SPRITE_GENERATOR:
 	DB 001							;27
 	DW BYTE_C29C
 	DW CHOMPER_RIGHT_OPEN_PAT
-	DB 000,44*4,000					; 1	right		; MrDo from here
+	DB 000,44*4,000					; 1	right		; MrDo sprites start from here
 	DW MR_DO_WALK_RIGHT_01_PAT
 	DB 000,44*4,000					; 2
 	DW MR_DO_WALK_RIGHT_02_PAT
@@ -9011,6 +8979,7 @@ MR_DO_PUSH_RIGHT_02_PATW:
 ;	DB 007,014,031,031,019,028,000,000
 ;	DB 000,000,192,224,144,176,224,200
 ;	DB 248,056,128,128,128,000,000,000
+
 ;FIVE_HUNDRED_SCORE_PAT:
 ;   DB 000,000,000,000,000,113,066,114
 ;   DB 010,074,049,000,000,000,000,000
@@ -10703,7 +10672,7 @@ NXTFRM:
 	LD DE,$2000
 	CALL MyNMI_off
 	CALL MYLDIRVM
-
+	
 	LD		HL, $2000+6*32/8
 	LD		DE, 8
 	LD		A,$F1
@@ -10786,6 +10755,7 @@ cvb_EXTRASCREEN_FRM2:
 
 	;% place here the other intermission each 10xN levels
 WONDERFUL:
+	RET
 	
 INTERMISSION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -10840,11 +10810,7 @@ INTERMISSION:
 	BIT		7, (HL)
 	JR		NZ, .3
 
-	; Original code's final register writes
-;	LD		BC, 700H		 ; R7: Border/background color
-;	CALL	WRITE_REGISTER
-;	LD		BC, 1E2H		 ; Original game state register
-;	CALL	WRITE_REGISTER
+
 	RET	
 
 cvb_INTERMISSION:
