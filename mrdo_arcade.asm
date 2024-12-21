@@ -10525,38 +10525,43 @@ Skill3: 	dc "3.ARCADE "	; " " needed to remove the S from "PLAYERS"
 Skill4:		dc "4.PRO"
 
 ; Select  Number of Players and Skill
-
 GET_GAME_OPTIONS:
-	CALL	ShowPlyrNum			; Show 1 or 2 Players
+    CALL    ShowPlyrNum          ; Show 1 or 2 Players
 PlyrNumWait:
-	CALL	POLLER
-	LD		A, (KEYBOARD_P1)
-	DEC		A					; 0-1	valid range
-	CP		2
-	JR		C, .SetPlyrNum
-	LD		A, (KEYBOARD_P2)
-	DEC		A
-	CP		2
-	JR		NC, PlyrNumWait
+    CALL    POLLER
+    LD      A, (KEYBOARD_P1)
+    DEC     A                    ; 0-1   valid range
+    CP      2
+    JR      C, .SetPlyrNum
+    LD      A, (KEYBOARD_P2)
+    DEC     A
+    CP      2
+    JR      NC, PlyrNumWait
 .SetPlyrNum:
-	CALL PLAY_COIN_INSERT_SFX
-	LD		HL, GAMECONTROL
-	RES		0, (HL)
-	DEC		A					; If A==1 -> set 2 players
-	JR		NZ, .OnePlyr
-	SET		0, (HL)
+    CALL PLAY_COIN_INSERT_SFX
+    LD      HL, GAMECONTROL
+    RES     0, (HL)
+    DEC     A                    ; If A==1 -> set 2 players
+    JR      NZ, .OnePlyr
+    SET     0, (HL)
 .OnePlyr:
 
-.WaitKeyRelease:
-	CALL	POLLER
-	LD		A, (KEYBOARD_P1)
-	CP		15
-	JR		NZ,.WaitKeyRelease
-	LD		A, (KEYBOARD_P2)
-	CP		15
-	JR		NZ,.WaitKeyRelease
+    ; Add a delay and more robust key release check
+    LD      B, 15               ; Wait ~0.25 second (15 frames)
+.WaitDelay:
+    HALT                        ; Wait for next frame
+    DJNZ    .WaitDelay
 
-	CALL	ShowSkill			; Show Select skill 1-4
+.WaitKeyRelease:
+    CALL    POLLER
+    LD      A, (KEYBOARD_P1)    ; Check if both P1 and P2 keys are released
+    CP      15                  ; 15 (0x0F) means no keys pressed
+    JR      NZ, .WaitKeyRelease
+    LD      A, (KEYBOARD_P2)
+    CP      15                  ; 15 (0x0F) means no keys pressed
+    JR      NZ, .WaitKeyRelease
+
+    CALL    ShowSkill           ; Show Select skill 1-4
 SkillWait:
 	CALL	POLLER
 	LD		A, (KEYBOARD_P1)
