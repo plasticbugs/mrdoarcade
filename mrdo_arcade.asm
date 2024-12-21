@@ -153,8 +153,10 @@ ENEMY_NUM_P2:			RB	 1	;EQU $7279 Initialised at 7 by LOC_8573
 
 SCORE_P1_RAM:			RB	 2	;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
 SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
-MRDO_DATA:				RB   8	;EQU $7281	; Mr. Do's sprite data
-
+MRDO_DATA:				RB   3	;EQU $7281	; Mr. Do's sprite data
+MRDO_DATA.Y:			RB	 1  ;EQU $7284
+MRDO_DATA.X:			RB	 1  ;EQU $7285
+MRDO_DATA.Frame:		RB	 3  ;EQU $7286
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 6*7 bytes
 						RB  32	;EQU $72BE	??
@@ -489,7 +491,7 @@ SUB_8229:
 
 	LD		D, 0
 LOC_8241:
-	LD 		HL,($7284)			; HL = MrDo's X,Y
+	LD 		HL,(MRDO_DATA.Y)			; HL = MrDo's X,Y
 	DEC L
 	LD		B,L
 	LD		C,H
@@ -1734,14 +1736,14 @@ SUB_8BB1:
 RET
 
 SUB_8BC0:	; Mr. Do interesecting with a falling apple
-	LD		A, ($7284)			; A = MrDo's X
+	LD		A, (MRDO_DATA.Y)			; A = MrDo's Y
 	LD		D, A
 	BIT		7, (IY+4)
 	JR		Z, LOC_8BCE
 	ADD		A, 4
 	JR		LOC_8BE4
 LOC_8BCE:
-	LD		A, ($7285)			; A = MrDo's Y
+	LD		A, (MRDO_DATA.X)			; A = MrDo's X
 	LD		E, A
 	CALL	SUB_8CFE
 	RET		NZ			;	JR		NZ, LOC_8BF4
@@ -1751,7 +1753,7 @@ LOC_8BCE:
 	LD		(GAMECONTROL), A
 	LD		A, D
 LOC_8BE4:
-	LD		($7284), A
+	LD		(MRDO_DATA.Y), A
 	XOR		A
 	LD		($7286), A			; Mr Do current frame
 	LD		A, (MRDO_DATA)
@@ -2051,12 +2053,12 @@ SUB_8E10:	; Falling apple logic
 	CALL	SUB_8E48
 	JR		Z, LOC_8E46
 	LD		E, A
-	LD		A, ($7284)
+	LD		A, (MRDO_DATA.Y)
 	SUB		(IY+1)
 	JR		C, LOC_8E32
 	CP		11H
 	JR		NC, LOC_8E32
-	LD		A, ($7285)
+	LD		A, (MRDO_DATA.X)
 	SUB		(IY+2)
 	JR		NC, LOC_8E2C
 	CPL
@@ -2822,9 +2824,9 @@ SUB_936F:
 RET
 
 SUB_9399:
-	LD		A, ($7284)
+	LD		A, (MRDO_DATA.Y)
 	LD		B, A
-	LD		A, ($7285)
+	LD		A, (MRDO_DATA.X)
 	LD		C, A
 	CALL	SUB_B5DD
 	AND		A
@@ -4545,7 +4547,7 @@ UNK_9FB3:
 SUB_9FC8:
 	PUSH	IY
 	LD		B, (IY+2)
-	LD		A, ($7284)
+	LD		A, (MRDO_DATA.Y)
 	SUB		B
 	JR		NC, LOC_9FD5
 	CPL
@@ -4555,7 +4557,7 @@ LOC_9FD5:
 	CP		5
 	JR		NC, LOC_9FEF
 	LD		B, (IY+1)
-	LD		A, ($7285)
+	LD		A, (MRDO_DATA.X)
 	SUB		B
 	JR		NC, LOC_9FE6
 	CPL
@@ -4868,7 +4870,7 @@ RET
 SUB_A1AC:
 	LD		L, 0
 	LD		H, (IY+1)
-	LD		A, ($7285)
+	LD		A, (MRDO_DATA.X)
 	CP		H
 	JR		Z, LOC_A1BF
 	JR		C, LOC_A1BD
@@ -4878,7 +4880,7 @@ LOC_A1BD:
 	SET		7, L
 LOC_A1BF:
 	LD		H, (IY+2)
-	LD		A, ($7284)
+	LD		A, (MRDO_DATA.Y)
 	CP		H
 	JR		Z, LOC_A1D0
 	JR		C, LOC_A1CE
@@ -5342,7 +5344,7 @@ SUB_A497:
 	CP		8
 	JR		NZ, LOC_A512
 	LD		H, 0
-	LD		A, ($7284)
+	LD		A, (MRDO_DATA.Y)
 	CP		B
 	JR		Z, LOC_A4B9
 	JR		NC, LOC_A4B7
@@ -5351,7 +5353,7 @@ SUB_A497:
 LOC_A4B7:
 	SET		5, H
 LOC_A4B9:
-	LD		A, ($7285)
+	LD		A, (MRDO_DATA.X)
 	CP		C
 	JR		Z, LOC_A520
 	LD		A, C
@@ -7113,15 +7115,15 @@ LOC_AFD0:
 LOC_AFD2:
 	LD		E, 3
 	JP		LOC_B063
-LOC_AFD7:	; BADGUY PUshes APPLE
-	LD		A, ($7284)
+LOC_AFD7:						; BADGUY Pushes APPLE
+	LD		A, (MRDO_DATA.Y)
 	SUB		0CH
 	CP		B
 	JR		NC, LOC_AFF6
 	ADD		A, 18H
 	CP		B
 	JR		C, LOC_AFF6
-	LD		A, ($7285)
+	LD		A, (MRDO_DATA.X)
 	SUB		4
 	CP		C
 	JR		NC, LOC_AFF6
