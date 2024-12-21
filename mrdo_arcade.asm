@@ -32,6 +32,12 @@ CT:		EQU	$1800
 SAT:	EQU	$1900
 SPT:	EQU	$2000
 
+; VRAM areas used for data
+; 3400H		212 bytes for saving P1 game data
+; 3600H		212 bytes for saving P2 game data
+; 3800h 	768 bytes for alternative PNT during pause
+; 3B00H		93 bytes for sound data
+
 ; BIOS DEFINITIONS **************************
 ASCII_TABLE:		EQU $006A
 NUMBER_TABLE:		EQU $006C
@@ -127,9 +133,12 @@ SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT
 
 BADGUY_BHVR_CNT_RAM:	RB	 1	;EQU $7139 ; HOW MANY BYTES IN TABLE
 BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
-						RB 280	; ??
+						RB 	52	; ??
+GAMESTATE:				RB 212	;EQU $718A ; Game state 212 byte saved in VRAM
+						RB  16	;EQU $71A0 ; ??
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players
-						RB	 2	; ??
+GAMETIMER:				RB	 1	;EQU $726F  ??
+						RB	 1	; ??
 SKILLLEVEL:				RB	 1	;EQU $7271 ; Skill Level 1-4
 						RB	 1	; ??
 DIAMOND_RAM:			RB	 1	;EQU $7273
@@ -145,11 +154,14 @@ ENEMY_NUM_P2:			RB	 1	;EQU $7279 Initialised at 7 by LOC_8573
 SCORE_P1_RAM:			RB	 2	;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
 SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
 MRDO_DATA:				RB   8	;EQU $7281	; Mr. Do's sprite data
+
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 6*7 bytes
 						RB  32	;EQU $72BE	??
-SATBUFF1:				RB   8	;EQU $72DF	; ?? SAT buffer
-SATBUFF2:				RB   8	;EQU $72E7	; ?? SAT buffer
+SATBUFF1:									; MULTIPLE USE
+SPTBUFF1:				RB   8	;EQU $72DF	; ?? SPT buffer
+SATBUFF2:									; MULTIPLE USE
+SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
 WORK_BUFFER:			RB  24	;EQU $72EF
 						RB 191	;EQU $7307	; ??
 DEFER_WRITES:			RB	 2	;EQU $73C6
@@ -224,7 +236,7 @@ LOC_807E:
 	CALL	SUB_8107
 LOC_808D:
 	CALL	SUB_80D1
-	CALL	SUB_8229
+	CALL	SUB_8229			; UPDATE MR DO SPRITE
 	CALL	SUB_8251
 	CALL	DISPLAY_EXTRA_01
 	CALL	SUB_82DE
@@ -261,7 +273,7 @@ FINISH_NMI:
 
 SUB_80D1:
 	LD		HL, $7259
-	LD		BC, 1401H
+	LD		BC, 1401H			; B = 20 sptites
 LOC_80D7:
 	LD		A, (HL)
 	AND		A
@@ -463,15 +475,18 @@ SUB_8229:
 	RET		Z
 	RES		7, (HL)
 	LD		D, 1
-	LD		A, ($7286)			; if >0 update the MrDo sprite
+	LD		A, ($7286)			; if >0 update the MrDo sprite (CURRENT FRAME ?)
 	AND		A
 	JR		Z, LOC_8241
-	PUSH AF
+	; 1 walk right01
+	; 2 walk right02
+	; 3 push right01
+	; 4 push right02
+	; 
 	ADD		A, 1BH				; MrDo Position offeset = 27+1 in SPRITE_GENERATOR
+	LD		IY, 8				; number of 8x8 tiles to process (8 => 2 layers)
 	CALL	DEAL_WITH_SPRITES	; rotate the current frame of the player
-	POP AF
-	ADD		A,(new-SPRITE_GENERATOR)/5-1
-	CALL	DEAL_WITH_SPRITES	; Place Layer 2 in the SPT
+
 	LD		D, 0
 LOC_8241:
 	LD 		HL,($7284)			; HL = MrDo's X,Y
@@ -485,8 +500,8 @@ LOC_8241:
 	LD		HL, SPRITE_NAME_TABLE+8
 	LD 		A,(ix+2)		
 	CP 		148			; smashed player
-	JP 		NZ,.patch	; Patch only if the player is not smashed
-	LD 		(HL),209	; Hide the second layer if player is smashed
+	JP 		NZ,.patch	; patch only if the player is not smashed
+	LD 		(HL),209	; hide the second layer if player is smashed
 	RET
 .patch:
 	LD 		A,(ix+0)
@@ -772,6 +787,7 @@ LOC_844E:
 	LD		A, 1BH				; Load enemies in the SPT
 LOAD_GRAPHICS:
 	PUSH	AF
+	LD		IY, 4				; number of 8x8 tiles to process 
 	CALL	DEAL_WITH_SPRITES
 	POP		AF
 	DEC		A
@@ -858,13 +874,13 @@ LOC_853F:
 	LD		(GAMECONTROL), A
 	LD		A, 1
 	CALL	SUB_B286
-	LD		HL, $718A
-	LD		DE, 3400H
-	LD		BC, 0D4H
+	LD		HL, GAMESTATE
+	LD		DE, 3400H		; VRAM area for P1 data
+	LD		BC, 0D4H		; save in VRAM 212 bytes of game state pro P1 
 	CALL	WRITE_VRAM
-	LD		HL, $718A
-	LD		DE, 3600H
-	LD		BC, 0D4H
+	LD		HL, GAMESTATE
+	LD		DE, 3600H		; VRAM area for P2 data
+	LD		BC, 0D4H		; save in VRAM 212 bytes of game state pro P2 
 	CALL	WRITE_VRAM
 	CALL	SUB_866B
 	LD		HL, $72B8
@@ -895,7 +911,7 @@ SUB_8585:
 	JR		Z, LOC_85A4
 	LD		DE, 3600H
 LOC_85A4:
-	LD		HL, $718A
+	LD		HL, GAMESTATE
 	LD		BC, 0D4H
 	CALL	READ_VRAM
 	XOR		A
@@ -1218,7 +1234,7 @@ SUB_87F4:	; Start the level
 	LD		(IY+7), A		; $7288 = ??
 	LD		A, 1
 	LD		(IY+1), A		; $7282 = Set Mr. Do's starting direction 1=Right,2=Left,3=Up,4=Down
-	LD		(IY+5), A		; $7286 = ??
+	LD		(IY+5), A		; $7286 = ?? CURRENT MRDO FRAME !!!
 	LD		(IY+3), 0B0H	; $7284 = Set Mr. Do's starting Y coordinate
 	LD		(IY+4), 078H	; $7285 = Set Mr. Do's starting X coordinate
 	LD		(IY+0), 0C0H	; $7281 = flag
@@ -1249,15 +1265,15 @@ ENTER_PAUSE:
 	JR		NZ, ENTER_PAUSE
 	SET		5, (HL)
 	XOR		A
-	LD		HL, 1900H
+	LD		HL, SAT					; remove sprites
 	LD		DE, 80H
 	CALL	FILL_VRAM
 	LD		A, 2
 	LD		HL, 3800H
-	CALL	INIT_TABLE
+	CALL	INIT_TABLE				; enable alternative PNT at 3800H
 	LD		HL, STATESTART			; save to VRAM the sound state
 	LD		DE, 3B00H
-	LD		BC, 5DH
+	LD		BC, 5DH					; 93 bytes of sound state saved at 3B00h in VRAM
 	CALL	WRITE_VRAM
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
@@ -1288,7 +1304,7 @@ LOC_8891:
 	JR		NZ, LOC_8891
 	SET		4, (HL)
 	LD		A, 2
-	LD		HL, 1000H
+	LD		HL, PNT
 	CALL	INIT_TABLE
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
@@ -1718,14 +1734,14 @@ SUB_8BB1:
 RET
 
 SUB_8BC0:	; Mr. Do interesecting with a falling apple
-	LD		A, ($7284)
+	LD		A, ($7284)			; A = MrDo's X
 	LD		D, A
 	BIT		7, (IY+4)
 	JR		Z, LOC_8BCE
 	ADD		A, 4
 	JR		LOC_8BE4
 LOC_8BCE:
-	LD		A, ($7285)
+	LD		A, ($7285)			; A = MrDo's Y
 	LD		E, A
 	CALL	SUB_8CFE
 	RET		NZ			;	JR		NZ, LOC_8BF4
@@ -1737,7 +1753,7 @@ LOC_8BCE:
 LOC_8BE4:
 	LD		($7284), A
 	XOR		A
-	LD		($7286), A			; Mr Do direction ?
+	LD		($7286), A			; Mr Do current frame
 	LD		A, (MRDO_DATA)
 	SET		7, A
 	LD		(MRDO_DATA), A
@@ -5616,7 +5632,7 @@ LOC_A681:
 	SET		0, (HL)
 	LD		HL, 5A0H
 	CALL	REQUEST_SIGNAL
-	LD		($726F), A
+	LD		(GAMETIMER), A
 LOC_A6AB:
 	LD		A, ($72BA)
 	BIT		5, A
@@ -5633,7 +5649,7 @@ SUB_A6BB:
 	BIT		0, A
 	JR		Z, LOC_A6F2
 	CALL	SUB_A61F
-	LD		A, ($726F)
+	LD		A, (GAMETIMER)
 	CALL	TEST_SIGNAL
 	AND		A
 	JR		Z, LOC_A6F2
@@ -6129,7 +6145,7 @@ RET
 ;    INC     (HL)
 ;    LD      A, (HL)
 ;    CALL    SUB_B286
-;    LD      HL, $718A
+;    LD      HL, GAMESTATE
 ;    LD      DE, 3400H
 ;    LD      A, (GAMECONTROL)
 ;    BIT     1, A
@@ -6192,7 +6208,7 @@ LOC_AA2A:
 	INC		(HL)     ; Increment the level number
 	LD		A, (HL)
 	CALL	SUB_B286
-	LD		HL, $718A
+	LD		HL, GAMESTATE
 	LD		DE, 3400H
 	LD		A, (GAMECONTROL)
 	BIT		1, A
@@ -6225,7 +6241,7 @@ LOC_AA6E:
 	JR		Z, LOC_AA7C
 	LD		DE, 3600H
 LOC_AA7C:
-	LD		HL, $718A
+	LD		HL, GAMESTATE
 	LD		BC, 0D4H
 	CALL	WRITE_VRAM
 	LD		BC, 1E2H
@@ -6511,7 +6527,7 @@ LOC_AC59:
 	DEC		A
 	LD		B, 0
 	LD		C, A
-	LD		IX, $718A
+	LD		IX, GAMESTATE
 	ADD		IX, BC
 	LD		A, D
 	POP		BC
@@ -6555,76 +6571,164 @@ LOC_ACF6:
 RET
 
 DEAL_WITH_SPRITES:
-	LD		B, 0
-	LD		C, A
+	ld		l,a
+	ld		h,0
+	ld		e,a
+	ld		d,h
+	add		hl,hl
+	add		hl,hl
+	add		hl,de					; 5 bytes per entry 
+	ex		de,hl
 	LD		IX, SPRITE_GENERATOR
-	ADD		IX, BC				; +28 or more for mrdo
-	AND		A
-	RL		C
-	RL		B
-	RL		C
-	RL		B					; 28*4
-	ADD		IX, BC				; 5 bytes per entry (28*5 for MrDo)
+	add		ix,de					; +28*5 for MrDo
+	
+	; expect in IY the number of 8x8 tiles to process
+	
 	LD		A, (IX+0)			; flag
 	LD		E, (IX+1)			; Position in the SPT in VRAM
 	LD		D, (IX+2)
 	LD		L, (IX+3)			; pointer to sprite pattern
 	LD		H, (IX+4)
 	AND		A
-	JR		NZ, LOC_AD32
-	LD		IY, 4				; number of sprite to process 
-	LD		A, 1
+	JP		NZ,ROTATION
+NOROTATION:
+	LD		A, 1				; write the SPT
 	CALL	PUT_VRAM
 	RET
-LOC_AD32:
-	PUSH	DE
-	POP		IX
-	LD		B, 4
-LOOP_AD43:
+ROTATION:
+
+	push de
+	exx 
+	pop de						; save DE pointer to SPT positions
+	exx 
+	LD		B, IYL
+
+	DEC		A					; 1 mirror frame left
+	JP		Z,MIRRORLEFT
+	DEC		A					; 2 rotate face down 
+	JP		Z,ROTATEDWN
+	DEC		A					; 3 rotate face up
+	JP		Z,ROTATEUP
+	DEC		A					; 4 rotate face down-mirror
+	JP		Z,ROTATEDWNMIRROR
+								; rotate face up-mirror
+ROTATEUPMIRROR:
+.nextpattern:
 	PUSH	BC
-	PUSH	AF
 	PUSH	HL
-	LD		IY, $72E7
-	CP		1
-	JR		NZ, LOC_AD55
-	CALL	SUB_AD96
-	JR		LOC_AD73
-LOC_AD55:
-	CP		2
-	JR		NZ, LOC_AD5E
-	CALL	SUB_ADAB
-	JR		LOC_AD73
-LOC_AD5E:
-	CP		3
-	JR		NZ, LOC_AD67
-	CALL	SUB_ADCA
-	JR		LOC_AD73
-LOC_AD67:
-	CP		4
-	JR		NZ, LOC_AD70
-	CALL	SUB_ADE9
-	JR		LOC_AD73
-LOC_AD70:
-	CALL	SUB_AE0C
-LOC_AD73:
-	LD		E, (IX+0)
+	LD		IY, SPTBUFF2
+	CALL	SUB_AE0C			; rotate face up-mirror
+	exx
+	ld		a,(DE)
+	inc 	de
+	exx 
+	LD		E, a
 	LD		D, 0
-	INC		IX
-	LD		HL, $72E7
+	LD		HL, SPTBUFF2
 	LD		IY, 1
 	LD		A, 1
-	PUSH	IX
 	CALL	PUT_VRAM
-	POP		IX
 	POP		HL
 	LD		BC, 8
 	ADD		HL, BC
-	POP		AF
 	POP		BC
-	DJNZ	LOOP_AD43
+	DJNZ	.nextpattern
+RET
+	
+MIRRORLEFT:		
+.nextpattern:
+	PUSH	BC
+	PUSH	HL
+	LD		IY, SPTBUFF2
+	CALL	SUB_AD96			; mirror frame left
+	exx
+	ld		a,(DE)
+	inc 	de
+	exx 
+	LD		E, a
+	LD		D, 0
+	LD		HL, SPTBUFF2
+	LD		IY, 1
+	LD		A, 1
+	CALL	PUT_VRAM
+	POP		HL
+	LD		BC, 8
+	ADD		HL, BC
+	POP		BC
+	DJNZ	.nextpattern
 RET
 
-SUB_AD96:
+ROTATEDWN:						
+.nextpattern:
+	PUSH	BC
+	PUSH	HL
+	LD		IY, SPTBUFF2
+	CALL	SUB_ADAB			; rotate face down 
+	exx
+	ld		a,(DE)
+	inc 	de
+	exx 
+	LD		E, a
+	LD		D, 0
+	LD		HL, SPTBUFF2
+	LD		IY, 1
+	LD		A, 1
+	CALL	PUT_VRAM
+	POP		HL
+	LD		BC, 8
+	ADD		HL, BC
+	POP		BC
+	DJNZ	.nextpattern
+RET
+
+ROTATEUP:						
+.nextpattern:
+	PUSH	BC
+	PUSH	HL
+	LD		IY, SPTBUFF2
+	CALL	SUB_ADCA			; rotate face up
+	exx
+	ld		a,(DE)
+	inc 	de
+	exx 
+	LD		E, a
+	LD		D, 0
+	LD		HL, SPTBUFF2
+	LD		IY, 1
+	LD		A, 1
+	CALL	PUT_VRAM
+	POP		HL
+	LD		BC, 8
+	ADD		HL, BC
+	POP		BC
+	DJNZ	.nextpattern
+RET
+
+ROTATEDWNMIRROR:						
+.nextpattern:
+	PUSH	BC
+	PUSH	HL
+	LD		IY, SPTBUFF2
+	CALL	SUB_ADE9			; rotate face down-mirror
+	exx
+	ld		a,(DE)
+	inc 	de
+	exx 
+	LD		E, a
+	LD		D, 0
+	LD		HL, SPTBUFF2
+	LD		IY, 1
+	LD		A, 1
+	CALL	PUT_VRAM
+	POP		HL
+	LD		BC, 8
+	ADD		HL, BC
+	POP		BC
+	DJNZ	.nextpattern
+RET
+
+
+SUB_AD96:					; mirror frame left
 	LD		B, 8
 LOC_AD98:
 	LD		D, (HL)
@@ -6640,7 +6744,7 @@ LOC_AD9B:
 	DJNZ	LOC_AD98
 RET
 
-SUB_ADAB:
+SUB_ADAB:					; rotate face down 
 	LD		C, 8
 	PUSH	HL
 	LD		D, 1
@@ -6665,7 +6769,7 @@ LOC_ADB9:
 	POP		HL
 RET
 
-SUB_ADCA:
+SUB_ADCA:						; rotate face up
 	LD		C, 8
 	PUSH	HL
 	LD		D, 80H
@@ -6690,7 +6794,7 @@ LOC_ADD8:
 	POP		HL
 RET
 
-SUB_ADE9:
+SUB_ADE9:						; rotate face up-mirror
 	LD		BC, 7
 	ADD		HL, BC
 	LD		C, 8
@@ -6717,7 +6821,7 @@ LOC_ADFB:
 	POP		HL
 RET
 
-SUB_AE0C:
+SUB_AE0C:							; rotate face down-mirror
 	LD		BC, 7
 	ADD		HL, BC
 	LD		D, 80H
@@ -7290,7 +7394,7 @@ SUB_B173:
 	DEC		A
 	LD		C, A
 	LD		B, 0
-	LD		HL, $718A
+	LD		HL, GAMESTATE
 	ADD		HL, BC
 	LD		A, (HL)
 	AND		0FH
@@ -7313,7 +7417,7 @@ DISPLAY_PLAY_FIELD_PARTS:
 	DEC		A
 	LD		C, A
 	LD		B, 0
-	LD		IY, $718A
+	LD		IY, GAMESTATE
 	ADD		IY, BC
 	POP		AF
 	PUSH	AF
@@ -7426,12 +7530,12 @@ SUB_B286:
 	JR		SUB_B286
 LOC_B28E:
 	PUSH	AF
-	LD		HL, $718A
+	LD		HL, GAMESTATE
 	LD		(HL), 0
 	LD		DE, $718B
 	LD		BC, 9FH
 	LDIR
-	LD		HL, $718A
+	LD		HL, GAMESTATE
 	CALL	DEAL_WITH_PLAYFIELD_MAP
 	POP		AF
 	DEC		A
@@ -8215,9 +8319,9 @@ LOC_B895:
 	CALL	REQUEST_SIGNAL
 	JP		LOC_D35D
 LOC_B89B:
-	NOP
-	NOP
-	NOP
+;	NOP
+;	NOP
+;	NOP
 LOC_B89E:
 	POP		IX
 	POP		IY
@@ -8680,25 +8784,24 @@ SPRITE_GENERATOR:
 	DB 001							;27
 	DW BYTE_C29C
 	DW CHOMPER_RIGHT_OPEN_PAT
-old:
-	DB 000,44*4,000
+	DB 000,44*4,000					; 1	right		; MrDo from here
 	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 000,44*4,000
+	DB 000,44*4,000					; 2
 	DW MR_DO_WALK_RIGHT_02_PAT
-	DB 000,44*4,000
+	DB 000,44*4,000					; 3
 	DW MR_DO_PUSH_RIGHT_01_PAT
-	DB 000,44*4,000
+	DB 000,44*4,000					; 4
 	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 000,44*4,000
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 000,44*4,000
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 000,44*4,000
+	DB 000,44*4,000					; 5
+	DW 0
+	DB 000,44*4,000					; 6
+	DW 0
+	DB 000,44*4,000					; 7
 	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 001
+	DB 001							; 1 left
 	DW BYTE_C284
 	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 001
+	DB 001							; 2 left
 	DW BYTE_C284
 	DW MR_DO_WALK_RIGHT_02_PAT
 	DB 001
@@ -8709,10 +8812,10 @@ old:
 	DW MR_DO_PUSH_RIGHT_02_PAT
 	DB 001
 	DW BYTE_C284
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
+	DW 0
 	DB 001
 	DW BYTE_C284
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
+	DW 0
 	DB 001
 	DW BYTE_C284
 	DW MR_DO_PUSH_RIGHT_02_PAT
@@ -8738,7 +8841,7 @@ old:
 	DW BYTE_C288
 	DW MR_DO_PUSH_RIGHT_02_PAT
 	DB 003
-	DW BYTE_C28C
+	DW BYTE_C28C						; down 
 	DW MR_DO_WALK_RIGHT_01_PAT
 	DB 003
 	DW BYTE_C28C
@@ -8800,128 +8903,7 @@ old:
 	DB 005
 	DW BYTE_C294
 	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 000, 44*4, 000
-;	DW FIVE_HUNDRED_SCORE_PAT
-new:	
-	DB 000,45*4,000
-	DW MR_DO_WALK_RIGHT_01_PATW
-	DB 000,45*4,000
-	DW MR_DO_WALK_RIGHT_02_PATW
-	DB 000,45*4,000
-	DW MR_DO_PUSH_RIGHT_01_PATW
-	DB 000,45*4,000
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 000,45*4,000
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 000,45*4,000
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 000,45*4,000
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 001
-	DW BYTE_C284N
-	DW MR_DO_WALK_RIGHT_01_PATW
-	DB 001
-	DW BYTE_C284N
-	DW MR_DO_WALK_RIGHT_02_PATW
-	DB 001
-	DW BYTE_C284N
-	DW MR_DO_PUSH_RIGHT_01_PATW
-	DB 001
-	DW BYTE_C284N
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 001
-	DW BYTE_C284N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 001
-	DW BYTE_C284N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 001
-	DW BYTE_C284N
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 002
-	DW BYTE_C288N
-	DW MR_DO_WALK_RIGHT_01_PATW
-	DB 002
-	DW BYTE_C288N
-	DW MR_DO_WALK_RIGHT_02_PATW
-	DB 002
-	DW BYTE_C288N
-	DW MR_DO_PUSH_RIGHT_01_PATW
-	DB 002
-	DW BYTE_C288N
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 002
-	DW BYTE_C288N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 002
-	DW BYTE_C288N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 002
-	DW BYTE_C288N
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 003
-	DW BYTE_C28CN
-	DW MR_DO_WALK_RIGHT_01_PATW
-	DB 003
-	DW BYTE_C28CN
-	DW MR_DO_WALK_RIGHT_02_PATW
-	DB 003
-	DW BYTE_C28CN
-	DW MR_DO_PUSH_RIGHT_01_PATW
-	DB 003
-	DW BYTE_C28CN
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 003
-	DW BYTE_C28CN
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 003
-	DW BYTE_C28CN
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 003
-	DW BYTE_C28CN
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 004
-	DW BYTE_C290N
-	DW MR_DO_WALK_RIGHT_01_PATW
-	DB 004
-	DW BYTE_C290N
-	DW MR_DO_WALK_RIGHT_02_PATW
-	DB 004
-	DW BYTE_C290N
-	DW MR_DO_PUSH_RIGHT_01_PATW
-	DB 004
-	DW BYTE_C290N
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 004
-	DW BYTE_C290N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 004
-	DW BYTE_C290N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 004
-	DW BYTE_C290N
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 005
-	DW BYTE_C294N
-	DW MR_DO_WALK_RIGHT_01_PATW
-	DB 005
-	DW BYTE_C294N
-	DW MR_DO_WALK_RIGHT_02_PATW
-	DB 005
-	DW BYTE_C294N
-	DW MR_DO_PUSH_RIGHT_01_PATW
-	DB 005
-	DW BYTE_C294N
-	DW MR_DO_PUSH_RIGHT_02_PATW
-	DB 005
-	DW BYTE_C294N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 005
-	DW BYTE_C294N
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 005
-	DW BYTE_C294N
-	DW MR_DO_PUSH_RIGHT_02_PATW
+
 
 BYTE_C234:		DB 010,011,008,009
 BYTE_C238:		DB 014,015,012,013
@@ -8943,19 +8925,13 @@ BYTE_C274:		DB 083,081,082,080
 BYTE_C278:		DB 087,085,086,084
 BYTE_C27C:		DB 090,088,091,089
 BYTE_C280:		DB 094,092,095,093
-BYTE_C284:		DB 178,179,176,177
-BYTE_C288:		DB 177,179,176,178
-BYTE_C28C:		DB 176,178,177,179
-BYTE_C290:		DB 179,177,178,176
-BYTE_C294:		DB 178,176,179,177
+BYTE_C284:		DB 178,179,176,177,45*4+2,45*4+3,45*4+0,45*4+1
+BYTE_C288:		DB 177,179,176,178,45*4+1,45*4+3,45*4+0,45*4+2
+BYTE_C28C:		DB 176,178,177,179,45*4+0,45*4+2,45*4+1,45*4+3
+BYTE_C290:		DB 179,177,178,176,45*4+3,45*4+1,45*4+2,45*4+0
+BYTE_C294:		DB 178,176,179,177,45*4+2,45*4+0,45*4+3,45*4+1
 BYTE_C298:		DB 234,235,232,233
 BYTE_C29C:		DB 238,239,236,237
-
-BYTE_C284N:		DB 45*4+2,45*4+3,45*4+0,45*4+1
-BYTE_C288N:		DB 45*4+1,45*4+3,45*4+0,45*4+2
-BYTE_C28CN:		DB 45*4+0,45*4+2,45*4+1,45*4+3
-BYTE_C290N:		DB 45*4+3,45*4+1,45*4+2,45*4+0
-BYTE_C294N:		DB 45*4+2,45*4+0,45*4+3,45*4+1
 
 MR_DO_WALK_RIGHT_01_PAT:
  DB $00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00
@@ -9747,7 +9723,7 @@ LOC_D34D:
 	LD		HL, $7272
 	JP		LOC_B875
 LOC_D35D:
-	LD		($726F), A
+	LD		(GAMETIMER), A
 	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 	JP		LOC_B89B
 LOC_D366:
@@ -9760,7 +9736,7 @@ LOC_D36D:
 	BIT		0, (HL)
 	JP		Z, LOC_B8EC
 	RES		0, (HL)
-	LD		A, ($726F)
+	LD		A, (GAMETIMER)
 	CALL	TEST_SIGNAL
 	JP		LOC_B8EC
 SUB_A83E:	
@@ -10707,7 +10683,7 @@ cvb_ANIMATEDLOGO:
 
 	CALL 	MYDISSCR
 	
-	LD		HL, PNT				; remove sprites in the new position of the SAT
+	LD		HL, SAT				; remove sprites in the new position of the SAT
 	LD		A,208
 	CALL MyNMI_off
 	CALL MYWRTVRM
@@ -10866,10 +10842,10 @@ INTERMISSION:
 	JR		NZ, .3
 
 	; Original code's final register writes
-	LD		BC, 700H		 ; R7: Border/background color
-	CALL	WRITE_REGISTER
-	LD		BC, 1E2H		 ; Original game state register
-	CALL	WRITE_REGISTER
+;	LD		BC, 700H		 ; R7: Border/background color
+;	CALL	WRITE_REGISTER
+;	LD		BC, 1E2H		 ; Original game state register
+;	CALL	WRITE_REGISTER
 	RET	
 
 cvb_INTERMISSION:
