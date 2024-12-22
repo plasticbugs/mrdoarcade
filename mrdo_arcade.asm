@@ -161,7 +161,12 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1  ;EQU $7288 ;+7
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 6*7 bytes
-						RB  32	;EQU $72BE	??
+						RB   4	;EQU $72BE	??
+GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
+						RB	 2	;??
+TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
+						RB  18	;??
+BALLDATA:				RB	 6	;EQU $72D9
 SATBUFF1:									; MULTIPLE USE
 SPTBUFF1:				RB   8	;EQU $72DF	; ?? SPT buffer
 SATBUFF2:									; MULTIPLE USE
@@ -642,7 +647,7 @@ LOC_8310:
 	LD		D, 4
 LOC_8329:
 	LD		A, (HL)			
-	XOR		1				; animate frames ? (two steps)
+	XOR		1				
 	LD		(HL), A
 	LD		A, 8DH
 	CALL	SUB_B629
@@ -901,7 +906,7 @@ RET
 
 SUB_8585:
 	XOR		A
-	LD		($72D9), A
+	LD		(BALLDATA), A
 	LD		($72DD), A
 	LD		($7272), A
 	LD		(DIAMOND_RAM), A
@@ -978,11 +983,11 @@ SEND_PHASE_COLORS_TO_VRAM:
 	LD		IY, 0CH
 	LD		A, 4
 	CALL	PUT_VRAM
-	LD		HL, $72C3
-	LD		B, 16H
+	LD		HL, GAMEFLAGS
+	LD		B, 16H				; 22 bytes of GAMEFLAGS ?
 	XOR		A
 LOC_862E:
-	LD		(HL), A
+	LD		(HL), A				; Reset GAMEFLAGS ??
 	INC		HL
 	DJNZ	LOC_862E
 	CALL	SUB_866B
@@ -1435,10 +1440,6 @@ SUB_8972:
 	BIT		5, A
 	JR		NZ, LOC_8992
 	LD		HL, 19H
-;	LD		A, (IY+4)		; unused
-;	AND		30H			; unused
-;	CP		20H			; unused
-;	JR		LOC_8992		; unused
 
 LOC_8992:
 	XOR		A
@@ -2338,29 +2339,26 @@ SUB_8FC4:
 RET
 
 DEAL_WITH_BALL:
-	LD		IY, $72D9
+	LD		IY, BALLDATA
 	LD		A, (IY+0)
 	BIT		7, (IY+0)
 	JR		Z, LOC_8FF1
 	AND		7FH
 	OR		40H
 	LD		(IY+0), A
-
-	LD      A, ($72C3)         ; Load chomper mode flag
-	AND     0FEH               ; Mask off lowest bit (FE = 11111110)
-	CP      80H                ; Check if it's 0x80 or 0x81
-	JR      NZ, .continue_normally  ; If NOT in special mode, continue normally
-	; We are in special mode
-	LD      A, 1               ; Fast cooldown during special mode
-	LD      (IY+4), A
-	JR      .play_sound
-.continue_normally:
-	INC		(IY+4)
-.play_sound:
-	PUSH    IY
-	CALL    PLAY_BOUNCING_BALL_SOUND
-	POP     IY
-	JR      LOC_9005
+	
+	LD 		A,(GAMEFLAGS)
+	AND		$80
+	JR		Z,.normal_mode
+	
+	LD (IY+4), 0		; Fast cooldown in chomper mode
+	
+.normal_mode:	
+	INC		(IY+4)		; In chomper mode set to 1 the ball cooldown counter
+	PUSH	IY
+	CALL	PLAY_BOUNCING_BALL_SOUND
+	POP		IY
+	JR		LOC_9005
 LOC_8FF1:
 	AND		78H
 	JR		Z, LOC_9071
@@ -3080,7 +3078,7 @@ LOC_9575:
 RET
 
 SUB_9577:
-	LD		IX, $72D9
+	LD		IX, BALLDATA
 	LD		A, (IY+1)
 	DEC		A
 	LD		B, A
@@ -3462,8 +3460,8 @@ SUB_9842:
 	LD		A, ($7272)
 	BIT		4, A
 	JR		Z, LOC_98A2
-	LD		A, ($72C3)
-	BIT		7, A
+	LD		A, (GAMEFLAGS)
+	BIT		7, A				; test chomper mode 
 	JR		NZ, LOC_986C
 	LD		A, ($728B)
 	CALL	TEST_SIGNAL
@@ -4981,7 +4979,7 @@ SUB_A259:
 	PUSH	IX
 	PUSH	DE
 	PUSH	BC
-	LD		A, ($72D9)
+	LD		A, (BALLDATA)
 	LD		B, A
 	XOR		A
 	BIT		6, B
@@ -5005,7 +5003,7 @@ SUB_A259:
 	LD		D, A
 	SUB		E
 	JR		Z, LOC_A2B9
-	LD		A, ($72D9)
+	LD		A, (BALLDATA)
 	AND		3
 	JR		NZ, LOC_A297
 	CALL	SUB_A2C0
@@ -8285,14 +8283,14 @@ LOC_B865:
 	JP		LOC_D345
 LOC_B875:
 	RES		4, (HL)
-	LD		A, ($72C3)
-	BIT		0, A
+	LD		A, (GAMEFLAGS)
+	BIT		0, A					; b0 in GAMEFLAGS ??
 	JR		NZ, LOC_B884
-	LD		A, ($72C6)
+	LD		A, (TIMERCHOMP1)
 	CALL	FREE_SIGNAL
 LOC_B884:
 	XOR		A
-	LD		($72C3), A
+	LD		(GAMEFLAGS), A
 	LD		A, ($72BA)
 	BIT		6, A
 	JR		Z, LOC_B89B
@@ -8344,52 +8342,31 @@ LOC_B8B1:
 	LD		HL, 78H
 	CALL	REQUEST_SIGNAL
 	JP		LOC_D36D
-LOC_B8EC: ; Enter Alpha monster chomper mode
+LOC_B8EC:
 	LD		A, 80H
-	LD		($72C3), A
+	LD		(GAMEFLAGS), A		; b7 in GAMEFLAGS -> chomper mode
 
-	; Check Bit 6 of the ball state
-	; Bit 6 is set to 1 when the ball is in the cooldown phase
-	; We only want to return the ball during this interval
+; immediately retur the balll when in chomper mode
+	LD 		IY, BALLDATA 			; Load ball state pointer
+	LD		(IY+0),$20			; Set bit 5, reset direction flags 
+	LD		(IY+1),0			; reset ball's X
+	LD		(IY+2),0			; reset ball's Y
 
-	LD      IY, $72D9         ; Load ball state pointer
-	BIT     6, (IY+0)         ; Check if bit 6 is set
-	JR      NZ, SKIP_BALL_RETURN ; Skip if not in cooldown phase
-
-  ; Return the ball
-	LD      A, 20H            ; Set only bit 5 (00100000)
-	LD      (IY+0), A         ; Store initial state
-
-	; Set ball position and signal
-	XOR     A                 ; Clear A
-	LD      (IY+1), A        ; Reset X position
-	LD      (IY+2), A        ; Reset Y position
-	
-	; Request signal like SUB_93B6 does
-	PUSH    IX
 	LD      HL, 1
 	XOR     A
 	CALL    REQUEST_SIGNAL
-	LD      (IY+3), A         ; Store signal result
-
-	; Now do the ball return sequence
-	LD      A, (IY+0)
-	RES     5, A              ; Clear bit 5
-	SET     3, A              ; Set bit 3
-	LD      (IY+0), A         ; Store final state
-	LD      (IY+5), 0         ; Clear auxiliary state
-
+	LD      (IY+3), A         ; Store signal result	
+	RES		5,(IY+0)
+	SET		3,(IY+0)	
+	LD		(IY+4),1
+	LD		(IY+5),0	
 	CALL    PLAY_BALL_RETURN_SOUND
-	POP     IX
 
-SKIP_BALL_RETURN:
-	LD      A, 1
-	LD      (IY+4), A         ; Set cooldown to 1
 	POP		BC
 	POP		DE
 	POP		HL
 	POP		IX
-    RET
+RET
 
 
 SUB_B8F7:
@@ -8941,141 +8918,21 @@ MR_DO_WALK_RIGHT_02_PAT:
  DB $00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00,$00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0,$00
 
 MR_DO_PUSH_RIGHT_00_PAT:
- DB $00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78,$00
-MR_DO_PUSH_RIGHT_01_PAT:
  DB $00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00,$00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c,$00
-MR_DO_PUSH_RIGHT_02_PAT:
+MR_DO_PUSH_RIGHT_01_PAT:
  DB $00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0,$00
+MR_DO_PUSH_RIGHT_02_PAT:
+ DB $00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0d,$17,$3c,$00,$00,$00,$e0,$58,$fc,$a0,$c0,$00,$00,$80,$f0,$fc,$5c,$e0,$c0,$00,$00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3e,$00,$00,$00,$a0,$00,$5c,$16,$36,$1c,$30,$01,$03,$a3,$00,$3c,$00,$00
 
 MR_DO_DEATH_F0:
- DB $00,$00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30,$00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f
+ DB $00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30,$00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f,$00
 MR_DO_DEATH_F1:
- DB $00,$00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40,$00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80
+ DB $00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40,$00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80,$00
 MR_DO_DEATH_F2:
- DB $00,$00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00,$00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0
+ DB $00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00,$00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0,$00
 MR_DO_DEATH_F3:
- DB $00,$00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00,$00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0
+ DB $00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00,$00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0,$00
 
-
-;	DB 000,44*4,000					; 1	right		; MrDo sprites start from here
-;	DW MR_DO_WALK_RIGHT_01_PAT
-;	DB 000,44*4,000					; 2
-;	DW MR_DO_WALK_RIGHT_02_PAT
-;	DB 000,44*4,000					; 3
-;	DW MR_DO_PUSH_RIGHT_01_PAT
-;	DB 000,44*4,000					; 4
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 000,44*4,000					; 5
-;	DW 0
-;	DB 000,44*4,000					; 6
-;	DW 0
-;	DB 000,44*4,000					; 7
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 001							; 1 left
-;	DW BYTE_C284
-;	DW MR_DO_WALK_RIGHT_01_PAT
-;	DB 001							; 2 left
-;	DW BYTE_C284
-;	DW MR_DO_WALK_RIGHT_02_PAT
-;	DB 001
-;	DW BYTE_C284
-;	DW MR_DO_PUSH_RIGHT_01_PAT
-;	DB 001
-;	DW BYTE_C284
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 001
-;	DW BYTE_C284
-;	DW 0
-;	DB 001
-;	DW BYTE_C284
-;	DW 0
-;	DB 001
-;	DW BYTE_C284
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 002
-;	DW BYTE_C288
-;	DW MR_DO_WALK_RIGHT_01_PAT
-;	DB 002
-;	DW BYTE_C288
-;	DW MR_DO_WALK_RIGHT_02_PAT
-;	DB 002
-;	DW BYTE_C288
-;	DW MR_DO_PUSH_RIGHT_01_PAT
-;	DB 002
-;	DW BYTE_C288
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 002
-;	DW BYTE_C288
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-;	DB 002
-;	DW BYTE_C288
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-;	DB 002
-;	DW BYTE_C288
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 003
-;	DW BYTE_C28C						; down 
-;	DW MR_DO_WALK_RIGHT_01_PAT
-;	DB 003
-;	DW BYTE_C28C
-;	DW MR_DO_WALK_RIGHT_02_PAT
-;	DB 003
-;	DW BYTE_C28C
-;	DW MR_DO_PUSH_RIGHT_01_PAT
-;	DB 003
-;	DW BYTE_C28C
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 003
-;	DW BYTE_C28C
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-;	DB 003
-;	DW BYTE_C28C
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-;	DB 003
-;	DW BYTE_C28C
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 004
-;	DW BYTE_C290
-;	DW MR_DO_WALK_RIGHT_01_PAT
-;	DB 004
-;	DW BYTE_C290
-;	DW MR_DO_WALK_RIGHT_02_PAT
-;	DB 004
-;	DW BYTE_C290
-;	DW MR_DO_PUSH_RIGHT_01_PAT
-;	DB 004
-;	DW BYTE_C290
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 004
-;	DW BYTE_C290
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-;	DB 004
-;	DW BYTE_C290
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-;	DB 004
-;	DW BYTE_C290
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 005
-;	DW BYTE_C294
-;	DW MR_DO_WALK_RIGHT_01_PAT
-;	DB 005
-;	DW BYTE_C294
-;	DW MR_DO_WALK_RIGHT_02_PAT
-;	DB 005
-;	DW BYTE_C294
-;	DW MR_DO_PUSH_RIGHT_01_PAT
-;	DB 005
-;	DW BYTE_C294
-;	DW MR_DO_PUSH_RIGHT_02_PAT
-;	DB 005
-;	DW BYTE_C294
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-;	DB 005
-;	DW BYTE_C294
-;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-;	DB 005
-;	DW BYTE_C294
-;	DW MR_DO_PUSH_RIGHT_02_PAT
 
 
 BYTE_C234:		DB 010,011,008,009
@@ -9098,36 +8955,10 @@ BYTE_C274:		DB 083,081,082,080
 BYTE_C278:		DB 087,085,086,084
 BYTE_C27C:		DB 090,088,091,089
 BYTE_C280:		DB 094,092,095,093
-;BYTE_C284:		DB 178,179,176,177,45*4+2,45*4+3,45*4+0,45*4+1
-;BYTE_C288:		DB 177,179,176,178,45*4+1,45*4+3,45*4+0,45*4+2
-;BYTE_C28C:		DB 176,178,177,179,45*4+0,45*4+2,45*4+1,45*4+3
-;BYTE_C290:		DB 179,177,178,176,45*4+3,45*4+1,45*4+2,45*4+0
-;BYTE_C294:		DB 178,176,179,177,45*4+2,45*4+0,45*4+3,45*4+1
+
 BYTE_C298:		DB 234,235,232,233
 BYTE_C29C:		DB 238,239,236,237
 
-;MR_DO_WALK_RIGHT_01_PAT:
-; DB $00,$00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00,$00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c
-;MR_DO_WALK_RIGHT_02_PAT: 
-; DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
-;MR_DO_WALK_RIGHT_F3_PAT:
-; DB $00,$00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00,$00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0
-;
-;MR_DO_PUSH_RIGHT_01_PAT:
-; DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
-;MR_DO_PUSH_RIGHT_02_PAT:
-; DB $00,$00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00,$00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c
-;MR_DO_PUSH_RIGHT_F3_PAT:
-; DB $00,$00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0
-;
-;MR_DO_DEATH_F1:
-; DB $00,$00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30,$00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f
-;MR_DO_DEATH_F2:
-; DB $00,$00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40,$00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80
-;MR_DO_DEATH_F3:
-; DB $00,$00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00,$00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0
-;MR_DO_DEATH_F4:
-; DB $00,$00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00,$00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0
 
 
 
@@ -9279,8 +9110,9 @@ VARIOUTS_PATTERNS:
 	DW HUD_PATS_01
 	DB 006,208
 	DW Bonus
-	DB 000
+	DB 0	; list terminator
 	
+	;500 and 1000 tiles
 Bonus:
 	DB $00,$00,$1e,$1e,$10,$10,$10,$1c	; 5 up
 	DB $1e,$02,$02,$12,$12,$0c,$0c,$00	; 5 dwn
@@ -9293,44 +9125,44 @@ Bonus:
 BLANK_LINE_PAT:
 	DB 000,000,000,000,000,000,000,000
 CHERRY_TOP_PAT:
-   DB 000,000,000,000,000,000,000,001
-   DB 000,000,000,016,040,072,136,016
+	DB 000,000,000,000,000,000,000,001
+	DB 000,000,000,016,040,072,136,016
 CHERRY_BOTTOM_PAT:
-   DB 014,029,031,031,014,000,000,000
-   DB 056,116,124,124,056,000,000,000
+	DB 014,029,031,031,014,000,000,000
+	DB 056,116,124,124,056,000,000,000
 GUMDROP_PAT:
-   DB 000,000,003,007,011,012,031,031
-   DB 000,000,192,224,208,048,176,088
-   DB 030,013,003,001,000,000,000,000
-   DB 096,160,088,188,052,024,000,000
+	DB 000,000,003,007,011,012,031,031
+	DB 000,000,192,224,208,048,176,088
+	DB 030,013,003,001,000,000,000,000
+	DB 096,160,088,188,052,024,000,000
 WHEAT_SQUARE_PAT:
-   DB 000,000,054,063,022,056,059,019
-   DB 000,000,192,192,128,000,108,252
-   DB 057,051,003,001,003,003,000,000
-   DB 104,252,252,104,252,108,000,000
-   DB 048,012,051,012,003,000,000,000 ; Cake bottom
-   DB 028,100,152,096,128,000,000,000
+	DB 000,000,054,063,022,056,059,019
+	DB 000,000,192,192,128,000,108,252
+	DB 057,051,003,001,003,003,000,000
+	DB 104,252,252,104,252,108,000,000
+	DB 048,012,051,012,003,000,000,000 ; Cake bottom
+	DB 028,100,152,096,128,000,000,000
 BADGUY_OUTLINE_PAT:
-   DB 000,000,000,031,048,033,034,034
-   DB 049,016,016,048,096,063,062,000
-   DB 000,000,000,240,024,140,068,068
-   DB 140,024,016,016,048,224,248,000
+	DB 000,000,000,031,048,033,034,034
+	DB 049,016,016,048,096,063,062,000
+	DB 000,000,000,240,024,140,068,068
+	DB 140,024,016,016,048,224,248,000
 HUD_PATS_01:
-   DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
-   DB 204,018,061,055,028,014,000,000
-   DB 000,000,001,003,001,014,031,030 ; Ice Cream dessert top unaligned
-   DB 000,000,128,200,144,032,080,184
-   DB 000,000,003,006,019,060,031,003 ; Top of Cake
-   DB 000,000,000,128,060,252,240,128
-   DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
-   DB 000,000,224,080,184,100,216,240
-   DB 011,005,002,001,000,000,000,000
-   DB 160,064,128,000,000,000,000,000
-   DB 000,254,128,248,128,128,254,000 ; E
-   DB 000,198,108,024,048,108,198,000 ; XTRA
-   DB 000,254,016,016,016,016,016,000
-   DB 000,252,134,134,252,136,142,000
-   DB 000,056,108,198,130,254,130,000
+	DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
+	DB 204,018,061,055,028,014,000,000
+	DB 000,000,001,003,001,014,031,030 ; Ice Cream dessert top unaligned
+	DB 000,000,128,200,144,032,080,184
+	DB 000,000,003,006,019,060,031,003 ; Top of Cake
+	DB 000,000,000,128,060,252,240,128
+	DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
+	DB 000,000,224,080,184,100,216,240
+	DB 011,005,002,001,000,000,000,000
+	DB 160,064,128,000,000,000,000,000
+	DB 000,254,128,248,128,128,254,000 ; E
+	DB 000,198,108,024,048,108,198,000 ; XTRA
+	DB 000,254,016,016,016,016,016,000
+	DB 000,252,134,134,252,136,142,000
+	DB 000,056,108,198,130,254,130,000
 HUD_PATS_02:
 	DB 032,031,007,001,003,007,000,000 ; Bottom of Ice Cream, Extra border
 	DB 004,248,224,128,192,224,000,000
@@ -9350,12 +9182,6 @@ HUD_PATS_02:
 	DB $00,$c2,$e2,$b2,$9a,$8e,$86,$00
 	DB $00,$fc,$86,$82,$82,$86,$fc,$00
 	
-;	DB 033,098,034,033,032,034,113,000	; 1ST Text
-;	DB 207,034,002,194,034,034,194,000
-;	DB 128,000,000,000,000,000,000,000 
-;	DB 114,138,011,050,066,130,250,000	; 2ND Text
-;	DB 047,040,040,168,104,040,047,000
-;	DB 000,128,128,128,128,128,000,000
 EXTRA_PATS:
 	DB 000,254,128,248,128,128,254,000 ; EXTRA TEXT HUD (RED)
 	DB 000,198,108,024,048,108,198,000
@@ -9377,7 +9203,8 @@ HALLWAY_BORDER_PAT:
 	DB 255,205,003,003,001,001,003,003
 	DB 192,192,128,128,192,192,179,255
 	DB 001,001,003,003,001,001,051,255
-	DB 000
+
+;	DB 0 ; list terminator ?? not needed here
 
 SUB_C952:
 	CALL	PLAY_SONGS
@@ -9845,7 +9672,7 @@ LOC_D366:
 	XOR		A
 	JP		LOC_9481
 LOC_D36D:
-	LD		($72C6), A
+	LD		(TIMERCHOMP1), A			; save signal timer for chomper mode
 	LD		HL, $72C4
 	BIT		0, (HL)
 	JP		Z, LOC_B8EC
@@ -9855,13 +9682,13 @@ LOC_D36D:
 	JP		LOC_B8EC
 SUB_A83E:	
 LOC_D383:
-	LD		A, ($72C6)
+	LD		A, (TIMERCHOMP1)
 	CALL	TEST_SIGNAL
 	AND		A
 	JP		Z, LOC_D3A6
-	LD		A, ($72C3)
-	XOR		1			; animate frames ?? (two steps)
-	LD		($72C3), A
+	LD		A, (GAMEFLAGS)
+	XOR		1					; b0 in GAMEFLAGS ??
+	LD		(GAMEFLAGS), A
 	LD		HL, 78H
 	BIT		0, A
 	JR		Z, LOC_D39F
@@ -9869,10 +9696,10 @@ LOC_D383:
 LOC_D39F:
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		($72C6), A
+	LD		(TIMERCHOMP1), A
 LOC_D3A6:
-	LD		A, ($72C3)
-	BIT		0, A
+	LD		A, (GAMEFLAGS)
+	BIT		0, A				; b0 in GAMEFLAGS ??
 	JP		Z, LOC_A853
 	JP		LOC_A858
 
