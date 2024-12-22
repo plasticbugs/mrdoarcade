@@ -8348,7 +8348,15 @@ LOC_B8EC: ; Enter Alpha monster chomper mode
 	LD		A, 80H
 	LD		($72C3), A
 
+	; Check Bit 6 of the ball state
+	; Bit 6 is set to 1 when the ball is in the cooldown phase
+	; We only want to return the ball during this interval
+
 	LD      IY, $72D9         ; Load ball state pointer
+	BIT     6, (IY+0)         ; Check if bit 6 is set
+	JR      NZ, SKIP_BALL_RETURN ; Skip if not in cooldown phase
+
+  ; Return the ball
 	LD      A, 20H            ; Set only bit 5 (00100000)
 	LD      (IY+0), A         ; Store initial state
 
@@ -8376,6 +8384,7 @@ LOC_B8EC: ; Enter Alpha monster chomper mode
 	CALL    PLAY_BALL_RETURN_SOUND
 	POP     IX
 
+SKIP_BALL_RETURN:
 	POP		BC
 	POP		DE
 	POP		HL
