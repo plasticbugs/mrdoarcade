@@ -153,10 +153,12 @@ ENEMY_NUM_P2:			RB	 1	;EQU $7279 Initialised at 7 by LOC_8573
 
 SCORE_P1_RAM:			RB	 2	;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
 SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
-MRDO_DATA:				RB   3	;EQU $7281	; Mr. Do's sprite data
-MRDO_DATA.Y:			RB	 1  ;EQU $7284
-MRDO_DATA.X:			RB	 1  ;EQU $7285
-MRDO_DATA.Frame:		RB	 3  ;EQU $7286
+MRDO_DATA:				RB   3	;EQU $7281 ;+0	; Mr. Do's sprite data
+MRDO_DATA.Y:			RB	 1  ;EQU $7284 ;+3
+MRDO_DATA.X:			RB	 1  ;EQU $7285 ;+4
+MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
+						RB   1  ;EQU $7287 ;+6
+						RB   1  ;EQU $7288 ;+7
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 6*7 bytes
 						RB  32	;EQU $72BE	??
@@ -477,7 +479,7 @@ SUB_8229:
 	RET		Z
 	RES		7, (HL)
 	LD		D, 1
-	LD		A, ($7286)			; if >0 update the MrDo sprite (CURRENT FRAME ?)
+	LD		A, (MRDO_DATA.Frame)			; if >0 update the MrDo sprite (CURRENT FRAME ?)
 	AND		A
 	JR		Z, LOC_8241
 	; 1 walk right01
@@ -1753,7 +1755,7 @@ LOC_8BCE:
 LOC_8BE4:
 	LD		(MRDO_DATA.Y), A
 	XOR		A
-	LD		($7286), A			; Mr Do current frame
+	LD		(MRDO_DATA.Frame), A			; Mr Do current frame
 	LD		A, (MRDO_DATA)
 	SET		7, A
 	LD		(MRDO_DATA), A
@@ -2953,7 +2955,7 @@ LOC_9489:
 	CALL	SUB_96E4
 	POP		AF
 LOC_9491:
-	CALL	SUB_9732
+	CALL	SUB_9732	; MrDo movements
 	CALL	SUB_9807
 	AND		A
 	RET		NZ
@@ -3313,11 +3315,11 @@ LOC_9721:
 RET
 
 SUB_9732:
-	AND		A
+	AND		A					; if MrDo is halted reset animation
 	JR		NZ, LOC_973D
 	LD		A, (IY+6)
 	INC		A
-	CP		2
+	CP		4					; Number of steps in the animation
 	JR		C, LOC_973E
 LOC_973D:
 	XOR		A
@@ -3327,14 +3329,14 @@ LOC_973E:
 	ADD		A, C
 	BIT		5, (IY+0)
 	JR		Z, LOC_974C
-	ADD		A, 2
+	ADD		A, 4				; PUSH/WALK offset <-> add 4 if PUSHING
 LOC_974C:
 	LD		C, A
-	LD		A, (IY+1)
+	LD		A, (IY+1)			; MrDo Direction
 	CP		2
 	JR		NZ, LOC_975A
 	LD		A, C
-	ADD		A, 7
+	ADD		A, 8				; walk left offset
 	LD		C, A
 	JR		LOC_9786
 LOC_975A:
@@ -3344,12 +3346,12 @@ LOC_975A:
 	AND		A
 	JP		P, LOC_976B
 	LD		A, C
-	ADD		A, 0EH
+	ADD		A, 16	;0EH		; walk up offset
 	LD		C, A
 	JR		LOC_9786
 LOC_976B:
 	LD		A, C
-	ADD		A, 1CH
+	ADD		A, 32	;1CH		; walk up-mirror offset
 	LD		C, A
 	JR		LOC_9786
 LOC_9771:
@@ -3359,15 +3361,15 @@ LOC_9771:
 	AND		A
 	JP		P, LOC_9782
 	LD		A, C
-	ADD		A, 15H
+	ADD		A, 24	;15H		; walk down offset
 	LD		C, A
 	JR		LOC_9786
 LOC_9782:
 	LD		A, C
-	ADD		A, 23H
+	ADD		A, 40 ;23H			; walk down-mirror offset
 	LD		C, A
 LOC_9786:
-	LD		(IY+5), C
+	LD		(IY+5), C		; !!!!! MODIFY HERE TO HAVE 4 MrDO STEPS
 	BIT		6, (IY+0)
 	JR		Z, LOC_97C8
 	LD		A, (IY+1)
@@ -6202,12 +6204,14 @@ LOC_AA5C:
 	CALL	WRITE_REGISTER
 RET
 
+
 ; Get A modulo B
 MOD_B:
     SUB     A,B			; Subtract B
     JR      NC, MOD_B	; If result >= 0, continue
     ADD     A, B		; Add back B to get remainder in 0-(B-1)
 RET 
+
 
 SUB_AA69:
 	LD		HL, GAMECONTROL
@@ -8792,125 +8796,277 @@ SPRITE_GENERATOR:
 	DB 001							;27
 	DW BYTE_C29C
 	DW CHOMPER_RIGHT_OPEN_PAT
-	DB 000,44*4,000					; 1	right		; MrDo sprites start from here
-	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 000,44*4,000					; 2
-	DW MR_DO_WALK_RIGHT_02_PAT
-	DB 000,44*4,000					; 3
-	DW MR_DO_PUSH_RIGHT_01_PAT
-	DB 000,44*4,000					; 4
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 000,44*4,000					; 5
-	DW 0
-	DB 000,44*4,000					; 6
-	DW 0
-	DB 000,44*4,000					; 7
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 001							; 1 left
-	DW BYTE_C284
-	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 001							; 2 left
-	DW BYTE_C284
-	DW MR_DO_WALK_RIGHT_02_PAT
-	DB 001
-	DW BYTE_C284
-	DW MR_DO_PUSH_RIGHT_01_PAT
-	DB 001
-	DW BYTE_C284
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 001
-	DW BYTE_C284
-	DW 0
-	DB 001
-	DW BYTE_C284
-	DW 0
-	DB 001
-	DW BYTE_C284
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 002
-	DW BYTE_C288
-	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 002
-	DW BYTE_C288
-	DW MR_DO_WALK_RIGHT_02_PAT
-	DB 002
-	DW BYTE_C288
-	DW MR_DO_PUSH_RIGHT_01_PAT
-	DB 002
-	DW BYTE_C288
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 002
-	DW BYTE_C288
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 002
-	DW BYTE_C288
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 002
-	DW BYTE_C288
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 003
-	DW BYTE_C28C						; down 
-	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 003
-	DW BYTE_C28C
-	DW MR_DO_WALK_RIGHT_02_PAT
-	DB 003
-	DW BYTE_C28C
-	DW MR_DO_PUSH_RIGHT_01_PAT
-	DB 003
-	DW BYTE_C28C
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 003
-	DW BYTE_C28C
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 003
-	DW BYTE_C28C
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 003
-	DW BYTE_C28C
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 004
-	DW BYTE_C290
-	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 004
-	DW BYTE_C290
-	DW MR_DO_WALK_RIGHT_02_PAT
-	DB 004
-	DW BYTE_C290
-	DW MR_DO_PUSH_RIGHT_01_PAT
-	DB 004
-	DW BYTE_C290
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 004
-	DW BYTE_C290
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 004
-	DW BYTE_C290
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 004
-	DW BYTE_C290
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 005
-	DW BYTE_C294
-	DW MR_DO_WALK_RIGHT_01_PAT
-	DB 005
-	DW BYTE_C294
-	DW MR_DO_WALK_RIGHT_02_PAT
-	DB 005
-	DW BYTE_C294
-	DW MR_DO_PUSH_RIGHT_01_PAT
-	DB 005
-	DW BYTE_C294
-	DW MR_DO_PUSH_RIGHT_02_PAT
-	DB 005
-	DW BYTE_C294
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
-	DB 005
-	DW BYTE_C294
-	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
-	DB 005
-	DW BYTE_C294
-	DW MR_DO_PUSH_RIGHT_02_PAT
+
+; MrDo 4 frames
+
+	DB 0							; 0	right	0	; MrDo sprites start from here
+	DW 44*4,MR_DO_WALK_RIGHT_00_PAT
+	DB 0							; 1
+	DW 44*4,MR_DO_WALK_RIGHT_01_PAT
+	DB 0							; 2
+	DW 44*4,MR_DO_WALK_RIGHT_02_PAT
+	DB 0							; 3
+	DW 44*4,MR_DO_WALK_RIGHT_01_PAT
+	
+	DB 0							; 0 right 4
+	DW 44*4,MR_DO_PUSH_RIGHT_00_PAT
+	DB 0							; 1
+	DW 44*4,MR_DO_PUSH_RIGHT_01_PAT
+	DB 0							; 2
+	DW 44*4,MR_DO_PUSH_RIGHT_02_PAT
+	DB 0							; 3
+	DW 44*4,MR_DO_PUSH_RIGHT_01_PAT
+
+	DB 1							; 0 left 8
+	DW BYTE_C284,MR_DO_WALK_RIGHT_00_PAT
+	DB 1							; 1
+	DW BYTE_C284,MR_DO_WALK_RIGHT_01_PAT
+	DB 1							; 2
+	DW BYTE_C284,MR_DO_WALK_RIGHT_02_PAT
+	DB 1							; 3
+	DW BYTE_C284,MR_DO_WALK_RIGHT_01_PAT
+
+	DB 1							; 0 left 12
+	DW BYTE_C284,MR_DO_PUSH_RIGHT_00_PAT
+	DB 1							; 1 
+	DW BYTE_C284,MR_DO_PUSH_RIGHT_01_PAT
+	DB 1							; 2 
+	DW BYTE_C284,MR_DO_PUSH_RIGHT_02_PAT
+	DB 1							; 3 
+	DW BYTE_C284,MR_DO_PUSH_RIGHT_01_PAT
+
+	DB 2							; 0 up 	16
+	DW BYTE_C288,MR_DO_WALK_RIGHT_00_PAT
+	DB 2							; 1 
+	DW BYTE_C288,MR_DO_WALK_RIGHT_01_PAT
+	DB 2							; 2 
+	DW BYTE_C288,MR_DO_WALK_RIGHT_02_PAT
+	DB 2							; 3 
+	DW BYTE_C288,MR_DO_WALK_RIGHT_01_PAT
+
+	DB 2							; 0 up 20
+	DW BYTE_C288,MR_DO_PUSH_RIGHT_00_PAT
+	DB 2							; 1 
+	DW BYTE_C288,MR_DO_PUSH_RIGHT_01_PAT
+	DB 2							; 2 
+	DW BYTE_C288,MR_DO_PUSH_RIGHT_02_PAT
+	DB 2							; 3 
+	DW BYTE_C288,MR_DO_PUSH_RIGHT_01_PAT
+
+	DB 3							; 0 down	24
+	DW BYTE_C28C,MR_DO_WALK_RIGHT_00_PAT
+	DB 3							; 1 
+	DW BYTE_C28C,MR_DO_WALK_RIGHT_01_PAT
+	DB 3							; 2 
+	DW BYTE_C28C,MR_DO_WALK_RIGHT_02_PAT
+	DB 3							; 3 
+	DW BYTE_C28C,MR_DO_WALK_RIGHT_01_PAT
+
+	DB 3							; 0 down 28
+	DW BYTE_C28C,MR_DO_PUSH_RIGHT_00_PAT
+	DB 3							; 1 
+	DW BYTE_C28C,MR_DO_PUSH_RIGHT_01_PAT
+	DB 3							; 2 
+	DW BYTE_C28C,MR_DO_PUSH_RIGHT_02_PAT
+	DB 3							; 3 
+	DW BYTE_C28C,MR_DO_PUSH_RIGHT_01_PAT
+
+	DB 4							; 0 up-mirror 32
+	DW BYTE_C290,MR_DO_WALK_RIGHT_00_PAT
+	DB 4							; 1 
+	DW BYTE_C290,MR_DO_WALK_RIGHT_01_PAT
+	DB 4							; 2 
+	DW BYTE_C290,MR_DO_WALK_RIGHT_02_PAT
+	DB 4							; 3 
+	DW BYTE_C290,MR_DO_WALK_RIGHT_01_PAT
+
+	DB 4							; 0 up-mirror 36
+	DW BYTE_C290,MR_DO_PUSH_RIGHT_00_PAT
+	DB 4							; 1 
+	DW BYTE_C290,MR_DO_PUSH_RIGHT_01_PAT
+	DB 4							; 2 
+	DW BYTE_C290,MR_DO_PUSH_RIGHT_02_PAT
+	DB 4		  					; 3 
+	DW BYTE_C290,MR_DO_PUSH_RIGHT_01_PAT
+
+	DB 5							; 0 down-mirror 40
+	DW BYTE_C294,MR_DO_WALK_RIGHT_00_PAT
+	DB 5							; 1 
+	DW BYTE_C294,MR_DO_WALK_RIGHT_01_PAT
+	DB 5							; 2 
+	DW BYTE_C294,MR_DO_WALK_RIGHT_02_PAT
+	DB 5							; 3 
+	DW BYTE_C294,MR_DO_WALK_RIGHT_01_PAT
+
+	DB 5							; 0 down-mirror 44
+	DW BYTE_C294,MR_DO_PUSH_RIGHT_00_PAT
+	DB 5							; 1 
+	DW BYTE_C294,MR_DO_PUSH_RIGHT_01_PAT
+	DB 5							; 2 
+	DW BYTE_C294,MR_DO_PUSH_RIGHT_02_PAT
+	DB 5		  					; 3 
+	DW BYTE_C294,MR_DO_PUSH_RIGHT_01_PAT
+
+	DB 0							; 0	Death 48
+	DW 44*4,MR_DO_DEATH_F0
+	DB 0							; 1
+	DW 44*4,MR_DO_DEATH_F1
+	DB 0							; 2
+	DW 44*4,MR_DO_DEATH_F2
+	DB 0							; 3
+	DW 44*4,MR_DO_DEATH_F3
+
+
+BYTE_C284:		DB 178,179,176,177,45*4+2,45*4+3,45*4+0,45*4+1
+BYTE_C288:		DB 177,179,176,178,45*4+1,45*4+3,45*4+0,45*4+2
+BYTE_C28C:		DB 176,178,177,179,45*4+0,45*4+2,45*4+1,45*4+3
+BYTE_C290:		DB 179,177,178,176,45*4+3,45*4+1,45*4+2,45*4+0
+BYTE_C294:		DB 178,176,179,177,45*4+2,45*4+0,45*4+3,45*4+1
+
+
+MR_DO_WALK_RIGHT_00_PAT:
+ DB $00,$00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00,$00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c
+MR_DO_WALK_RIGHT_01_PAT: 
+ DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
+MR_DO_WALK_RIGHT_02_PAT:
+ DB $00,$00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00,$00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0
+
+MR_DO_PUSH_RIGHT_00_PAT:
+ DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
+MR_DO_PUSH_RIGHT_01_PAT:
+ DB $00,$00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00,$00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c
+MR_DO_PUSH_RIGHT_02_PAT:
+ DB $00,$00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0
+
+MR_DO_DEATH_F0:
+ DB $00,$00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30,$00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f
+MR_DO_DEATH_F1:
+ DB $00,$00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40,$00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80
+MR_DO_DEATH_F2:
+ DB $00,$00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00,$00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0
+MR_DO_DEATH_F3:
+ DB $00,$00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00,$00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0
+
+
+;	DB 000,44*4,000					; 1	right		; MrDo sprites start from here
+;	DW MR_DO_WALK_RIGHT_01_PAT
+;	DB 000,44*4,000					; 2
+;	DW MR_DO_WALK_RIGHT_02_PAT
+;	DB 000,44*4,000					; 3
+;	DW MR_DO_PUSH_RIGHT_01_PAT
+;	DB 000,44*4,000					; 4
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 000,44*4,000					; 5
+;	DW 0
+;	DB 000,44*4,000					; 6
+;	DW 0
+;	DB 000,44*4,000					; 7
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 001							; 1 left
+;	DW BYTE_C284
+;	DW MR_DO_WALK_RIGHT_01_PAT
+;	DB 001							; 2 left
+;	DW BYTE_C284
+;	DW MR_DO_WALK_RIGHT_02_PAT
+;	DB 001
+;	DW BYTE_C284
+;	DW MR_DO_PUSH_RIGHT_01_PAT
+;	DB 001
+;	DW BYTE_C284
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 001
+;	DW BYTE_C284
+;	DW 0
+;	DB 001
+;	DW BYTE_C284
+;	DW 0
+;	DB 001
+;	DW BYTE_C284
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 002
+;	DW BYTE_C288
+;	DW MR_DO_WALK_RIGHT_01_PAT
+;	DB 002
+;	DW BYTE_C288
+;	DW MR_DO_WALK_RIGHT_02_PAT
+;	DB 002
+;	DW BYTE_C288
+;	DW MR_DO_PUSH_RIGHT_01_PAT
+;	DB 002
+;	DW BYTE_C288
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 002
+;	DW BYTE_C288
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
+;	DB 002
+;	DW BYTE_C288
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
+;	DB 002
+;	DW BYTE_C288
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 003
+;	DW BYTE_C28C						; down 
+;	DW MR_DO_WALK_RIGHT_01_PAT
+;	DB 003
+;	DW BYTE_C28C
+;	DW MR_DO_WALK_RIGHT_02_PAT
+;	DB 003
+;	DW BYTE_C28C
+;	DW MR_DO_PUSH_RIGHT_01_PAT
+;	DB 003
+;	DW BYTE_C28C
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 003
+;	DW BYTE_C28C
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
+;	DB 003
+;	DW BYTE_C28C
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
+;	DB 003
+;	DW BYTE_C28C
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 004
+;	DW BYTE_C290
+;	DW MR_DO_WALK_RIGHT_01_PAT
+;	DB 004
+;	DW BYTE_C290
+;	DW MR_DO_WALK_RIGHT_02_PAT
+;	DB 004
+;	DW BYTE_C290
+;	DW MR_DO_PUSH_RIGHT_01_PAT
+;	DB 004
+;	DW BYTE_C290
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 004
+;	DW BYTE_C290
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
+;	DB 004
+;	DW BYTE_C290
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
+;	DB 004
+;	DW BYTE_C290
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 005
+;	DW BYTE_C294
+;	DW MR_DO_WALK_RIGHT_01_PAT
+;	DB 005
+;	DW BYTE_C294
+;	DW MR_DO_WALK_RIGHT_02_PAT
+;	DB 005
+;	DW BYTE_C294
+;	DW MR_DO_PUSH_RIGHT_01_PAT
+;	DB 005
+;	DW BYTE_C294
+;	DW MR_DO_PUSH_RIGHT_02_PAT
+;	DB 005
+;	DW BYTE_C294
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_02_PAT
+;	DB 005
+;	DW BYTE_C294
+;	DW 0;MR_DO_UNUSED_PUSH_ANIM_03_PAT
+;	DB 005
+;	DW BYTE_C294
+;	DW MR_DO_PUSH_RIGHT_02_PAT
 
 
 BYTE_C234:		DB 010,011,008,009
@@ -8933,98 +9089,39 @@ BYTE_C274:		DB 083,081,082,080
 BYTE_C278:		DB 087,085,086,084
 BYTE_C27C:		DB 090,088,091,089
 BYTE_C280:		DB 094,092,095,093
-BYTE_C284:		DB 178,179,176,177,45*4+2,45*4+3,45*4+0,45*4+1
-BYTE_C288:		DB 177,179,176,178,45*4+1,45*4+3,45*4+0,45*4+2
-BYTE_C28C:		DB 176,178,177,179,45*4+0,45*4+2,45*4+1,45*4+3
-BYTE_C290:		DB 179,177,178,176,45*4+3,45*4+1,45*4+2,45*4+0
-BYTE_C294:		DB 178,176,179,177,45*4+2,45*4+0,45*4+3,45*4+1
+;BYTE_C284:		DB 178,179,176,177,45*4+2,45*4+3,45*4+0,45*4+1
+;BYTE_C288:		DB 177,179,176,178,45*4+1,45*4+3,45*4+0,45*4+2
+;BYTE_C28C:		DB 176,178,177,179,45*4+0,45*4+2,45*4+1,45*4+3
+;BYTE_C290:		DB 179,177,178,176,45*4+3,45*4+1,45*4+2,45*4+0
+;BYTE_C294:		DB 178,176,179,177,45*4+2,45*4+0,45*4+3,45*4+1
 BYTE_C298:		DB 234,235,232,233
 BYTE_C29C:		DB 238,239,236,237
 
-MR_DO_WALK_RIGHT_01_PAT:
- DB $00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00
-MR_DO_WALK_RIGHT_01_PATW:
- DB $00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c,$00
-MR_DO_WALK_RIGHT_02_PAT: 
- DB $00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00
-MR_DO_WALK_RIGHT_02_PATW:
- DB $00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78,$00
-;MR_DO_WALK_RIGHT_F3:
-; DB $00,$00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00
-; DB $00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0
-;MR_DO_WALK_RIGHT_F4: 
-; DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80
-; DB $00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
-MR_DO_PUSH_RIGHT_01_PAT:
- DB $00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00
-MR_DO_PUSH_RIGHT_01_PATW:
- DB $00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c,$00
-MR_DO_PUSH_RIGHT_02_PAT:
- DB $00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00
-MR_DO_PUSH_RIGHT_02_PATW:
- DB $00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0,$00
-;MR_DO_PUSH_RIGHT_F3:
-; DB $00,$00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0d,$17,$3c,$00,$00,$00,$e0,$58,$fc,$a0,$c0,$00,$00,$80,$f0,$fc,$5c,$e0,$c0,$00
-; DB $00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3e,$00,$00,$00,$a0,$00,$5c,$16,$36,$1c,$30,$01,$03,$a3,$00,$3c,$00
-;MR_DO_PUSH_RIGHT_F4:
-; DB $00,$00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00
-; DB $00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0
-;MR_DO_DEATH_F1:
-; DB $00,$00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30
-; DB $00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f
-;MR_DO_DEATH_F2:
-; DB $00,$00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40
-; DB $00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80
-;MR_DO_DEATH_F3: 
-; DB $00,$00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00
-; DB $00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0
-;MR_DO_DEATH_F4:
-; DB $00,$00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00
-; DB $00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0
-
-
 ;MR_DO_WALK_RIGHT_01_PAT:
-;	DB 000,007,013,095,058,014,005,006
-;	DB 001,002,007,013,015,005,003,000
-;	DB 000,192,096,000,224,176,176,224
-;	DB 128,064,176,248,088,128,224,000
-;MR_DO_WALK_RIGHT_02_PAT:
-;	DB 000,003,006,011,030,054,077,006
-;	DB 025,126,103,011,062,025,012,000
-;	DB 000,192,224,000,224,176,176,224
-;	DB 128,064,176,248,216,224,120,000
+; DB $00,$00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00,$00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c
+;MR_DO_WALK_RIGHT_02_PAT: 
+; DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
+;MR_DO_WALK_RIGHT_F3_PAT:
+; DB $00,$00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00,$00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0
+;
 ;MR_DO_PUSH_RIGHT_01_PAT:
-;	DB 000,015,026,190,117,029,011,005
-;	DB 027,060,047,059,031,010,015,000
-;	DB 000,128,192,000,192,096,096,192
-;	DB 000,136,248,248,000,000,128,000
+; DB $00,$00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78
 ;MR_DO_PUSH_RIGHT_02_PAT:
-;	DB 000,007,013,022,061,109,155,013
-;	DB 003,012,031,251,223,130,129,000
-;	DB 000,128,192,000,192,096,096,192
-;	DB 000,196,252,124,128,192,184,000
+; DB $00,$00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00,$00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c
+;MR_DO_PUSH_RIGHT_F3_PAT:
+; DB $00,$00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0
+;
+;MR_DO_DEATH_F1:
+; DB $00,$00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30,$00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f
+;MR_DO_DEATH_F2:
+; DB $00,$00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40,$00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80
+;MR_DO_DEATH_F3:
+; DB $00,$00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00,$00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0
+;MR_DO_DEATH_F4:
+; DB $00,$00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00,$00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0
 
-;MR_DO_UNUSED_PUSH_ANIM_01_PAT:
-;	DB 000,000,003,007,009,013,007,003
-;	DB 007,014,031,031,018,031,000,000
-;	DB 000,000,192,224,144,176,224,200
-;	DB 248,056,192,192,000,128,000,000
-;MR_DO_UNUSED_PUSH_ANIM_02_PAT:
-;	DB 000,000,003,007,009,013,007,003
-;	DB 003,006,015,015,015,001,000,000
-;	DB 000,000,192,224,144,176,224,200
-;	DB 248,056,192,192,000,192,000,000
-;MR_DO_UNUSED_PUSH_ANIM_03_PAT:
-;	DB 000,000,003,007,009,013,007,003
-;	DB 007,014,031,031,019,028,000,000
-;	DB 000,000,192,224,144,176,224,200
-;	DB 248,056,128,128,128,000,000,000
 
-;FIVE_HUNDRED_SCORE_PAT:
-;   DB 000,000,000,000,000,113,066,114
-;   DB 010,074,049,000,000,000,000,000
-;   DB 000,000,000,000,000,140,082,082
-;   DB 082,082,140,000,000,000,000,000
+
 DIGGER_RIGHT_01_PAT:
    DB 007,029,054,124,212,063,045,120
    DB 215,055,120,222,033,126,000,000
@@ -9210,8 +9307,8 @@ BADGUY_OUTLINE_PAT:
    DB 000,000,000,240,024,140,068,068
    DB 140,024,016,016,048,224,248,000
 HUD_PATS_01:
-   DB 000,028,046,120,086,117,109,102 ; Mr. Do Extra Life Marker
-   DB 204,016,029,043,052,030,000,000
+   DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
+   DB 204,018,061,055,028,014,000,000
    DB 000,000,001,003,001,014,031,030 ; Ice Cream dessert top unaligned
    DB 000,000,128,200,144,032,080,184
    DB 000,000,003,006,019,060,031,003 ; Top of Cake
@@ -10413,57 +10510,57 @@ SFX_COIN_INSERT:
 ; Pos 000: AY period 0x05F(95) → SN period 95/2=47=0x2F
  
 ; Pos 000: SN=0x2F → doubled=0x5E
-  DB 0x40,0x5E,0x60,1
+  DB 0x40,0x5E,0xA0,1
 
 ; 001: 0x32→0x64
-  DB 0x40,0x64,0x50,2
+  DB 0x40,0x64,0x90,2
 
 ; 002: 0x23→0x46
-  DB 0x40,0x46,0x40,1
+  DB 0x40,0x46,0x80,1
 
 ; 003: 0x25→0x4A
-  DB 0x40,0x4A,0x30,2
+  DB 0x40,0x4A,0x70,2
 
 ; 004: 0x25→0x4A
-  DB 0x40,0x4A,0x20,1
+  DB 0x40,0x4A,0x60,1
 
 ; 005: 0x20→0x40
-  DB 0x40,0x40,0x20,2
+  DB 0x40,0x40,0x60,2
 
 ; 006: 0x20→0x40
-  DB 0x40,0x40,0x20,1
+  DB 0x40,0x40,0x60,1
 
 ; 007: 0x23→0x46
-  DB 0x40,0x46,0x20,2
+  DB 0x40,0x46,0x60,2
 
 ; 008: 0x25→0x4A
-  DB 0x40,0x4A,0x20,1
+  DB 0x40,0x4A,0x60,1
 
 ; 009: 0x1B→0x36
-  DB 0x40,0x36,0x20,2
+  DB 0x40,0x36,0x60,2
 
 ; 00A: 0x1E→0x3C
-  DB 0x40,0x3C,0x20,1
+  DB 0x40,0x3C,0x60,1
 
 ; 00B: 0x1E→0x3C
-  DB 0x40,0x3C,0x20,2
+  DB 0x40,0x3C,0x60,2
 
 ; 00C: 0x19→0x32
-  DB 0x40,0x32,0x20,1
+  DB 0x40,0x32,0x60,1
 
 ; 00D: 0x19→0x32
-  DB 0x40,0x32,0x30,2
+  DB 0x40,0x32,0x70,2
 
 ; 00E: 0x1B→0x36
-  DB 0x40,0x36,0x40,1
+  DB 0x40,0x36,0x80,1
 
 ; 00F: 0x1F→0x3E
-  DB 0x40,0x3E,0x50,2
+  DB 0x40,0x3E,0x90,2
 
 ; 010: 0x14→0x28
-  DB 064,040,0x60,01
-  DB 064,040,0x70,01
-  DB 064,040,0x80,01
+  DB 064,040,0xA0,01
+  DB 064,040,0xB0,01
+  DB 064,040,0xC0,01
 
   DB 0x50
 
@@ -10565,44 +10662,41 @@ Skill3: 	dc "3.ARCADE "	; " " needed to remove the S from "PLAYERS"
 Skill4:		dc "4.PRO"
 
 ; Select  Number of Players and Skill
+
 GET_GAME_OPTIONS:
-    CALL    ShowPlyrNum          ; Show 1 or 2 Players
-PlyrNumWait:
-    CALL    POLLER
-    LD      A, (KEYBOARD_P1)
-    DEC     A                    ; 0-1   valid range
-    CP      2
-    JR      C, .SetPlyrNum
-    LD      A, (KEYBOARD_P2)
-    DEC     A
-    CP      2
-    JR      NC, PlyrNumWait
+	CALL	ShowPlyrNum			; Show 1 or 2 Players
+.PlyrNumWait:
+	CALL	POLLER
+	LD		A, (KEYBOARD_P1)
+	DEC		A					; 0-1	valid range
+	CP		2
+	JR		C, .SetPlyrNum
+	LD		A, (KEYBOARD_P2)
+	DEC		A
+	CP		2
+	JR		NC, .PlyrNumWait
 .SetPlyrNum:
-    CALL PLAY_COIN_INSERT_SFX
-    LD      HL, GAMECONTROL
-    RES     0, (HL)
-    DEC     A                    ; If A==1 -> set 2 players
-    JR      NZ, .OnePlyr
-    SET     0, (HL)
+	push af
+	CALL PLAY_COIN_INSERT_SFX
+	pop  af
+	LD		HL, GAMECONTROL
+	RES		0, (HL)
+	DEC		A					; If A==1 -> set 2 players
+	JR		NZ, .OnePlyr
+	SET		0, (HL)
 .OnePlyr:
 
-    ; Add a delay and more robust key release check
-    LD      B, 30               ; Wait ~0.5 second (15 frames)
-.WaitDelay:
-    HALT                        ; Wait for next frame
-    DJNZ    .WaitDelay
-
 .WaitKeyRelease:
-    CALL    POLLER
-    LD      A, (KEYBOARD_P1)    ; Check if both P1 and P2 keys are released
-    CP      15                  ; 15 (0x0F) means no keys pressed
-    JR      NZ, .WaitKeyRelease
-    LD      A, (KEYBOARD_P2)
-    CP      15                  ; 15 (0x0F) means no keys pressed
-    JR      NZ, .WaitKeyRelease
+	CALL	POLLER
+	LD		A, (KEYBOARD_P1)
+	CP		15
+	JR		NZ,.WaitKeyRelease
+	LD		A, (KEYBOARD_P2)
+	CP		15
+	JR		NZ,.WaitKeyRelease
 
-    CALL    ShowSkill           ; Show Select skill 1-4
-SkillWait:
+	CALL	ShowSkill			; Show Select skill 1-4
+.SkillWait:
 	CALL	POLLER
 	LD		A, (KEYBOARD_P1)
 	DEC		A					; 0-3 valid range
@@ -10611,9 +10705,11 @@ SkillWait:
 	LD		A, (KEYBOARD_P2)
 	DEC		A
 	CP		4
-	JR		NC, SkillWait
+	JR		NC, .SkillWait
 .SetSkill:
-  CALL PLAY_COIN_INSERT_SFX
+	push af
+	CALL PLAY_COIN_INSERT_SFX
+	pop  af
 	INC		A					; The game is expecting 1-4
 	LD		(SKILLLEVEL), A
 	RET
