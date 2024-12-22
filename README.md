@@ -14,8 +14,10 @@ Changes:
 - Screen stays red for "Extra" alphamonster/chomper mode
 - Updated collision detection so Mr. Do doesn't get stuck after intersecting an apple from above or below!
  - Fix final two notes in the "game over" tune
+- Two-color Mr. Do sprite with four frames of animation
+- Updated phase colors/patterns to match arcade levels
+- Ball cool down removed during alpha monster mode.
 
 Wish list/To do list:
-- Update phase colors/patterns to match arcade levels
 - Swap voice channels for Can Can song so that the song is still recognizable when only one channel plays (such as when the ball is launched or the falling apple sound cancels out channel 01)
-- Two-color Mr. Do sprite 
+
