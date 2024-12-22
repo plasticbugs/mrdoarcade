@@ -8378,13 +8378,13 @@ LOC_B8EC: ; Enter Alpha monster chomper mode
 	SET     3, A              ; Set bit 3
 	LD      (IY+0), A         ; Store final state
 	LD      (IY+5), 0         ; Clear auxiliary state
-	LD      A, 1
-	LD      (IY+4), A         ; Set cooldown to 1
-	
+
 	CALL    PLAY_BALL_RETURN_SOUND
 	POP     IX
 
 SKIP_BALL_RETURN:
+	LD      A, 1
+	LD      (IY+4), A         ; Set cooldown to 1
 	POP		BC
 	POP		DE
 	POP		HL
