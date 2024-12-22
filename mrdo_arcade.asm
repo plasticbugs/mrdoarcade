@@ -8349,8 +8349,8 @@ LOC_B8EC:
 ; immediately return the ball when in chomper mode
 ; only if Mr. Do is in cool down mode (Bit 6 is set)
 	LD 		IY, BALLDATA 			; Load ball state pointer
-	BIT   6, (IY+0)         ; Check if bit 6 is set
-	JR    NZ, .skip_ball_return ; Skip ball return if not in cooldown phase
+	BIT   5, (IY+0)         ; Check if bit 5 is set
+	JR    Z, .skip_ball_return ; Skip ball return if not in cooldown phase
 
 	LD		(IY+0),$20			; Set bit 5, reset direction flags 
 	LD		(IY+1),0			; reset ball's X
@@ -8360,10 +8360,9 @@ LOC_B8EC:
 	XOR     A
 	CALL    REQUEST_SIGNAL
 	LD      (IY+3), A         ; Store signal result	
-	RES		5,(IY+0)
-	SET		3,(IY+0)	
-	LD		(IY+4),1
-	LD		(IY+5),0	
+	RES			5,(IY+0)
+	SET			3,(IY+0)	
+	LD			(IY+5),0	
 	CALL    PLAY_BALL_RETURN_SOUND
 .skip_ball_return:
 	; Ensure balls in flight are returned immediately after they strike an enemy
