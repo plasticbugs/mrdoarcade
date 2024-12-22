@@ -2343,11 +2343,22 @@ DEAL_WITH_BALL:
 	AND		7FH
 	OR		40H
 	LD		(IY+0), A
+
+	LD      A, ($72C3)         ; Load chomper mode flag
+	AND     0FEH               ; Mask off lowest bit (FE = 11111110)
+	CP      80H                ; Check if it's 0x80 or 0x81
+	JR      NZ, .continue_normally  ; If NOT in special mode, continue normally
+	; We are in special mode
+	LD      A, 1               ; Fast cooldown during special mode
+	LD      (IY+4), A
+	JR      .play_sound
+.continue_normally:
 	INC		(IY+4)
-	PUSH	IY
-	CALL	PLAY_BOUNCING_BALL_SOUND
-	POP		IY
-	JR		LOC_9005
+.play_sound:
+	PUSH    IY
+	CALL    PLAY_BOUNCING_BALL_SOUND
+	POP     IY
+	JR      LOC_9005
 LOC_8FF1:
 	AND		78H
 	JR		Z, LOC_9071
@@ -8329,14 +8340,43 @@ LOC_B8B1:
 	LD		HL, 78H
 	CALL	REQUEST_SIGNAL
 	JP		LOC_D36D
-LOC_B8EC:
+LOC_B8EC: ; Enter Alpha monster chomper mode
 	LD		A, 80H
 	LD		($72C3), A
+
+	LD      IY, $72D9         ; Load ball state pointer
+	LD      A, 20H            ; Set only bit 5 (00100000)
+	LD      (IY+0), A         ; Store initial state
+
+	; Set ball position and signal
+	XOR     A                 ; Clear A
+	LD      (IY+1), A        ; Reset X position
+	LD      (IY+2), A        ; Reset Y position
+	
+	; Request signal like SUB_93B6 does
+	PUSH    IX
+	LD      HL, 1
+	XOR     A
+	CALL    REQUEST_SIGNAL
+	LD      (IY+3), A         ; Store signal result
+
+	; Now do the ball return sequence
+	LD      A, (IY+0)
+	RES     5, A              ; Clear bit 5
+	SET     3, A              ; Set bit 3
+	LD      (IY+0), A         ; Store final state
+	LD      (IY+5), 0         ; Clear auxiliary state
+	LD      A, 1
+	LD      (IY+4), A         ; Set cooldown to 1
+	
+	CALL    PLAY_BALL_RETURN_SOUND
+	POP     IX
+
 	POP		BC
 	POP		DE
 	POP		HL
 	POP		IX
-RET
+    RET
 
 
 SUB_B8F7:
