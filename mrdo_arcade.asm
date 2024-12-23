@@ -134,7 +134,7 @@ SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT
 BADGUY_BHVR_CNT_RAM:	RB	 1	;EQU $7139 ; HOW MANY BYTES IN TABLE
 BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 						RB 	52	; ??
-GAMESTATE:				RB 212	;EQU $718A ; Game state 212 byte saved in VRAM
+GAMESTATE:				RB 212	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 						RB  16	;EQU $71A0 ; ??
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players
 GAMETIMER:				RB	 1	;EQU $726F  ??
@@ -160,12 +160,12 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1  ;EQU $7287 ;+6
 						RB   1  ;EQU $7288 ;+7
 						RB   5	;EQU $7289	; ??
-ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 6*7 bytes
+ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
 						RB   4	;EQU $72BE	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
 						RB	 2	;??
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
-						RB  18	;??
+CHOMPDATA:				RB  18	;EQU $72C7  3x6 = 18 bytes (3 chompers)
 BALLDATA:				RB	 6	;EQU $72D9
 SATBUFF1:									; MULTIPLE USE
 SPTBUFF1:				RB   8	;EQU $72DF	; ?? SPT buffer
@@ -1847,9 +1847,9 @@ LOC_8C8D:
 	DJNZ	LOC_8C40
 RET
 
-SUB_8C96:	; Falling apple
-	LD		B, 3
-	LD		IX, $72C7
+SUB_8C96:	; Falling apple ?
+	LD		B, 3			; chomper number
+	LD		IX, CHOMPDATA		; chomper data
 LOC_8C9C:
 	PUSH	BC
 	BIT		7, (IX+4)
@@ -1880,7 +1880,7 @@ LOC_8CD0:
 	PUSH	IX
 	POP		HL
 	XOR		A
-	LD		DE, $72C7
+	LD		DE, CHOMPDATA
 					;	AND		A		; CF==0  already
 	SBC		HL, DE
 	JR		Z, LOC_8CEA
@@ -2018,8 +2018,8 @@ LOC_8DC5:
 	POP		BC
 	DJNZ	LOC_8DA1
 	
-	LD		IX, $72C7
-	LD		B, 3
+	LD		IX, CHOMPDATA	; chompers start here ?
+	LD		B, 3		; test each chompers
 LOOP_8DD3:
 	PUSH	BC
 	BIT		7, (IX+4)
@@ -2040,7 +2040,7 @@ LOST_A_LIFE:
 	BIT		7, (IY+4)
 	JR		Z, LOC_8E05
 	PUSH	IY
-	CALL	PLAY_LOSE_LIFE_SOUND
+	CALL	PLAY_LOSE_LIFE_SOUND		; XXX DEATH SEQUENCE HERE ?
 	POP		IY
 	LD		L, 1
 LOC_8E05:
@@ -2781,7 +2781,7 @@ LOC_9324:
 RET
 
 SUB_9337:
-	LD		IX, $72C7
+	LD		IX, CHOMPDATA
 	LD		C, 0
 LOC_933D:
 	BIT		7, (IX+4)
@@ -4574,7 +4574,7 @@ LOC_9FD5:
 LOC_9FE6:
 	CP		5
 	JR		NC, LOC_9FEF
-	CALL	PLAY_LOSE_LIFE_SOUND
+	CALL	PLAY_LOSE_LIFE_SOUND		; XXX DEATH SEQUENCE HERE ?
 	LD		L, 1
 LOC_9FEF:
 	POP		IY
@@ -5808,7 +5808,7 @@ BYTE_A7DC:
 SUB_A7F4:
 	LD		A, ($72C5)
 	AND		3
-	LD		IY, $72C7
+	LD		IY, CHOMPDATA
 	LD		BC, 6
 LOC_A800:
 	DEC		A
@@ -8228,7 +8228,7 @@ LOC_B805:
 RET
 
 SUB_B809:
-	LD		IX, $72C7
+	LD		IX, CHOMPDATA
 	LD		B, 3
 LOC_B80F:
 	BIT		7, (IX+4)
@@ -8254,7 +8254,7 @@ SUB_B832:
 	LD		(IX+4), 0
 	LD		A, (IX+3)
 	CALL	FREE_SIGNAL
-	LD		BC, $72C7
+	LD		BC, CHOMPDATA
 	LD		D, 11H
 	AND		A
 	PUSH	IX
@@ -8272,7 +8272,7 @@ LOC_B856:
 	LD		A, D
 	LD		D, 0
 	CALL	SUB_B629
-	LD		IX, $72C7
+	LD		IX, CHOMPDATA
 	LD		B, 3
 LOC_B865:
 	BIT		7, (IX+4)
@@ -8316,8 +8316,8 @@ SUB_B8A3:
 	JP		LOC_D326
 
 LOC_B8AB:
-	LD		IX, $72C7
-	LD		B, 3
+	LD		IX, CHOMPDATA	; chomper data
+	LD		B, 3		; chomper number
 LOC_B8B1:
 	LD		(IX+0), 10H
 	LD		A, ($72BF)
@@ -8360,9 +8360,9 @@ LOC_B8EC:
 	XOR     A
 	CALL    REQUEST_SIGNAL
 	LD      (IY+3), A         ; Store signal result	
-	RES			5,(IY+0)
-	SET			3,(IY+0)	
-	LD			(IY+5),0	
+	RES		5,(IY+0)
+	SET		3,(IY+0)	
+	LD		(IY+5),0	
 	CALL    PLAY_BALL_RETURN_SOUND
 .skip_ball_return:
 	; Ensure balls in flight are returned immediately after they strike an enemy
