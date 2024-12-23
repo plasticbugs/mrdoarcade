@@ -733,7 +733,7 @@ LOC_8378:
 LOC_83AB:
 
 	; animate here the MrDo death
-	CALL MrDoDeathSequence
+	CALL 	MrDoDeathSequence
 
 LOC_83ABX:
 	LD		IX, APPLEDATA		; apple data array
@@ -743,17 +743,17 @@ LOOP_83B1:						; MrDo is dead, let apples fall if any
 	JR		NZ, LOC_83C0		; if this apple is falling make it fall
 	LD		DE, 5
 	ADD		IX, DE
-	DJNZ	LOOP_83B1
+	DJNZ	LOOP_83B1			; ?? probably only one apple falling at time...
 	JR		LOC_83C5
 LOC_83C0:
 	CALL	DEAL_WITH_APPLE_FALLING
 	JR		LOC_83ABX
 LOC_83C5:
-	AND A	; CP		0
+	AND A						; if Z you have an extra MrDo ?
 	JR		NZ, LOC_83CB
 	LD		A, 1
 LOC_83CB:
-	CALL	GOT_DIAMOND
+	CALL	GOT_DIAMOND			; this is dealing with more than Diamonds
 	CP		3
 	JR		Z, LOC_8372
 	JR		LOC_8375
@@ -768,6 +768,20 @@ MrDoDeathSequence:
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
 .wait:
+
+	LD		IX, APPLEDATA		; apple data array
+	LD		B, 5				; apple number
+.NextApple:						; MrDo is dead, let apples fall if any
+	BIT		3, (IX+0)
+	PUSH		IX
+	PUSH		BC
+	CALL		NZ,DEAL_WITH_APPLE_FALLING		; if this apple is falling make it fall
+	POP 		BC
+	POP 		IX
+	LD		DE, 5
+	ADD		IX, DE
+	DJNZ	.NextApple
+	
 	POP		AF
 	PUSH	AF
 	CALL	TEST_SIGNAL
@@ -6023,12 +6037,12 @@ GOT_DIAMOND:
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
-NO_DIAMOND:
+.wait:
 	POP		AF
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, NO_DIAMOND
+	JR		Z, .wait
 	POP		AF
 	JR		LOC_A973
 COMPLETED_LEVEL:
@@ -6037,12 +6051,12 @@ COMPLETED_LEVEL:
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
-LOC_A956:
+.wait:
 	POP		AF
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_A956
+	JR		Z, .wait
 	POP		AF
 	POP		AF
 	CP		2
