@@ -116,9 +116,9 @@ SFX_COIN_INSERT_SND:   EQU $20
 
 ; RAM DEFINITIONS ***************************
 	ORG $7000,$73FF
-SPRITE_ORDER_TABLE:		RB	20	;EQU $7000
+SPRITE_ORDER_TABLE:		RB	20	;EQU $7000	; used by the sprite rotation system
 TIMER_DATA_BLOCK:		RB	12	;EQU $7014
-STATESTART:				RB	11	;EQU $7020 ; Sound Buffer Start
+STATESTART:				RB	11	;EQU $7020 	; Sound Buffer Start
 SOUND_BANK_01_RAM:		RB	10	;EQU $702B
 SOUND_BANK_02_RAM:		RB	10	;EQU $7035
 SOUND_BANK_03_RAM:		RB	10	;EQU $703F
@@ -331,10 +331,10 @@ LOC_80FF:
 	DJNZ	LOC_80D7
 RET
 
-SUB_8107:
+SUB_8107:					; sprite rotation system: Very cumbersome and applied only to enemies
 	LD		HL, BYTE_8215
 	LD		DE, WORK_BUFFER
-	LD		BC, 14H
+	LD		BC, 14H			; only 20 sprites on screen = 7 enemies + 3 chompers + 5 apples + 1 letter + 1 ball + 2 MrDo + 1 diamond
 	LDIR
 	LD		A, 3
 	LD		($72E7), A
@@ -342,8 +342,8 @@ SUB_8107:
 	LD		($72E8), A
 	LD		HL, $72F2
 	LD		IY, $70F5
-	LD		B, 11H			; number of actual sprites rotated: PROBABLY INTRODUCING IN THE ROTATION MRDO's SPRITES WOULD IMPROVE THE FINAL RESULT
-LOC_8125:
+	LD		B, 11H			; number of actual sprites rotated. Sprites from 0 to 3 are fixed (MrDo and letter)
+LOC_8125:					; PROBABLY INTRODUCING IN THE ROTATION MRDO's SPRITES WOULD IMPROVE THE FINAL RESULT
 	LD		A, (HL)
 	AND		A
 	JP		NZ, LOC_81DC
@@ -475,12 +475,13 @@ LOC_81FB:
 	LD		B, 14H
 	LD		IY, WORK_BUFFER
 	XOR		A
+	LD 		C,A
 LOOP_8208:
-	LD		H, 0
+	LD		H, A
 	LD		L, (IY+0)
 	ADD		HL, DE
-	LD		(HL), A
-	INC		A
+	LD		(HL), C
+	INC		C
 	INC		IY
 	DJNZ	LOOP_8208
 RET
@@ -6881,7 +6882,7 @@ LOC_AE1E:
 	POP		HL
 RET
 
-DEAL_WITH_PLAYFIELD:
+DEAL_WITH_PLAYFIELD:			; Print strings to the playfield
 	DEC		A
 	ADD		A, A
 	LD		C, A
@@ -6919,8 +6920,8 @@ LOOP_AE61:
 	PUSH	BC
 	PUSH	HL
 	PUSH	DE
-	LD		A, 2
-	LD		IY, 1
+	LD		A, 2	
+	LD		IY, 1	
 	CALL	PUT_VRAM
 	POP		DE
 	POP		HL
@@ -6932,8 +6933,8 @@ LOOP_AE61:
 LOC_AE76:
 	PUSH	HL
 	PUSH	DE
-	LD		IY, 1
 	LD		A, 2
+	LD		IY, 1
 	CALL	PUT_VRAM
 	POP		DE
 	POP		HL
