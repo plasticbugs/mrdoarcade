@@ -292,7 +292,7 @@ FINISH_NMI:
 
 SUB_80D1:
 	LD		HL, $7259
-	LD		BC, 1401H			; B = 20 sptites
+	LD		BC, 1401H			; B = 20 sprites
 LOC_80D7:
 	LD		A, (HL)
 	AND		A
@@ -670,7 +670,7 @@ BYTE_8333:
 START:
 	LD		HL, $7000			; clean user ram
 	LD		DE, $7000+1
-	LD		BC, $3B0			; all zeros till to the stack head
+	LD		BC, $3B0-1			; all zeros till to the stack head
 	LD		(HL), 0
 	LDIR
 	ld		hl,mode
@@ -868,7 +868,7 @@ LOAD_GRAPHICS:
 	CALL	PUT_VRAM
 	LD		HL, PHASE_01_COLORS
 	LD		DE, 0
-	LD		IY, 20H
+	LD		IY, 20H				; LOAD COLORS
 	LD		A, 4
 	CALL	PUT_VRAM
 	LD		BC, 1E2H
@@ -938,11 +938,11 @@ LOC_853F:
 	CALL	SUB_B286		; build level 1
 	LD		HL, GAMESTATE
 	LD		DE, 3400H		; VRAM area for P1 data
-	LD		BC, 0D4H		; save in VRAM 212 bytes of game state pro P1 
+	LD		BC, 0D4H		; save in VRAM 212 bytes of game state for P1 
 	CALL	WRITE_VRAM
 	LD		HL, GAMESTATE
 	LD		DE, 3600H		; VRAM area for P2 data
-	LD		BC, 0D4H		; save in VRAM 212 bytes of game state pro P2 
+	LD		BC, 0D4H		; save in VRAM 212 bytes of game state for P2 
 	CALL	WRITE_VRAM
 	CALL	SUB_866B
 	LD		HL, $72B8
@@ -1308,7 +1308,7 @@ SUB_87F4:	; Start the level
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	LD		($7283), A		; $7283 = Mr Do's Timer ?
-;	POP		AF				; WTF???
+					;	POP	AF	; WTF??? Potential critical bug
 RET
 
 SUB_8828:
@@ -2827,7 +2827,7 @@ LOC_9324:
 	LD		DE, 32H
 	CALL	SUB_B601
 	POP		AF
-;	AND		A					; already in AF
+						;	AND	A			; already in AF
 	LD		A, 2
 	RET		Z
 	LD		A, 1
@@ -3179,9 +3179,8 @@ LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
 	CALL	SUB_B12D 	; Returns A=0 if no collision, A=1 if collision
 	AND		A
 	JR		Z, LOC_95D5
-
-	POP		BC
-	JP		LOC_961C 	; Treat as a "wall" collision
+	POP		BC			; here A==1
+	RET					; Treat as a "wall" collision
 LOC_95D5:
 	POP		BC
 	LD		(IY+3), B
