@@ -26,11 +26,11 @@
 ; SPT: 				2000h (256*8 bytes)
 
 ; in game VRAM tables
-PT:		EQU	$0000
-PNT:	EQU	$1000
-CT:		EQU	$1800
-SAT:	EQU	$1900
-SPT:	EQU	$2000
+;PT:		EQU	$0000
+;PNT:	EQU	$1000
+;CT:		EQU	$1800
+;SAT:	EQU	$1900
+;SPT:	EQU	$2000
 
 ; VRAM areas used for data
 ; 3400H		212 bytes for saving P1 game data
@@ -44,6 +44,14 @@ SPT:	EQU	$2000
 ; SAT:				1B00h-1B7Fh (4*32 bytes)
 ; Color Table: 		2000h-27FFh (256*8 bytes - screen 2 mirrored)
 ; SPT: 				2800h-2FFFh (256*8 bytes)
+
+PT:		EQU	$0000
+PNT:	EQU	$1800
+CT:		EQU	$2000
+SAT:	EQU	$1B00
+SPT:	EQU	$2800
+
+
 
 ; BIOS DEFINITIONS **************************
 ASCII_TABLE:		EQU $006A
@@ -146,7 +154,7 @@ GAMESTATE:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
 						RB  25	;EQU $7245
 						RB  16	;EQU $725E ; ??
-GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players
+GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players B5-> Pause/Game
 GAMETIMER:				RB	 1	;EQU $726F  ??
 						RB	 1	; ??
 SKILLLEVEL:				RB	 1	;EQU $7271 ; Skill Level 1-4
@@ -189,6 +197,10 @@ STORED_COLOR_POINTER:	RB	 2	;EQU $73D0	  ; 2 bytes for storing the pointer
 STORED_COLOR_DATA:		RB	 12	;EQU $73D2	  ; 12 bytes for actual color data
 
 mode:				 EQU $73FD	; maybe unused used by OS 
+; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
+; B1==0 -> ISR served 	B1==1 -> ISR pending
+; B3-B6 spare
+; B7==0 -> game mode, 	B7==1 -> intermission mode
 
 
 FNAME "mrdo_arcade.rom"
@@ -703,7 +715,7 @@ LOC_8372:
 	call	cvb_ANIMATEDLOGO
 	CALL	INIT_VRAM
 	XOR		A
-LOC_8375:									; GAME MAIN
+LOC_8375:									; GAME MAIN LOOP
 	CALL	SUB_84F8
 LOC_8378:
 	CALL	SUB_8828
@@ -870,7 +882,8 @@ LOAD_GRAPHICS:
 	LD		DE, 0
 	LD		IY, 20H				; LOAD COLORS
 	LD		A, 4
-	CALL	PUT_VRAM
+	CALL 	FAKECOLORS; CALL	PUT_VRAM
+	
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 
@@ -878,21 +891,103 @@ LOAD_GRAPHICS:
 	LD 		DE,PT + 8*0d7h			; start tiles here
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
-	CALL 	MYENASCR
 
 ; screen 2 hack
 
-;	LD		BC, $0002
-;	CALL	WRITE_REGISTER
-;	LD		BC, $01A2
-;	CALL	WRITE_REGISTER
-;	LD		BC, $039F			; $2000 for color table - Mirror Mode,
-;	CALL	WRITE_REGISTER
-;	LD		BC, $0400			; $0000 for pattern table - Mirror Mode,
-;	CALL	WRITE_REGISTER
-
+	call MyNMI_off
+	ld bc,$0200
+	call MYWRTVDP
+	ld bc,$9F03
+	call MYWRTVDP			; color mirrored at 2000h
+	ld bc,$0304				; $0304 for non mirrored patterns ar 0000h, $0004 for mirrored patterns
+	call MYWRTVDP			
+	
+	call FAKEPATERNS
+	CALL MyNMI_on
+	
+	LD 		DE,PT + 256*8 + 8*0d7h			; start tiles here
+	LD 		HL,ARCADEFONTS
+	CALL 	unpack
+	LD 		DE,PT + 256*8*2 + 8*0d7h		; start tiles here
+	LD 		HL,ARCADEFONTS
+	CALL 	unpack
+	
+	CALL 	MYENASCR	
 RET
 
+FAKEPATERNS:
+	ld	b,128
+	ld	iy,0000h
+.1:	push bc 
+	
+	push iy
+	pop de 
+	LD	hl,SPTBUFF1
+	LD	bc,8
+	call MYINIRVM
+	
+	push iy
+	pop de 
+	ld	a,8
+	add a,d
+	ld  d,a
+	LD	hl,SPTBUFF1
+	LD	bc,8
+	call MYLDIRVM
+	
+	push iy
+	pop de 
+	ld	a,16
+	add a,d
+	ld  d,a
+	LD	hl,SPTBUFF1
+	LD	bc,8
+	call MYLDIRVM
+	
+	LD	de,8
+	add iy,de
+	
+	pop bc
+	djnz .1
+	ret
+
+
+FAKECOLORS:		; HL ->color list
+				; IY ->byte numbers
+				; Color table at CT
+	call MyNMI_off
+	ld a,CT and 255
+	out (CTRL_PORT),a
+	ld a,CT/256 or $40
+	out (CTRL_PORT),a	
+	
+	ld 	c,IYL
+	
+.2:	LD	B,8*8
+.1:	LD	a,(hl)
+	out (DATA_PORT),a
+	djnz .1
+	inc hl
+	dec C
+	JR	nz,.2
+	
+	ld 	hl, icecuphack1
+	LD 	de,$2150
+	LD	bc,16
+	CALL MYLDIRVM
+
+	ld 	hl, icecuphack2
+	LD 	de,$21C0
+	LD	bc,16
+	CALL MYLDIRVM
+	
+	CALL MyNMI_on	
+ret
+
+icecuphack1:	
+	db	$F0,$F0,$F0,$70,$70,$F0,$70,$70,$F0,$F0,$F0,$70,$70,$70,$70,$70
+icecuphack2:	
+	db	$A0,$A0,$A0,$A0,$C0,$C0,$C0,$C0,$A0,$A0,$A0,$A0,$C0,$C0,$C0,$C0
 
 SUB_84F8:	 ; Disables NMI, sets up the game
 	PUSH	AF
@@ -1037,7 +1132,7 @@ SEND_PHASE_COLORS_TO_VRAM:
 	LD		DE, 0
 	LD		IY, 0CH
 	LD		A, 4
-	CALL	PUT_VRAM
+	CALL 	FAKECOLORS; CALL	PUT_VRAM
 	LD		HL, GAMEFLAGS
 	LD		B, 16H				; 22 bytes of GAMEFLAGS ?
 	XOR		A
@@ -8439,7 +8534,7 @@ LOC_B8FE:
 	LD		DE, 0
 	LD		IY, 0CH
 	LD		A, 4
-	CALL	PUT_VRAM
+	CALL 	FAKECOLORS; CALL	PUT_VRAM
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 
@@ -8485,7 +8580,7 @@ CONTINUE_RESTORE:
 	LD		DE, 0
 	LD		IY, 0CH
 	LD		A, 4
-	CALL	PUT_VRAM
+	CALL 	FAKECOLORS; CALL	PUT_VRAM
 
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
@@ -10450,31 +10545,23 @@ nmi_handler:
 	ld hl,mode
 	bit 0,(hl)				; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
 	jr z,.1
-							; ISR disabled
-	set 1,(hl)				; B1 == 1 -> ISR pending
+							; here ISR is disabled
+							
+	set 1,(hl)				; ISR pending
+							; B1==0 -> ISR served 	B1==1 -> ISR pending
 	pop hl
 	pop af
 	retn
 
-.0:	res 1,(hl)				; B1 == 0 -> ISR executed
-
-.1:							; ISR Enabled
+.0:	res 1,(hl)				; ISR served
+.1:							; ISR enabled
 	bit 7,(hl)
-	jr z,.2					; 0 -> Game Mode, 1 -> intermission mode
+	jr z,.2					; B7==0 -> game Mode, 	B7==1 -> intermission mode
 
-	pop hl
+	pop hl					; Intermission Mode
 	in a,(CTRL_PORT)
-	pop af
-	call FakeNmi
-	retn
-
-.2:
-	pop hl					; Game Mode
-	pop af
-	jp NMI
-
-FakeNmi:					; Intermission Mode
-	PUSH	AF
+	; POP 	af
+	; PUSH	AF
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
@@ -10501,7 +10588,41 @@ FakeNmi:					; Intermission Mode
 	POP		DE
 	POP		BC
 	POP		AF
-	RET
+	retn
+
+.2:	pop hl					; Game Mode
+	pop af
+	jp NMI
+
+;FakeNmi:					; Intermission Mode
+;	PUSH	AF
+;	PUSH	BC
+;	PUSH	DE
+;	PUSH	HL
+;	EX		AF, AF'
+;	EXX
+;	PUSH	AF
+;	PUSH	BC
+;	PUSH	DE
+;	PUSH	HL
+;	PUSH	IX
+;	PUSH	IY
+;	CALL	TIME_MGR		; udate timers
+;	CALL	POLLER			; update controllers
+;	CALL	SUB_C952		; PLAY MUSIC
+;	POP		IY
+;	POP		IX
+;	POP		HL
+;	POP		DE
+;	POP		BC
+;	POP		AF
+;	EXX
+;	EX		AF, AF'
+;	POP		HL
+;	POP		DE
+;	POP		BC
+;	POP		AF
+;	RET
 
 ; select 1/2 players
 ShowPlyrNum:
@@ -10821,7 +10942,6 @@ INTERMISSION:
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
-
 	LD	HL,mode
 	RES	7,(hl)						; switch to game mode
 
@@ -10831,8 +10951,6 @@ INTERMISSION:
 .3:
 	BIT		7, (HL)
 	JR		NZ, .3
-
-
 	RET	
 
 cvb_INTERMISSION:
@@ -11100,7 +11218,6 @@ CONGRATULATION:
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
-
 	LD	HL,mode
 	RES	7,(hl)						; switch to game mode
 
@@ -11111,11 +11228,6 @@ CONGRATULATION:
 	BIT		7, (HL)
 	JR		NZ, .3
 
-	; Original code's final register writes
-	LD		BC, 700H		 ; R7: Border/background color
-	CALL	WRITE_REGISTER
-	LD		BC, 1E2H		 ; Original game state register
-	CALL	WRITE_REGISTER
 	RET	
 
 cvb_CONGRATULATION:
@@ -11528,14 +11640,14 @@ MYWRTVDP:
 	out (CTRL_PORT),a
 	ret
 
-MYMODE1:
+MYMODE1:				; screen 2 with mirror mode for patterns
 	ld hl,mode
-	res 3,(hl)
+	set 7,(hl)			; intermission mode
 	ld bc,$0200
 	ld de,$9F03	; $2000 for color table - Mirror Mode, $0000 for bitmaps  - Normal mode
 	jp vdp_chg_mode
 
-MYMODE2:
+MYMODE2:				; screen 1 no mirroring
 	ld hl,mode
 	set 7,(hl)			; intermission mode
 	ld bc,$0000
@@ -11627,6 +11739,24 @@ MYPRINT:
 	jr .1
 
 
+MYINIRVM:				; read from DE (VRAM) to HL (RAM) BC bytes
+	ld a,e
+	out (CTRL_PORT),a
+	ld a,d
+	out (CTRL_PORT),a
+	dec bc
+	inc c
+	ld a,b
+	ld b,c
+	inc a
+	ld c,DATA_PORT
+.1:
+	ini
+	jp nz,.1
+	dec a
+	jp nz,.1
+	ret
+	
 MYLDIRVM:
 	ld a,e
 	out (CTRL_PORT),a
