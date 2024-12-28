@@ -504,8 +504,8 @@ SUB_8229:
 	JR		Z, LOC_8241
 	; 1 walk right01
 	; 2 walk right02
-	; 3 push right01
-	; 4 push right02
+	; 3 PUSH right01
+	; 4 PUSH right02
 	; 
 	ADD		A, 1BH				; MrDo Position offeset = 27+1 in SPRITE_GENERATOR
 	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
@@ -677,7 +677,7 @@ START:
 	LD		BC, $3B0-1			; all zeros till to the stack head
 	LD		(HL), 0
 	LDIR
-	ld		hl,mode
+	LD		HL,mode
 	LD		(HL), 0
 	
 	LD		A, 1
@@ -704,7 +704,7 @@ LOC_8372:
 	
 	; Initialize the game
 
-	call	cvb_ANIMATEDLOGO
+	CALL	cvb_ANIMATEDLOGO
 	CALL	INIT_VRAM
 	XOR		A
 LOC_8375:									; GAME MAIN LOOP
@@ -764,10 +764,10 @@ LOC_83CB:
 	JR		LOC_8375
 
 MrDoDeathSequence:
-	push 	af
-	ld		bc,4*256+28+48		; C is the pointer to the current frame
+	PUSH 	AF
+	LD		bc,4*256+28+48		; C is the pointer to the current frame
 .nextframe:
-	push	bc
+	PUSH	bc
 	LD		HL, 20				; 20 x 4 = 80 /60 = 1.33 sec
 	XOR		A
 	CALL	REQUEST_SIGNAL
@@ -794,15 +794,15 @@ MrDoDeathSequence:
 	JR		Z, .wait
 	POP		AF
 	POP  	BC
-	ld		a,C
+	LD		a,C
 	INC		C
 	PUSH 	BC 				
 	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
 	CALL	DEAL_WITH_SPRITES	; Update the current frame of the player
 	POP  	BC
 	djnz  .nextframe
-	pop 	af
-ret
+	POP 	AF
+RET
 
 INIT_VRAM:
 	LD		BC, 0
@@ -862,15 +862,16 @@ LOAD_GRAPHICS:
 
 ; screen 2 hack
 
-	call MyNMI_off
-	ld bc,$0200				; move to screen 2
-	call MYWRTVDP
-	ld bc,$9F03
-	call MYWRTVDP			; color mirrored at 2000h
-	ld bc,$0304				; $0304 for non mirrored patterns ar 0000h, $0004 for mirrored patterns
-	call MYWRTVDP			
+	CALL MyNMI_off
+	LD bc,$0200				; move to screen 2
+	CALL MYWRTVDP
+	LD bc,$9F03
+	CALL MYWRTVDP			; color mirrored at 2000h
+	LD bc,$0304				; $0304 for non mirrored patterns ar 0000h, $0004 for mirrored patterns
+	CALL MYWRTVDP			
 
 ; load graphics	
+										;  IS UNPACK SAFE ONLY IN INTREMISSION MODE ?
 	LD 		DE,PT
 	LD 		HL,tileset_bitmap
 	CALL 	unpack
@@ -895,16 +896,17 @@ LOAD_GRAPHICS:
 	LD 		DE,PT + 256*8*2 + 8*0d7h		; start fonts here
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
-	
+
+
 	LD		B,64
 	LD 		DE,CT+6*32*8
 .1:	PUSH 	BC
 	LD		HL,FONTCOLOR
 	LD		BC,8
 	PUSH	DE
-	call MyNMI_off	
+	CALL MyNMI_off	
 	CALL  	MYLDIRVM
-	call MyNMI_on	
+	CALL MyNMI_on	
 	POP 	DE
 	LD		HL,8
 	ADD 	HL,DE
@@ -2097,7 +2099,7 @@ LOST_A_LIFE:
 	BIT		7, (IY+4)
 	JR		Z, LOC_8E05
 	PUSH	IY
-	CALL	PLAY_LOSE_LIFE_SOUND		; smashed no DEATH SEQUENCE HERE 
+	CALL	PLAY_LOSE_LIFE_SOUND		; smashed: no DEATH SEQUENCE HERE 
 	POP		IY
 	LD		L, 1
 LOC_8E05:
@@ -2411,7 +2413,7 @@ DEAL_WITH_BALL:
 	LD (IY+4), 0		; Fast cooldown in chomper mode
 	
 .normal_mode:	
-	INC		(IY+4)		; In chomper mode set to 1 the ball cooldown counter
+	INC		(IY+4)		; In chomper mode SET to 1 the ball cooldown counter
 	PUSH	IY
 	CALL	PLAY_BOUNCING_BALL_SOUND
 	POP		IY
@@ -6131,7 +6133,7 @@ LOC_A9F2:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%
 	; show the extra screen
 	LD	HL,mode
-	SET	7,(hl)						; switch to intermission  mode
+	SET	7,(HL)						; switch to intermission  mode
 
 	CALL	cvb_EXTRASCREEN
 	CALL	INITIALIZE_THE_SOUND
@@ -6169,9 +6171,10 @@ LOC_A9C0:
 	CALL	FILL_VRAM
 
 	LD	HL,mode
-	RES	7,(hl)						; switch to game mode
+	RES	7,(HL)						; switch to game mode
 
 	CALL	INIT_VRAM
+	
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
 LOC_AA14:
@@ -6603,14 +6606,14 @@ LOC_ACF6:
 RET
 
 DEAL_WITH_SPRITES:
-	ld		l,a
-	ld		h,0
-	ld		e,a
-	ld		d,h
-	add		hl,hl
-	add		hl,hl
-	add		hl,de					; 5 bytes per entry 
-	ex		de,hl
+	LD		l,a
+	LD		h,0
+	LD		e,a
+	LD		d,h
+	add		HL,HL
+	add		HL,HL
+	add		HL,de					; 5 bytes per entry 
+	ex		de,HL
 	LD		IX, SPRITE_GENERATOR
 	add		ix,de					; +28*5 for MrDo
 	
@@ -6629,9 +6632,9 @@ NOROTATION:
 	RET
 ROTATION:
 
-	push de
+	PUSH de
 	exx 
-	pop de						; save DE pointer to SPT positions
+	POP de						; save DE pointer to SPT positions
 	exx 
 	LD		B, IYL
 
@@ -6651,7 +6654,7 @@ ROTATEUPMIRROR:
 	LD		IY, SPTBUFF2
 	CALL	SUB_AE0C			; rotate face up-mirror
 	exx
-	ld		a,(DE)
+	LD		a,(DE)
 	inc 	de
 	exx 
 	LD		E, a
@@ -6674,7 +6677,7 @@ MIRRORLEFT:
 	LD		IY, SPTBUFF2
 	CALL	SUB_AD96			; mirror frame left
 	exx
-	ld		a,(DE)
+	LD		a,(DE)
 	inc 	de
 	exx 
 	LD		E, a
@@ -6697,7 +6700,7 @@ ROTATEDWN:
 	LD		IY, SPTBUFF2
 	CALL	SUB_ADAB			; rotate face down 
 	exx
-	ld		a,(DE)
+	LD		a,(DE)
 	inc 	de
 	exx 
 	LD		E, a
@@ -6720,7 +6723,7 @@ ROTATEUP:
 	LD		IY, SPTBUFF2
 	CALL	SUB_ADCA			; rotate face up
 	exx
-	ld		a,(DE)
+	LD		a,(DE)
 	inc 	de
 	exx 
 	LD		E, a
@@ -6743,7 +6746,7 @@ ROTATEDWNMIRROR:
 	LD		IY, SPTBUFF2
 	CALL	SUB_ADE9			; rotate face down-mirror
 	exx
-	ld		a,(DE)
+	LD		a,(DE)
 	inc 	de
 	exx 
 	LD		E, a
@@ -8398,12 +8401,12 @@ LOC_B8EC:
 	LD		(GAMEFLAGS), A		; b7 in GAMEFLAGS -> chomper mode
 
 ; immediately return the ball when in chomper mode
-; only if Mr. Do is in cool down mode (Bit 6 is set)
+; only if Mr. Do is in cool down mode (Bit 6 is SET)
 	LD 		IY, BALLDATA 			; Load ball state pointer
-	BIT   5, (IY+0)         ; Check if bit 5 is set
+	BIT   5, (IY+0)         ; Check if BIT 5 is SET
 	JR    Z, .skip_ball_return ; Skip ball return if not in cooldown phase
 
-	LD		(IY+0),$20			; Set bit 5, reset direction flags 
+	LD		(IY+0),$20			; Set BIT 5, reset direction flags 
 	LD		(IY+1),0			; reset ball's X
 	LD		(IY+2),0			; reset ball's Y
 
@@ -8470,13 +8473,15 @@ SET_LEVEL_COLORS:
 	JR		.PLY1
 .RESTORE_COLORS:
 	DEC		A
-	ADD		A,A		;x8
+	PUSH	AF
+	
+	ADD		A,A		
 	ADD		A,A
-	ADD		A,A
+	ADD		A,A			;x8
 	LD		L,A
 	LD		H,0
 	
-	call MyNMI_off	
+	CALL MyNMI_off	
 	
 	PUSH	HL
 		
@@ -8574,7 +8579,6 @@ SET_LEVEL_COLORS:
 	CALL 	MYLDIRVM
 
 	POP 	HL
-	PUSH    HL 
 
 	LD		DE,CT+32*5*8
 	ADD 	HL,DE
@@ -8588,14 +8592,8 @@ SET_LEVEL_COLORS:
 	LD 		BC,16				; using FREEBUFF
 	CALL 	MYLDIRVM
 	
-	POP 	HL 
-	call 	MyNMI_on
-	
-	ADD		HL,HL
-	ADD		HL,HL
-	ADD		HL,HL
-	ADD		HL,HL
-	LD		E,H
+	POP 	AF					; level number
+	LD		E,A
 	LD 		D,0
 	LD		HL, staticcolors
 	ADD		HL,DE
@@ -8603,6 +8601,8 @@ SET_LEVEL_COLORS:
 	LD		DE,8*8
 	LD		HL,CT+(2*32+24)*8
 	CALL	FILL_VRAM
+	
+	CALL 	MyNMI_on	
 RET
 
 staticcolors:
@@ -8613,7 +8613,7 @@ REPCOL:				; In B # of times, DE VRAM addr
 	LD		HL,FREEBUFF
 	LD 		BC,8
 	PUSH	DE
-	call 	MYLDIRVM
+	CALL 	MYLDIRVM
 	POP		DE
 	LD		HL,8
 	ADD 	HL,DE
@@ -9261,101 +9261,138 @@ BALL_SPRITE_PAT:
 
 
 tileset_bitmap:
-	DB $3e,$00,$aa,$80,$00,$03,$07,$0b
-	DB $0c,$1f,$40,$1f,$07,$c0,$e0,$d0
-	DB $30,$f8,$03,$d8,$1f,$0f,$01,$03
-	DB $01,$00,$15,$a8,$68,$98,$bc,$bc
-	DB $18,$d5,$e0,$3f,$36,$3f,$16,$38
-	DB $30,$3b,$13,$3f,$c0,$80,$02,$00
-	DB $6c,$fc,$39,$33,$03,$40,$42,$03
-	DB $0d,$68,$fc,$fc,$02,$41,$6c,$07
-	DB $30,$0c,$33,$0c,$40,$0e,$00,$1c
-	DB $64,$98,$60,$80,$d7,$80,$3e,$1c
-	DB $2e,$78,$56,$75,$6d,$01,$56,$cc
-	DB $12,$3d,$37,$1c,$0e,$d8,$10,$7f
-	DB $0e,$20,$1f,$1e,$07,$80,$c8,$90
-	DB $20,$30,$50,$b8,$9f,$0e,$06,$13
-	DB $3c,$1f,$42,$0c,$80,$3c,$fc,$f0
-	DB $42,$06,$0e,$15,$3b,$4c,$37,$08
-	DB $af,$e0,$1c,$64,$d8,$07,$f0,$0b
-	DB $05,$02,$01,$1e,$35,$a0,$40,$01
-	DB $5d,$fe,$80,$f8,$80,$80,$fe,$01
-	DB $07,$c6,$6c,$18,$30,$6c,$c6,$8e
-	DB $0f,$10,$00,$80,$07,$fc,$86,$86
-	DB $fc,$88,$8e,$90,$07,$38,$14,$82
-	DB $fe,$82,$d4,$7e,$12,$20,$1f,$07
-	DB $70,$07,$07,$09,$04,$f8,$e0,$80
-	DB $81,$86,$07,$ff,$ff,$c0,$b9,$00
-	DB $5b,$15,$00,$c7,$b4,$35,$0f,$03
-	DB $cc,$00,$25,$02,$47,$cc,$47,$41
-	DB $4c,$e7,$22,$03,$cf,$61,$01,$c1
-	DB $61,$c1,$0f,$a6,$01,$32,$7c,$c6
-	DB $06,$7c,$c0,$80,$97,$c2,$e2,$b2
-	DB $1c,$9a,$8e,$86,$8f,$11,$82,$82
-	DB $91,$ea,$86,$af,$bf,$d5,$00,$b5
-	DB $73,$7d,$03,$01,$2e,$b5,$03,$37
-	DB $ff,$cc,$8b,$1d,$33,$ff,$0f,$63
-	DB $1f,$ff,$cd,$6d,$1f,$8d,$2f,$b3
-	DB $ff,$a2,$2f,$1f,$70,$8f,$22,$30
-	DB $0e,$f1,$03,$1c,$38,$00,$70,$e0
-	DB $c1,$83,$07,$0f,$66,$f0,$03,$9f
-	DB $f0,$66,$0f,$f9,$1f,$0c,$13,$e0
-	DB $0e,$03,$c6,$07,$1f,$7d,$07,$27
-	DB $f7,$0f,$f3,$07,$8f,$19,$1f,$f1
-	DB $0b,$f6,$00,$ee,$00,$c2,$1f,$30
-	DB $21,$22,$22,$48,$31,$b3,$30,$60
-	DB $3f,$70,$3e,$0f,$f0,$18,$8c,$0c
-	DB $44,$44,$8c,$18,$10,$3f,$e0,$f8
-	DB $ef,$3d,$ef,$ff,$d5,$3c,$00,$ae
-	DB $18,$fe,$03,$ef,$0d,$d7,$b7,$77
-	DB $ef,$7f,$ed,$0f,$7f,$b1,$bf,$0e
-	DB $1d,$1f,$d0,$be,$ff,$38,$74,$19
-	DB $7c,$7c,$38,$07,$3c,$0f,$e0,$0f
-	DB $79,$83,$0f,$ec,$1f,$f1,$1d,$e2
-	DB $e0,$e0,$e6,$03,$c7,$8b,$83,$83
-	DB $c7,$fb,$0f,$fb,$3f,$fb,$1f,$fb
-	DB $4f,$d7,$35,$3f,$fe,$ff,$3f,$ff
-	DB $ff,$ff,$f0
+	DB $5e,$00,$aa,$80,$00,$03,$07,$03
+	DB $0c,$0f,$40,$1f,$07,$c0,$e0,$c0
+	DB $30,$f0,$03,$b8,$1f,$0c,$03,$06
+	DB $03,$00,$15,$58,$d0,$00,$b0,$78
+	DB $68,$6a,$30,$e0,$3f,$36,$3f,$16
+	DB $18,$38,$3b,$13,$3f,$c0,$00,$80
+	DB $00,$6c,$fc,$39,$33,$03,$01,$60
+	DB $03,$40,$68,$fc,$fc,$90,$02,$6c
+	DB $07,$30,$0c,$33,$70,$0c,$4f,$1c
+	DB $64,$98,$35,$60,$80,$e0,$3e,$1c
+	DB $2e,$78,$56,$00,$75,$6d,$56,$cc
+	DB $12,$3d,$37,$1c,$72,$0e,$10,$01
+	DB $40,$10,$0e,$0f,$1e,$07,$80,$48
+	DB $90,$14,$20,$50,$b8,$07,$8f,$07
+	DB $13,$3c,$1f,$07,$42,$80,$3c,$fc
+	DB $f0,$03,$42,$0e,$15,$3b,$4c,$37
+	DB $10,$07,$e0,$1d,$64,$d8,$1e,$0c
+	DB $0b,$05,$02,$01,$0c,$1b,$f0,$a0
+	DB $40,$01,$5e,$fe,$80,$f8,$80,$80
+	DB $fe,$01,$07,$c6,$6c,$18,$30,$6c
+	DB $c6,$8e,$0f,$10,$00,$80,$07,$fc
+	DB $86,$86,$fc,$88,$8e,$90,$07,$38
+	DB $14,$82,$fe,$82,$d4,$7e,$02,$20
+	DB $1f,$07,$01,$02,$07,$07,$02,$04
+	DB $f8,$e0,$80,$40,$e0,$07,$1a,$ff
+	DB $ff,$c0,$e5,$00,$15,$6f,$00,$0e
+	DB $b4,$0f,$6b,$03,$98,$00,$25,$47
+	DB $04,$cc,$47,$41,$4c,$e7,$22,$cf
+	DB $06,$61,$01,$c1,$61,$c1,$0f,$a5
+	DB $01,$32,$7c,$c6,$06,$7c,$c0,$80
+	DB $97,$c2,$e2,$0e,$b2,$9a,$8e,$86
+	DB $8f,$04,$82,$82,$91,$3d,$50,$af
+	DB $6b,$fd,$00,$2b,$b5,$7d,$98,$03
+	DB $01,$b5,$b8,$03,$ff,$cc,$de,$1d
+	DB $2d,$33,$ff,$0f,$8d,$1f,$ff,$cd
+	DB $b6,$1f,$2f,$36,$b3,$ff,$2f,$88
+	DB $1f,$70,$8f,$22,$0e,$f1,$c0,$03
+	DB $1c,$38,$70,$e0,$00,$c1,$83,$07
+	DB $0f,$66,$f0,$9f,$f0,$0c,$66,$0f
+	DB $f9,$1f,$13,$33,$e0,$0e,$03,$19
+	DB $07,$1f,$07,$f7,$27,$df,$0f,$cc
+	DB $07,$8f,$1f,$67,$f1,$0b,$db,$00
+	DB $b8,$c2,$00,$1f,$30,$21,$22,$22
+	DB $31,$88,$b3,$30,$60,$3f,$70,$3e
+	DB $0f,$f0,$18,$8c,$0c,$44,$44,$8c
+	DB $18,$10,$3f,$e0,$f8,$ef,$3d,$e7
+	DB $ff,$ea,$9e,$00,$06,$d7,$fe,$03
+	DB $07,$ef,$d7,$b7,$77,$ef,$c2,$87
+	DB $06,$cd,$07,$36,$0f,$8f,$26,$0e
+	DB $fe,$69,$07,$0f,$e1,$97,$5b,$fe
+	DB $07,$78,$2f,$ff,$0f,$fe,$e0,$3f
+	DB $0f,$bf,$4f,$bf,$1f,$ef,$0f,$09
+	DB $c7,$fe,$8f,$e7,$3f,$85,$ce,$fe
+	DB $6c,$03,$0f,$00,$90,$b4,$1f,$10
+	DB $14,$00,$10,$1f,$f0,$98,$08,$88
+	DB $98,$f0,$3a,$40,$c0,$ef,$85,$03
+	DB $0d,$1e,$3f,$07,$25,$d6,$40,$f1
+	DB $91,$fc,$cd,$b8,$8b,$36,$09,$1f
+	DB $80,$0f,$f8,$d0,$f8,$6c,$10,$f8
+	DB $c8,$a0,$07,$b2,$8c,$1e,$14,$c8
+	DB $c8,$f0,$0f,$78,$78,$f8,$f0,$e0
+	DB $ff,$0e,$1c,$1d,$e0,$1f,$d7,$81
+	DB $38,$74,$83,$7c,$38,$92,$07,$0f
+	DB $1f,$0f,$4e,$cf,$87,$0f,$4b,$7c
+	DB $0f,$f9,$07,$44,$0f,$7f,$8f,$f4
+	DB $0f,$42,$7e,$07,$f1,$e2,$1f,$aa
+	DB $18,$ef,$81,$c7,$8b,$7c,$83,$38
+	DB $93,$07,$0f,$e0,$c1,$0f,$83,$83
+	DB $c7,$9d,$07,$4f,$78,$06,$4f,$ff
+	DB $d5,$b9,$1f,$0f,$0e,$5d,$07,$1f
+	DB $0f,$ba,$3c,$3f,$1f,$8f,$18,$6f
+	DB $f1,$f1,$1f,$ff,$e6,$1f,$03,$07
+	DB $0d,$0f,$07,$02,$02,$05,$cd,$c5
+	DB $3b,$d1,$e3,$bc,$0b,$27,$28,$15
+	DB $38,$83,$c0,$ee,$e4,$14,$16,$a8
+	DB $1c,$f8,$ac,$06,$3f,$2b,$15,$15
+	DB $3f,$10,$8d,$5c,$54,$4c,$54,$60
+	DB $fc,$fd,$2a,$17,$08,$01,$1d,$00
+	DB $2b,$e8,$10,$01,$1d,$56,$00,$ff
+	DB $ff,$ff,$ff,$c0
 
 tileset_color:
-	DB $3e,$f1,$aa,$8d,$00,$b1,$3e,$00
-	DB $07,$87,$00,$81,$61,$61,$73,$15
-	DB $07,$81,$57,$92,$3f,$81,$00,$91
-	DB $01,$d2,$07,$03,$bb,$09,$0c,$35
-	DB $37,$ab,$07,$00,$4f,$ed,$07,$74
-	DB $00,$3b,$71,$71,$02,$9d,$07,$71
-	DB $07,$0e,$36,$a1,$b1,$e1,$17,$f1
-	DB $07,$71,$db,$21,$9d,$07,$08,$fa
-	DB $cc,$00,$a1,$00,$3d,$e1,$e1,$b7
-	DB $07,$6f,$00,$ed,$35,$f3,$25,$ed
-	DB $2c,$4f,$07,$4d,$32,$59,$07,$81
-	DB $a6,$00,$ab,$6e,$07,$f8,$00,$21
-	DB $d5,$3f,$00,$6f,$1d,$e1,$00,$c3
-	DB $32,$c1,$a1,$03,$75,$74,$b1,$01
-	DB $d7,$76,$b0,$01,$a6,$da,$61,$50
-	DB $d1,$03,$e0,$a7,$71,$a3,$03,$71
-	DB $31,$1c,$11,$d1,$61,$03,$a8,$55
-	DB $a6,$0f,$03,$d3,$04,$e3,$a3,$e1
-	DB $a1,$03,$31,$17,$31,$b7,$b3,$e9
-	DB $51,$03,$1f,$3a,$41,$51,$cf,$03
-	DB $91,$37,$00,$70,$c2,$6e,$81,$6b
-	DB $00,$df,$0f,$b3,$00,$e1,$7b,$00
-	DB $55,$65,$bf,$71,$f8,$00,$41,$fc
-	DB $00,$7e,$d1,$7f,$00,$7f,$bf,$df
-	DB $3f,$cf,$1f,$31,$c7,$00,$b1,$e7
-	DB $00,$f3,$3f,$91,$f3,$00,$5f,$ec
-	DB $bf,$92,$82,$18,$62,$82,$92,$f7
-	DB $7c,$07,$97,$0c,$87,$76,$87,$97
-	DB $77,$f8,$07,$94,$84,$18,$64,$84
-	DB $94,$f7,$7c,$07,$d9,$0c,$d8,$d6
-	DB $d8,$d9,$f7,$3e,$07,$59,$a9,$8c
-	DB $a8,$a9,$87,$d7,$df,$07,$df,$3f
-	DB $c0,$1f,$93,$83,$63,$83,$93,$c3
-	DB $f7,$e0,$07,$b9,$b8,$b6,$b8,$61
-	DB $b9,$f7,$f7,$07,$f0,$3f,$98,$98
-	DB $96,$b0,$02,$f7,$fb,$07,$5f,$e3
-	DB $ff,$ff,$ff,$ff,$ff
-
+	DB $5e,$f1,$aa,$81,$00,$91,$91,$61
+	DB $b1,$41,$00,$07,$81,$81,$61,$a1
+	DB $53,$00,$09,$0f,$81,$2e,$15,$09
+	DB $10,$6a,$61,$e5,$3f,$31,$8e,$36
+	DB $91,$31,$ab,$32,$07,$3d,$6f,$36
+	DB $aa,$07,$04,$01,$4f,$fb,$07,$57
+	DB $b3,$00,$39,$33,$52,$31,$0e,$00
+	DB $d1,$d1,$39,$55,$e1,$04,$02,$00
+	DB $f6,$07,$64,$72,$01,$00,$71,$89
+	DB $01,$b1,$71,$72,$71,$dd,$0b,$06
+	DB $7e,$0b,$e3,$00,$e1,$4c,$00,$47
+	DB $f5,$37,$00,$bd,$2d,$cf,$25,$b5
+	DB $2c,$3d,$07,$35,$32,$66,$07,$81
+	DB $9a,$00,$ad,$07,$bb,$e3,$00,$21
+	DB $54,$00,$fd,$bf,$1d,$86,$00,$c3
+	DB $32,$c1,$86,$03,$75,$74,$c6,$01
+	DB $d7,$76,$c1,$01,$a6,$da,$61,$d1
+	DB $40,$03,$e0,$a7,$a3,$e2,$03,$71
+	DB $31,$11,$38,$d1,$61,$03,$a8,$a6
+	DB $a9,$0f,$03,$d3,$04,$e3,$d3,$e1
+	DB $d1,$03,$31,$12,$31,$b7,$b3,$ec
+	DB $a8,$03,$1f,$3a,$41,$51,$e7,$03
+	DB $91,$9b,$00,$b8,$c2,$1b,$81,$9f
+	DB $00,$da,$0f,$fc,$f8,$bc,$00,$f5
+	DB $63,$bf,$f0,$ff,$e8,$03,$cd,$6b
+	DB $1c,$87,$01,$77,$71,$00,$87,$8f
+	DB $b4,$07,$0f,$f8,$97,$f5,$07,$01
+	DB $ac,$9f,$7a,$07,$00,$d6,$a7,$3d
+	DB $03,$6b,$2d,$1e,$af,$07,$b5,$00
+	DB $8f,$b7,$5a,$07,$01,$c7,$bf,$ad
+	DB $07,$00,$63,$c7,$d6,$03,$3f,$b1
+	DB $cf,$d4,$d7,$3d,$da,$72,$e4,$f6
+	DB $b5,$b8,$3d,$f1,$4d,$05,$21,$2d
+	DB $c1,$06,$a3,$07,$d1,$af,$f4,$9a
+	DB $07,$1e,$91,$c7,$db,$6d,$c9,$bd
+	DB $07,$81,$00,$83,$83,$c8,$82,$83
+	DB $83,$fb,$e7,$07,$87,$60,$00,$fd
+	DB $f4,$07,$c3,$81,$f0,$07,$a8,$d8
+	DB $86,$30,$d8,$a8,$ff,$73,$07,$86
+	DB $bb,$07,$00,$07,$ff,$d4,$07,$24
+	DB $16,$87,$c1,$f7,$f7,$07,$70,$17
+	DB $ff,$f8,$07,$e8,$d8,$98,$01,$83
+	DB $ff,$15,$83,$07,$01,$8e,$07,$b8
+	DB $00,$c1,$ff,$f4,$07,$37,$84,$30
+	DB $85,$87,$fb,$7c,$07,$98,$2c,$98
+	DB $96,$02,$f7,$1f,$5f,$07,$00,$2e
+	DB $f6,$04,$ed,$97,$0e,$f6,$8f,$df
+	DB $7f,$07,$74,$8f,$61,$a8,$74,$c5
+	DB $7f,$7f,$07,$7f,$00,$ff,$ff,$ff
+	DB $e0
 
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%
@@ -10555,28 +10592,30 @@ SFX_COIN_INSERT:
   DB 0x50
 
 nmi_handler:
-	push af
-	push hl
-	ld hl,mode
-	bit 0,(hl)				; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
-	jr z,.1
-							; here ISR is disabled
+	PUSH AF
+	PUSH HL
+	LD HL,mode
+	BIT 0,(HL)				; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
+	JR z,.1
+					; here ISR is disabled
 							
-	set 1,(hl)				; ISR pending
+	SET 1,(HL)				; ISR pending
 							; B1==0 -> ISR served 	B1==1 -> ISR pending
-	pop hl
-	pop af
+	POP HL
+	POP AF
 	retn
 
-.0:	res 1,(hl)				; ISR served
+.0:	RES 1,(HL)				; ISR served
 .1:							; ISR enabled
-	bit 7,(hl)
-	jr z,.2					; B7==0 -> game Mode, 	B7==1 -> intermission mode
+	BIT 7,(HL)
+	JR z,.2					; B7==0 -> game Mode, 	B7==1 -> intermission mode
 
-	pop hl					; Intermission Mode
-	in a,(CTRL_PORT)
-	; POP 	af
-	; PUSH	AF
+					; Intermission Mode
+	POP 	HL				
+	IN A,(CTRL_PORT)
+	POP 	AF
+	
+	PUSH	AF
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
@@ -10589,7 +10628,7 @@ nmi_handler:
 	PUSH	IX
 	PUSH	IY
 	CALL	TIME_MGR		; udate timers
-	CALL	POLLER			; update controllers
+;	CALL	POLLER			; update controllers
 	CALL	SUB_C952		; PLAY MUSIC
 	POP		IY
 	POP		IX
@@ -10605,39 +10644,10 @@ nmi_handler:
 	POP		AF
 	retn
 
-.2:	pop hl					; Game Mode
-	pop af
-	jp NMI
+.2:	POP HL					; Game Mode
+	POP AF
+	JP NMI
 
-;FakeNmi:					; Intermission Mode
-;	PUSH	AF
-;	PUSH	BC
-;	PUSH	DE
-;	PUSH	HL
-;	EX		AF, AF'
-;	EXX
-;	PUSH	AF
-;	PUSH	BC
-;	PUSH	DE
-;	PUSH	HL
-;	PUSH	IX
-;	PUSH	IY
-;	CALL	TIME_MGR		; udate timers
-;	CALL	POLLER			; update controllers
-;	CALL	SUB_C952		; PLAY MUSIC
-;	POP		IY
-;	POP		IX
-;	POP		HL
-;	POP		DE
-;	POP		BC
-;	POP		AF
-;	EXX
-;	EX		AF, AF'
-;	POP		HL
-;	POP		DE
-;	POP		BC
-;	POP		AF
-;	RET
 
 ; select 1/2 players
 ShowPlyrNum:
@@ -10692,12 +10702,12 @@ GET_GAME_OPTIONS:
 	CP		2
 	JR		NC, .PlyrNumWait
 .SetPlyrNum:
-	push af
+	PUSH AF
 	CALL PLAY_COIN_INSERT_SFX
-	pop  af
+	POP  AF
 	LD		HL, GAMECONTROL
 	RES		0, (HL)
-	DEC		A					; If A==1 -> set 2 players
+	DEC		A					; If A==1 -> SET 2 players
 	JR		NZ, .OnePlyr
 	SET		0, (HL)
 .OnePlyr:
@@ -10723,9 +10733,9 @@ GET_GAME_OPTIONS:
 	CP		4
 	JR		NC, .SkillWait
 .SetSkill:
-	push af
+	PUSH AF
 	CALL PLAY_COIN_INSERT_SFX
-	pop  af
+	POP  AF
 	INC		A					; The game is expecting 1-4
 	LD		(SKILLLEVEL), A
 	RET
@@ -10734,7 +10744,7 @@ StrINSERTCOIN: 	db "INSERT COIN"," " or 128
 
 cvb_ANIMATEDLOGO:
 	LD	HL,mode
-	SET	7,(hl)							; switch to intermission  mode
+	SET	7,(HL)							; switch to intermission  mode
 
 	CALL MYMODE2
 	CALL MYDISSCR
@@ -10816,7 +10826,7 @@ cvb_ANIMATEDLOGO:
 	
 	
 	LD	HL,mode
-	RES	7,(hl)						; switch to game mode
+	RES	7,(HL)						; switch to game mode
 
 	RET
 
@@ -10892,9 +10902,9 @@ cvb_EXTRASCREEN_FRM1:
 	LD A,C
 	CALL CPYBLK_MxN
 	CALL MyNMI_off
-	ld a,2+17*8
-	ld hl,$1b00		; set in place sprite 0
-	call MYWRTVRM
+	LD a,2+17*8
+	LD HL,$1b00		; SET in place sprite 0
+	CALL MYWRTVRM
 	JP MyNMI_on
 
 
@@ -10905,9 +10915,9 @@ cvb_EXTRASCREEN_FRM2:
 	LD A,C
 	CALL CPYBLK_MxN
 	CALL MyNMI_off
-	ld a,209
-	ld hl,$1b00		; remove sprite 0
-	call MYWRTVRM
+	LD a,209
+	LD HL,$1b00		; remove sprite 0
+	CALL MYWRTVRM
 	JP MyNMI_on
 
 	;% place here the other intermission each 10xN levels
@@ -10920,7 +10930,7 @@ INTERMISSION:
 	; Show the intermission screen 
 	;
 	LD	HL,mode
-	SET	7,(hl)						; switch to intermission  mode
+	SET	7,(HL)						; switch to intermission  mode
 
 	CALL	cvb_INTERMISSION
 	CALL	INITIALIZE_THE_SOUND
@@ -10958,7 +10968,7 @@ INTERMISSION:
 	CALL	FILL_VRAM
 
 	LD	HL,mode
-	RES	7,(hl)						; switch to game mode
+	RES	7,(HL)						; switch to game mode
 
 	CALL	INIT_VRAM
 	LD		HL, GAMECONTROL
@@ -11028,7 +11038,7 @@ cvb_INTERMISSION_FRM1:
 	LD BC,5*256+14
 	LD DE,$1800+10+13*32
 	LD HL,cvb_FR1
-	ld a,14
+	LD a,14
 	JP CPYBLK_MxN
 	
 cvb_INTERMISSION_FRM2:
@@ -11042,7 +11052,7 @@ cvb_INTERMISSION_FRM2:
 	LD BC,5*256+14
 	LD DE,$1800+10+13*32
 	LD HL,cvb_FR2
-	ld a,14
+	LD a,14
 	JP CPYBLK_MxN
 
 
@@ -11113,7 +11123,7 @@ intermission_color:
 	DB $4b,$46,$eb,$68,$00,$e7,$3f,$fc;	DB $46,$eb,$68,$00,$e7,$3f,$fc,$99
 	DB $99,$37,$19,$a6,$5a,$7b,$4f,$6c;	DB $37,$19,$a6,$5a,$7b,$4f,$6c,$60
 	DB $60,$00,$82,$eb,$56,$28,$6e,$67;	DB $00,$82,$d3,$56,$36,$1c,$05,$ee
-	DB $10,$ce,$48,$bd,$2e,$51,$53,$af;	DB $58,$42,$ce,$5c,$53,$c7,$5f,$fc
+	DB $10,$ce,$48,$bd,$2e,$51,$53,$AF;	DB $58,$42,$ce,$5c,$53,$c7,$5f,$fc
 	DB $5f,$67,$3e,$00,$98,$78,$d3,$ad;	DB $9f,$00,$3c,$98,$d3,$56,$0c,$00
 	DB $0c,$00,$1d,$b8,$1e,$97,$58,$c9;	DB $8e,$b8,$8f,$97,$64,$58,$07,$84
 	DB $07,$84,$c6,$8a,$09,$c7,$8c,$4f;	DB $e3,$8a,$63,$09,$8c,$a7,$09,$8c
@@ -11145,7 +11155,7 @@ intermission_sprites:
 	DB $b0,$a7,$03,$77,$0f,$91,$2d,$7b
 	DB $00,$13,$4a,$3b,$da,$8c,$0b,$d4
 	DB $42,$63,$ce,$03,$de,$b7,$7b,$f9
-	DB $bf,$72,$c0,$73,$40,$00,$af,$05
+	DB $bf,$72,$c0,$73,$40,$00,$AF,$05
 	DB $56,$c7,$1a,$1c,$fc,$bf,$ff,$ff
 	DB $ff,$ff,$e0
 	
@@ -11194,7 +11204,7 @@ CONGRATULATION:
 	; Show the congratulation screen 
 	;
 	LD	HL,mode
-	SET	7,(hl)						; switch to intermission  mode
+	SET	7,(HL)						; switch to intermission  mode
 
 	CALL	cvb_CONGRATULATION
 	CALL	INITIALIZE_THE_SOUND
@@ -11234,7 +11244,7 @@ CONGRATULATION:
 	CALL	FILL_VRAM
 
 	LD	HL,mode
-	RES	7,(hl)						; switch to game mode
+	RES	7,(HL)						; switch to game mode
 
 	CALL	INIT_VRAM
 	LD		HL, GAMECONTROL
@@ -11285,13 +11295,13 @@ cvb_CONGRATULATION:
 	LD BC,4*256+21
 	LD DE,$1800+17*32+7
 	LD HL,cvb_universal
-	ld A,C
+	LD A,C
 	CALL CPYBLK_MxN
 
 	LD BC,10*256+7
 	LD DE,$1800+1
 	LD HL,cvb_congratulation_pattern
-	ld A,C	
+	LD A,C	
 	CALL CPYBLK_MxN
 	
 	LD BC,4*10+1
@@ -11323,7 +11333,7 @@ cvb_CONGRATULATION_FRM0:
 	LD BC,3*256+4
 	LD DE,$1800+10*32
 	LD HL,cvb_FRC0
-	ld A,C
+	LD A,C
 	JP CPYBLK_MxN
 	
 cvb_CONGRATULATION_FRM1:
@@ -11561,7 +11571,7 @@ congratulation_sprites:
 	DB $7c,$70,$9f,$73,$b5,$1e,$05,$3c
 	DB $38,$11,$9f,$75,$3c,$1c,$ce,$c3
 	DB $a9,$73,$bc,$0d,$01,$13,$e1,$61
-	DB $61,$3f,$03,$0d,$af,$88,$cb,$ae
+	DB $61,$3f,$03,$0d,$AF,$88,$cb,$ae
 	DB $b7,$5f,$39,$87,$6a,$18,$3f,$00
 	DB $00,$48,$00,$c0,$f6,$0f,$04,$8f
 	DB $9f,$40,$40,$e0,$d6,$36,$f0,$85
@@ -11577,42 +11587,42 @@ congratulation_sprites:
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 MyNMI_off:
-	push hl
-	ld hl,mode
-	set 0,(hl)
-	pop hl
-	ret
+	PUSH HL
+	LD HL,mode
+	SET 0,(HL)
+	POP HL
+	RET
 
 MyNMI_on:
-	push af
-	push hl
-	ld hl,mode
-	res 0,(hl)
+	PUSH AF
+	PUSH HL
+	LD HL,mode
+	RES 0,(HL)
 	nop
-	bit 1,(hl)
-	jp nz,nmi_handler.0
-	pop hl
-	pop af
-	ret
+	BIT 1,(HL)
+	JP nz,nmi_handler.0
+	POP HL
+	POP AF
+	RET
 
 
 cvb_MYCLS:
-	ld bc,$0300
+	LD bc,$0300
 	xor a
 	CALL MyNMI_off
-	push af
+	PUSH AF
 	XOR	A
 	OUT (CTRL_PORT),A
 	LD A,$18+$40
 	OUT (CTRL_PORT),A		; 	addr $1800
-	pop af
+	POP AF
 	dec bc		; T-states (normal / M1)
 .1:	out (DATA_PORT),a	; 11 12
 	dec bc		;  6  7
-	bit 7,b		;  8 10
-	jp z,.1		; 10 11
+	BIT 7,b		;  8 10
+	JP z,.1		; 10 11
 
-	jp MyNMI_on
+	JP MyNMI_on
 
 
 	;	HL->ROM
@@ -11623,190 +11633,190 @@ cvb_MYCLS:
 
 CPYBLK_MxN:
 	CALL MyNMI_off
-.1:	push bc
-	push af
-	push hl
-	push de
-	ld	b,0
+.1:	PUSH bc
+	PUSH AF
+	PUSH HL
+	PUSH de
+	LD	b,0
 	CALL MYLDIRVM
-	pop hl
-	ld bc,32
-	add hl,bc
-	ex de,hl
-	pop hl
-	pop af
-	ld  c,a
-	add hl,bc
-	pop bc
+	POP HL
+	LD bc,32
+	add HL,bc
+	ex de,HL
+	POP HL
+	POP AF
+	LD  c,a
+	add HL,bc
+	POP bc
 	djnz .1
-	jp MyNMI_on
+	JP MyNMI_on
 
 ; BIOS HELPER CODE
 MYWRTVDP:			; write value B in the VDP register C 
-	ld a,b
+	LD a,b
 	out (CTRL_PORT),a
-	ld a,c
+	LD a,c
 	or $80
 	out (CTRL_PORT),a
-	ret
+	RET
 
 MYMODE1:				; screen 2 with mirror mode for patterns
-	ld hl,mode
-	set 7,(hl)			; intermission mode
-	ld bc,$0200
-	ld de,$9F03	; $2000 for color table - Mirror Mode, $0000 for bitmaps  - Normal mode
-	jp vdp_chg_mode
+	LD HL,mode
+	SET 7,(HL)			; intermission mode
+	LD bc,$0200
+	LD de,$9F03	; $2000 for color table - Mirror Mode, $0000 for bitmaps  - Normal mode
+	JP vdp_chg_mode
 
 MYMODE2:				; screen 1 no mirroring
-	ld hl,mode
-	set 7,(hl)			; intermission mode
-	ld bc,$0000
-	ld de,$8000	; $2000 for color table, $0000 for bitmaps.
+	LD HL,mode
+	SET 7,(HL)			; intermission mode
+	LD bc,$0000
+	LD de,$8000	; $2000 for color table, $0000 for bitmaps.
 
 vdp_chg_mode:
-	call MyNMI_off
-	call MYWRTVDP
-	ld bc,$a201
-	call MYWRTVDP
-	ld bc,$0602	; $1800 for pattern table.
-	call MYWRTVDP
-	ld b,d
-	ld c,$03	; for color table.
-	call MYWRTVDP
-	ld b,e
-	ld c,$04	; for bitmap table.
-	call MYWRTVDP
-	ld bc,$3605	; $1b00 for sprite attribute table.
-	call MYWRTVDP
-	ld bc,$0506	; $2800 for sprites patterns.
-	call MYWRTVDP
-	ld bc,$0107
-	jp MYWRTVDP
+	CALL MyNMI_off
+	CALL MYWRTVDP
+	LD bc,$a201
+	CALL MYWRTVDP
+	LD bc,$0602	; $1800 for pattern table.
+	CALL MYWRTVDP
+	LD b,d
+	LD c,$03	; for color table.
+	CALL MYWRTVDP
+	LD b,e
+	LD c,$04	; for bitmap table.
+	CALL MYWRTVDP
+	LD bc,$3605	; $1b00 for sprite attribute table.
+	CALL MYWRTVDP
+	LD bc,$0506	; $2800 for sprites patterns.
+	CALL MYWRTVDP
+	LD bc,$0107
+	JP MYWRTVDP
 
 MYDISSCR:
 	CALL MyNMI_off
-	ld a,$a2
+	LD a,$a2
 	out (CTRL_PORT),a
-	ld a,$81
+	LD a,$81
 	out (CTRL_PORT),a
-	jp MyNMI_on
+	JP MyNMI_on
 
 MYENASCR:
 	CALL MyNMI_off
-	ld a,$e2
+	LD a,$e2
 	out (CTRL_PORT),a
-	ld a,$81
+	LD a,$81
 	out (CTRL_PORT),a
-	jp MyNMI_on
+	JP MyNMI_on
 
 MYPRINT:
-	ld a,e
+	LD a,e
 	out (CTRL_PORT),a
-	ld a,d
+	LD a,d
 	or $40
 	out (CTRL_PORT),a
 
-.1:	ld a,(hl)
+.1:	LD a,(HL)
 	and $7F
 	sub "0"
 	cp  "9"-"0"+1
-	jr nc,.2	; not in range 0-9
+	JR nc,.2	; not in range 0-9
 	add a,216	; position of "0" in the tileset
-	jr .99
+	JR .99
 .2:	add a,"0"-"A"
 	cp "Z"-"A"+1
-	jr nc,.3	; not in range A-Z
+	JR nc,.3	; not in range A-Z
 	add a,226	; position of "A" in the tileset
-	jr .99
+	JR .99
 .3: add a,"A"
 	cp " "
-	jr nz,.4
-	ld a,215	; position of " " in the tileset
-	jr .99
+	JR nz,.4
+	LD a,215	; position of " " in the tileset
+	JR .99
 .4:	cp "!"
-	jr nz,.5
-	ld a,255	; position of "!" in the tileset
-	jr .99
+	JR nz,.5
+	LD a,255	; position of "!" in the tileset
+	JR .99
 .5:	cp "."
-	jr nz,.6
-	ld a,254	; position of "." in the tileset
-	jr .99
+	JR nz,.6
+	LD a,254	; position of "." in the tileset
+	JR .99
 .6:	cp "-"
-	jr nz,.7
-	ld a,253	; position of "-" in the tileset
-	jr .99
+	JR nz,.7
+	LD a,253	; position of "-" in the tileset
+	JR .99
 .7:	cp ","
-	jr nz,.8
-	ld a,252	; position of "," in the tileset
-	jr .99
-.8:	ld a,215	; any other tile is mapped by " "	
+	JR nz,.8
+	LD a,252	; position of "," in the tileset
+	JR .99
+.8:	LD a,215	; any other tile is mapped by " "	
 .99:
 	out (DATA_PORT),a
-	ld a,(hl)
-	bit 7,a
-	ret nz	
-	inc hl
-	jr .1
+	LD a,(HL)
+	BIT 7,a
+	RET nz	
+	inc HL
+	JR .1
 
 
 MYINIRVM:				; read from DE (VRAM) to HL (RAM) BC bytes
-	ld a,e
+	LD a,e
 	out (CTRL_PORT),a
-	ld a,d
+	LD a,d
 	out (CTRL_PORT),a
 	dec bc
 	inc c
-	ld a,b
-	ld b,c
+	LD a,b
+	LD b,c
 	inc a
-	ld c,DATA_PORT
+	LD c,DATA_PORT
 .1:
 	ini
-	jp nz,.1
+	JP nz,.1
 	dec a
-	jp nz,.1
-	ret
+	JP nz,.1
+	RET
 	
 MYLDIRVM:
-	ld a,e
+	LD a,e
 	out (CTRL_PORT),a
-	ld a,d
+	LD a,d
 	or $40
 	out (CTRL_PORT),a
 	dec bc
 	inc c
-	ld a,b
-	ld b,c
+	LD a,b
+	LD b,c
 	inc a
-	ld c,DATA_PORT
+	LD c,DATA_PORT
 .1:
 	outi
-	jp nz,.1
+	JP nz,.1
 	dec a
-	jp nz,.1
-	ret
+	JP nz,.1
+	RET
 
 MYRDVRM:
-	ld a,l
+	LD a,l
 	out (CTRL_PORT),a
-	ld a,h
+	LD a,h
 	and $3f
 	out (CTRL_PORT),a
-	ld a,(ix)			; 21 cycles of delay
+	LD a,(ix)			; 21 cycles of delay
 	NOP					;  5 cycles of delay
 	in a,(DATA_PORT)	; 12 cycles of delay
-	ret
+	RET
 
 MYWRTVRM:
-	push af
-	ld a,l
+	PUSH AF
+	LD a,l
 	out (CTRL_PORT),a
-	ld a,h
+	LD a,h
 	or $40
 	out (CTRL_PORT),a
-	pop af
+	POP AF
 	out (DATA_PORT),a
-	ret
+	RET
 
 
 		;
@@ -11814,10 +11824,10 @@ MYWRTVRM:
 		;
 unpack:
 ; Initialization
-	ld a,(hl)
-	inc hl
+	LD a,(HL)
+	inc HL
 	exx
-	ld de,0
+	LD de,0
 	add a,a
 	inc a
 	rl e
@@ -11826,62 +11836,62 @@ unpack:
 	add a,a
 	rl e
 	rl e
-	ld hl,.modes
-	add hl,de
-	ld c,(hl)
-	inc hl
-	ld b,(hl)
-	push bc
-	pop ix
-	ld e,1
+	LD HL,.modes
+	add HL,de
+	LD c,(HL)
+	inc HL
+	LD b,(HL)
+	PUSH bc
+	POP ix
+	LD e,1
 	exx
-	ld iy,.loop
+	LD iy,.loop
 
 ; Main depack loop
 .literal:
-	ex af,af'
+	ex AF,AF'
 	CALL MyNMI_off
-	ld a,(hl)
-	ex de,hl
+	LD a,(HL)
+	ex de,HL
 	CALL MYWRTVRM
-	ex de,hl
-	inc hl
+	ex de,HL
+	inc HL
 	inc de
 	CALL MyNMI_on
-	ex af,af'
+	ex AF,AF'
 .loop:	 add a,a
 	CALL z,.getbit
-	jr nc,.literal
+	JR nc,.literal
 
 ; Compressed data
 	exx
-	ld h,d
-	ld l,e
+	LD h,d
+	LD l,e
 .getlen: add a,a
 	CALL z,.getbitexx
-	jr nc,.lenok
+	JR nc,.lenok
 .lus:	 add a,a
 	CALL z,.getbitexx
-	adc hl,hl
-	ret c
+	adc HL,HL
+	RET c
 	add a,a
 	CALL z,.getbitexx
-	jr nc,.lenok
+	JR nc,.lenok
 	add a,a
 	CALL z,.getbitexx
-	adc hl,hl
-	ret c
+	adc HL,HL
+	RET c
 	add a,a
 	CALL z,.getbitexx
-	jr c,.lus
-.lenok:	 inc hl
+	JR c,.lus
+.lenok:	 inc HL
 	exx
-	ld c,(hl)
-	inc hl
-	ld b,0
-	bit 7,c
-	jr z,.offsok
-	jp (ix)
+	LD c,(HL)
+	inc HL
+	LD b,0
+	BIT 7,c
+	JR z,.offsok
+	JP (ix)
 
 .mode6:	 add a,a
 	CALL z,.getbit
@@ -11900,49 +11910,49 @@ unpack:
 	rl b
 	add a,a
 	CALL z,.getbit
-	jr nc,.offsok
+	JR nc,.offsok
 	or a
 	inc b
-	res 7,c
+	RES 7,c
 .offsok: inc bc
-	push hl
+	PUSH HL
 	exx
-	push hl
+	PUSH HL
 	exx
-	ld l,e
-	ld h,d
-	sbc hl,bc
-	pop bc
-	ex af,af'
+	LD l,e
+	LD h,d
+	sbc HL,bc
+	POP bc
+	ex AF,AF'
 .loop2:
 	CALL MyNMI_off
 	CALL MYRDVRM			  ; unpack
-	ex de,hl
+	ex de,HL
 	CALL MYWRTVRM
-	ex de,hl		; 4
+	ex de,HL		; 4
 	CALL MyNMI_on
-	inc hl			; 6
+	inc HL			; 6
 	inc de			; 6
 	dec bc			; 6
-	ld a,b			; 4
+	LD a,b			; 4
 	or c			; 4
-	jr nz,.loop2	 ; 10
-	ex af,af'
-	pop hl
-	jp (iy)
+	JR nz,.loop2	 ; 10
+	ex AF,AF'
+	POP HL
+	JP (iy)
 
-.getbit: ld a,(hl)
-	inc hl
+.getbit: LD a,(HL)
+	inc HL
 	rla
-	ret
+	RET
 
 .getbitexx:
 	exx
-	ld a,(hl)
-	inc hl
+	LD a,(HL)
+	inc HL
 	exx
 	rla
-	ret
+	RET
 
 .modes:
 	dw		.offsok
@@ -12003,7 +12013,7 @@ cvb_IMAGE_CHAR:
 	DB $f3,$fd,$24,$71,$07,$2f,$3f,$1d
 	DB $7f,$02,$ff,$f0,$f8,$fc,$fc,$f8
 	DB $04,$d8,$a6,$1a,$30,$78,$7c,$4d
-	DB $07,$12,$e0,$be,$76,$af,$ed,$73
+	DB $07,$12,$e0,$be,$76,$AF,$ed,$73
 	DB $8e,$06,$08,$18,$a9,$a8,$6b,$3b
 	DB $cf,$df,$64,$9f,$5d,$00,$b8,$0b
 	DB $bc,$9d,$dd,$df,$00,$50,$b8,$63
@@ -12032,7 +12042,7 @@ cvb_IMAGE_CHAR:
 	DB $81,$fc,$a7,$72,$90,$80,$bb,$40
 	DB $88,$9e,$58,$0f,$72,$68,$2b,$e3
 	DB $c6,$12,$ff,$0e,$1c,$ca,$d1,$7c
-	DB $b0,$cf,$af,$9c,$a1,$a0,$78,$fb
+	DB $b0,$cf,$AF,$9c,$a1,$a0,$78,$fb
 	DB $4d,$dd,$fd,$02,$1c,$0e,$06,$f1
 	DB $f0,$e4,$78,$00,$c7,$b0,$74,$f0
 	DB $00,$d2,$11,$50,$78,$c0,$34,$00
@@ -12108,7 +12118,7 @@ cvb_IMAGE_COLOR:
 	DB $85,$07,$4d,$c5,$00,$c1,$ee,$00
 	DB $2d,$fb,$07,$f3,$17,$97,$2f,$81
 	DB $31,$7d,$00,$07,$e7,$47,$7a,$07
-	DB $4f,$00,$af,$f8,$85,$d9,$03,$69
+	DB $4f,$00,$AF,$f8,$85,$d9,$03,$69
 	DB $de,$6c,$b3,$00,$ca,$3c,$00,$07
 	DB $13,$a1,$ca,$81,$00,$c8,$b1,$00
 	DB $07,$a8,$8f,$00,$a1,$1d,$07,$a8
@@ -12193,7 +12203,7 @@ cvb_IMAGE_PATTERN:
 	DB $4d,$4d,$84,$85,$86,$4d,$4d,$87,$88,$89,$4d,$8a,$8b,$8c,$8d,$8e,$8f,$90,$91,$92,$93,$4d
 	DB $94,$94,$95,$96,$97,$94,$94,$98,$94,$99,$94,$9a,$9b,$9c,$9d,$9e,$9f,$94,$a0,$a1,$94,$94
 	DB $00,$a2,$a3,$a4,$a5,$00,$00,$00,$00,$00,$00,$00,$a6,$a7,$a8,$a9,$aa,$ab,$ac,$00,$00,$00
-	DB $00,$00,$ad,$ae,$af,$b0,$00,$00,$00,$00,$00,$03,$b1,$b2,$b3,$b4,$b5,$b6,$b7,$00,$00,$00
+	DB $00,$00,$ad,$ae,$AF,$b0,$00,$00,$00,$00,$00,$03,$b1,$b2,$b3,$b4,$b5,$b6,$b7,$00,$00,$00
 	DB $00,$00,$b8,$b9,$ba,$bb,$00,$00,$00,$00,$00,$35,$bc,$bd,$be,$bf,$c0,$c1,$c2,$00,$00,$00
 	DB $00,$00,$c3,$c4,$c5,$c6,$00,$00,$00,$00,$00,$00,$00,$c7,$c8,$c9,$ca,$cb,$00,$00,$00,$00
 	DB $00,$cc,$cd,$ce,$cf,$00,$00,$00,$00,$00,$00,$00,$d0,$d1,$d2,$d3,$d4,$d5,$00,$00,$00,$00
@@ -12319,7 +12329,7 @@ cvb_TILESET:
 	DB $57,$cf,$54,$1f,$c7,$79,$29,$4e
 	DB $87,$65,$fd,$fd,$6b,$79,$f2,$d7
 	DB $c3,$f3,$e5,$fc,$eb,$fe,$d2,$00
-	DB $af,$3e,$04,$04,$1d,$6e,$7c,$41
+	DB $AF,$3e,$04,$04,$1d,$6e,$7c,$41
 	DB $00,$99,$7e,$de,$05,$71,$00,$1d
 	DB $20,$60,$0c,$99,$9f,$16,$73,$59
 	DB $93,$da,$c8,$ab,$20,$20,$e1,$8f
@@ -12364,7 +12374,7 @@ cvb_PNT:
 	DB $1c,$28,$28,$2d,$47,$1e,$00,$1f
 	DB $23,$0d,$0f,$2f,$21,$22,$e0,$1e
 	DB $2e,$b2,$64,$80,$00,$02,$73,$90
-	DB $af,$66,$82,$5b,$78,$70,$06,$10
+	DB $AF,$66,$82,$5b,$78,$70,$06,$10
 	DB $26,$91,$05,$de,$1f,$00,$2b,$b1
 	DB $6a,$89,$5e,$75,$92,$ab,$00,$68
 	DB $87,$5c,$7c,$93,$18,$1a,$20,$0d
@@ -12417,7 +12427,7 @@ ARCADEFONTS:
 	DB $30,$ba,$92,$27,$c2,$e2,$0d,$b2
 	DB $9a,$8e,$86,$6e,$bf,$6d,$d8,$4f
 	DB $82,$9a,$36,$cc,$76,$0f,$38,$88
-	DB $8e,$0f,$70,$1c,$d1,$af,$10,$dd
+	DB $8e,$0f,$70,$1c,$d1,$AF,$10,$dd
 	DB $00,$67,$b6,$2f,$0e,$05,$44,$6c
 	DB $38,$07,$08,$92,$ba,$ee,$44,$07
 	DB $c6,$6c,$ae,$ce,$ba,$5f,$b9,$15
