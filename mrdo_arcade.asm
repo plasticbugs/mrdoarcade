@@ -190,11 +190,10 @@ SPTBUFF1:				RB   8	;EQU $72DF	; ?? SPT buffer
 SATBUFF2:									; MULTIPLE USE
 SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
 WORK_BUFFER:			RB  24	;EQU $72EF
-						RB 191	;EQU $7307	; ??
-DEFER_WRITES:			RB	 2	;EQU $73C6
-						RB	 8	; ??
-STORED_COLOR_POINTER:	RB	 2	;EQU $73D0	  ; 2 bytes for storing the pointer
-STORED_COLOR_DATA:		RB	 12	;EQU $73D2	  ; 12 bytes for actual color data
+WORK_BUFFER2:			RB  24	;EQU $7307	; ??
+FREEBUFF:				RB 167	;EQU $731F	;  Free ram ?
+
+DEFER_WRITES:			EQU $73C6		; System flag
 
 mode:				 EQU $73FD	; maybe unused used by OS 
 ; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
@@ -246,7 +245,7 @@ NMI:
 	CALL	WRITE_REGISTER
 	CALL	READ_REGISTER
 	LD		HL, WORK_BUFFER
-	LD		DE, $7307
+	LD		DE, WORK_BUFFER2
 	LD		BC, 18H
 	LDIR
 	LD		HL, GAMECONTROL
@@ -274,8 +273,8 @@ LOC_808D:
 	CALL	TIME_MGR
 LOC_809F:
 	CALL	POLLER
-	CALL	SUB_C952		; PLAY MUSIC
-	LD		HL, $7307
+	CALL	SUB_C952			; PLAY MUSIC
+	LD		HL, WORK_BUFFER2	; related to sprite rotation
 	LD		DE, WORK_BUFFER
 	LD		BC, 18H
 	LDIR
@@ -820,6 +819,11 @@ INIT_VRAM:
 	LD		BC, 700H
 	CALL	WRITE_REGISTER
 
+	LD		HL, CT		; avoid glitches during screen transition
+	LD		DE, 256*3
+	XOR		A			; CLEAR CT
+	CALL	FILL_VRAM
+
 	XOR		A			; SAT
 	LD		HL, SAT
 	CALL	INIT_TABLE
@@ -835,31 +839,34 @@ INIT_VRAM:
 	LD		A, 4		; CT
 	LD		HL, CT
 	CALL	INIT_TABLE
+	
 	LD		HL, 0
-	LD		DE, 4000H
-	XOR		A			; CLEAR VRAM
+	LD		DE, 2000H
+	XOR		A			; CLEAR PT,PNT,SAT
 	CALL	FILL_VRAM
-	LD		IX, VARIOUTS_PATTERNS
-LOC_844E:
-	LD		A, (IX+0)
-	AND		A
-	JR		Z, .LOAD_FONTS_AND_GRAPHICS
-	LD		B, 0
-	LD		C, A
-	PUSH	BC
-	POP		IY
-	LD		D, 0
-	LD		E, (IX+1)
-	LD		L, (IX+2)
-	LD		H, (IX+3)
-	LD		A, 3
-	PUSH	IX
-	CALL	PUT_VRAM
-	POP		IX
-	LD		BC, 4
-	ADD		IX, BC
-	JR		LOC_844E
-.LOAD_FONTS_AND_GRAPHICS:
+	
+;	LD		IX, VARIOUTS_PATTERNS
+;LOC_844E:
+;	LD		A, (IX+0)
+;	AND		A
+;	JR		Z, .LOAD_FONTS_AND_GRAPHICS
+;	LD		IYL, A		; number of tiles
+;	xor 	a
+;	LD		IYH,A			
+;	LD		D, A
+;	LD		E, (IX+1)	; position in the tileset
+;	LD		L, (IX+2)	; data address
+;	LD		H, (IX+3)
+;	LD		A, 3		; PT
+;	PUSH	IX
+;	CALL	PUT_VRAM
+;	POP		IX
+;	LD		BC, 4
+;	ADD		IX, BC
+;	JR		LOC_844E
+;.LOAD_FONTS_AND_GRAPHICS:
+
+
 	LD		A, 1BH				; Load enemies in the SPT
 LOAD_GRAPHICS:
 	PUSH	AF
@@ -878,116 +885,152 @@ LOAD_GRAPHICS:
 	LD		IY, 18H
 	LD		A, 1
 	CALL	PUT_VRAM
-	LD		HL, PHASE_01_COLORS
-	LD		DE, 0
-	LD		IY, 20H				; LOAD COLORS
-	LD		A, 4
-	CALL 	FAKECOLORS; CALL	PUT_VRAM
 	
-	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
+;	LD		HL, PHASE_01_COLORS
+;	LD		DE, 0
+;	LD		IY, 20H				; LOAD COLORS
+;	LD		A, 4
+;	CALL 	FAKECOLORS; CALL	PUT_VRAM
+	
+;	LD		BC, 1E2H
+;	CALL	WRITE_REGISTER
 
 	CALL 	MYDISSCR				; LOAD ARCADE FONTS
-	LD 		DE,PT + 8*0d7h			; start tiles here
-	LD 		HL,ARCADEFONTS
-	CALL 	unpack
 
 ; screen 2 hack
 
 	call MyNMI_off
-	ld bc,$0200
+	ld bc,$0200				; move to screen 2
 	call MYWRTVDP
 	ld bc,$9F03
 	call MYWRTVDP			; color mirrored at 2000h
 	ld bc,$0304				; $0304 for non mirrored patterns ar 0000h, $0004 for mirrored patterns
 	call MYWRTVDP			
-	
-	call FAKEPATERNS
-	CALL MyNMI_on
-	
-	LD 		DE,PT + 256*8 + 8*0d7h			; start tiles here
+
+; load graphics	
+	LD 		DE,PT
+	LD 		HL,tileset_bitmap
+	CALL 	unpack
+	LD 		DE,PT+256*8
+	LD 		HL,tileset_bitmap
+	CALL 	unpack
+	LD 		DE,PT+256*8*2
+	LD 		HL,tileset_bitmap
+	CALL 	unpack
+
+	LD 		DE,CT
+	LD		HL,tileset_color
+	CALL 	unpack
+
+; load fonts	
+	LD 		DE,PT + 8*0d7h					; start fonts here
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
-	LD 		DE,PT + 256*8*2 + 8*0d7h		; start tiles here
+	LD 		DE,PT + 256*8 + 8*0d7h			; start fonts here
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
+	LD 		DE,PT + 256*8*2 + 8*0d7h		; start fonts here
+	LD 		HL,ARCADEFONTS
+	CALL 	unpack
+	
+	LD		B,64
+	LD 		DE,CT+6*32*8
+.1:	PUSH 	BC
+	LD		HL,FONTCOLOR
+	LD		BC,8
+	PUSH	DE
+	call MyNMI_off	
+	CALL  	MYLDIRVM
+	call MyNMI_on	
+	POP 	DE
+	LD		HL,8
+	ADD 	HL,DE
+	EX 		DE,HL
+	POP 	BC
+	DJNZ	.1
 	
 	CALL 	MYENASCR	
 RET
 
-FAKEPATERNS:
-	ld	b,128
-	ld	iy,0000h
-.1:	push bc 
-	
-	push iy
-	pop de 
-	LD	hl,SPTBUFF1
-	LD	bc,8
-	call MYINIRVM
-	
-	push iy
-	pop de 
-	ld	a,8
-	add a,d
-	ld  d,a
-	LD	hl,SPTBUFF1
-	LD	bc,8
-	call MYLDIRVM
-	
-	push iy
-	pop de 
-	ld	a,16
-	add a,d
-	ld  d,a
-	LD	hl,SPTBUFF1
-	LD	bc,8
-	call MYLDIRVM
-	
-	LD	de,8
-	add iy,de
-	
-	pop bc
-	djnz .1
-	ret
+FONTCOLOR:
+	DB $41,$41,$71,$e1,$f1,$71,$41,$41
+
+;FAKEPATTERNS:
+;	ld	b,128
+;	ld	iy,0000h
+;.1:	push bc 
+;	
+;	push iy
+;	pop de 
+;	LD	hl,SPTBUFF1
+;	LD	bc,8
+;	call MYINIRVM
+;	
+;	push iy
+;	pop de 
+;	ld	a,8
+;	add a,d
+;	ld  d,a
+;	LD	hl,SPTBUFF1
+;	LD	bc,8
+;	call MYLDIRVM
+;	
+;	push iy
+;	pop de 
+;	ld	a,16
+;	add a,d
+;	ld  d,a
+;	LD	hl,SPTBUFF1
+;	LD	bc,8
+;	call MYLDIRVM
+;	
+;	LD	de,8
+;	add iy,de
+;	
+;	pop bc
+;	djnz .1
+;ret
 
 
-FAKECOLORS:		; HL ->color list
+FAKECOLORS:
+ret
+				; DE ->initial pattern
+				; HL ->color list
 				; IY ->byte numbers
 				; Color table at CT
-	call MyNMI_off
-	ld a,CT and 255
-	out (CTRL_PORT),a
-	ld a,CT/256 or $40
-	out (CTRL_PORT),a	
-	
-	ld 	c,IYL
-	
-.2:	LD	B,8*8
-.1:	LD	a,(hl)
-	out (DATA_PORT),a
-	djnz .1
-	inc hl
-	dec C
-	JR	nz,.2
-	
-	ld 	hl, icecuphack1
-	LD 	de,$2150
-	LD	bc,16
-	CALL MYLDIRVM
+;	call MyNMI_off
+;	ld a,CT and 255
+;	out (CTRL_PORT),a
+;	ld a,CT/256 or $40
+;	out (CTRL_PORT),a	
+;	
+;	ld 	c,IYL
+;	
+;.2:	LD	B,8*8
+;.1:	LD	a,(hl)
+;	out (DATA_PORT),a
+;	djnz .1
+;	inc hl
+;	dec C
+;	JR	nz,.2
+;	
+;	ld 	hl, icecuphack1
+;	LD 	de,$2150
+;	LD	bc,16
+;	CALL MYLDIRVM
+;
+;	ld 	hl, icecuphack2
+;	LD 	de,$21C0
+;	LD	bc,16
+;	CALL MYLDIRVM
+;	
+;	CALL MyNMI_on	
+;ret
 
-	ld 	hl, icecuphack2
-	LD 	de,$21C0
-	LD	bc,16
-	CALL MYLDIRVM
-	
-	CALL MyNMI_on	
-ret
-
-icecuphack1:	
-	db	$F0,$F0,$F0,$70,$70,$F0,$70,$70,$F0,$F0,$F0,$70,$70,$70,$70,$70
-icecuphack2:	
-	db	$A0,$A0,$A0,$A0,$C0,$C0,$C0,$C0,$A0,$A0,$A0,$A0,$C0,$C0,$C0,$C0
+;icecuphack1:	
+;	db	$F0,$F0,$F0,$70,$70,$F0,$70,$70,$F0,$F0,$F0,$70,$70,$70,$70,$70
+;icecuphack2:	
+;	db	$A0,$A0,$A0,$A0,$C0,$C0,$C0,$C0,$A0,$A0,$A0,$A0,$C0,$C0,$C0,$C0
 
 SUB_84F8:	 ; Disables NMI, sets up the game
 	PUSH	AF
@@ -1109,30 +1152,9 @@ DEAL_WITH_BADGUY_BEHAVIOR:
 	LD		HL, TIMER_TABLE
 	LD		DE, TIMER_DATA_BLOCK
 	CALL	INIT_TIMER
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, LOC_8603
-	LD		A, (CURRENT_LEVEL_P2)
-LOC_8603:
-	CP		0BH
-	JR		C, SEND_PHASE_COLORS_TO_VRAM
-	SUB		0AH
-	JR		LOC_8603
-
-SEND_PHASE_COLORS_TO_VRAM:
-	DEC		A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	LD		IY, PLAYFIELD_COLORS
-	ADD		IY, BC
-	LD		L, (IY+0)
-	LD		H, (IY+1)
-	LD		DE, 0
-	LD		IY, 0CH
-	LD		A, 4
-	CALL 	FAKECOLORS; CALL	PUT_VRAM
+	
+	CALL	SET_LEVEL_COLORS
+	
 	LD		HL, GAMEFLAGS
 	LD		B, 16H				; 22 bytes of GAMEFLAGS ?
 	XOR		A
@@ -6219,8 +6241,6 @@ LOC_A9F2:
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 
-EXTRASCREEN:
-
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%
 	; show the extra screen
 	LD	HL,mode
@@ -6272,9 +6292,7 @@ LOC_AA14:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA14
 
-	; Original code's final register writes
-	LD		BC, 700H		 ; R7: Border/background color
-	CALL	WRITE_REGISTER
+;	; Original code's final register writes
 	LD		BC, 1E2H		 ; Original game state register
 	CALL	WRITE_REGISTER
 RET
@@ -8529,64 +8547,199 @@ LOC_B8FE:
 	BIT		7, (HL)
 	JR		NZ, LOC_B8FE
 
+	CALL COLOR_FLASH_EXTRA
+
 	; Set red flash colors (original code)
-	LD		HL, PLAYFIELD_COLOR_FLASH_EXTRA
-	LD		DE, 0
-	LD		IY, 0CH
-	LD		A, 4
-	CALL 	FAKECOLORS; CALL	PUT_VRAM
+;	LD		HL, PLAYFIELD_COLOR_FLASH_EXTRA
+;	LD		DE, 0
+;	LD		IY, 0CH
+;	LD		A, 4
+;	CALL 	FAKECOLORS; CALL	PUT_VRAM
+
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 
-	; Store current level's color pointer
-	LD		A, (CURRENT_LEVEL_P1)
-	DEC		A			; Adjust for 0-based index
-	ADD		A, A		; Multiply by 2 for word-sized entries
-	LD		HL, PLAYFIELD_COLORS
-	LD		B, 0
-	LD		C, A
-	ADD		HL, BC	   ; HL now points to the correct pointer
-	LD		(STORED_COLOR_POINTER), HL
-
 	POP		IY
-	RET
-PLAYFIELD_COLOR_FLASH_EXTRA:
-	DB 000,025,137,144,128,240,240,160,160,128,153,144,000
+RET
+	
+COLOR_FLASH_EXTRA:
+	LD	A,11
+	CALL SET_LEVEL_COLORS.RESTORE_COLORS
+RET
+	
+	
 RESTORE_PLAYFIELD_COLORS:
-	PUSH	IY
+	PUSH	IY					; Calculate correct level colors using original logic
+	CALL	SET_LEVEL_COLORS
+	LD		BC, 1E2H
+	CALL	WRITE_REGISTER
+	POP		IY
+RET
 
-	; Calculate correct level colors using original logic
+SET_LEVEL_COLORS:
 	LD		A, (GAMECONTROL)
 	BIT		1, A
 	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, USE_CURRENT_LEVEL
+	JR		Z, .PLY1
 	LD		A, (CURRENT_LEVEL_P2)
-USE_CURRENT_LEVEL:
+.PLY1:
 	CP		0BH
-	JR		C, CONTINUE_RESTORE
+	JR		C, .RESTORE_COLORS
 	SUB		0AH
-	JR		USE_CURRENT_LEVEL
-CONTINUE_RESTORE:
+	JR		.PLY1
+.RESTORE_COLORS:
 	DEC		A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	LD		IY, PLAYFIELD_COLORS
-	ADD		IY, BC
-	LD		L, (IY+0)
-	LD		H, (IY+1)
+	ADD		A,A		;x8
+	ADD		A,A
+	ADD		A,A
+	LD		L,A
+	LD		H,0
+	
+	call MyNMI_off	
+	
+	PUSH	HL
+		
+	LD		DE,PT+32*3*8		; copy background
+	ADD 	HL,DE
+	EX 		DE,HL
+	LD		HL,SPTBUFF1
+	LD 		BC,8
+	CALL	MYINIRVM			
 
-	; Restore the colors
-	LD		DE, 0
-	LD		IY, 0CH
-	LD		A, 4
-	CALL 	FAKECOLORS; CALL	PUT_VRAM
+	LD		B,5
+	LD		DE,PT+(32*2+16)*8
+	CALL 	REPCOL				; plot background 5 times
+	LD		B,5
+	LD		DE,PT+(32*2+16)*8 + 256*8
+	CALL 	REPCOL				; plot background 5 times
+	LD		B,5
+	LD		DE,PT+(32*2+16)*8 + 256*2*8
+	CALL 	REPCOL				; plot background 5 times
 
-	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
+	POP 	HL
+	PUSH	HL
+	
+	LD		DE,CT+32*3*8		; copy background
+	ADD 	HL,DE
+	EX 		DE,HL
+	LD		HL,SPTBUFF1
+	LD 		BC,8
+	CALL	MYINIRVM
+	
+	LD		B,5
+	LD		DE,CT+(32*2+16)*8
+	CALL 	REPCOL				; plot background 5 times
 
-	POP		IY
-	RET
+	POP 	HL
+	ADD		HL,HL				; a*16
+	PUSH	HL
+	
+	LD		DE,PT+32*4*8		; cherry top  tiles
+	ADD 	HL,DE
+	EX 		DE,HL
+	LD		HL,FREEBUFF
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2
+	CALL	MYINIRVM
+
+	LD		DE,PT+(8)*8
+	LD		HL,FREEBUFF
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+	LD		DE,PT+(8)*8 + 256*8
+	LD		HL,FREEBUFF
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+	LD		DE,PT+(8)*8 + 256*2*8
+	LD		HL,FREEBUFF
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+
+	POP 	HL
+	PUSH    HL 
+
+	LD		DE,CT+32*4*8
+	ADD 	HL,DE
+	EX 		DE,HL
+	LD		HL,FREEBUFF
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2
+	CALL	MYINIRVM
+
+	LD		HL,FREEBUFF
+	LD		DE,CT+(8)*8
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+
+	POP 	HL
+	PUSH    HL 
+
+	LD		DE,PT+32*5*8
+	ADD 	HL,DE
+	EX 		DE,HL
+	LD		HL,FREEBUFF
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2
+	CALL	MYINIRVM
+
+	LD		HL,FREEBUFF
+	LD		DE,PT+(16)*8
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+	LD		HL,FREEBUFF
+	LD		DE,PT+(16)*8 + 256*8
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+	LD		HL,FREEBUFF
+	LD		DE,PT+(16)*8 + 256*2*8
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+
+	POP 	HL
+	PUSH    HL 
+
+	LD		DE,CT+32*5*8
+	ADD 	HL,DE
+	EX 		DE,HL
+	LD		HL,FREEBUFF
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2
+	CALL	MYINIRVM
+
+	LD		HL,FREEBUFF
+	LD		DE,CT+(16)*8
+	LD 		BC,16				; using SPTBUFF1+SPTBUFF2	
+	CALL 	MYLDIRVM
+	
+	POP 	HL 
+	call 	MyNMI_on
+	
+	ADD		HL,HL
+	ADD		HL,HL
+	ADD		HL,HL
+	ADD		HL,HL
+	LD		E,H
+	LD 		D,0
+	LD		HL, staticcolors
+	ADD		HL,DE
+	LD		A,(HL)
+	LD		DE,8*8
+	LD		HL,CT+(2*32+24)*8
+	CALL	FILL_VRAM
+RET
+
+staticcolors:
+	DB $21,$71,$41,$D1,$A1,$71,$A1,$31,$B1,$71,$91
+
+REPCOL:				; In B # of times, DE VRAM addr
+.1:	PUSH 	BC
+	LD		HL,SPTBUFF1
+	LD 		BC,8
+	PUSH	DE
+	call 	MYLDIRVM
+	POP		DE
+	LD		HL,8
+	ADD 	HL,DE
+	EX      DE,HL
+	POP 	BC
+	DJNZ	.1
+RET
 
 EXTRA_BEHAVIOR:
 	DW PHASE_01_EX
@@ -9222,129 +9375,234 @@ BALL_SPRITE_PAT:
 	DB 000,000,008,000,000,000,000,000
 	DB 000,000,000,000,008,000,000,000
 
-VARIOUTS_PATTERNS:
-	DB 001,000
-	DW BLANK_LINE_PAT
-	DB 002,008
-	DW CHERRY_TOP_PAT
-	DB 002,016
-	DW CHERRY_BOTTOM_PAT
-	DB 004,024
-	DW GUMDROP_PAT
-	DB 006,032
-	DW WHEAT_SQUARE_PAT
-	DB 015,040
-	DW HUD_PATS_01
-	DB 016,056
-	DW HUD_PATS_02
-	DB 005,072
-	DW EXTRA_PATS
-	DB 005,080
-	DW PLAYFIELD_PATS
-	DB 008,088
-	DW HALLWAY_BORDER_PAT
-	DB 004,112
-	DW BADGUY_OUTLINE_PAT
-	DB 002,120
-	DW HUD_PATS_01
-	DB 006,208
-	DW Bonus
-	DB 0	; list terminator
-	
-	;500 and 1000 tiles
-Bonus:
-	DB $00,$00,$0e,$0e,$08,$08,$08,$0c	; 5 up
-	DB $0e,$02,$02,$0a,$0a,$0e,$04,$00	; 5 dwn
-	DB $00,$00,$44,$ee,$aa,$aa,$aa,$aa	; 00 up
-	DB $aa,$aa,$aa,$aa,$aa,$ee,$44,$00	; 00 dwn
-	DB $00,$00,$44,$ce,$4a,$4a,$4a,$4a	; 10 up
-	DB $4a,$4a,$4a,$4a,$4a,$4e,$e4,$00	; 10 dwn
+;VARIOUTS_PATTERNS:
+;	DB 001,000
+;	DW BLANK_LINE_PAT
+;	DB 002,008
+;	DW CHERRY_TOP_PAT
+;	DB 002,016
+;	DW CHERRY_BOTTOM_PAT
+;	DB 004,024
+;	DW GUMDROP_PAT
+;	DB 006,032
+;	DW WHEAT_SQUARE_PAT
+;	DB 015,040
+;	DW HUD_PATS_01
+;	DB 016,056
+;	DW HUD_PATS_02
+;	DB 005,072
+;	DW EXTRA_PATS
+;	DB 005,080
+;	DW PLAYFIELD_PATS
+;	DB 008,088
+;	DW HALLWAY_BORDER_PAT
+;	DB 004,112
+;	DW BADGUY_OUTLINE_PAT
+;	DB 002,120
+;	DW HUD_PATS_01
+;	DB 006,208
+;	DW Bonus
+;	DB 0	; list terminator
+;	
+;	;500 and 1000 tiles
+;Bonus:
+;	DB $00,$00,$0e,$0e,$08,$08,$08,$0c	; 5 up
+;	DB $0e,$02,$02,$0a,$0a,$0e,$04,$00	; 5 dwn
+;	DB $00,$00,$44,$ee,$aa,$aa,$aa,$aa	; 00 up
+;	DB $aa,$aa,$aa,$aa,$aa,$ee,$44,$00	; 00 dwn
+;	DB $00,$00,$44,$ce,$4a,$4a,$4a,$4a	; 10 up
+;	DB $4a,$4a,$4a,$4a,$4a,$4e,$e4,$00	; 10 dwn
+;
+;
+;BLANK_LINE_PAT:
+;	DB 000,000,000,000,000,000,000,000
+;CHERRY_TOP_PAT:
+;	DB 000,000,000,000,000,000,000,001
+;	DB 000,000,000,016,040,072,136,016
+;CHERRY_BOTTOM_PAT:
+;	DB 014,029,031,031,014,000,000,000
+;	DB 056,116,124,124,056,000,000,000
+;GUMDROP_PAT:
+;	DB 000,000,003,007,011,012,031,031
+;	DB 000,000,192,224,208,048,176,088
+;	DB 030,013,003,001,000,000,000,000
+;	DB 096,160,088,188,052,024,000,000
+;WHEAT_SQUARE_PAT:
+;	DB 000,000,054,063,022,056,059,019
+;	DB 000,000,192,192,128,000,108,252
+;	DB 057,051,003,001,003,003,000,000
+;	DB 104,252,252,104,252,108,000,000
+;	DB 048,012,051,012,003,000,000,000 ; Cake bottom
+;	DB 028,100,152,096,128,000,000,000
+;BADGUY_OUTLINE_PAT:
+;	DB 000,000,000,031,048,033,034,034
+;	DB 049,016,016,048,096,063,062,000
+;	DB 000,000,000,240,024,140,068,068
+;	DB 140,024,016,016,048,224,248,000
+;HUD_PATS_01:
+;	DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
+;	DB 204,018,061,055,028,014,000,000
+;	DB 000,000,001,003,001,014,031,030 ; Ice Cream dessert top unaligned
+;	DB 000,000,128,200,144,032,080,184
+;	DB 000,000,003,006,019,060,031,003 ; Top of Cake
+;	DB 000,000,000,128,060,252,240,128
+;	DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
+;	DB 000,000,224,080,184,100,216,240
+;	DB 011,005,002,001,000,000,000,000
+;	DB 160,064,128,000,000,000,000,000
+;	DB 000,254,128,248,128,128,254,000 ; E
+;	DB 000,198,108,024,048,108,198,000 ; XTRA
+;	DB 000,254,016,016,016,016,016,000
+;	DB 000,252,134,134,252,136,142,000
+;	DB 000,056,108,198,130,254,130,000
+;HUD_PATS_02:
+;	DB 032,031,007,001,003,007,000,000 ; Bottom of Ice Cream, Extra border
+;	DB 004,248,224,128,192,224,000,000
+;	DB 255,255,192,192,192,192,192,192
+;	DB 192,192,192,192,192,192,192,192
+;	DB 192,192,192,192,192,192,255,255 ; Extra Border Box
+;	DB 255,255,000,000,000,000,000,000
+;	DB 000,000,000,000,000,000,255,255
+;	DB 255,255,003,003,003,003,003,003
+;	DB 003,003,003,003,003,003,003,003 ; Border box
+;	DB 003,003,003,003,003,003,255,255
+;
+;	DB $00,$47,$cc,$47,$41,$4c,$e7,$00 ; 1ST Text
+;	DB $00,$cf,$61,$01,$c1,$61,$c1,$00
+;	DB $00,$e0,$00,$00,$00,$00,$00,$00
+;	DB $00,$7c,$c6,$06,$7c,$c0,$fe,$00 ; 2ND Text
+;	DB $00,$c2,$e2,$b2,$9a,$8e,$86,$00
+;	DB $00,$fc,$86,$82,$82,$86,$fc,$00
+;	
+;EXTRA_PATS:
+;	DB 000,254,128,248,128,128,254,000 ; EXTRA TEXT HUD (RED)
+;	DB 000,198,108,024,048,108,198,000
+;	DB 000,254,016,016,016,016,016,000
+;	DB 000,252,134,134,252,136,142,000
+;	DB 000,056,108,198,130,254,130,000
+;PLAYFIELD_PATS:
+;    DB 112,112,255,255,014,014,255,255 ; Brick pattern
+;	DB 241,227,199,143,031,062,124,248 ; Diagonal Stripes
+;    DB 015,153,240,096,240,153,015,006 ; cross hatch
+;    DB 031,014,000,000,224,241,255,255 ; wavy horizontal
+;    DB 031,014,000,000,224,241,255,255 ; wavy horizontal
+;HALLWAY_BORDER_PAT:
+;	DB 192,192,128,128,192,192,128,128
+;	DB 001,001,003,003,001,001,003,003
+;	DB 255,204,000,000,000,000,000,000
+;	DB 000,000,000,000,000,000,051,255
+;	DB 255,204,128,128,192,192,128,128
+;	DB 255,205,003,003,001,001,003,003
+;	DB 192,192,128,128,192,192,179,255
+;	DB 001,001,003,003,001,001,051,255
+
+;%%%%%%%%%%%%%%%%%%%%%%%%
+; Multicolor Compressed Tileset
 
 
-BLANK_LINE_PAT:
-	DB 000,000,000,000,000,000,000,000
-CHERRY_TOP_PAT:
-	DB 000,000,000,000,000,000,000,001
-	DB 000,000,000,016,040,072,136,016
-CHERRY_BOTTOM_PAT:
-	DB 014,029,031,031,014,000,000,000
-	DB 056,116,124,124,056,000,000,000
-GUMDROP_PAT:
-	DB 000,000,003,007,011,012,031,031
-	DB 000,000,192,224,208,048,176,088
-	DB 030,013,003,001,000,000,000,000
-	DB 096,160,088,188,052,024,000,000
-WHEAT_SQUARE_PAT:
-	DB 000,000,054,063,022,056,059,019
-	DB 000,000,192,192,128,000,108,252
-	DB 057,051,003,001,003,003,000,000
-	DB 104,252,252,104,252,108,000,000
-	DB 048,012,051,012,003,000,000,000 ; Cake bottom
-	DB 028,100,152,096,128,000,000,000
-BADGUY_OUTLINE_PAT:
-	DB 000,000,000,031,048,033,034,034
-	DB 049,016,016,048,096,063,062,000
-	DB 000,000,000,240,024,140,068,068
-	DB 140,024,016,016,048,224,248,000
-HUD_PATS_01:
-	DB 000,028,046,120,086,117,109,086 ; Mr. Do Extra Life Marker
-	DB 204,018,061,055,028,014,000,000
-	DB 000,000,001,003,001,014,031,030 ; Ice Cream dessert top unaligned
-	DB 000,000,128,200,144,032,080,184
-	DB 000,000,003,006,019,060,031,003 ; Top of Cake
-	DB 000,000,000,128,060,252,240,128
-	DB 000,000,014,021,059,076,055,031 ; Diamond pieces not lined up
-	DB 000,000,224,080,184,100,216,240
-	DB 011,005,002,001,000,000,000,000
-	DB 160,064,128,000,000,000,000,000
-	DB 000,254,128,248,128,128,254,000 ; E
-	DB 000,198,108,024,048,108,198,000 ; XTRA
-	DB 000,254,016,016,016,016,016,000
-	DB 000,252,134,134,252,136,142,000
-	DB 000,056,108,198,130,254,130,000
-HUD_PATS_02:
-	DB 032,031,007,001,003,007,000,000 ; Bottom of Ice Cream, Extra border
-	DB 004,248,224,128,192,224,000,000
-	DB 255,255,192,192,192,192,192,192
-	DB 192,192,192,192,192,192,192,192
-	DB 192,192,192,192,192,192,255,255 ; Extra Border Box
-	DB 255,255,000,000,000,000,000,000
-	DB 000,000,000,000,000,000,255,255
-	DB 255,255,003,003,003,003,003,003
-	DB 003,003,003,003,003,003,003,003 ; Border box
-	DB 003,003,003,003,003,003,255,255
+tileset_bitmap:
+	DB $5f,$00,$f8,$00,$ff,$d9,$00,$fe
+	DB $80,$03,$ef,$d7,$b7,$77,$ef,$df
+	DB $e0,$3f,$0e,$1d,$1f,$1f,$60,$0e
+	DB $3c,$38,$74,$7c,$33,$7c,$38,$07
+	DB $d5,$80,$81,$03,$07,$0b,$50,$0c
+	DB $43,$07,$c0,$e0,$d0,$00,$30,$f8
+	DB $d8,$1f,$0f,$01,$03,$01,$c0,$15
+	DB $a8,$68,$98,$bc,$35,$bc,$18,$78
+	DB $3f,$36,$3f,$0c,$16,$38,$3b,$13
+	DB $3f,$00,$c0,$80,$00,$6c,$fc,$39
+	DB $33,$03,$90,$40,$03,$0d,$68,$fc
+	DB $fc,$90,$02,$6c,$07,$30,$0c,$33
+	DB $50,$0c,$0e,$00,$1c,$64,$98,$35
+	DB $60,$80,$e0,$3e,$1c,$2e,$78,$56
+	DB $00,$75,$6d,$56,$cc,$12,$3d,$37
+	DB $1c,$76,$0e,$10,$08,$7f,$0e,$1f
+	DB $1e,$07,$80,$c8,$0c,$90,$20,$50
+	DB $b8,$9f,$01,$06,$13,$3c,$1f,$c1
+	DB $42,$80,$3c,$fc,$f0,$80,$42,$0e
+	DB $15,$3b,$4c,$37,$c0,$af,$e0,$80
+	DB $1c,$64,$d8,$f0,$0b,$05,$02,$71
+	DB $01,$35,$a0,$40,$e0,$5d,$fe,$80
+	DB $f8,$10,$80,$80,$fe,$07,$c6,$6c
+	DB $18,$18,$30,$6c,$c6,$0f,$10,$e8
+	DB $00,$07,$fc,$86,$09,$86,$fc,$88
+	DB $8e,$07,$38,$0d,$14,$82,$fe,$82
+	DB $41,$7e,$20,$1f,$07,$20,$70,$07
+	DB $07,$04,$f8,$e0,$80,$8f,$81,$26
+	DB $8f,$c0,$b9,$00,$cb,$a2,$f9,$b5
+	DB $35,$03,$cc,$00,$25,$02,$47,$cc
+	DB $47,$41,$4c,$e7,$22,$03,$cf,$61
+	DB $01,$c1,$61,$c1,$07,$a6,$80,$32
+	DB $7c,$c6,$06,$7c,$c0,$c0,$97,$c2
+	DB $07,$e2,$b2,$9a,$8e,$86,$02,$8f
+	DB $82,$82,$91,$1e,$a8,$af,$3f,$88
+	DB $00,$70,$8f,$73,$0e,$f1,$c0,$03
+	DB $1c,$38,$70,$e0,$00,$c1,$83,$07
+	DB $0f,$66,$f0,$9f,$f0,$0c,$66,$0f
+	DB $f9,$1f,$13,$33,$e0,$0e,$03,$39
+	DB $07,$a0,$ef,$d2,$3f,$b5,$b9,$7d
+	DB $03,$01,$8b,$b5,$8d,$03,$ff,$cc
+	DB $e2,$1d,$33,$ff,$0f,$d8,$1f,$ff
+	DB $cd,$db,$1f,$63,$2f,$b3,$ff,$6b
+	DB $2f,$1f,$5f,$be,$7f,$27,$fb,$0f
+	DB $f9,$07,$8f,$8b,$1f,$f1,$0b,$ed
+	DB $00,$de,$c7,$80,$1f,$30,$21,$22
+	DB $22,$44,$31,$b3,$30,$60,$38,$3f
+	DB $3e,$0f,$f0,$18,$06,$8c,$44,$44
+	DB $8c,$18,$1a,$10,$e0,$f8,$ad,$3d
+	DB $fc,$ff,$ff,$f3,$bf,$6b,$ff,$7f
+	DB $0f,$c3,$e1,$ff,$bc,$ff,$0f,$e0
+	DB $f1,$0f,$83,$e7,$0f,$b0,$1f,$f1
+	DB $e2,$e0,$72,$e0,$e6,$07,$c7,$8b
+	DB $83,$83,$c7,$f7,$0f,$f7,$3f,$f7
+	DB $1f,$f7,$4f,$ae,$6b,$3f,$fc,$ff
+	DB $3f,$ff,$ff,$ff,$f0
 
-	DB $00,$47,$cc,$47,$41,$4c,$e7,$00 ; 1ST Text
-	DB $00,$cf,$61,$01,$c1,$61,$c1,$00
-	DB $00,$e0,$00,$00,$00,$00,$00,$00
-	DB $00,$7c,$c6,$06,$7c,$c0,$fe,$00 ; 2ND Text
-	DB $00,$c2,$e2,$b2,$9a,$8e,$86,$00
-	DB $00,$fc,$86,$82,$82,$86,$fc,$00
-	
-EXTRA_PATS:
-	DB 000,254,128,248,128,128,254,000 ; EXTRA TEXT HUD (RED)
-	DB 000,198,108,024,048,108,198,000
-	DB 000,254,016,016,016,016,016,000
-	DB 000,252,134,134,252,136,142,000
-	DB 000,056,108,198,130,254,130,000
-PLAYFIELD_PATS:
-    DB 112,112,255,255,014,014,255,255 ; Brick pattern
-	DB 241,227,199,143,031,062,124,248 ; Diagonal Stripes
-    DB 015,153,240,096,240,153,015,006 ; cross hatch
-    DB 031,014,000,000,224,241,255,255 ; wavy horizontal
-    DB 031,014,000,000,224,241,255,255 ; wavy horizontal
-HALLWAY_BORDER_PAT:
-	DB 192,192,128,128,192,192,128,128
-	DB 001,001,003,003,001,001,003,003
-	DB 255,204,000,000,000,000,000,000
-	DB 000,000,000,000,000,000,051,255
-	DB 255,204,128,128,192,192,128,128
-	DB 255,205,003,003,001,001,003,003
-	DB 192,192,128,128,192,192,179,255
-	DB 001,001,003,003,001,001,051,255
+tileset_color:
+	DB $5f,$f1,$f8,$00,$21,$fc,$00,$df
+	DB $e0,$3f,$92,$82,$62,$82,$67,$92
+	DB $37,$de,$07,$ac,$81,$1a,$b1,$7d
+	DB $00,$07,$0e,$00,$81,$61,$61,$15
+	DB $e6,$07,$81,$af,$25,$3f,$81,$00
+	DB $91,$01,$a5,$07,$03,$76,$09,$0c
+	DB $6b,$37,$57,$07,$00,$4f,$da,$07
+	DB $e8,$00,$71,$77,$71,$02,$3a,$07
+	DB $71,$07,$36,$1d,$a1,$b1,$e1,$17
+	DB $e3,$07,$71,$b7,$21,$3b,$07,$08
+	DB $f5,$98,$00,$a1,$00,$e1,$7b,$e1
+	DB $6e,$07,$df,$00,$db,$35,$e7,$25
+	DB $da,$2c,$9e,$07,$9a,$32,$b3,$07
+	DB $81,$4d,$00,$56,$07,$df,$03,$00
+	DB $c3,$32,$c1,$21,$8d,$03,$75,$74
+	DB $8d,$01,$d7,$76,$82,$01,$a6,$da
+	DB $61,$d1,$03,$8e,$60,$a7,$a3,$03
+	DB $35,$71,$31,$f9,$ff,$df,$00,$b7
+	DB $1d,$f6,$00,$bf,$47,$7f,$11,$d1
+	DB $61,$15,$03,$a8,$a6,$0f,$03,$20
+	DB $d3,$e3,$d3,$e1,$d1,$82,$03,$31
+	DB $31,$b7,$b3,$e9,$75,$03,$1f,$1c
+	DB $3a,$41,$51,$03,$91,$f3,$00,$77
+	DB $13,$c2,$81,$73,$00,$5e,$0f,$fd
+	DB $9b,$00,$e1,$da,$00,$ab,$67,$bf
+	DB $71,$e3,$00,$41,$f1,$00,$d1,$f9
+	DB $00,$fc,$bf,$ff,$bf,$3f,$9f,$1f
+	DB $31,$8f,$00,$b1,$cf,$00,$ef,$3f
+	DB $8f,$cf,$ae,$1f,$d7,$74,$ff,$e0
+	DB $97,$87,$76,$87,$97,$cf,$77,$81
+	DB $07,$94,$84,$64,$84,$94,$83,$f7
+	DB $e0,$07,$d9,$d8,$d6,$d8,$60,$d9
+	DB $f7,$f9,$07,$a9,$33,$8c,$a8,$a9
+	DB $07,$d7,$df,$07,$df,$3f,$c0,$1f
+	DB $93,$83,$63,$83,$93,$c1,$f7,$f0
+	DB $07,$b9,$b8,$b6,$30,$b8,$b9,$f7
+	DB $7d,$07,$fc,$3f,$98,$2c,$98,$96
+	DB $02,$f7,$1f,$6b,$07,$fc,$ff,$3f
+	DB $ff,$ff,$ff,$f0
 
-;	DB 0 ; list terminator ?? not needed here
 
+
+;%%%%%%%%%%%%%%%%%%%%%%%%
+; sound
 SUB_C952:
 	CALL	PLAY_SONGS
 	JP		SOUND_MAN
@@ -11227,7 +11485,6 @@ CONGRATULATION:
 .3:
 	BIT		7, (HL)
 	JR		NZ, .3
-
 	RET	
 
 cvb_CONGRATULATION:
@@ -11632,7 +11889,7 @@ CPYBLK_MxN:
 	jp MyNMI_on
 
 ; BIOS HELPER CODE
-MYWRTVDP:
+MYWRTVDP:			; write value B in the VDP register C 
 	ld a,b
 	out (CTRL_PORT),a
 	ld a,c
