@@ -202,6 +202,34 @@ mode:				 EQU $73FD	; maybe unused used by OS
 ; B3-B6 spare
 ; B7==0 -> game mode, 	B7==1 -> intermission mode
 
+P1_LEVEL1_SEC:    EQU $7720    ; Player 1 level 1 seconds
+P1_LEVEL1_MIN:    EQU $7721    ; Player 1 level 1 minutes
+P1_LEVEL2_SEC:    EQU $7722    ; Player 1 level 2 seconds
+P1_LEVEL2_MIN:    EQU $7723    ; Player 1 level 2 minutes
+P1_LEVEL3_SEC:    EQU $7724    ; Player 1 level 3 seconds
+P1_LEVEL3_MIN:    EQU $7725    ; Player 1 level 3 minutes
+
+P1_PREV_SCORE:    EQU $7726    ; 2 bytes - Previous total score for P1
+P1_LEVEL1_SCORE:  EQU $7728    ; 2 bytes - Level 1 score
+P1_LEVEL2_SCORE:  EQU $772A    ; 2 bytes - Level 2 score
+P1_LEVEL3_SCORE:  EQU $772C    ; 2 bytes - Level 3 score
+
+
+P2_LEVEL1_SEC:    EQU $74D6    ; Player 2 level 1 seconds
+P2_LEVEL1_MIN:    EQU $74D7    ; Player 2 level 1 minutes
+P2_LEVEL2_SEC:    EQU $74D8    ; Player 2 level 2 seconds
+P2_LEVEL2_MIN:    EQU $74D9    ; Player 2 level 2 minutes
+P2_LEVEL3_SEC:    EQU $74DA    ; Player 2 level 3 seconds
+P2_LEVEL3_MIN:    EQU $74DB    ; Player 2 level 3 minutes
+
+P2_PREV_SCORE:    EQU $74DC    ; 2 bytes - Previous total score for P2
+P2_LEVEL1_SCORE:  EQU $74DE    ; 2 bytes - Level 1 score
+P2_LEVEL2_SCORE:  EQU $74E0    ; 2 bytes - Level 2 score
+P2_LEVEL3_SCORE:  EQU $74E2    ; 2 bytes - Level 3 score
+
+FRAME_COUNT:      EQU $7703    ; Shared frame counter (0-59)
+
+
 
 FNAME "mrdo_arcade.rom"
 ;	CPU Z80
@@ -287,6 +315,7 @@ LOC_809F:
 LOC_80BB:
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
+	CALL	DEAL_WITH_TIMER
 FINISH_NMI:
 	POP		IY
 	POP		IX
@@ -301,6 +330,88 @@ FINISH_NMI:
 	POP		BC
 	POP		AF
 	RETN
+DEAL_WITH_TIMER:
+    ; First increment shared frame counter
+    LD      A, (FRAME_COUNT)
+    INC     A
+    CP      60              
+    JR      NZ, .store_frame
+    
+    ; We hit 60 frames, need to increment seconds
+    XOR     A              
+    LD      (FRAME_COUNT), A
+    
+    ; Check which player is active
+    LD      A, (GAMECONTROL)
+    BIT     1, A           
+    JR      Z, .setup_p1_timer
+    
+.setup_p2_timer:
+    LD      A, (CURRENT_LEVEL_P2)
+    LD      IY, P2_LEVEL1_SEC   
+    JR      .check_level_type
+
+.setup_p1_timer:
+    LD      A, (CURRENT_LEVEL_P1)
+    LD      IY, P1_LEVEL1_SEC   
+
+.check_level_type:
+    ; First check if it's a multiple of 10
+    LD      B, 10
+    PUSH    AF
+    CALL    MOD_B           ; Get level mod 10
+    AND     A               ; Check if remainder is 0
+    POP     BC             ; Restore original level number to B
+    JR      Z, .use_first_slot   ; If multiple of 10, use first slot
+    
+    ; Not a multiple of 10, calculate based on remainder
+    LD      A, B            ; Get level number back
+    LD      B, 10
+    CALL    MOD_B           ; Get remainder after dividing by 10
+    DEC     A               ; Convert to 0-based for the remainder
+    LD      B, 3
+    CALL    MOD_B           ; Get mod 3 (0,1,2)
+    ADD     A, A            ; Multiply by 2 for offset
+    
+    ; Add offset to IY
+    PUSH    BC
+    LD      B, 0
+    LD      C, A
+    PUSH    IY
+    POP     HL              
+    ADD     HL, BC          
+    PUSH    HL
+    POP     IY              
+    POP     BC
+    JR      .update_timer
+
+.use_first_slot:
+    ; IY is already pointing to first slot
+    
+.update_timer:
+    ; Update seconds for current level
+    LD      A, (IY+0)      ; Load current seconds
+    INC     A
+    CP      60
+    JR      NZ, .store_seconds
+    
+    ; Hit 60 seconds, increment minutes
+    XOR     A              ; Reset seconds
+    LD      (IY+0), A     ; Store seconds
+    LD      A, (IY+1)     ; Load minutes
+    INC     A
+    LD      (IY+1), A     ; Store minutes
+    RET
+    
+.store_seconds:
+    LD      (IY+0), A     ; Store seconds
+    RET
+    
+.store_frame:
+    LD      (FRAME_COUNT), A
+    RET
+
+
 
 SUB_80D1:
 	LD		HL, $7259
@@ -1012,6 +1123,18 @@ SUB_851C:	; If we're here, the game just started
 	LD		HL, 0
 	LD		(SCORE_P1_RAM), HL
 	LD		(SCORE_P2_RAM), HL
+	LD    (P1_LEVEL1_MIN), HL
+	LD    (P1_LEVEL2_MIN), HL
+	LD    (P1_LEVEL3_MIN), HL
+	LD    (P1_LEVEL1_SEC), HL
+	LD    (P1_LEVEL2_SEC), HL
+	LD    (P1_LEVEL3_SEC), HL
+	LD    (P2_LEVEL1_MIN), HL
+	LD    (P2_LEVEL2_MIN), HL
+	LD    (P2_LEVEL3_MIN), HL
+	LD    (P2_LEVEL1_SEC), HL
+	LD    (P2_LEVEL2_SEC), HL
+	LD    (P2_LEVEL3_SEC), HL
 	LD		A, 1	; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1), A
 	LD		(CURRENT_LEVEL_P2), A
@@ -6292,6 +6415,95 @@ SUB_AA25: ; Level complete, load next level
 LOC_AA2A:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA2A
+
+CALCULATE_LEVEL_SCORE:    
+    ; Check which player
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, .calc_p1_score
+    
+.calc_p2_score:
+    LD      HL, (SCORE_P2_RAM)    ; Get current total score
+    LD      DE, (P2_PREV_SCORE)   ; Get previous total score
+    LD      IY, P2_LEVEL1_SCORE   ; Base address for P2 scores ($74DE)
+    LD      A, (CURRENT_LEVEL_P2)  ; Get P2's level
+    JR      .calc_difference
+    
+.calc_p1_score:
+    LD      HL, (SCORE_P1_RAM)    ; Get current total score
+    LD      DE, (P1_PREV_SCORE)   ; Get previous total score
+    LD      IY, P1_LEVEL1_SCORE   ; Base address for P1 scores
+    LD      A, (CURRENT_LEVEL_P1)  ; Get P1's level
+    
+.calc_difference:
+    ; First check if it's level 10 or multiple of 10
+    PUSH    HL              ; Save current score
+    DEC     A               ; Convert to completed level
+    LD      B, 10
+    CALL    MOD_B          ; Check if multiple of 10
+    AND     A               ; Check if remainder is 0
+    POP     HL              ; Restore current score
+    JR      Z, .use_first_slot    ; If multiple of 10, use first slot
+    
+    ; For all other levels, calculate based on remainder after division by 10
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, .get_p1_level
+    
+.get_p2_level:
+    LD      A, (CURRENT_LEVEL_P2)
+    JR      .continue_calc
+    
+.get_p1_level:
+    LD      A, (CURRENT_LEVEL_P1)
+    
+.continue_calc:
+    DEC     A               ; Convert to completed level
+    LD      B, 10
+    CALL    MOD_B          ; Get remainder after div by 10
+    LD      B, 3
+    CALL    MOD_B          ; Get mod 3 (0,1,2)
+    ADD     A, A           ; Multiply by 2 for bytes offset
+    
+    ; Add offset to IY
+    PUSH    BC
+    LD      B, 0
+    LD      C, A
+    PUSH    IY
+    POP     IX              
+    ADD     IX, BC         ; IX now points to correct score slot
+    POP     BC
+    JR      .store_score
+    
+.use_first_slot:
+    PUSH    IY
+    POP     IX              ; IX points to first slot
+    
+.store_score:
+    ; Calculate HL (current) - DE (previous) = level score
+    OR      A               ; Clear carry
+    SBC     HL, DE         ; HL now contains level score
+    
+    ; Store level score
+    LD      (IX+0), L      ; Store low byte
+    LD      (IX+1), H      ; Store high byte
+    
+    ; Update previous score for next level
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, .update_p1_prev
+    
+.update_p2_prev:
+    LD      HL, (SCORE_P2_RAM)
+    LD      (P2_PREV_SCORE), HL
+    JR      .done
+    
+.update_p1_prev:
+    LD      HL, (SCORE_P1_RAM)
+    LD      (P1_PREV_SCORE), HL
+    
+.done:
+
 	LD      HL, CURRENT_LEVEL_P1	; Player 1
 	LD      IX, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
@@ -6312,14 +6524,14 @@ LOC_AA2A:
 	JR NZ,.TEST_INTERMISSION
     PUSH    IX				; Save Player data pointer 
     PUSH    HL				; Save Level Pointer
-	CALL 	WONDERFUL
+		CALL 	WONDERFUL
     POP     HL
     POP     IX 
 	JR .CONTINUE_NEXT_LEVEL
 	
 .TEST_INTERMISSION:
 	; here A is in 0-9
-	LD      B, 3
+	LD      B, 1
 	CALL MOD_B	; Get modulo B
 
 	; now A contains just 0,1,2
@@ -10992,16 +11204,105 @@ cvb_INTERMISSION:
 	LD HL,intermission_sprites
 	CALL unpack
 
-	LD DE,$1800+12+32*10
-	LD HL,VERYGOOD
-	CALL MYPRINT
+	CALL PRINT_LEVEL_SCORES
+	; LD DE,$1800+12+32*10
+	; LD HL,VERYGOOD
+	; CALL MYPRINT
 		
 	CALL MYENASCR
 
 	RET
-	
-VERYGOOD: 	db "VERY GOOD !","!" or 128
-	
+
+;----------------------------------------------------------------------
+; PRINT_LEVEL_SCORES: Reads the byte at $7728, converts to decimal,
+; and prints the result as three digits using MYPRINT.
+;----------------------------------------------------------------------
+PRINT_LEVEL_SCORES:
+    ; Print "VERY GOOD"
+    ld de, $1800 + 12 + 32*10
+    ld hl, VERYGOOD
+    call MYPRINT
+
+    ; Print "LEVEL 1 SCORE "
+    ld de, $1800 + 8 + 32*12
+    ld hl, LEVEL1_TXT
+    call MYPRINT
+
+    ; -- Load the byte --
+    ld a, ($7728)
+
+    ; --------------------------
+    ; Extract hundreds (0..2)
+    ; --------------------------
+    ld c, 0
+count_hundreds:
+    cp 100
+    jr c,hund_done
+    sub 100
+    inc c
+    jr count_hundreds
+hund_done:
+    ; C = number of hundreds, A = remainder
+    ld b, a               ; store remainder for next step
+    ld a, c               ; convert hundreds
+    add a, "0"
+    ld (SCORE_CHAR1), a   ; store first digit
+
+    ; --------------------------
+    ; Extract tens (0..9)
+    ; --------------------------
+    ld a, b
+    ld c, 0
+count_tens:
+    cp 10
+    jr c,tens_done
+    sub 10
+    inc c
+    jr count_tens
+tens_done:
+    ; C = number of tens, A = remainder
+    ld b, a               ; store remainder for ones
+    ld a, c
+    add a, "0"
+    ld (SCORE_CHAR2), a   ; store second digit
+
+    ; --------------------------
+    ; Ones (remainder)
+    ; --------------------------
+    ld a, b
+    add a, "0"
+    ld (SCORE_CHAR3), a   ; store third digit
+
+    ; --------------------------
+    ; Print the three digits
+    ; --------------------------
+    ld de, $1800 + 20 + 32*12
+    ld hl, SCORE_CHAR1
+    call MYPRINT
+
+    ld de, $1800 + 21 + 32*12
+    ld hl, SCORE_CHAR2
+    call MYPRINT
+
+    ld de, $1800 + 22 + 32*12
+    ld hl, SCORE_CHAR3
+    call MYPRINT
+
+    ret
+
+;----------------------------------------------------------------------
+; Data
+;----------------------------------------------------------------------
+VERYGOOD:     dc "VERY GOOD !!"
+              db $80
+LEVEL1_TXT:   dc "LEVEL 1 SCORE "
+              db $80
+
+SCORE_CHAR1:  db "0",$80
+SCORE_CHAR2:  db "0",$80
+SCORE_CHAR3:  db "0",$80
+
+
 cvb_INTERMISSION_FRM1:
 	LD BC,41
 	LD DE,$1B00
