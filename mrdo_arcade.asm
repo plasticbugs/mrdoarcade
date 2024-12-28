@@ -9,14 +9,6 @@
 ; LET THE HISTORY BOOKS BE KNOWN ON 10 NOVEMBER 2023 CAPTAIN COZMOS, I DISCOVERED THIS AFTER 40 YEARS BEING HIDDEN WITHIN THE CODE...
 
 ; About moving the game to screen 2.... 
-; In screen 2 the tables have to be allocated in this way:
-;  
-; Pattern Table: 	0000h-17FFh (for HW constraints) - Normal mode (3 banks)
-; Name Table: 		1800h-1AFFh - 256*3 tiles
-; SAT: 				1B00h (can be elsewhere but here fits well)
-; Color Table: 		2000h-27FFh (for HW constraints) - Mirror mode (1 bank for all the screen)
-; SPT: 				3800h (256*8 bytes)
-; 
 ; The current layout in the game is:
 ; 
 ; Pattern Table: 	0000h-07FFh (256*8 bytes in screen 1)
@@ -26,11 +18,11 @@
 ; SPT: 				2000h (256*8 bytes)
 
 ; in game VRAM tables
-;PT:		EQU	$0000
-;PNT:	EQU	$1000
-;CT:		EQU	$1800
-;SAT:	EQU	$1900
-;SPT:	EQU	$2000
+; PT:		EQU	$0000
+; PNT:		EQU	$1000
+; CT:		EQU	$1800
+; SAT:		EQU	$1900
+; SPT:		EQU	$2000
 
 ; VRAM areas used for data
 ; 3400H		212 bytes for saving P1 game data
@@ -846,27 +838,6 @@ INIT_VRAM:
 	XOR		A			; CLEAR PT,PNT,SAT
 	CALL	FILL_VRAM
 	
-;	LD		IX, VARIOUTS_PATTERNS
-;LOC_844E:
-;	LD		A, (IX+0)
-;	AND		A
-;	JR		Z, .LOAD_FONTS_AND_GRAPHICS
-;	LD		IYL, A		; number of tiles
-;	xor 	a
-;	LD		IYH,A			
-;	LD		D, A
-;	LD		E, (IX+1)	; position in the tileset
-;	LD		L, (IX+2)	; data address
-;	LD		H, (IX+3)
-;	LD		A, 3		; PT
-;	PUSH	IX
-;	CALL	PUT_VRAM
-;	POP		IX
-;	LD		BC, 4
-;	ADD		IX, BC
-;	JR		LOC_844E
-;.LOAD_FONTS_AND_GRAPHICS:
-
 
 	LD		A, 1BH				; Load enemies in the SPT
 LOAD_GRAPHICS:
@@ -6192,11 +6163,10 @@ LOC_A9C0:
 	INC		HL
 	DJNZ	LOC_A9C0
 
-	LD		HL, 0000H
-	LD		DE, 4000H
+	LD		HL, 0000H			; do not delete playar data in VRAM
+	LD		DE, 3000H			
 	xor		a					; fill with space
 	CALL	FILL_VRAM
-
 
 	LD	HL,mode
 	RES	7,(hl)						; switch to game mode
@@ -10890,7 +10860,7 @@ cvb_EXTRASCREEN:
 	LD HL,cvb_IMAGE_CHAR
 	CALL unpack
 
-	LD DE,$3800
+	LD DE,$2800
 	LD HL,cvb_IMAGE_SPRITES
 	CALL unpack						; 22 sprites
 
@@ -10982,8 +10952,8 @@ INTERMISSION:
 	INC		HL
 	DJNZ	.2
 
-	LD		HL, 0000H
-	LD		DE, 4000H
+	LD		HL, 0000H			; do not delete player data in VRAM
+	LD		DE, 3000H		
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
@@ -11003,8 +10973,8 @@ cvb_INTERMISSION:
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
-	LD		HL, $2000
-	LD		DE, 256*8
+	LD		HL, $2000+6*32*8
+	LD		DE, 32*8*2
 	LD		A,$F0
 	CALL	FILL_VRAM
 	
@@ -11033,7 +11003,7 @@ cvb_INTERMISSION:
 	LD HL,intermission_color
 	CALL unpack
 
-	LD DE,$3800
+	LD DE,$2800
 	LD HL,intermission_sprites
 	CALL unpack
 
@@ -11259,7 +11229,7 @@ CONGRATULATION:
 	DJNZ	.2
 
 	LD		HL, 0000H
-	LD		DE, 4000H
+	LD		DE, 3000H			; do not delete the game data
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
@@ -11279,11 +11249,10 @@ cvb_CONGRATULATION:
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
-	LD		HL, $2000
-	LD		DE, 256*8
+	LD		HL, $2000+6*32*8
+	LD		DE, 32*2*8
 	LD		A,$F0
 	CALL	FILL_VRAM
-	
 									; LOAD ARCADE FONTS
 	LD DE,$0000 + 8*0d7h			; start tiles here
 	LD HL,ARCADEFONTS
@@ -11309,7 +11278,7 @@ cvb_CONGRATULATION:
 	LD HL,congratulation_color
 	CALL unpack
 
-	LD DE,$3800
+	LD DE,$2800
 	LD HL,congratulation_sprites
 	CALL unpack
 
@@ -11628,17 +11597,14 @@ MyNMI_on:
 
 
 cvb_MYCLS:
-	ld hl,$1800
 	ld bc,$0300
 	xor a
-.0:	CALL MyNMI_off
+	CALL MyNMI_off
 	push af
-	LD A,L
+	XOR	A
 	OUT (CTRL_PORT),A
-	LD A,H
-	AND 3Fh
-	OR 40h
-	OUT (CTRL_PORT),A
+	LD A,$18+$40
+	OUT (CTRL_PORT),A		; 	addr $1800
 	pop af
 	dec bc		; T-states (normal / M1)
 .1:	out (DATA_PORT),a	; 11 12
@@ -11712,7 +11678,7 @@ vdp_chg_mode:
 	call MYWRTVDP
 	ld bc,$3605	; $1b00 for sprite attribute table.
 	call MYWRTVDP
-	ld bc,$0706	; $3800 for sprites bitmaps.
+	ld bc,$0506	; $2800 for sprites patterns.
 	call MYWRTVDP
 	ld bc,$0107
 	jp MYWRTVDP
