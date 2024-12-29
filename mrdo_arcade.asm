@@ -1,7 +1,7 @@
 ; BASED ON THE  ASM CODE DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS (November 10, 2023)
 ;
 ; About moving the game to screen 2.... 
-; The VRAM original layout in the game is:
+; The layout of the VRAM in the original game is:
 ; 
 ; Pattern Table: 	0000h-07FFh (256*8 bytes in screen 1)
 ; Name Table: 		1000h-12FFh - 256*3 tiles
@@ -12153,8 +12153,7 @@ cvb_IMAGE_COLOR:
 	DB $ff,$e7,$0e,$31,$9f,$13,$df,$17
 	DB $ff,$ff,$ff,$f8
 
-	;
-	; Width = 32, height = 24
+	; Width = 22, height = 24
 	; image_pattern:
 cvb_IMAGE_PATTERN_FR1:
 	DB $00,$00,$00,$00
@@ -12223,8 +12222,6 @@ cvb_IMAGE_SPRITES:
 	DB $c2,$16,$64,$00,$c9,$35,$d2,$7f
 	DB $00,$bd,$4c,$e4,$1d,$c0,$1d,$fa
 	DB $fe,$13,$ff,$ff,$ff,$ff,$c0
-	;
-
 
 	;
 	; sprite_overlay:
@@ -12382,14 +12379,6 @@ cvb_PNT:
 	DB $30,$50,$54,$51,$52,$53,$ff,$ff
 	DB $ff,$ff,$c0
 
-;FirstSecondPLayer:
-;	DB $00,$47,$cc,$47,$41,$4c,$e7,$00
-;	DB $00,$cf,$61,$01,$c1,$61,$c1,$00
-;	DB $00,$e0,$00,$00,$00,$00,$00,$00
-;	
-;	DB $00,$7c,$c6,$06,$7c,$c0,$fe,$00
-;	DB $00,$c2,$e2,$b2,$9a,$8e,$86,$00
-;	DB $00,$fc,$86,$82,$82,$86,$fc,$00
 
 
 ARCADEFONTS:
