@@ -206,6 +206,7 @@ P1_LEVEL1_SCORE:  EQU $7728    ; 2 bytes - Level 1 score
 P1_LEVEL2_SCORE:  EQU $772A    ; 2 bytes - Level 2 score
 P1_LEVEL3_SCORE:  EQU $772C    ; 2 bytes - Level 3 score
 
+TEXT_BUFFER:      EQU $7418    ; 8 bytes - Text buffer for printing
 
 P2_LEVEL1_SEC:    EQU $74D6    ; Player 2 level 1 seconds
 P2_LEVEL1_MIN:    EQU $74D7    ; Player 2 level 1 minutes
@@ -11241,94 +11242,331 @@ cvb_INTERMISSION:
 
 	RET
 
+
+; Input: HL = number to convert, DE = location of ASCII string
+; Output: ASCII string at (DE)
+Num2Dec:
+	ld	bc,-10000
+	call	Num1
+	ld	bc,-1000
+	call	Num1
+	ld	bc,-100
+	call	Num1
+	ld	c,-10
+	call	Num1
+	ld	c,b
+
+Num1:
+	ld	a,'0'-1
+Num2:
+	inc	a
+	add	hl,bc
+	jr	c,Num2
+	sbc	hl,bc
+
+	ld	(de),a
+	inc	de
+	ret
+
+
+; ;----------------------------------------------------------------------
+; ; PRINT_LEVEL_SCORES: Converts 16-bit hex to decimal and prints
+; ;----------------------------------------------------------------------
+; PRINT_LEVEL_SCORES:
+;     ; Print "VERY GOOD"
+;     ld de, $1800 + 12 + 32*10
+;     ld hl, VERYGOOD
+;     call MYPRINT
+
+;     ; Print "SCENE "
+;     ld de, $1800 + 8 + 32*12
+;     ld hl, LEVEL1_TXT
+;     call MYPRINT
+
+;     ; Print current level number
+;     ld a, (CURRENT_LEVEL_P1)    ; Get current level
+;     add a, "0"                  ; Convert to ASCII
+;     ld (TEXT_BUFFER), a         ; Store temporarily
+;     ld a, $80                   ; Add terminator
+;     ld (TEXT_BUFFER+1), a
+    
+;     ; Print level number
+;     ld de, $1800 + 14 + 32*12   ; Position after "SCENE "
+;     ld hl, TEXT_BUFFER
+;     call MYPRINT
+
+;     ; Print " SCORE "
+;     ld de, $1800 + 15 + 32*12   ; Position after level number
+;     ld hl, SCORE_TXT
+;     call MYPRINT
+
+;     ; Load 16-bit value for score
+;     ld a, ($7729)        ; Get high byte
+;     ld h, a
+;     ld a, ($7728)        ; Get low byte
+;     ld l, a              ; HL now contains score
+    
+;     ; Convert to decimal digits
+;     ; First get hundreds
+;     ld c, 0              ; Counter for hundreds
+; .hundreds_loop:
+;     ld de, 100
+;     or a                 ; Clear carry
+;     sbc hl, de
+;     jr c, .hundreds_done
+;     inc c
+;     jr .hundreds_loop
+; .hundreds_done:
+;     add hl, de           ; Restore remainder
+    
+;     ; Store hundreds digit
+;     ld a, c
+;     add a, "0"
+;     ld (TEXT_BUFFER), a
+    
+;     ; Now get tens
+;     ld c, 0              ; Counter for tens
+; .tens_loop:
+;     ld de, 10
+;     or a                 ; Clear carry
+;     sbc hl, de
+;     jr c, .tens_done
+;     inc c
+;     jr .tens_loop
+; .tens_done:
+;     add hl, de           ; Restore remainder
+    
+;     ; Store tens digit
+;     ld a, c
+;     add a, "0"
+;     ld (TEXT_BUFFER+1), a
+    
+;     ; Ones are what's left in HL
+;     ld a, l
+;     add a, "0"
+;     ld (TEXT_BUFFER+2), a
+    
+;     ; Add literal "0"
+;     ld a, "0"
+;     ld (TEXT_BUFFER+3), a
+    
+;     ; Add terminator
+;     ld a, $80
+;     ld (TEXT_BUFFER+4), a
+    
+;     ; Print score digits
+;     ld de, $1800 + 22 + 32*12
+;     ld hl, TEXT_BUFFER
+;     call MYPRINT
+    
+;     ld de, $1800 + 23 + 32*12
+;     ld hl, TEXT_BUFFER+1
+;     call MYPRINT
+    
+;     ld de, $1800 + 24 + 32*12
+;     ld hl, TEXT_BUFFER+2
+;     call MYPRINT
+    
+;     ld de, $1800 + 25 + 32*12
+;     ld hl, TEXT_BUFFER+3
+;     call MYPRINT
+    
+;     ret
+
+; ;----------------------------------------------------------------------
+; ; Data
+; ;----------------------------------------------------------------------
+; VERYGOOD:    dc "VERY GOOD !!"
+;              db $80             ; terminate (bit 7 set)
+; LEVEL1_TXT:  dc "SCENE "
+;              db $80
+; SCORE_TXT:   dc " SCORE "
+;              db $80
+
+
 ;----------------------------------------------------------------------
-; PRINT_LEVEL_SCORES: Reads the byte at $7728, converts to decimal,
-; and prints the result as three digits using MYPRINT.
+; PRINT_LEVEL_SCORES: Shows scores for current and previous two levels
 ;----------------------------------------------------------------------
 PRINT_LEVEL_SCORES:
+
+
+		; Prepopulate P1 scores with dummy data (hex)
+		LD HL, P1_LEVEL1_SCORE
+		LD (HL), 0B3h
+		INC HL
+		LD (HL), 001h
+		INC HL
+		LD (HL), 0B3h
+		INC HL
+		LD (HL), 002h
+		INC HL
+		LD (HL), 0B3h
+		INC HL
+		LD (HL), 003h
+
+
     ; Print "VERY GOOD"
     ld de, $1800 + 12 + 32*10
     ld hl, VERYGOOD
     call MYPRINT
 
-    ; Print "LEVEL 1 SCORE "
-    ld de, $1800 + 8 + 32*12
+    ; Print and calculate scores for all three levels
+    ; First level (Current - 2)
+    ld de, $1800 + 8 + 32*2   ; First line position
+    ld a, (CURRENT_LEVEL_P1)
+    sub 2                       ; Get first level number
+    call PRINT_SINGLE_SCORE
+    
+    ; Second level (Current - 1)
+    ld de, $1800 + 8 + 32*3   ; Next line down
+    ld a, (CURRENT_LEVEL_P1)
+    dec a                       ; Get second level number
+    call PRINT_SINGLE_SCORE
+    
+    ; Third level (Current)
+    ld de, $1800 + 8 + 32*4   ; Next line down
+    ld a, (CURRENT_LEVEL_P1)   ; Current level
+    call PRINT_SINGLE_SCORE
+    
+    ret
+
+;----------------------------------------------------------------------
+; PRINT_SINGLE_SCORE: Prints one level's score
+; Input: A = level number, DE = screen position
+;----------------------------------------------------------------------
+PRINT_SINGLE_SCORE:
+    push af                     ; Save level number
+    
+    ; Print "SCENE "
+    push de                     ; Save screen position
     ld hl, LEVEL1_TXT
     call MYPRINT
+    pop de                      ; Restore screen position
 
-    ; -- Load the byte --
-    ld a, ($7728)
+    ; Print level number
+    pop af                      ; Restore level number
+    push af                     ; Save it again
+    add a, "0"                 ; Convert to ASCII
+    ld (TEXT_BUFFER), a
+    ld a, $80
+    ld (TEXT_BUFFER+1), a
+    
+    ; Print level number
+    push de
+    ex de, hl                  ; Get screen position in HL
+    ld bc, 6                   ; Move 6 positions right
+    add hl, bc
+    ex de, hl                  ; Put back in DE
+    ld hl, TEXT_BUFFER
+    call MYPRINT
+    pop de
+    
+    ; Print spacer " "
+    push de
+    ex de, hl                  ; Get screen position in HL
+    ld bc, 7                   ; Move 7 positions right
+    add hl, bc
+    ex de, hl                  ; Put back in DE
+    ld hl, SCORE_TXT
+    call MYPRINT
+    pop de
+    
+    ; Calculate which score to show based on level
+    pop af                      ; Restore level number
+    push de                     ; Save screen position
+    
+    ; Calculate score address
+    dec a                       ; Convert to 0-based (level 1 = 0)
+    ld b, 3                    ; We want modulo 3
+    call MOD_B                 ; A will now be 0, 1, or 2
+    add a, a                    ; Multiply by 2 (2 bytes per score)
+    ld hl, P1_LEVEL1_SCORE     ; Base address
+    ld e, a
+    ld d, 0
+    add hl, de                 ; HL now points to correct score
 
-    ; --------------------------
-    ; Extract hundreds (0..2)
-    ; --------------------------
-    ld c, 0
-count_hundreds:
-    cp 100
-    jr c,hund_done
-    sub 100
+    ; Load score
+    ld e, (hl)
+    inc hl
+    ld d, (hl)
+    ex de, hl                  ; HL now contains score value
+    
+    ; Convert to decimal digits
+    call CONVERT_TO_DECIMAL
+    
+    ; Print score
+    pop de                      ; Restore screen position
+    ex de, hl                  ; Get screen position in HL
+    ld bc, 14                  ; Move 14 positions right
+    add hl, bc
+    ex de, hl                  ; Put back in DE
+    ld hl, TEXT_BUFFER
+    call MYPRINT
+    
+    ret
+
+;----------------------------------------------------------------------
+; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
+;----------------------------------------------------------------------
+CONVERT_TO_DECIMAL:
+    ; [Rest of the conversion routine remains the same]
+    ; First get hundreds
+    ld c, 0                    ; Counter for hundreds
+.hundreds_loop:
+    ld de, 100
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .hundreds_done
     inc c
-    jr count_hundreds
-hund_done:
-    ; C = number of hundreds, A = remainder
-    ld b, a               ; store remainder for next step
-    ld a, c               ; convert hundreds
-    add a, "0"
-    ld (SCORE_CHAR1), a   ; store first digit
-
-    ; --------------------------
-    ; Extract tens (0..9)
-    ; --------------------------
-    ld a, b
-    ld c, 0
-count_tens:
-    cp 10
-    jr c,tens_done
-    sub 10
-    inc c
-    jr count_tens
-tens_done:
-    ; C = number of tens, A = remainder
-    ld b, a               ; store remainder for ones
+    jr .hundreds_loop
+.hundreds_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store hundreds digit
     ld a, c
     add a, "0"
-    ld (SCORE_CHAR2), a   ; store second digit
-
-    ; --------------------------
-    ; Ones (remainder)
-    ; --------------------------
-    ld a, b
+    ld (TEXT_BUFFER), a
+    
+    ; Now get tens
+    ld c, 0                    ; Counter for tens
+.tens_loop:
+    ld de, 10
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .tens_done
+    inc c
+    jr .tens_loop
+.tens_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store tens digit
+    ld a, c
     add a, "0"
-    ld (SCORE_CHAR3), a   ; store third digit
-
-    ; --------------------------
-    ; Print the three digits
-    ; --------------------------
-    ld de, $1800 + 20 + 32*12
-    ld hl, SCORE_CHAR1
-    call MYPRINT
-
-    ld de, $1800 + 21 + 32*12
-    ld hl, SCORE_CHAR2
-    call MYPRINT
-
-    ld de, $1800 + 22 + 32*12
-    ld hl, SCORE_CHAR3
-    call MYPRINT
-
+    ld (TEXT_BUFFER+1), a
+    
+    ; Ones are what's left in HL
+    ld a, l
+    add a, "0"
+    ld (TEXT_BUFFER+2), a
+    
+    ; Add literal "0"
+    ld a, "0"
+    ld (TEXT_BUFFER+3), a
+    
+    ; Add terminator
+    ld a, $80
+    ld (TEXT_BUFFER+4), a
     ret
 
 ;----------------------------------------------------------------------
 ; Data
 ;----------------------------------------------------------------------
-VERYGOOD:     dc "VERY GOOD !!"
-              db $80
-LEVEL1_TXT:   dc "LEVEL 1 SCORE "
-              db $80
-
-SCORE_CHAR1:  db "0",$80
-SCORE_CHAR2:  db "0",$80
-SCORE_CHAR3:  db "0",$80
+VERYGOOD:    dc "VERY GOOD !!"
+             db $80
+LEVEL1_TXT:  dc "SCENE "
+             db $80
+SCORE_TXT:   dc " "
+             db $80
 
 
 cvb_INTERMISSION_FRM1:
