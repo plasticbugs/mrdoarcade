@@ -11390,19 +11390,19 @@ Num2:
 PRINT_LEVEL_SCORES:
 
 
-		; Prepopulate P1 scores with dummy data (hex)
-		LD HL, P1_LEVEL1_SCORE
-		LD (HL), 0B3h
-		INC HL
-		LD (HL), 001h
-		INC HL
-		LD (HL), 0B3h
-		INC HL
-		LD (HL), 002h
-		INC HL
-		LD (HL), 0B3h
-		INC HL
-		LD (HL), 003h
+		; ; Prepopulate P1 scores with dummy data (hex)
+		; LD HL, P1_LEVEL1_SCORE
+		; LD (HL), 0B3h
+		; INC HL
+		; LD (HL), 001h
+		; INC HL
+		; LD (HL), 0B3h
+		; INC HL
+		; LD (HL), 002h
+		; INC HL
+		; LD (HL), 0B3h
+		; INC HL
+		; LD (HL), 003h
 
 
     ; Print "VERY GOOD"
@@ -11412,19 +11412,19 @@ PRINT_LEVEL_SCORES:
 
     ; Print and calculate scores for all three levels
     ; First level (Current - 2)
-    ld de, $1800 + 8 + 32*2   ; First line position
+    ld de, $1800 + 2 + 32*2   ; First line position
     ld a, (CURRENT_LEVEL_P1)
     sub 2                       ; Get first level number
     call PRINT_SINGLE_SCORE
     
     ; Second level (Current - 1)
-    ld de, $1800 + 8 + 32*3   ; Next line down
+    ld de, $1800 + 2 + 32*3   ; Next line down
     ld a, (CURRENT_LEVEL_P1)
     dec a                       ; Get second level number
     call PRINT_SINGLE_SCORE
     
     ; Third level (Current)
-    ld de, $1800 + 8 + 32*4   ; Next line down
+    ld de, $1800 + 2 + 32*4   ; Next line down
     ld a, (CURRENT_LEVEL_P1)   ; Current level
     call PRINT_SINGLE_SCORE
     
@@ -11450,7 +11450,7 @@ PRINT_SINGLE_SCORE:
     ld (TEXT_BUFFER), a
     ld a, $80
     ld (TEXT_BUFFER+1), a
-    
+
     ; Print level number
     push de
     ex de, hl                  ; Get screen position in HL
@@ -11460,7 +11460,7 @@ PRINT_SINGLE_SCORE:
     ld hl, TEXT_BUFFER
     call MYPRINT
     pop de
-    
+
     ; Print spacer " "
     push de
     ex de, hl                  ; Get screen position in HL
@@ -11470,11 +11470,11 @@ PRINT_SINGLE_SCORE:
     ld hl, SCORE_TXT
     call MYPRINT
     pop de
-    
+
     ; Calculate which score to show based on level
     pop af                      ; Restore level number
     push de                     ; Save screen position
-    
+
     ; Calculate score address
     dec a                       ; Convert to 0-based (level 1 = 0)
     ld b, 3                    ; We want modulo 3
@@ -11490,14 +11490,14 @@ PRINT_SINGLE_SCORE:
     inc hl
     ld d, (hl)
     ex de, hl                  ; HL now contains score value
-    
+
     ; Convert to decimal digits
     call CONVERT_TO_DECIMAL
-    
+
     ; Print score
     pop de                      ; Restore screen position
     ex de, hl                  ; Get screen position in HL
-    ld bc, 14                  ; Move 14 positions right
+    ld bc, 9                  ; Move 14 positions right
     add hl, bc
     ex de, hl                  ; Put back in DE
     ld hl, TEXT_BUFFER
@@ -11509,8 +11509,24 @@ PRINT_SINGLE_SCORE:
 ; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
 ;----------------------------------------------------------------------
 CONVERT_TO_DECIMAL:
-    ; [Rest of the conversion routine remains the same]
-    ; First get hundreds
+    ; First get thousands
+    ld c, 0                    ; Counter for thousands
+.thousands_loop:
+    ld de, 1000
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .thousands_done
+    inc c
+    jr .thousands_loop
+.thousands_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store thousands digit
+    ld a, c
+    add a, "0"
+    ld (TEXT_BUFFER), a
+    
+    ; Now get hundreds
     ld c, 0                    ; Counter for hundreds
 .hundreds_loop:
     ld de, 100
@@ -11525,7 +11541,7 @@ CONVERT_TO_DECIMAL:
     ; Store hundreds digit
     ld a, c
     add a, "0"
-    ld (TEXT_BUFFER), a
+    ld (TEXT_BUFFER+1), a
     
     ; Now get tens
     ld c, 0                    ; Counter for tens
@@ -11542,20 +11558,20 @@ CONVERT_TO_DECIMAL:
     ; Store tens digit
     ld a, c
     add a, "0"
-    ld (TEXT_BUFFER+1), a
+    ld (TEXT_BUFFER+2), a
     
     ; Ones are what's left in HL
     ld a, l
     add a, "0"
-    ld (TEXT_BUFFER+2), a
+    ld (TEXT_BUFFER+3), a
     
     ; Add literal "0"
     ld a, "0"
-    ld (TEXT_BUFFER+3), a
+    ld (TEXT_BUFFER+4), a
     
     ; Add terminator
     ld a, $80
-    ld (TEXT_BUFFER+4), a
+    ld (TEXT_BUFFER+5), a
     ret
 
 ;----------------------------------------------------------------------
