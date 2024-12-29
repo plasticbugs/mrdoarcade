@@ -1,5 +1,8 @@
 ; BASED ON THE  ASM CODE DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS (November 10, 2023)
 ;
+; https://archive.org/details/manualzilla-id-5667325/mode/1up?view=theater
+; OS listing
+;
 ; About moving the game to screen 2.... 
 ; The layout of the VRAM in the original game is:
 ; 
@@ -9,20 +12,20 @@
 ; SAT: 				1900h
 ; SPT: 				2000h (256*8 bytes)
 
-; in game VRAM tables
+; Original VRAM tables
 ; PT:		EQU	$0000
 ; PNT:		EQU	$1000
 ; CT:		EQU	$1800
 ; SAT:		EQU	$1900
 ; SPT:		EQU	$2000
-
+; 
 ; VRAM areas used for data
 ; 3400H		212 bytes for saving P1 game data
 ; 3600H		212 bytes for saving P2 game data
 ; 3800h 	768 bytes for alternative PNT during pause
 ; 3B00H		93 bytes for sound data
 
-; Possible screen 2 layout
+; Screen 2 layout
 ; Pattern Table: 	0000h-17FFh (3*256*8 bytes in screen 2)
 ; Name Table: 		1800h-1AFFh (3*256 tiles)
 ; SAT:				1B00h-1B7Fh (4*32 bytes)
@@ -34,7 +37,6 @@ PNT:	EQU	$1800
 CT:		EQU	$2000
 SAT:	EQU	$1B00
 SPT:	EQU	$2800
-
 
 
 ; BIOS DEFINITIONS **************************
@@ -52,6 +54,7 @@ FREE_SIGNAL:		EQU $1FCA
 REQUEST_SIGNAL:		EQU $1FCD
 TEST_SIGNAL:		EQU $1FD0
 TIME_MGR:			EQU $1FD3
+TURN_OFF_SOUND:		EQU $1FD6
 WRITE_REGISTER:		EQU $1FD9
 READ_REGISTER:		EQU $1FDC
 WRITE_VRAM:			EQU $1FDF
@@ -63,8 +66,8 @@ SOUND_MAN:			EQU $1FF4
 RAND_GEN:			EQU $1FFD
 
 ; VDP
-DATA_PORT: EQU 0BEh
-CTRL_PORT: EQU 0BFh
+DATA_PORT: EQU $BE
+CTRL_PORT: EQU $BF
 
 
 COLECO_TITLE_ON:	EQU $55AA
@@ -110,7 +113,7 @@ SFX_COIN_INSERT_SND:   EQU $20
 	ORG $7000,$73FF
 SPRITE_ORDER_TABLE:		RB	20	;EQU $7000	; used by the sprite rotation system
 TIMER_DATA_BLOCK:		RB	12	;EQU $7014
-STATESTART:				RB	11	;EQU $7020 	; Sound Buffer Start
+STATESTART:				RB	11	;EQU $7020 	; OS Sound Buffer Start
 SOUND_BANK_01_RAM:		RB	10	;EQU $702B
 SOUND_BANK_02_RAM:		RB	10	;EQU $7035
 SOUND_BANK_03_RAM:		RB	10	;EQU $703F
@@ -175,12 +178,14 @@ SATBUFF2:									; MULTIPLE USE
 SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
 WORK_BUFFER:			RB  24	;EQU $72EF
 WORK_BUFFER2:			RB  24	;EQU $7307	; ??
-SAVEBUFF:				RB  16	;EQU $731F	;  Free ram ??
-FREEBUFF:				RB	16	; work ram
+SAVEBUFF:				RB  16	;EQU $731F	; Free ram ??
+FREEBUFF:				RB	16	;EQU $732F	; work ram
 
 DEFER_WRITES:			EQU $73C6		; System flag
+MUX_SPRITES:			EQU $73C7		; System flag: enable sprite rotation ?
+RAND_NUM: 				EQU $73C8		; Used by RAND_GEN, it has to be !=0
 
-mode:				 EQU $73FD	; maybe unused used by OS 
+mode:				 	EQU $73FD		; Unused (?) used by OS 
 ; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
 ; B1==0 -> ISR served 	B1==1 -> ISR pending
 ; B3-B6 spare
@@ -193,7 +198,7 @@ FNAME "mrdo_arcade.rom"
 
 	ORG $8000
 
-	DW COLECO_TITLE_ON		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
 	DW SPRITE_NAME_TABLE
 	DW SPRITE_ORDER_TABLE
 	DW WORK_BUFFER
@@ -209,7 +214,7 @@ FNAME "mrdo_arcade.rom"
 	DS 20,0
 	RET 
 	JP		nmi_handler
-
+GAME_NAME:
 	DB "MR. DO!",1EH,1FH
 	DB "/PRESENTS UNIVERSAL'S/1983"
 
@@ -673,9 +678,11 @@ START:
 	LD		HL,mode
 	LD		(HL), 0
 	
-	LD		A, 1
-	LD		(DEFER_WRITES+1), A
-	LD		A, 0
+	LD		A, 1				; ???
+	LD		(MUX_SPRITES), A
+	LD		HL,$1f01
+	LD		(RAND_NUM), HL		; NEEDED IF WE SKIP THE COLECO SCREEN
+	LD		A, 0				; ??? 
 	LD		(DEFER_WRITES), A
 	CALL	INITIALIZE_THE_SOUND
 	LD		A, 14H
