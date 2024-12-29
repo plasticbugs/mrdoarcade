@@ -1,7 +1,7 @@
 ; BASED ON THE  ASM CODE DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS (November 10, 2023)
 ;
 ; About moving the game to screen 2.... 
-; The current layout in the game is:
+; The VRAM original layout in the game is:
 ; 
 ; Pattern Table: 	0000h-07FFh (256*8 bytes in screen 1)
 ; Name Table: 		1000h-12FFh - 256*3 tiles
