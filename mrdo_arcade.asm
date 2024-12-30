@@ -11443,14 +11443,53 @@ PRINT_SINGLE_SCORE:
     call MYPRINT
     pop de                      ; Restore screen position
 
+
     ; Print level number
     pop af                      ; Restore level number
     push af                     ; Save it again
-    add a, "0"                 ; Convert to ASCII
+    
+    ; Convert level to decimal
+    ld h, 0                    ; Clear H
+    ld l, a                    ; Put level in L (now HL = level)
+    push de                    ; Save DE
+    
+    ; Get tens and ones only
+    ld c, 0                    ; Counter for tens
+.tens_loop:
+    ld de, 10
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .tens_done
+    inc c
+    jr .tens_loop
+.tens_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store tens digit
+    ld a, c
+    or a                       ; Test if zero
+    jr z, .skip_tens          ; If zero, skip tens
+    add a, "0"                ; Convert to ASCII
     ld (TEXT_BUFFER), a
-    ld a, $80
+    
+    ; Store ones digit
+    ld a, l
+    add a, "0"
     ld (TEXT_BUFFER+1), a
-
+    ld a, $80                  ; Terminator
+    ld (TEXT_BUFFER+2), a
+    jr .print_level
+    
+.skip_tens:
+    ; Just store ones for single digit
+    ld a, l
+    add a, "0"
+    ld (TEXT_BUFFER), a
+    ld a, $80                  ; Terminator
+    ld (TEXT_BUFFER+1), a
+    
+.print_level:
+    pop de                     ; Restore DE
     ; Print level number
     push de
     ex de, hl                  ; Get screen position in HL
@@ -11460,8 +11499,6 @@ PRINT_SINGLE_SCORE:
     ld hl, TEXT_BUFFER
     call MYPRINT
     pop de
-
-
     ; Calculate which score to show based on level
     pop af                      ; Restore level number
     push de                     ; Save screen position
