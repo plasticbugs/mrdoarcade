@@ -11461,15 +11461,6 @@ PRINT_SINGLE_SCORE:
     call MYPRINT
     pop de
 
-    ; Print spacer " "
-    push de
-    ex de, hl                  ; Get screen position in HL
-    ld bc, 7                   ; Move 7 positions right
-    add hl, bc
-    ex de, hl                  ; Put back in DE
-    ld hl, SCORE_TXT
-    call MYPRINT
-    pop de
 
     ; Calculate which score to show based on level
     pop af                      ; Restore level number
@@ -11497,7 +11488,7 @@ PRINT_SINGLE_SCORE:
     ; Print score
     pop de                      ; Restore screen position
     ex de, hl                  ; Get screen position in HL
-    ld bc, 9                  ; Move 14 positions right
+    ld bc, 10                  ; Move 10 positions right
     add hl, bc
     ex de, hl                  ; Put back in DE
     ld hl, TEXT_BUFFER
@@ -11605,7 +11596,7 @@ CONVERT_TO_DECIMAL:
     ld a, $80
     ld (TEXT_BUFFER+5), a
     ret
-		
+
 ;----------------------------------------------------------------------
 ; Data
 ;----------------------------------------------------------------------
@@ -11613,8 +11604,7 @@ VERYGOOD:    dc "VERY GOOD !!"
              db $80
 LEVEL1_TXT:  dc "SCENE "
              db $80
-SCORE_TXT:   dc " "
-             db $80
+
 
 
 cvb_INTERMISSION_FRM1:
