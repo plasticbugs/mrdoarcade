@@ -11523,7 +11523,13 @@ CONVERT_TO_DECIMAL:
     
     ; Store thousands digit
     ld a, c
-    add a, "0"
+    or a                       ; Test if zero
+    jr nz, .not_zero1         ; If not zero, show digit
+    ld a, " "                 ; If zero, show space
+    jr .store1
+.not_zero1:
+    add a, "0"                ; Convert to ASCII
+.store1:
     ld (TEXT_BUFFER), a
     
     ; Now get hundreds
@@ -11540,7 +11546,18 @@ CONVERT_TO_DECIMAL:
     
     ; Store hundreds digit
     ld a, c
-    add a, "0"
+    ld b, a                   ; Save digit value
+    ld a, (TEXT_BUFFER)       ; Check if we had thousands
+    cp " "                    ; Was it a space?
+    ld a, b                   ; Restore digit value
+    jr nz, .not_zero2        ; If we had thousands, always show this digit
+    or a                      ; Test if zero
+    jr nz, .not_zero2        ; If not zero, show digit
+    ld a, " "                ; If zero, show space
+    jr .store2
+.not_zero2:
+    add a, "0"               ; Convert to ASCII
+.store2:
     ld (TEXT_BUFFER+1), a
     
     ; Now get tens
@@ -11557,10 +11574,25 @@ CONVERT_TO_DECIMAL:
     
     ; Store tens digit
     ld a, c
-    add a, "0"
+    ld b, a                   ; Save digit value
+    ld a, (TEXT_BUFFER+1)     ; Check if we had hundreds
+    cp " "                    ; Was it a space?
+    ld a, b                   ; Restore digit value
+    jr nz, .not_zero3        ; If we had hundreds, always show this digit
+    ld a, (TEXT_BUFFER)      ; Check thousands again
+    cp " "                    ; Was it a space?
+    ld a, b                   ; Restore digit value
+    jr nz, .not_zero3        ; If we had thousands, always show this digit
+    or a                      ; Test if zero
+    jr nz, .not_zero3        ; If not zero, show digit
+    ld a, " "                ; If zero, show space
+    jr .store3
+.not_zero3:
+    add a, "0"               ; Convert to ASCII
+.store3:
     ld (TEXT_BUFFER+2), a
     
-    ; Ones are what's left in HL
+    ; Ones are what's left in HL (always show)
     ld a, l
     add a, "0"
     ld (TEXT_BUFFER+3), a
@@ -11573,7 +11605,7 @@ CONVERT_TO_DECIMAL:
     ld a, $80
     ld (TEXT_BUFFER+5), a
     ret
-
+		
 ;----------------------------------------------------------------------
 ; Data
 ;----------------------------------------------------------------------
