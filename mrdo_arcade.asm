@@ -215,8 +215,8 @@ FNAME "mrdo_arcade.rom"
 	RET 
 	JP		nmi_handler
 GAME_NAME:
-	DB "MR. DO!",1EH,1FH
-	DB "/PRESENTS UNIVERSAL'S/1983"
+;	DB "MR. DO!",1EH,1FH
+;	DB "/PRESENTS UNIVERSAL'S/1983"
 
 NMI:
 	PUSH	AF
@@ -615,7 +615,7 @@ RET
 BYTE_82D3:
 	DB 254,001,253,002,251,004,247,008,239,016
 BYTE_82DD:
-	DB 000
+	DB 0
 
 SUB_82DE:
 	LD		HL, $7272
@@ -667,7 +667,7 @@ RET
 
 ; BONUS ITEM LIST
 BONUS_OBJ_LIST:
-    db 10, 11, 12, 13, 16, 17, 18, 19, 20, 21
+    db   6, 10, 11, 12, 13, 16, 17, 18, 19, 20
 
 START:
 	LD		HL, $7000			; clean user ram
@@ -852,9 +852,9 @@ LOAD_GRAPHICS:
 	LD		IY, 40H
 	LD		A, 1
 	CALL	PUT_VRAM
-	LD		HL, BALL_SPRITE_PAT
+	LD		HL, BALL_EXPLOSION_PAT
 	LD		DE, 0C0H
-	LD		IY, 18H
+	LD		IY, 6*4
 	LD		A, 1
 	CALL	PUT_VRAM
 
@@ -886,7 +886,12 @@ LOAD_GRAPHICS:
 	LD		HL,tileset_color
 	CALL 	unpack
 
-; load fonts	
+	CALL 	LOADFONTS
+	
+	CALL 	MYENASCR	
+RET
+
+LOADFONTS:		; LOAD  ARCADE FONTS
 	LD 		DE,PT + 8*0d7h					; start fonts here
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
@@ -897,9 +902,13 @@ LOAD_GRAPHICS:
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
 
+;	LD		HL, $2000+6*32*8
+;	LD		DE, 32*8*2
+;	LD		A,$F0
+;	CALL	FILL_VRAM
 
-	LD		B,64
-	LD 		DE,CT+6*32*8
+	LD		B,41
+	LD 		DE,CT+0d7h*8
 .1:	PUSH 	BC
 	LD		HL,FONTCOLOR
 	LD		BC,8
@@ -913,12 +922,12 @@ LOAD_GRAPHICS:
 	EX 		DE,HL
 	POP 	BC
 	DJNZ	.1
-	
-	CALL 	MYENASCR	
 RET
 
+	
+
 FONTCOLOR:
-	DB $41,$41,$71,$e1,$f1,$71,$41,$41
+	DB $B1,$B1,$F1,$F1,$F1,$F1,$B1,$B1
 
 
 SUB_84F8:	 ; Disables NMI, sets up the game
@@ -7532,7 +7541,7 @@ TUNNEL_PATTERNS:
 CHERRIES_TXT:
 	DB 017,016,009,008
 PLAYFIELD_PATTERNS:
-	DB 080,081,082,082,082,082,083,083,083,080
+	DB 10,10,10,10,10,10,10,10,10,10
 
 SUB_B286:					; build level in A
 	CP		0BH
@@ -8462,15 +8471,12 @@ SET_LEVEL_COLORS:
 	LD 		BC,8
 	CALL	MYINIRVM			
 
-	LD		B,5
-	LD		DE,PT+(32*2+16)*8
-	CALL 	REPCOL				; plot background 5 times
-	LD		B,5
-	LD		DE,PT+(32*2+16)*8 + 256*8
-	CALL 	REPCOL				; plot background 5 times
-	LD		B,5
-	LD		DE,PT+(32*2+16)*8 + 256*2*8
-	CALL 	REPCOL				; plot background 5 times
+	LD		DE,PT+(10)*8
+	CALL 	REP8				; plot playfield pattern
+	LD		DE,PT+(10)*8 + 256*8
+	CALL 	REP8				; plot playfield pattern
+	LD		DE,PT+(10)*8 + 256*2*8
+	CALL 	REP8				; plot playfield pattern
 
 	POP 	HL
 	PUSH	HL
@@ -8482,9 +8488,8 @@ SET_LEVEL_COLORS:
 	LD 		BC,8
 	CALL	MYINIRVM
 	
-	LD		B,5
-	LD		DE,CT+(32*2+16)*8
-	CALL 	REPCOL				; plot background 5 times
+	LD		DE,CT+(10)*8
+	CALL 	REP8				; plot playfield color
 
 	POP 	HL
 	ADD		HL,HL				; a*16
@@ -8498,17 +8503,11 @@ SET_LEVEL_COLORS:
 	CALL	MYINIRVM
 
 	LD		DE,PT+(8)*8
-	LD		HL,FREEBUFF
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(8)*8 + 256*8
-	LD		HL,FREEBUFF
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(8)*8 + 256*2*8
-	LD		HL,FREEBUFF
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 
 	POP 	HL
 	PUSH    HL 
@@ -8520,10 +8519,8 @@ SET_LEVEL_COLORS:
 	LD 		BC,16				; using FREEBUFF
 	CALL	MYINIRVM
 
-	LD		HL,FREEBUFF
 	LD		DE,CT+(8)*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 
 	POP 	HL
 	PUSH    HL 
@@ -8535,18 +8532,12 @@ SET_LEVEL_COLORS:
 	LD 		BC,16				; using FREEBUFF
 	CALL	MYINIRVM
 
-	LD		HL,FREEBUFF
 	LD		DE,PT+(16)*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
-	LD		HL,FREEBUFF
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(16)*8 + 256*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
-	LD		HL,FREEBUFF
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(16)*8 + 256*2*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 
 	POP 	HL
 
@@ -8557,10 +8548,8 @@ SET_LEVEL_COLORS:
 	LD 		BC,16				; using FREEBUFF
 	CALL	MYINIRVM
 
-	LD		HL,FREEBUFF
 	LD		DE,CT+(16)*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 	
 	POP 	AF					; level number
 	LD		E,A
@@ -8575,21 +8564,20 @@ SET_LEVEL_COLORS:
 	CALL 	MyNMI_on	
 RET
 
-staticcolors:
-	DB $21,$71,$41,$D1,$A1,$71,$A1,$31,$B1,$71,$91
+staticcolors:				; leftovers
+	DB $21,$51,$21,$A1,$21
+	DB $51,$51,$21,$31,$41,$91
 
-REPCOL:				; In B # of times, DE VRAM addr
-.1:	PUSH 	BC
+REP8:				
 	LD		HL,FREEBUFF
 	LD 		BC,8
-	PUSH	DE
 	CALL 	MYLDIRVM
-	POP		DE
-	LD		HL,8
-	ADD 	HL,DE
-	EX      DE,HL
-	POP 	BC
-	DJNZ	.1
+RET
+
+REP16:				
+	LD		HL,FREEBUFF
+	LD 		BC,16
+	CALL 	MYLDIRVM
 RET
 
 EXTRA_BEHAVIOR:
@@ -8740,7 +8728,7 @@ PHASE_10_MAP:
 	DB 000,000,095,175,001,000,008,095,207,239,159,001,000,003,095,001,207,010,159,000,000,002,000
 
 OBJ_POSITION_LIST:
-	DW $0021,$000A,$016E,$0188,$0188,$0148,$0166,$0166,$016A,$016E,$016E,$016E,$016E,$016E,$0041,$016E,$016E,$016E,$016E,$016E,$016E
+	DW $0021,$000A,$016E,$0188,$0188,$016E,$0166,$0166,$016A,$016E,$016E,$016E,$016E,$016E,$0041,$016E,$016E,$016E,$016E,$016E
 
 OBJ_DESCRIPTION_LIST:
 	DW P1ST_PHASE_LEVEL_GEN				; 1 
@@ -8748,99 +8736,62 @@ OBJ_DESCRIPTION_LIST:
 	DW BADGUY_OUTLINE_GEN				; 3
 	DW GET_READY_P1_GEN                 ; 4
 	DW GET_READY_P2_GEN                 ; 5
-	DW WIN_EXTRA_GEN                    ; 6
+	
+	DW PIE_SLICE_GEN               		; 6 (was WIN EXTRA MrDo)
+	
 	DW GAME_OVER_P1_GEN                 ; 7
 	DW GAME_OVER_P2_GEN                 ; 8
 	DW GAME_OVER_GEN                    ; 9
 	
-	DW SUNDAE_GEN                       ;10
-	DW WHEAT_SQUARE_GEN                 ;11
-	DW GUMDROP_GEN                      ;12
-	DW PIE_SLICE_GEN                    ;13
+	DW WHEAT_SQUARE_GEN                 ;10
+	DW GUMDROP_GEN		                ;11
+	DW SUNDAE_GEN                      	;12
+	DW BURGER                    		;13
 	
 	DW BLANK_SPACE_GEN                  ;14
 	DW P2ND_GEN                         ;15
 	
-	DW EGGS                         	;16
-	DW BURGER                         	;17
-	DW DRINK                         	;18
-	DW SANDWICH                       	;19
-	DW MILK                       		;20
-	DW BAGEL                       		;21
+	DW SANDWICH                        	;16
+	DW MILK                         	;17
+	DW EGGS                         	;18
+	DW BAGEL	                       	;19
+	DW DRINK                       		;20
 
 
 P1ST_PHASE_LEVEL_GEN:
 	DB 066,067,068,254,023,241,233,255
 EXTRA_BORDER_GEN:
 	DB 058,253,009,061,063,254,021,059,254,009,064,254,021,060,253,009,062,065,255
-BADGUY_OUTLINE_GEN:
-	DB 112,114,254,030,113,115,255
 GET_READY_P1_GEN:
 	DB 232,230,245,000,243,230,226,229,250,000,241,237,226,250,230,243,000,217,255
 GET_READY_P2_GEN:
 	DB 232,230,245,000,243,230,226,229,250,000,241,237,226,250,230,243,000,218,255
-WIN_EXTRA_GEN: ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT
-;	DB 228,240,239,232,243,226,245,246,237,226,245,234,240,239,244,000,253,001,255,254,076,250,240,246,000,248
-;	DB 234,239,000,226,239,000,230,249,245,243,226,000,238,243,253,001,254,000,229,240,000,253,001,255,255
+
 GAME_OVER_P1_GEN:
 	DB 253,020,000,254,012,000,232,226,238,230,000,240,247,230,243,000,241,237,226,250,230,243,000,217,000,254,012,253,020,000,255
 GAME_OVER_P2_GEN:
 	DB 253,020,000,254,012,000,232,226,238,230,000,240,247,230,243,000,241,237,226,250,230,243,000,218,000,254,012,253,020,000,255
 GAME_OVER_GEN:
 	DB 253,011,000,254,021,000,232,226,238,230,000,240,247,230,243,000,254,021,253,011,000,255
-SUNDAE_GEN:
-	DB 042,043,254,030,056,057,255
-WHEAT_SQUARE_GEN:
-	DB 32,33,254,030,34,35,255
-GUMDROP_GEN:
-	DB 38,39,254,030,40,41,255
-PIE_SLICE_GEN:
-	DB 044,045,254,030,036,037,255
-BLANK_SPACE_GEN:
-	DB 000,000,254,030,000,000,255
+
 P2ND_GEN:
 	DB 069,070,071,255
 
-EGGS: 		DB  46, 47,254,030, 48, 49,255
-BURGER:		DB 150,151,254,030,182,183,255
-DRINK:		DB 152,153,254,030,184,185,255
-SANDWICH:	DB 154,155,254,030,186,187,255
-MILK:		DB 156,157,254,030,188,189,255
-BAGEL:		DB 158,159,254,030,190,191,255
+BADGUY_OUTLINE_GEN:	DB  46, 47,254,030, 48, 49,255
+BLANK_SPACE_GEN:	DB   0,  0,254,030,  0,  0,255
 
+PIE_SLICE_GEN:		DB  78, 79,254,030,110,111,255 
+WHEAT_SQUARE_GEN: 	DB  80, 81,254,030,112,113,255
+GUMDROP_GEN:		DB  82, 83,254,030,114,115,255
+SUNDAE_GEN:			DB  84, 85,254,030,116,117,255
+BURGER:				DB  86, 87,254,030,118,119,255
 
-PLAYFIELD_COLORS:
-	DW PHASE_01_COLORS
-	DW PHASE_02_COLORS
-	DW PHASE_03_COLORS
-	DW PHASE_04_COLORS
-	DW PHASE_05_COLORS
-	DW PHASE_06_COLORS
-	DW PHASE_07_COLORS
-	DW PHASE_08_COLORS
-	DW PHASE_09_COLORS
-	DW PHASE_10_COLORS
-    ; CONTROL_BYTE,BLACK CHERRY STEM+BG, MED RED CHERRY+BG,.......BG1+BG2,BG Walls + Invisible Corridor)
-PHASE_01_COLORS: ; Med Green + Light Green
-	DB $00,$12,$82,$90,$80,$F0,$F0,$A0,$A0,$80,$23,$20,$C0,$C0,$80,$E0,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$B1,$F0,$F0,$F0,$F0,$F0			; NOTE the $B1 is for the 500/1000 bonus in the tileset
-PHASE_02_COLORS: ; Dark Blue + Cyan  
-	DB $00,$17,$87,$90,$80,$F0,$F0,$A0,$A0,$80,$47,$70
-PHASE_03_COLORS: ; Magenta + Cyan
-	DB $00,$14,$84,$90,$80,$F0,$F0,$A0,$A0,$80,$D7,$70
-PHASE_04_COLORS: ; Dark Yellow + Magenta
-	DB $00,$1D,$8D,$90,$80,$F0,$F0,$A0,$A0,$80,$AD,$D0
-PHASE_05_COLORS: ; Cyan + Dark Yellow
-	DB $00,$1A,$8A,$90,$80,$F0,$F0,$A0,$A0,$80,$7A,$A0
-PHASE_06_COLORS: ; Magenta + Cyan (repeat of phase 3)
-	DB $00,$17,$87,$90,$80,$F0,$F0,$A0,$A0,$80,$D7,$70
-PHASE_07_COLORS: ; Dark Red + Dark Yellow
-	DB $00,$1A,$8A,$90,$80,$F0,$F0,$A0,$A0,$80,$6A,$A0
-PHASE_08_COLORS: ; Light Gray + Light Green
-	DB $00,$13,$83,$90,$80,$F0,$F0,$A0,$A0,$80,$E3,$30
-PHASE_09_COLORS: ; Light Gray + Dark Yellow
-	DB $00,$1A,$8A,$90,$80,$F0,$F0,$A0,$A0,$80,$EA,$A0
-PHASE_10_COLORS:
-	DB $00,$17,$87,$90,$80,$F0,$F0,$A0,$A0,$80,$74,$70
+SANDWICH:			DB 150,151,254,030,182,183,255
+MILK:				DB 152,153,254,030,184,185,255
+EGGS:				DB 154,155,254,030,186,187,255
+BAGEL:				DB 156,157,254,030,188,189,255
+DRINK:				DB 158,159,254,030,190,191,255
+
 
 BADGUY_BEHAVIOR:
 	DW PHASE_01_BGB
@@ -9217,173 +9168,149 @@ EXTRA_SPRITE_PAT:
    DB 001,000,000,000,000,000,000,000
    DB 000,000,000,000,000,000,000,128
    DB 128,000,000,000,000,000,000,000
-BALL_SPRITE_PAT:
-	DB 000,000,000,000,000,000,001,002
-	DB 001,000,000,000,000,000,000,000
-	DB 000,000,000,000,000,000,000,128
-	DB 000,000,000,000,000,000,000,000
-	DB 000,000,000,000,000,001,002,004
-	DB 002,001,000,000,000,000,000,000
-	DB 000,000,000,000,000,000,128,064
-	DB 128,000,000,000,000,000,000,000
-	DB 000,000,000,000,001,004,000,008
-	DB 000,004,001,000,000,000,000,000
-	DB 000,000,000,000,000,064,000,032
-	DB 000,064,000,000,000,000,000,000
-	DB 000,000,000,001,008,000,000,016
-	DB 000,000,128,001,000,000,000,000
-	DB 000,000,000,000,032,000,000,016
-	DB 000,000,032,000,000,000,000,000
-	DB 000,000,001,016,000,000,000,032
-	DB 000,000,000,016,001,000,000,000
-	DB 000,000,000,016,000,000,000,008
-	DB 000,000,000,016,000,000,000,000
-	DB 000,001,032,000,000,000,000,064
-	DB 000,000,000,000,032,000,001,000
-	DB 000,000,008,000,000,000,000,000
-	DB 000,000,000,000,008,000,000,000
+   
+BALL_EXPLOSION_PAT:		; Ball Explosion
+	db $00,$00,$00,$00,$00,$00,$01,$02,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$02,$04,$02,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$40,$80,$00,$00,$00,$00,$00,$00,$00
+	db $00,$00,$00,$00,$01,$04,$00,$08,$00,$04,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$40,$00,$20,$00,$40,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$08,$00,$00,$10,$00,$00,$08,$01,$00,$00,$00,$00,$00,$00,$00,$00,$20,$00,$00,$10,$00,$00,$20,$00,$00,$00,$00,$00
+	db $00,$00,$01,$10,$00,$00,$00,$20,$00,$00,$00,$10,$01,$00,$00,$00,$00,$00,$00,$10,$00,$00,$00,$08,$00,$00,$00,$10,$00,$00,$00,$00,$00,$01,$20,$00,$00,$00,$00,$40,$00,$00,$00,$00,$20,$00,$01,$00,$00,$00,$08,$00,$00,$00,$00,$04,$00,$00,$00,$00,$08,$00,$00,$00
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; Multicolor Compressed Tileset
 
 tileset_bitmap:
-	db $5a,$00,$aa,$a0,$00,$36,$3f,$16
-	db $10,$38,$3b,$13,$07,$c0,$c0,$80
-	db $00,$00,$6c,$fc,$39,$33,$03,$01
-	db $03,$42,$03,$0d,$68,$fc,$fc,$02
-	db $41,$6c,$07,$30,$0c,$33,$0c,$41
-	db $0e,$00,$1c,$64,$98,$60,$70,$1f
-	db $00,$03,$07,$03,$18,$0c,$0f,$1f
-	db $2f,$e0,$04,$c0,$30,$f0,$b8,$1f
-	db $1d,$06,$e0,$1f,$58,$d0,$00,$b0
-	db $18,$78,$68,$30,$09,$01,$84,$40
-	db $0e,$0f,$1e,$07,$80,$05,$48,$90
-	db $20,$50,$b8,$2f,$0e,$1f,$13,$3c
-	db $1f,$22,$0e,$80,$3c,$fc,$f0,$42
-	db $00,$0e,$3f,$7f,$7f,$f3,$00,$7c
-	db $fe,$00,$ff,$ff,$e7,$c3,$c3,$e1
-	db $e1,$f3,$12,$7f,$7e,$1c,$14,$e7
-	db $0d,$38,$7e,$3c,$5e,$fe,$80,$08
-	db $f8,$80,$80,$fe,$07,$c6,$6c,$0c
-	db $18,$30,$6c,$c6,$0f,$74,$10,$00
-	db $07,$fc,$04,$86,$86,$fc,$88,$8e
-	db $07,$38,$86,$14,$82,$fe,$82,$a0
-	db $bd,$02,$20,$1f,$07,$01,$02,$07
-	db $07,$02,$04,$f8,$e0,$80,$40,$e0
-	db $07,$9a,$46,$c0,$e5,$00,$15,$6f
-	db $00,$0e,$f3,$0f,$6b,$03,$98,$00
-	db $25,$47,$04,$cc,$47,$41,$4c,$e7
-	db $22,$cf,$04,$61,$01,$c1,$61,$c1
-	db $07,$e0,$f0,$32,$7c,$c6,$18,$06
-	db $7c,$c0,$97,$00,$c2,$e2,$b2,$9a
-	db $8e,$86,$e0,$8f,$82,$43,$82,$91
-	db $d5,$06,$af,$bf,$d2,$00,$b5,$b9
-	db $7d,$03,$01,$8b,$b5,$8d,$03,$ff
-	db $cc,$e2,$1d,$33,$ff,$0f,$d8,$1f
-	db $ff,$cd,$db,$1f,$63,$2f,$b3,$ff
-	db $68,$2f,$1f,$70,$8f,$8c,$22,$0e
-	db $f1,$03,$00,$1c,$38,$70,$e0,$c1
-	db $83,$07,$0f,$00,$66,$f0,$9f,$f0
-	db $66,$0f,$f9,$e0,$c2,$13,$1f,$0e
-	db $03,$f8,$07,$70,$70,$ca,$23,$07
-	db $03,$01,$e3,$38,$8f,$e0,$3e,$83
-	db $f8,$fc,$1f,$f0,$00,$99,$0f,$60
-	db $0f,$99,$f0,$06,$ff,$f3,$00,$77
-	db $00,$c2,$1f,$30,$21,$11,$22,$22
-	db $31,$b3,$0e,$30,$60,$3f,$3e,$0f
-	db $01,$f0,$18,$8c,$44,$44,$8c,$18
-	db $86,$10,$e0,$f8,$ab,$00,$3d,$1c
-	db $2e,$78,$56,$75,$6d,$56,$03,$cc
-	db $12,$3d,$37,$1c,$0e,$d5,$8f,$bf
-	db $81,$ff,$fe,$80,$07,$ef,$d7,$b7
-	db $77,$ef,$f0,$87,$b3,$fe,$07,$4d
-	db $0f,$89,$8f,$0e,$fe,$9a,$07,$78
-	db $0f,$ef,$19,$fe,$07,$ba,$78,$0f
-	db $a7,$57,$fe,$07,$9b,$4f,$1a,$af
-	db $4f,$07,$d7,$4d,$3f,$89,$c7,$f1
-	db $fe,$9a,$07,$78,$0f,$ce,$72,$ac
-	db $ed,$1f,$09,$b1,$a2,$14,$1b,$1f
-	db $f4,$c8,$98,$b0,$14,$f8,$78,$f8
-	db $9d,$90,$c4,$1f,$10,$14,$00,$10
-	db $1f,$f0,$98,$08,$88,$98,$f0,$3a
-	db $40,$c0,$ff,$85,$03,$0d,$1e,$3f
-	db $07,$25,$e6,$40,$91,$91,$fc,$dd
-	db $b0,$ab,$36,$09,$1f,$80,$0f,$f8
-	db $d0,$f8,$6c,$10,$f8,$71,$fc,$3f
-	db $1e,$1e,$61,$14,$3f,$f0,$78,$03
-	db $3f,$f0,$0e,$1d,$e0,$1f,$90,$ff
-	db $38,$74,$83,$32,$7c,$38,$07,$0f
-	db $49,$1f,$0f,$cf,$87,$c9,$0f,$7c
-	db $0f,$f9,$68,$07,$0f,$7f,$9e,$8f
-	db $88,$0f,$7e,$07,$f1,$e2,$43,$e0
-	db $aa,$10,$ef,$c7,$8b,$83,$33,$83
-	db $c7,$07,$fa,$0f,$4f,$ae,$0f,$06
-	db $4f,$8f,$0f,$38,$ff,$13,$1f,$30
-	db $af,$d1,$1f,$06,$77,$07,$0f,$37
-	db $c7,$38,$a9,$3f,$89,$6f,$80,$c7
-	db $e8,$6f,$81,$b4,$07,$1f,$79,$ff
-	db $1f,$c0,$57,$07,$18,$07,$08,$07
-	db $c4,$f6,$e0,$19,$18,$e0,$10,$9b
-	db $81,$0d,$0f,$07,$02,$02,$82,$cd
-	db $d5,$9d,$e1,$f1,$cc,$86,$27,$28
-	db $15,$38,$10,$9e,$f8,$e4,$14,$a8
-	db $61,$1c,$9e,$06,$3f,$2b,$15,$15
-	db $3f,$10,$8d,$5c,$54,$4c,$54,$60
-	db $fc,$fd,$1c,$17,$08,$17,$3e,$00
-	db $2e,$e8,$10,$01,$da,$df,$ff,$ff
-	db $ff,$f8
+	db $3b,$00,$fa,$b0,$00,$1f,$30,$21
+	db $30,$22,$22,$07,$f0,$18,$00,$8c
+	db $44,$44,$31,$10,$10,$30,$60,$06
+	db $3f,$3e,$00,$8c,$18,$10,$08,$e0
+	db $f8,$15,$fe,$80,$f8,$10,$80,$80
+	db $fe,$07,$c6,$6c,$18,$18,$30,$6c
+	db $c6,$0f,$10,$e8,$00,$07,$fc,$86
+	db $09,$86,$fc,$88,$8e,$07,$38,$0f
+	db $14,$82,$fe,$82,$50,$5c,$ff,$ff
+	db $6b,$c0,$95,$00,$15,$00,$ed,$25
+	db $35,$00,$03,$cc,$00,$25,$02,$47
+	db $cc,$47,$41,$4c,$e7,$22,$02,$cf
+	db $61,$01,$c1,$61,$c1,$07,$78,$e0
+	db $32,$7c,$0c,$c6,$06,$7c,$c0,$97
+	db $00,$c2,$e2,$b2,$9a,$8e,$86,$e0
+	db $8f,$82,$82,$8f,$91,$5c,$af,$00
+	db $03,$06,$13,$3c,$1f,$03,$c0,$08
+	db $80,$3c,$fc,$f0,$40,$80,$06,$36
+	db $3f,$16,$38,$3b,$51,$13,$07,$a5
+	db $28,$0c,$6c,$50,$1f,$07,$03,$18
+	db $0c,$0f,$1f,$0f,$e0,$08,$c0,$30
+	db $f0,$b8,$07,$01,$03,$0c,$01,$0e
+	db $0f,$1e,$2e,$0c,$48,$90,$20,$50
+	db $0f,$03,$07,$0f,$1b,$1f,$1f,$07
+	db $00,$98,$b0,$f8,$78,$f8,$57,$e0
+	db $35,$7d,$27,$03,$01,$26,$03,$1b
+	db $03,$ff,$cc,$c1,$e7,$33,$ff,$6c
+	db $0f,$1f,$ff,$6d,$cd,$1f,$b1,$2f
+	db $b3,$ff,$b4,$2f,$1f,$07,$44,$07
+	db $22,$e0,$e0,$03,$f0,$10,$e1,$c3
+	db $87,$65,$3c,$78,$3c,$01,$66,$c3
+	db $81,$c3,$66,$3c,$18,$f1,$07,$1c
+	db $3e,$17,$1b,$e3,$c1,$03,$c5,$07
+	db $f8,$f8,$03,$5d,$7e,$03,$2b,$f7
+	db $33,$7d,$07,$47,$f6,$00,$fd,$9f
+	db $07,$30,$0c,$33,$0c,$00,$fc,$1c
+	db $64,$98,$60,$80,$c1,$07,$39,$33
+	db $03,$84,$89,$07,$68,$26,$fc,$fc
+	db $02,$6c,$73,$9c,$1d,$06,$80,$1f
+	db $58,$d0,$00,$b0,$78,$68,$10,$30
+	db $00,$20,$ea,$01,$60,$02,$ed,$04
+	db $81,$ea,$80,$40,$e0,$88,$ce,$07
+	db $18,$07,$50,$08,$0f,$3f,$e0,$18
+	db $e0,$38,$10,$e0,$48,$2e,$78,$00
+	db $56,$75,$6d,$56,$cc,$12,$3d,$37
+	db $1e,$1c,$0e,$00,$a9,$00,$e0,$b7
+	db $fe,$c0,$07,$ef,$d7,$b7,$77,$78
+	db $ef,$d3,$33,$fe,$07,$4f,$0f,$15
+	db $87,$fe,$07,$bb,$78,$0f,$97,$b3
+	db $fe,$07,$74,$0f,$f1,$af,$5b,$fe
+	db $07,$78,$0f,$af,$b3,$fe,$07,$74
+	db $0f,$fe,$8f,$3c,$ce,$56,$fe,$03
+	db $dd,$0f,$8f,$85,$03,$0d,$1e,$3f
+	db $07,$49,$c6,$40,$a1,$63,$fc,$b1
+	db $66,$ac,$36,$09,$60,$af,$f8,$d0
+	db $f8,$6c,$10,$60,$f8,$1f,$07,$3f
+	db $7f,$30,$f3,$e1,$0f,$fe,$c7,$5d
+	db $83,$00,$af,$96,$1e,$1e,$23,$65
+	db $af,$f0,$78,$af,$b0,$f0,$1f,$01
+	db $1f,$00,$10,$14,$10,$00,$f0,$98
+	db $08,$88,$04,$98,$f0,$40,$0e,$1d
+	db $6d,$f1,$c8,$b7,$c7,$8b,$99,$2b
+	db $38,$07,$43,$0f,$ad,$0e,$00,$93
+	db $38,$74,$7c,$7c,$66,$38,$07,$99
+	db $0f,$87,$e9,$0f,$86,$07,$f1,$e2
+	db $67,$2f,$07,$33,$2f,$c7,$07,$4c
+	db $1f,$97,$f4,$1f,$ae,$07,$3f,$1f
+	db $ee,$0f,$1f,$78,$c1,$4f,$1f,$f1
+	db $1f,$1f,$e6,$0f,$3a,$e3,$66,$0f
+	db $07,$e8,$0f,$e0,$f3,$2f,$34,$07
+	db $6f,$c3,$fc,$4c,$6f,$07,$0b,$1f
+	db $27,$28,$15,$81,$c0,$dd,$e4,$14
+	db $5c,$a8,$81,$07,$3f,$08,$3f,$2b
+	db $15,$15,$04,$00,$fc,$04,$5c,$54
+	db $4c,$54,$fc,$8e,$83,$e1,$f3,$7f
+	db $7f,$1e,$25,$d7,$c7,$a1,$69,$df
+	db $15,$17,$08,$01,$2e,$17,$00,$e8
+	db $10,$01,$60,$ae,$1f,$0d,$0f,$07
+	db $02,$49,$02,$8e,$c0,$80,$dd,$fd
+	db $03,$ff,$ff,$ff,$ff,$80
 
 tileset_color:
-	db $5a,$f1,$aa,$a0,$00,$b1,$b1,$a1
-	db $96,$00,$91,$07,$28,$05,$f1,$07
-	db $00,$81,$81,$2f,$61,$61,$0d,$ac
-	db $07,$04,$01,$6b,$f1,$71,$07,$19
-	db $61,$b1,$65,$00,$11,$10,$95,$32
-	db $09,$29,$d9,$17,$3c,$b7,$30,$67
-	db $39,$52,$47,$1f,$00,$d1,$d1,$2a
-	db $39,$e1,$04,$02,$00,$fb,$07,$9b
-	db $00,$fa,$69,$05,$00,$f7,$10,$fa
-	db $34,$00,$e1,$00,$e1,$c5,$bf,$6f
-	db $00,$7b,$2d,$9f,$25,$6a,$2c,$7a
-	db $07,$6a,$32,$cd,$07,$81,$35,$00
-	db $5b,$07,$77,$c6,$00,$21,$a9,$00
-	db $fb,$7f,$1d,$0d,$00,$c3,$32,$c1
-	db $0d,$03,$75,$74,$8d,$01,$e7,$73
-	db $82,$01,$ba,$ea,$b1,$e1,$03,$81
-	db $e0,$a7,$a3,$c1,$03,$71,$31,$b7
-	db $a7,$2e,$d3,$03,$36,$b3,$cb,$01
-	db $09,$e3,$b3,$e1,$b1,$03,$31,$25
-	db $17,$b3,$ec,$46,$03,$1f,$73,$a7
-	db $cf,$01,$91,$37,$00,$70,$c2,$37
-	db $81,$3f,$00,$b5,$0f,$f9,$f8,$79
-	db $00,$ea,$c7,$bf,$e1,$ff,$d0,$03
-	db $cd,$d4,$87,$2e,$71,$03,$ef,$00
-	db $0f,$8f,$69,$07,$0f,$f1,$97,$ee
-	db $07,$b8,$bf,$1e,$9f,$07,$b5,$00
-	db $8f,$a7,$5a,$03,$2d,$85,$af,$b1
-	db $dd,$03,$00,$f1,$b7,$eb,$07,$01
-	db $58,$bf,$f5,$07,$00,$a8,$c7,$5d
-	db $71,$03,$df,$00,$1d,$cf,$63,$d7
-	db $a6,$98,$ed,$a1,$d5,$06,$07,$62
-	db $a6,$94,$ed,$c5,$71,$4d,$81,$8e
-	db $05,$21,$b1,$12,$b4,$06,$07,$76
-	db $d1,$84,$f3,$07,$43,$a1,$db,$3e
-	db $6e,$d9,$00,$06,$83,$83,$c9,$82
-	db $83,$0f,$fb,$85,$07,$87,$87,$97
-	db $02,$87,$81,$d3,$07,$0f,$81,$c0
-	db $07,$a8,$e8,$b9,$e8,$a8,$c1,$ff
-	db $ce,$07,$b8,$07,$2c,$a8,$a9,$02
-	db $ff,$1f,$43,$07,$24,$b9,$a8,$87
-	db $07,$f7,$c2,$07,$b8,$b8,$b9,$02
-	db $c3,$81,$f4,$07,$34,$e9,$30,$b8
-	db $83,$ff,$31,$83,$07,$e8,$9a,$07
-	db $60,$17,$ff,$fb,$07,$4c,$67,$81
-	db $3f,$0b,$07,$98,$98,$96,$02,$07
-	db $f7,$dd,$07,$ef,$f8,$bd,$1b,$c1
-	db $c1,$7b,$ee,$0d,$e7,$86,$dd,$04
-	db $a7,$a1,$f6,$db,$9f,$ef,$07,$ee
-	db $9f,$61,$b4,$40,$d5,$7f,$7f,$07
-	db $ff,$ff,$ff,$e0
+	db $3b,$f1,$fa,$b3,$00,$81,$be,$00
+	db $07,$f3,$00,$e9,$0c,$15,$b1,$cf
+	db $22,$b1,$fb,$07,$d4,$5c,$7a,$a1
+	db $9a,$00,$f8,$25,$b1,$ee,$05,$67
+	db $fb,$07,$cf,$32,$ef,$17,$9c,$07
+	db $91,$b6,$3f,$91,$ed,$07,$e0,$fe
+	db $61,$e1,$ab,$04,$02,$00,$c7,$07
+	db $b1,$67,$49,$20,$38,$7c,$a1,$30
+	db $91,$61,$aa,$12,$58,$27,$28,$ea
+	db $12,$0f,$41,$cd,$22,$93,$ae,$d1
+	db $d1,$ab,$50,$18,$00,$a9,$07,$06
+	db $00,$21,$aa,$6f,$00,$17,$e7,$1d
+	db $fc,$00,$c3,$1c,$c3,$c1,$c1,$03
+	db $74,$f1,$00,$53,$e3,$00,$ca,$c0
+	db $00,$43,$43,$41,$41,$82,$03,$31
+	db $31,$a4,$a4,$8b,$2d,$03,$b9,$0b
+	db $03,$42,$e3,$00,$c7,$c8,$00,$31
+	db $51,$51,$e7,$03,$91,$9e,$00,$a4
+	db $fc,$61,$cd,$01,$cb,$07,$29,$8d
+	db $ce,$68,$07,$ea,$cd,$09,$2b,$a1
+	db $22,$be,$10,$00,$69,$e1,$00,$b7
+	db $1f,$47,$16,$b1,$8d,$1e,$e1,$e7
+	db $00,$f1,$aa,$7c,$00,$ff,$74,$03
+	db $d5,$6a,$2e,$87,$71,$03,$ef,$00
+	db $17,$8e,$31,$77,$03,$00,$8b,$96
+	db $a1,$bb,$03,$00,$e7,$9f,$8d,$07
+	db $41,$31,$67,$a7,$8f,$07,$a1,$41
+	db $b6,$1b,$03,$ef,$20,$17,$b6,$21
+	db $77,$03,$00,$8b,$be,$71,$b6,$03
+	db $6f,$9f,$c7,$ae,$03,$2d,$cf,$7d
+	db $b4,$00,$d3,$b3,$8d,$d6,$07,$77
+	db $d1,$95,$e7,$07,$c9,$81,$fb,$fb
+	db $b1,$05,$fa,$fa,$9e,$e6,$9a,$00
+	db $ce,$07,$b1,$35,$db,$f6,$80,$60
+	db $e1,$83,$83,$c9,$c8,$c8,$c2,$fb
+	db $04,$98,$07,$83,$07,$87,$2c,$87
+	db $97,$02,$fc,$3e,$07,$96,$1f,$93
+	db $02,$1f,$fc,$0b,$07,$a8,$a8,$a9
+	db $02,$0f,$fc,$81,$07,$83,$84,$94
+	db $84,$84,$87,$db,$ce,$07,$84,$17
+	db $c3,$ff,$eb,$07,$14,$3b,$37,$1f
+	db $38,$3f,$1f,$82,$82,$58,$92,$02
+	db $fc,$7d,$07,$a6,$67,$1f,$fc,$43
+	db $07,$27,$95,$85,$85,$0a,$fb,$04
+	db $07,$a1,$6f,$07,$96,$96,$98,$61
+	db $02,$f7,$f5,$07,$98,$e1,$f6,$c7
+	db $c1,$de,$07,$7d,$00,$80,$9e,$fa
+	db $fb,$3e,$81,$22,$17,$61,$e7,$a8
+	db $f7,$3b,$07,$42,$ce,$2f,$05,$7f
+	db $f1,$ff,$ff,$ff,$e0
+
 
 
 
@@ -10975,21 +10902,7 @@ cvb_INTERMISSION:
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
-	LD		HL, $2000+6*32*8
-	LD		DE, 32*8*2
-	LD		A,$F0
-	CALL	FILL_VRAM
-	
-									; LOAD ARCADE FONTS
-	LD DE,$0000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$0800 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$1000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
+	CALL 	LOADFONTS
 	
 	LD DE,$0000 
 	LD HL,intermission_char
@@ -11251,20 +11164,7 @@ cvb_CONGRATULATION:
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
-	LD		HL, $2000+6*32*8
-	LD		DE, 32*2*8
-	LD		A,$F0
-	CALL	FILL_VRAM
-									; LOAD ARCADE FONTS
-	LD DE,$0000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$0800 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$1000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
+	CALL 	LOADFONTS
 	
 	LD DE,$0000 
 	LD HL,congratulation_char
