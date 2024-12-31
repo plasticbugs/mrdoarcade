@@ -17,7 +17,8 @@ Changes:
 - Two-color Mr. Do sprite with four frames of animation
 - Updated phase colors/patterns to match arcade levels
 - Ball cool down removed during alpha monster mode.
-
+- Move to screen 2 the game to have high res colors for the playfiled
+  
 Wish list/To do list:
 - Swap voice channels for Can Can song so that the song is still recognizable when only one channel plays (such as when the ball is launched or the falling apple sound cancels out channel 01)
-- Move to screen 2 the game to have high res colors in the background 
+
