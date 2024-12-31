@@ -202,6 +202,8 @@ P1_PREV_SCORE:    EQU $7726    ; 2 bytes - Previous total score for P1
 P1_LEVEL1_SCORE:  EQU $7728    ; 2 bytes - Level 1 score
 P1_LEVEL2_SCORE:  EQU $772A    ; 2 bytes - Level 2 score
 P1_LEVEL3_SCORE:  EQU $772C    ; 2 bytes - Level 3 score
+P1_COMPLETED_BY:  EQU $772E    ; 1 byte - Completed by
+P2_COMPLETED_BY:  EQU $772E    ; 1 byte - Completed by
 
 TEXT_BUFFER:      EQU $7418    ; 8 bytes - Text buffer for printing
 
@@ -227,7 +229,7 @@ FNAME "mrdo_arcade.rom"
 
 	ORG $8000
 
-	DW COLECO_TITLE_ON		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+	DW COLECO_TITLE_ON	   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
 	DW SPRITE_NAME_TABLE
 	DW SPRITE_ORDER_TABLE
 	DW WORK_BUFFER
@@ -1039,7 +1041,7 @@ RET
 	
 
 FONTCOLOR:
-	DB $B1,$B1,$F1,$F1,$F1,$F1,$B1,$B1
+	DB $F1,$E1,$F1,$E1,$F1,$E1,$F1,$E1
 
 
 SUB_84F8:	 ; Disables NMI, sets up the game
@@ -6151,7 +6153,47 @@ GOT_DIAMOND:
 	LD		HL, DIAMOND_RAM
 	LD		(HL), 0
 	CP		1
-	JR		NZ, COMPLETED_LEVEL
+	JR		Z, .diamond_not_collected
+
+	; Check which player is active
+	LD      A, (GAMECONTROL)
+	BIT     1, A                   ; Test bit 1
+	JR      NZ, .player2_active
+	
+	; Player 1 active
+	LD      A, (CURRENT_LEVEL_P1)  ; Get P1's current level
+	LD      HL, P1_COMPLETED_BY    ; Point to P1's completion byte
+	JP      .set_completion
+
+
+.player2_active:
+    LD      A, (CURRENT_LEVEL_P2)  ; Get P2's current level
+    LD      HL, P2_COMPLETED_BY    ; Point to P2's completion byte
+
+.set_completion:
+    ; Convert level number to bit position (multiply by 2)
+    DEC     A           ; Convert level to 0-based (level 1 = 0)
+    LD      B, 3       ; We want modulo 3
+    CALL    MOD_B      ; A will now be 0, 1, or 2
+    ADD     A, A       ; Multiply by 2 to get bit shift amount
+
+
+    ; Create mask based on position
+    LD      B, A       ; Save shift amount
+    LD      A, %11     ; Pattern for diamond (11)
+.shift_loop:
+    RLCA              ; Shift left by the required amount
+    RLCA
+    DJNZ    .shift_loop
+    
+    ; Create inverse mask for clearing old value
+    LD      C, A       ; Save pattern
+    CPL               ; Invert all bits
+    AND     (HL)      ; Clear the two bits we want to change
+    OR      C         ; Set our new pattern
+    LD      (HL), A   ; Store back to memory
+		JP      COMPLETED_LEVEL
+.diamond_not_collected:
 	LD		HL, 78H
 	XOR		A
 	CALL	REQUEST_SIGNAL
@@ -11407,10 +11449,10 @@ CONVERT_TO_DECIMAL:
 ;----------------------------------------------------------------------
 ; Data
 ;----------------------------------------------------------------------
-VERYGOOD:    dc "VERY GOOD !!"
-             db $80
-SCENE_TEXT:  dc "SCENE "
-             db $80
+VERYGOOD:    dc "VERY GOOD !","!" or 128
+
+SCENE_TEXT:  dc "SCENE"," " or 128
+
 
 cvb_INTERMISSION_FRM1:
 	LD BC,41
