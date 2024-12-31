@@ -191,6 +191,35 @@ mode:				 	EQU $73FD		; Unused (?) used by OS
 ; B3-B6 spare
 ; B7==0 -> game mode, 	B7==1 -> intermission mode
 
+P1_LEVEL1_SEC:    EQU $7720    ; Player 1 level 1 seconds
+P1_LEVEL1_MIN:    EQU $7721    ; Player 1 level 1 minutes
+P1_LEVEL2_SEC:    EQU $7722    ; Player 1 level 2 seconds
+P1_LEVEL2_MIN:    EQU $7723    ; Player 1 level 2 minutes
+P1_LEVEL3_SEC:    EQU $7724    ; Player 1 level 3 seconds
+P1_LEVEL3_MIN:    EQU $7725    ; Player 1 level 3 minutes
+
+P1_PREV_SCORE:    EQU $7726    ; 2 bytes - Previous total score for P1
+P1_LEVEL1_SCORE:  EQU $7728    ; 2 bytes - Level 1 score
+P1_LEVEL2_SCORE:  EQU $772A    ; 2 bytes - Level 2 score
+P1_LEVEL3_SCORE:  EQU $772C    ; 2 bytes - Level 3 score
+
+TEXT_BUFFER:      EQU $7418    ; 8 bytes - Text buffer for printing
+
+P2_LEVEL1_SEC:    EQU $74D6    ; Player 2 level 1 seconds
+P2_LEVEL1_MIN:    EQU $74D7    ; Player 2 level 1 minutes
+P2_LEVEL2_SEC:    EQU $74D8    ; Player 2 level 2 seconds
+P2_LEVEL2_MIN:    EQU $74D9    ; Player 2 level 2 minutes
+P2_LEVEL3_SEC:    EQU $74DA    ; Player 2 level 3 seconds
+P2_LEVEL3_MIN:    EQU $74DB    ; Player 2 level 3 minutes
+
+P2_PREV_SCORE:    EQU $74DC    ; 2 bytes - Previous total score for P2
+P2_LEVEL1_SCORE:  EQU $74DE    ; 2 bytes - Level 1 score
+P2_LEVEL2_SCORE:  EQU $74E0    ; 2 bytes - Level 2 score
+P2_LEVEL3_SCORE:  EQU $74E2    ; 2 bytes - Level 3 score
+
+FRAME_COUNT:      EQU $7703    ; Shared frame counter (0-59)
+
+
 
 FNAME "mrdo_arcade.rom"
 ;	CPU Z80
@@ -198,7 +227,7 @@ FNAME "mrdo_arcade.rom"
 
 	ORG $8000
 
-	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+	DW COLECO_TITLE_ON		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
 	DW SPRITE_NAME_TABLE
 	DW SPRITE_ORDER_TABLE
 	DW WORK_BUFFER
@@ -276,6 +305,7 @@ LOC_809F:
 LOC_80BB:
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
+	CALL	DEAL_WITH_TIMER
 FINISH_NMI:
 	POP		IY
 	POP		IX
@@ -290,6 +320,88 @@ FINISH_NMI:
 	POP		BC
 	POP		AF
 	RETN
+DEAL_WITH_TIMER:
+    ; First increment shared frame counter
+    LD      A, (FRAME_COUNT)
+    INC     A
+    CP      60              
+    JR      NZ, .store_frame
+    
+    ; We hit 60 frames, need to increment seconds
+    XOR     A              
+    LD      (FRAME_COUNT), A
+    
+    ; Check which player is active
+    LD      A, (GAMECONTROL)
+    BIT     1, A           
+    JR      Z, .setup_p1_timer
+    
+.setup_p2_timer:
+    LD      A, (CURRENT_LEVEL_P2)
+    LD      IY, P2_LEVEL1_SEC   
+    JR      .check_level_type
+
+.setup_p1_timer:
+    LD      A, (CURRENT_LEVEL_P1)
+    LD      IY, P1_LEVEL1_SEC   
+
+.check_level_type:
+    ; First check if it's a multiple of 10
+    LD      B, 10
+    PUSH    AF
+    CALL    MOD_B           ; Get level mod 10
+    AND     A               ; Check if remainder is 0
+    POP     BC             ; Restore original level number to B
+    JR      Z, .use_first_slot   ; If multiple of 10, use first slot
+    
+    ; Not a multiple of 10, calculate based on remainder
+    LD      A, B            ; Get level number back
+    LD      B, 10
+    CALL    MOD_B           ; Get remainder after dividing by 10
+    DEC     A               ; Convert to 0-based for the remainder
+    LD      B, 3
+    CALL    MOD_B           ; Get mod 3 (0,1,2)
+    ADD     A, A            ; Multiply by 2 for offset
+    
+    ; Add offset to IY
+    PUSH    BC
+    LD      B, 0
+    LD      C, A
+    PUSH    IY
+    POP     HL              
+    ADD     HL, BC          
+    PUSH    HL
+    POP     IY              
+    POP     BC
+    JR      .update_timer
+
+.use_first_slot:
+    ; IY is already pointing to first slot
+    
+.update_timer:
+    ; Update seconds for current level
+    LD      A, (IY+0)      ; Load current seconds
+    INC     A
+    CP      60
+    JR      NZ, .store_seconds
+    
+    ; Hit 60 seconds, increment minutes
+    XOR     A              ; Reset seconds
+    LD      (IY+0), A     ; Store seconds
+    LD      A, (IY+1)     ; Load minutes
+    INC     A
+    LD      (IY+1), A     ; Store minutes
+    RET
+    
+.store_seconds:
+    LD      (IY+0), A     ; Store seconds
+    RET
+    
+.store_frame:
+    LD      (FRAME_COUNT), A
+    RET
+
+
 
 SUB_80D1:
 	LD		HL, $7259
@@ -953,6 +1065,18 @@ SUB_851C:	; If we're here, the game just started
 	LD		HL, 0
 	LD		(SCORE_P1_RAM), HL
 	LD		(SCORE_P2_RAM), HL
+	LD    (P1_LEVEL1_MIN), HL
+	LD    (P1_LEVEL2_MIN), HL
+	LD    (P1_LEVEL3_MIN), HL
+	LD    (P1_LEVEL1_SEC), HL
+	LD    (P1_LEVEL2_SEC), HL
+	LD    (P1_LEVEL3_SEC), HL
+	LD    (P2_LEVEL1_MIN), HL
+	LD    (P2_LEVEL2_MIN), HL
+	LD    (P2_LEVEL3_MIN), HL
+	LD    (P2_LEVEL1_SEC), HL
+	LD    (P2_LEVEL2_SEC), HL
+	LD    (P2_LEVEL3_SEC), HL
 	LD		A, 1	; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1), A
 	LD		(CURRENT_LEVEL_P2), A
@@ -6224,6 +6348,95 @@ SUB_AA25: ; Level complete, load next level
 LOC_AA2A:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA2A
+
+CALCULATE_LEVEL_SCORE:    
+    ; Check which player
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, .calc_p1_score
+    
+.calc_p2_score:
+    LD      HL, (SCORE_P2_RAM)    ; Get current total score
+    LD      DE, (P2_PREV_SCORE)   ; Get previous total score
+    LD      IY, P2_LEVEL1_SCORE   ; Base address for P2 scores ($74DE)
+    LD      A, (CURRENT_LEVEL_P2)  ; Get P2's level
+    JR      .calc_difference
+    
+.calc_p1_score:
+    LD      HL, (SCORE_P1_RAM)    ; Get current total score
+    LD      DE, (P1_PREV_SCORE)   ; Get previous total score
+    LD      IY, P1_LEVEL1_SCORE   ; Base address for P1 scores
+    LD      A, (CURRENT_LEVEL_P1)  ; Get P1's level
+    
+.calc_difference:
+    ; First check if it's level 10 or multiple of 10
+    PUSH    HL              ; Save current score
+    DEC     A               ; Convert to completed level
+    LD      B, 10
+    CALL    MOD_B          ; Check if multiple of 10
+    AND     A               ; Check if remainder is 0
+    POP     HL              ; Restore current score
+    JR      Z, .use_first_slot    ; If multiple of 10, use first slot
+    
+    ; For all other levels, calculate based on remainder after division by 10
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, .get_p1_level
+    
+.get_p2_level:
+    LD      A, (CURRENT_LEVEL_P2)
+    JR      .continue_calc
+    
+.get_p1_level:
+    LD      A, (CURRENT_LEVEL_P1)
+    
+.continue_calc:
+    DEC     A               ; Convert to completed level
+    LD      B, 10
+    CALL    MOD_B          ; Get remainder after div by 10
+    LD      B, 3
+    CALL    MOD_B          ; Get mod 3 (0,1,2)
+    ADD     A, A           ; Multiply by 2 for bytes offset
+    
+    ; Add offset to IY
+    PUSH    BC
+    LD      B, 0
+    LD      C, A
+    PUSH    IY
+    POP     IX              
+    ADD     IX, BC         ; IX now points to correct score slot
+    POP     BC
+    JR      .store_score
+    
+.use_first_slot:
+    PUSH    IY
+    POP     IX              ; IX points to first slot
+    
+.store_score:
+    ; Calculate HL (current) - DE (previous) = level score
+    OR      A               ; Clear carry
+    SBC     HL, DE         ; HL now contains level score
+    
+    ; Store level score
+    LD      (IX+0), L      ; Store low byte
+    LD      (IX+1), H      ; Store high byte
+    
+    ; Update previous score for next level
+    LD      A, (GAMECONTROL)
+    BIT     1, A
+    JR      Z, .update_p1_prev
+    
+.update_p2_prev:
+    LD      HL, (SCORE_P2_RAM)
+    LD      (P2_PREV_SCORE), HL
+    JR      .done
+    
+.update_p1_prev:
+    LD      HL, (SCORE_P1_RAM)
+    LD      (P1_PREV_SCORE), HL
+    
+.done:
+
 	LD      HL, CURRENT_LEVEL_P1	; Player 1
 	LD      IX, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
@@ -6244,7 +6457,7 @@ LOC_AA2A:
 	JR NZ,.TEST_INTERMISSION
     PUSH    IX				; Save Player data pointer 
     PUSH    HL				; Save Level Pointer
-	CALL 	WONDERFUL
+		CALL 	WONDERFUL
     POP     HL
     POP     IX 
 	JR .CONTINUE_NEXT_LEVEL
@@ -9175,10 +9388,7 @@ BALL_EXPLOSION_PAT:		; Ball Explosion
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; Multicolor Compressed Tileset
 
-include "C:\MSXgl-1.0.0\cvbasic_v0.7.1\MrDoHack\mrdo_screen2\telesetcolor.asm"
-
-
-
+include "telesetcolor.asm"
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; sound
@@ -10761,6 +10971,33 @@ INTERMISSION:
 .3:
 	BIT		7, (HL)
 	JR		NZ, .3
+
+    ; Check which player's timers to reset
+    LD      A, (GAMECONTROL)
+    BIT     1, A               ; Test if Player 2 is active
+    JR      NZ, .reset_p2
+
+.reset_p1:
+    LD      HL, P1_LEVEL1_SEC
+    XOR     A                  ; A = 0
+    LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
+.clear_p1:
+    LD      (HL), A           ; Clear byte
+    INC     HL                ; Move to next byte
+    DJNZ    .clear_p1
+    RET
+
+.reset_p2:
+    LD      HL, P2_LEVEL1_SEC
+    XOR     A                  ; A = 0
+    LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
+.clear_p2:
+    LD      (HL), A           ; Clear byte
+    INC     HL                ; Move to next byte
+    DJNZ    .clear_p2
+    RET
+
+
 	RET	
 
 cvb_INTERMISSION:
@@ -10788,16 +11025,365 @@ cvb_INTERMISSION:
 	LD HL,intermission_sprites
 	CALL unpack
 
-	LD DE,$1800+12+32*10
-	LD HL,VERYGOOD
-	CALL MYPRINT
+  ; Print Very Good + Level stats
+	CALL PRINT_LEVEL_STATS
 		
 	CALL MYENASCR
 
 	RET
-	
-VERYGOOD: 	db "VERY GOOD !","!" or 128
-	
+
+
+;----------------------------------------------------------------------
+; PRINT_LEVEL_STATS: Shows scores for current and previous two levels
+;----------------------------------------------------------------------
+PRINT_LEVEL_STATS:
+    ; Print "VERY GOOD !!"
+    ld de, $1800 + 12 + 32*10
+    ld hl, VERYGOOD
+    call MYPRINT
+
+    ; Check which player is active
+    ld a, (GAMECONTROL)
+    bit 1, a                   ; Test if Player 2 is active
+    jr nz, .use_p2
+    
+    ; Player 1 is active
+    ld a, (CURRENT_LEVEL_P1)
+    jr .continue
+.use_p2:
+    ld a, (CURRENT_LEVEL_P2)
+.continue:
+    ; A now contains the correct current level
+
+    ; Print and calculate scores for all three levels
+    ; First level (Current - 2)
+    push af                     ; Save current level
+    ld de, $1800 + 6 + 32*2   ; First line position
+    pop af
+    push af                     ; Keep a copy
+    sub 2                      ; Get first level number
+    call PRINT_SINGLE_SCORE
+    pop af
+    push af
+    sub 2                      ; Get first level number again
+    call PRINT_SINGLE_TIME
+    
+    ; Second level (Current - 1)
+    ld de, $1800 + 6 + 32*4   ; Next line down
+    pop af
+    push af
+    dec a                      ; Get second level number
+    call PRINT_SINGLE_SCORE
+    pop af
+    push af
+    dec a                      ; Get second level number again
+    call PRINT_SINGLE_TIME
+    
+    ; Third level (Current)
+    ld de, $1800 + 6 + 32*6   ; Next line down
+    pop af                     ; Get current level
+    push af
+    call PRINT_SINGLE_SCORE
+    pop af                     ; Get current level again
+    call PRINT_SINGLE_TIME
+
+    ret
+
+;----------------------------------------------------------------------
+; PRINT_SINGLE_TIME: Prints one level's completion time
+; Input: A = level number, DE = screen position
+;----------------------------------------------------------------------
+PRINT_SINGLE_TIME:
+    push de
+		push af
+
+    ; Check which player is active
+    ld a, (GAMECONTROL)
+    bit 1, a                   ; Test if Player 2 is active
+    ld hl, P1_LEVEL1_SEC      ; Default to Player 1 base
+    jr z, .got_base           ; If Player 1, skip ahead
+    ld hl, P2_LEVEL1_SEC      ; Otherwise use Player 2 base
+.got_base:
+
+    ; Calculate which level's time to show
+    pop af                      ; Restore level number
+    dec a                       ; Convert to 0-based (level 1 = 0)
+    ld b, 3                    ; We want modulo 3
+    call MOD_B                 ; A will now be 0, 1, or 2
+    add a, a                   ; Multiply by 2 (2 bytes per time)
+    
+    ; Get seconds using offset
+    ld e, a
+    ld d, 0
+    add hl, de                ; HL now points to seconds for this level
+    push hl                   ; Save pointer to seconds
+    
+    ; Get minutes first (it's the next byte)
+    inc hl                    ; Point to minutes
+    ld a, (hl)                ; Get minutes
+    add a, "0"                ; Convert to ASCII
+    ld (TEXT_BUFFER), a       ; Store single minute digit
+    ld a, "'"                 ; Add space
+    ld (TEXT_BUFFER+1), a
+    
+    ; Now get seconds
+    pop hl                    ; Restore pointer to seconds
+    ld a, (hl)                ; Get seconds
+    ld h, 0
+    ld l, a                   ; Put seconds in HL
+    
+    ; Convert seconds to decimal
+    ld c, 0                   ; Counter for tens
+.tens_loop:
+    ld de, 10
+    or a                      ; Clear carry
+    sbc hl, de
+    jr c, .tens_done
+    inc c
+    jr .tens_loop
+.tens_done:
+    add hl, de                ; Restore remainder
+    
+    ; Store seconds (always show both digits)
+    ld a, c
+    add a, "0"                ; Convert tens to ASCII
+    ld (TEXT_BUFFER+2), a
+    ld a, l
+    add a, "0"                ; Convert ones to ASCII
+    ld (TEXT_BUFFER+3), a
+    ld a, $80                 ; Add terminator
+    ld (TEXT_BUFFER+4), a
+    
+    ; Print time value
+    pop de                    ; Restore screen position
+    ex de, hl
+    ld bc, 7                 ; Move 7 positions right
+    add hl, bc
+    ex de, hl
+    ld hl, TEXT_BUFFER
+    call MYPRINT
+    
+    ret
+
+;----------------------------------------------------------------------
+; PRINT_SINGLE_SCORE: Prints one level's score
+; Input: A = level number, DE = screen position
+;----------------------------------------------------------------------
+PRINT_SINGLE_SCORE:
+    push af                     ; Save level number
+    
+    ; Print "SCENE "
+    push de                     ; Save screen position
+    ld hl, SCENE_TEXT
+    call MYPRINT
+    pop de                      ; Restore screen position
+
+    ; Print level number
+    pop af                      ; Restore level number
+    push af                     ; Save it again
+
+    ; Convert level to decimal
+    ld h, 0                    ; Clear H
+    ld l, a                    ; Put level in L (now HL = level)
+    push de                    ; Save DE
+    
+    ; Get tens and ones only
+    ld c, 0                    ; Counter for tens
+.tens_loop:
+    ld de, 10
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .tens_done
+    inc c
+    jr .tens_loop
+.tens_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store tens digit
+    ld a, c
+    or a                       ; Test if zero
+    jr z, .skip_tens          ; If zero, skip tens
+    add a, "0"                ; Convert to ASCII
+    ld (TEXT_BUFFER), a
+    
+    ; Store ones digit
+    ld a, l
+    add a, "0"
+    ld (TEXT_BUFFER+1), a
+    ld a, $80                  ; Terminator
+    ld (TEXT_BUFFER+2), a
+    jr .print_level
+.skip_tens:
+    ; Just store ones for single digit
+    ld a, l
+    add a, "0"
+    ld (TEXT_BUFFER), a
+    ld a, $80                  ; Terminator
+    ld (TEXT_BUFFER+1), a
+.print_level:
+    pop de                     ; Restore DE
+    ; Print level number
+    push de
+    ex de, hl                  ; Get screen position in HL
+    ld bc, 6                   ; Move 6 positions right
+    add hl, bc
+    ex de, hl                  ; Put back in DE
+    ld hl, TEXT_BUFFER
+    call MYPRINT
+    pop de
+
+    ; Calculate which score to show based on level
+    pop af                      ; Restore level number
+    push de                     ; Save screen position
+		push af                     ; Save level number again
+
+
+    ; Check which player is active
+    ld a, (GAMECONTROL)
+    bit 1, a                   ; Test if Player 2 is active
+    ld hl, P1_LEVEL1_SCORE    ; Default to Player 1 base
+    jr z, .got_base           ; If Player 1, skip ahead
+    ld hl, P2_LEVEL1_SCORE    ; Otherwise use Player 2 base
+.got_base:
+
+    ; Calculate score address
+    pop af                      ; Restore level number
+    dec a                       ; Convert to 0-based (level 1 = 0)
+    ld b, 3                    ; We want modulo 3
+    call MOD_B                 ; A will now be 0, 1, or 2
+    add a, a                    ; Multiply by 2 (2 bytes per score)
+    ld e, a
+    ld d, 0
+    add hl, de                 ; HL now points to correct score
+
+    ; Load score
+    ld e, (hl)
+    inc hl
+    ld d, (hl)
+    ex de, hl                  ; HL now contains score value
+
+    ; Convert to decimal digits
+    call CONVERT_TO_DECIMAL
+
+    ; Print score
+    pop de                      ; Restore screen position
+    ex de, hl                  ; Get screen position in HL
+    ld bc, 10                  ; Move 10 positions right
+    add hl, bc
+    ex de, hl                  ; Put back in DE
+    ld hl, TEXT_BUFFER
+    call MYPRINT
+		ret
+
+;----------------------------------------------------------------------
+; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
+;----------------------------------------------------------------------
+CONVERT_TO_DECIMAL:
+    ; First get thousands
+    ld c, 0                    ; Counter for thousands
+.thousands_loop:
+    ld de, 1000
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .thousands_done
+    inc c
+    jr .thousands_loop
+.thousands_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store thousands digit
+    ld a, c
+    or a                       ; Test if zero
+    jr nz, .not_zero1         ; If not zero, show digit
+    ld a, " "                 ; If zero, show space
+    jr .store1
+.not_zero1:
+    add a, "0"                ; Convert to ASCII
+.store1:
+    ld (TEXT_BUFFER), a
+
+    ; Now get hundreds
+    ld c, 0                    ; Counter for hundreds
+.hundreds_loop:
+    ld de, 100
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .hundreds_done
+    inc c
+    jr .hundreds_loop
+.hundreds_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store hundreds digit
+    ld a, c
+    ld b, a                   ; Save digit value
+    ld a, (TEXT_BUFFER)       ; Check if we had thousands
+    cp " "                    ; Was it a space?
+    ld a, b                   ; Restore digit value
+    jr nz, .not_zero2        ; If we had thousands, always show this digit
+    or a                      ; Test if zero
+    jr nz, .not_zero2        ; If not zero, show digit
+    ld a, " "                ; If zero, show space
+    jr .store2
+.not_zero2:
+    add a, "0"               ; Convert to ASCII
+.store2:
+    ld (TEXT_BUFFER+1), a
+
+    ; Now get tens
+    ld c, 0                    ; Counter for tens
+.tens_loop:
+    ld de, 10
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .tens_done
+    inc c
+    jr .tens_loop
+.tens_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store tens digit
+    ld a, c
+    ld b, a                   ; Save digit value
+    ld a, (TEXT_BUFFER+1)     ; Check if we had hundreds
+    cp " "                    ; Was it a space?
+    ld a, b                   ; Restore digit value
+    jr nz, .not_zero3        ; If we had hundreds, always show this digit
+    ld a, (TEXT_BUFFER)      ; Check thousands again
+    cp " "                    ; Was it a space?
+    ld a, b                   ; Restore digit value
+    jr nz, .not_zero3        ; If we had thousands, always show this digit
+    or a                      ; Test if zero
+    jr nz, .not_zero3        ; If not zero, show digit
+    ld a, " "                ; If zero, show space
+    jr .store3
+.not_zero3:
+    add a, "0"               ; Convert to ASCII
+.store3:
+    ld (TEXT_BUFFER+2), a
+
+    ; Ones are what's left in HL (always show)
+    ld a, l
+    add a, "0"
+    ld (TEXT_BUFFER+3), a
+
+    ; Add literal "0"
+    ld a, "0"
+    ld (TEXT_BUFFER+4), a
+
+    ; Add terminator
+    ld a, $80
+    ld (TEXT_BUFFER+5), a
+    ret
+
+;----------------------------------------------------------------------
+; Data
+;----------------------------------------------------------------------
+VERYGOOD:    dc "VERY GOOD !!"
+             db $80
+SCENE_TEXT:  dc "SCENE "
+             db $80
+
 cvb_INTERMISSION_FRM1:
 	LD BC,41
 	LD DE,$1B00
