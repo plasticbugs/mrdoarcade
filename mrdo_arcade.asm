@@ -6439,7 +6439,7 @@ CALCULATE_LEVEL_SCORE:
 	
 .TEST_INTERMISSION:
 	; here A is in 0-9
-	LD      B, 1
+	LD      B, 3
 	CALL MOD_B	; Get modulo B
 
 	; now A contains just 0,1,2
@@ -11192,6 +11192,33 @@ INTERMISSION:
 .3:
 	BIT		7, (HL)
 	JR		NZ, .3
+
+    ; Check which player's timers to reset
+    LD      A, (GAMECONTROL)
+    BIT     1, A               ; Test if Player 2 is active
+    JR      NZ, .reset_p2
+
+.reset_p1:
+    LD      HL, P1_LEVEL1_SEC
+    XOR     A                  ; A = 0
+    LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
+.clear_p1:
+    LD      (HL), A           ; Clear byte
+    INC     HL                ; Move to next byte
+    DJNZ    .clear_p1
+    RET
+
+.reset_p2:
+    LD      HL, P2_LEVEL1_SEC
+    XOR     A                  ; A = 0
+    LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
+.clear_p2:
+    LD      (HL), A           ; Clear byte
+    INC     HL                ; Move to next byte
+    DJNZ    .clear_p2
+    RET
+
+
 	RET	
 
 cvb_INTERMISSION:
@@ -11233,7 +11260,7 @@ cvb_INTERMISSION:
 	LD HL,intermission_sprites
 	CALL unpack
 
-	CALL PRINT_LEVEL_SCORES
+	CALL PRINT_LEVEL_STATS
 	; LD DE,$1800+12+32*10
 	; LD HL,VERYGOOD
 	; CALL MYPRINT
@@ -11270,9 +11297,9 @@ Num2:
 
 
 ; ;----------------------------------------------------------------------
-; ; PRINT_LEVEL_SCORES: Converts 16-bit hex to decimal and prints
+; ; PRINT_LEVEL_STATS: Converts 16-bit hex to decimal and prints
 ; ;----------------------------------------------------------------------
-; PRINT_LEVEL_SCORES:
+; PRINT_LEVEL_STATS:
 ;     ; Print "VERY GOOD"
 ;     ld de, $1800 + 12 + 32*10
 ;     ld hl, VERYGOOD
@@ -11383,29 +11410,12 @@ Num2:
 ; SCORE_TXT:   dc " SCORE "
 ;              db $80
 
-
 ;----------------------------------------------------------------------
-; PRINT_LEVEL_SCORES: Shows scores for current and previous two levels
+; PRINT_LEVEL_STATS: Shows scores for current and previous two levels
 ;----------------------------------------------------------------------
-PRINT_LEVEL_SCORES:
+PRINT_LEVEL_STATS:
 
-
-		; ; Prepopulate P1 scores with dummy data (hex)
-		; LD HL, P1_LEVEL1_SCORE
-		; LD (HL), 0B3h
-		; INC HL
-		; LD (HL), 001h
-		; INC HL
-		; LD (HL), 0B3h
-		; INC HL
-		; LD (HL), 002h
-		; INC HL
-		; LD (HL), 0B3h
-		; INC HL
-		; LD (HL), 003h
-
-
-    ; Print "VERY GOOD"
+    ; Print "VERY GOOD !!"
     ld de, $1800 + 12 + 32*10
     ld hl, VERYGOOD
     call MYPRINT
@@ -11414,19 +11424,94 @@ PRINT_LEVEL_SCORES:
     ; First level (Current - 2)
     ld de, $1800 + 2 + 32*2   ; First line position
     ld a, (CURRENT_LEVEL_P1)
-    sub 2                       ; Get first level number
+    sub 2                     ; Get first level number
     call PRINT_SINGLE_SCORE
+		ld a, (CURRENT_LEVEL_P1)
+    sub 2                      ; Get first level number again
+    call PRINT_SINGLE_TIME
     
     ; Second level (Current - 1)
-    ld de, $1800 + 2 + 32*3   ; Next line down
+    ld de, $1800 + 2 + 32*4   ; Next line down
     ld a, (CURRENT_LEVEL_P1)
-    dec a                       ; Get second level number
+    dec a                     ; Get second level number
     call PRINT_SINGLE_SCORE
+		ld a, (CURRENT_LEVEL_P1)
+    dec a                      ; Get second level number again
+    call PRINT_SINGLE_TIME
     
     ; Third level (Current)
-    ld de, $1800 + 2 + 32*4   ; Next line down
-    ld a, (CURRENT_LEVEL_P1)   ; Current level
+    ld de, $1800 + 2 + 32*6   ; Next line down
+    ld a, (CURRENT_LEVEL_P1)  ; Current level
     call PRINT_SINGLE_SCORE
+    ld a, (CURRENT_LEVEL_P1)   ; Current level again
+    call PRINT_SINGLE_TIME
+
+    ret
+
+;----------------------------------------------------------------------
+; PRINT_SINGLE_TIME: Prints one level's completion time
+; Input: A = level number, DE = screen position
+;----------------------------------------------------------------------
+PRINT_SINGLE_TIME:
+    push de
+    
+    ; Calculate which level's time to show
+    dec a                       ; Convert to 0-based (level 1 = 0)
+    ld b, 3                    ; We want modulo 3
+    call MOD_B                 ; A will now be 0, 1, or 2
+    add a, a                   ; Multiply by 2 (2 bytes per time)
+    
+    ; Get seconds using offset
+    ld hl, P1_LEVEL1_SEC      ; Base address for seconds
+    ld e, a
+    ld d, 0
+    add hl, de                ; HL now points to seconds for this level
+    push hl                   ; Save pointer to seconds
+    
+    ; Get minutes first (it's the next byte)
+    inc hl                    ; Point to minutes
+    ld a, (hl)                ; Get minutes
+    add a, "0"                ; Convert to ASCII
+    ld (TEXT_BUFFER), a       ; Store single minute digit
+    ld a, " "                 ; Add space
+    ld (TEXT_BUFFER+1), a
+    
+    ; Now get seconds
+    pop hl                    ; Restore pointer to seconds
+    ld a, (hl)                ; Get seconds
+    ld h, 0
+    ld l, a                   ; Put seconds in HL
+    
+    ; Convert seconds to decimal
+    ld c, 0                   ; Counter for tens
+.tens_loop:
+    ld de, 10
+    or a                      ; Clear carry
+    sbc hl, de
+    jr c, .tens_done
+    inc c
+    jr .tens_loop
+.tens_done:
+    add hl, de                ; Restore remainder
+    
+    ; Store seconds (always show both digits)
+    ld a, c
+    add a, "0"                ; Convert tens to ASCII
+    ld (TEXT_BUFFER+2), a
+    ld a, l
+    add a, "0"                ; Convert ones to ASCII
+    ld (TEXT_BUFFER+3), a
+    ld a, $80                 ; Add terminator
+    ld (TEXT_BUFFER+4), a
+    
+    ; Print time value
+    pop de                    ; Restore screen position
+    ex de, hl
+    ld bc, 12                 ; Move 12 positions right
+    add hl, bc
+    ex de, hl
+    ld hl, TEXT_BUFFER
+    call MYPRINT
     
     ret
 
@@ -11443,11 +11528,10 @@ PRINT_SINGLE_SCORE:
     call MYPRINT
     pop de                      ; Restore screen position
 
-
     ; Print level number
     pop af                      ; Restore level number
     push af                     ; Save it again
-    
+
     ; Convert level to decimal
     ld h, 0                    ; Clear H
     ld l, a                    ; Put level in L (now HL = level)
@@ -11479,7 +11563,6 @@ PRINT_SINGLE_SCORE:
     ld a, $80                  ; Terminator
     ld (TEXT_BUFFER+2), a
     jr .print_level
-    
 .skip_tens:
     ; Just store ones for single digit
     ld a, l
@@ -11487,7 +11570,6 @@ PRINT_SINGLE_SCORE:
     ld (TEXT_BUFFER), a
     ld a, $80                  ; Terminator
     ld (TEXT_BUFFER+1), a
-    
 .print_level:
     pop de                     ; Restore DE
     ; Print level number
@@ -11499,6 +11581,7 @@ PRINT_SINGLE_SCORE:
     ld hl, TEXT_BUFFER
     call MYPRINT
     pop de
+
     ; Calculate which score to show based on level
     pop af                      ; Restore level number
     push de                     ; Save screen position
@@ -11530,9 +11613,141 @@ PRINT_SINGLE_SCORE:
     ex de, hl                  ; Put back in DE
     ld hl, TEXT_BUFFER
     call MYPRINT
-    
-    ret
+		ret
 
+
+;     ; Print time (using same pattern as score printing)
+;     push de
+    
+;     ; Calculate which level's time to show using input level number
+;     pop af                      ; Get level number that was passed in
+;     push af                     ; Save it again for later
+;     dec a                       ; Convert to 0-based (level 1 = 0)
+;     ld b, 3                    ; We want modulo 3
+;     call MOD_B                 ; A will now be 0, 1, or 2
+;     add a, a                   ; Multiply by 2 (2 bytes per time)
+;     push af                    ; Save offset for seconds
+    
+;     ; Get minutes for this level
+;     ld hl, P1_LEVEL1_MIN      ; Base address for minutes
+;     ld e, a
+;     ld d, 0
+;     add hl, de                ; HL now points to correct minutes
+;     ld a, (hl)                ; Get minutes
+;     add a, "0"                ; Convert to ASCII
+;     ld (TEXT_BUFFER), a       ; Store single minute digit
+;     ld a, " "                 ; Add space
+;     ld (TEXT_BUFFER+1), a
+
+;     ; Get seconds for this level
+;     pop af                     ; Restore offset
+;     ld hl, P1_LEVEL1_SEC      ; Base address for seconds
+;     ld e, a
+;     ld d, 0
+;     add hl, de                ; HL now points to correct seconds
+;     ld a, (hl)                ; Get seconds
+;     ld h, 0
+;     ld l, a
+
+;     ; Convert to decimal (same as before)
+;     ld c, 0
+; .s_tens_loop:
+;     ld de, 10
+;     or a
+;     sbc hl, de
+;     jr c, .s_tens_done
+;     inc c
+;     jr .s_tens_loop
+; .s_tens_done:
+;     add hl, de
+
+;     ; Store seconds after the space
+;     ld a, c
+;     add a, "0"
+;     ld (TEXT_BUFFER+2), a
+;     ld a, l
+;     add a, "0"
+;     ld (TEXT_BUFFER+3), a
+;     ld a, $80
+;     ld (TEXT_BUFFER+4), a
+
+;     ; Print time value (exactly as before)
+;     pop de
+;     ex de, hl
+;     ld bc, 12                  ; Move 12 positions right from last position
+;     add hl, bc
+;     ex de, hl
+;     ld hl, TEXT_BUFFER
+;     call MYPRINT
+
+;     ret
+
+
+
+
+
+
+
+;  ; Print time (using same pattern as score printing)
+;     push de
+    
+;     ; Calculate which level's time to show - use same calculation as score
+;     dec a                       ; Convert to 0-based (level 1 = 0)
+;     ld b, 3                    ; We want modulo 3
+;     call MOD_B                 ; A will now be 0, 1, or 2
+;     add a, a                   ; Multiply by 2 (2 bytes per time)
+    
+;     ; Get minutes and seconds using offset
+;     ld hl, P1_LEVEL1_MIN      ; Base address for minutes
+;     ld e, a
+;     ld d, 0
+;     add hl, de                ; HL now points to correct minutes
+    
+;     ; Get minutes
+;     ld a, (hl)                ; Get minutes
+;     add a, "0"                ; Convert to ASCII
+;     ld (TEXT_BUFFER), a       ; Store single minute digit
+;     ld a, " "                 ; Add space
+;     ld (TEXT_BUFFER+1), a
+    
+;     ; Get seconds (next byte after minutes)
+;     inc hl                    ; Point to seconds
+;     ld a, (hl)                ; Get seconds
+;     ld h, 0
+;     ld l, a
+
+;     ; Convert to decimal (same as before)
+;     ld c, 0
+; .s_tens_loop:
+;     ld de, 10
+;     or a
+;     sbc hl, de
+;     jr c, .s_tens_done
+;     inc c
+;     jr .s_tens_loop
+; .s_tens_done:
+;     add hl, de
+
+;     ; Store seconds after the space
+;     ld a, c
+;     add a, "0"
+;     ld (TEXT_BUFFER+2), a
+;     ld a, l
+;     add a, "0"
+;     ld (TEXT_BUFFER+3), a
+;     ld a, $80
+;     ld (TEXT_BUFFER+4), a
+
+;     ; Print time value
+;     pop de
+;     ex de, hl
+;     ld bc, 12                  ; Move 12 positions right from last position
+;     add hl, bc
+;     ex de, hl
+;     ld hl, TEXT_BUFFER
+;     call MYPRINT
+
+;     ret
 ;----------------------------------------------------------------------
 ; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
 ;----------------------------------------------------------------------
@@ -11559,7 +11774,7 @@ CONVERT_TO_DECIMAL:
     add a, "0"                ; Convert to ASCII
 .store1:
     ld (TEXT_BUFFER), a
-    
+
     ; Now get hundreds
     ld c, 0                    ; Counter for hundreds
 .hundreds_loop:
@@ -11587,7 +11802,7 @@ CONVERT_TO_DECIMAL:
     add a, "0"               ; Convert to ASCII
 .store2:
     ld (TEXT_BUFFER+1), a
-    
+
     ; Now get tens
     ld c, 0                    ; Counter for tens
 .tens_loop:
@@ -11619,16 +11834,16 @@ CONVERT_TO_DECIMAL:
     add a, "0"               ; Convert to ASCII
 .store3:
     ld (TEXT_BUFFER+2), a
-    
+
     ; Ones are what's left in HL (always show)
     ld a, l
     add a, "0"
     ld (TEXT_BUFFER+3), a
-    
+
     ; Add literal "0"
     ld a, "0"
     ld (TEXT_BUFFER+4), a
-    
+
     ; Add terminator
     ld a, $80
     ld (TEXT_BUFFER+5), a
