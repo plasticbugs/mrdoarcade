@@ -11025,10 +11025,8 @@ cvb_INTERMISSION:
 	LD HL,intermission_sprites
 	CALL unpack
 
+  ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
-	; LD DE,$1800+12+32*10
-	; LD HL,VERYGOOD
-	; CALL MYPRINT
 		
 	CALL MYENASCR
 
