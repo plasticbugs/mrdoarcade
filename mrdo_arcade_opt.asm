@@ -1,86 +1,119 @@
-; DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS
-; 100 HUNDRED PERCENT ALL LINKS RESOLVED.
-; I SPENT A LOT OF TIME WORKING ON THIS AND IT WOULD SUCK 100% IF SOMEONE USED MY WORK TO MAKE MONEY.
-; THIS WAS DONE FOR EDUCATIONAL PURPOSES ONLY AND ALL CREDIT GOES TO ME AND ME ONLY.
-; STARTED NOVEMBER 7, 2023
-; COMPLETED ON NOVEMBER 10, 2023 (TECHNICALLY NOT COMPLETED...COMPLETED)  THERE CAN ALWAYS BE MORE DONE.
-; FOUND A POTENTIAL EASTER EGG THAT REPRESENTS AN EARLY PROTOTYPE SET OF SPRITE PATTERNS DEPICTING THE JAPANESE SNOWMAN.
-; MARKED AS MR_DO_UNUSED_PUSH_ANIM_01_PAT, MR_DO_UNUSED_PUSH_ANIM_02_PAT AND MR_DO_UNUSED_PUSH_ANIM_03_PAT
-; LET THE HISTORY BOOKS BE KNOWN ON 10 NOVEMBER 2023 CAPTAIN COZMOS, I DISCOVERED THIS AFTER 40 YEARS BEING HIDDEN WITHIN THE CODE...
+; BASED ON THE  ASM CODE DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS (November 10, 2023)
+;
+; About moving the game to screen 2.... 
+; The layout of the VRAM in the original game is:
+; 
+; Pattern Table: 	0000h-07FFh (256*8 bytes in screen 1)
+; Name Table: 		1000h-12FFh - 256*3 tiles
+; Color Table: 		1800h (32 bytes)
+; SAT: 				1900h
+; SPT: 				2000h (256*8 bytes)
+
+; in game VRAM tables
+; PT:		EQU	$0000
+; PNT:		EQU	$1000
+; CT:		EQU	$1800
+; SAT:		EQU	$1900
+; SPT:		EQU	$2000
+
+; VRAM areas used for data
+; 3400H		212 bytes for saving P1 game data
+; 3600H		212 bytes for saving P2 game data
+; 3800h 	768 bytes for alternative PNT during pause
+; 3B00H		93 bytes for sound data
+
+; Possible screen 2 layout
+; Pattern Table: 	0000h-17FFh (3*256*8 bytes in screen 2)
+; Name Table: 		1800h-1AFFh (3*256 tiles)
+; SAT:				1B00h-1B7Fh (4*32 bytes)
+; Color Table: 		2000h-27FFh (256*8 bytes - screen 2 mirrored)
+; SPT: 				2800h-2FFFh (256*8 bytes)
+
+pt: equ $0000
+pnt: equ $1800
+ct: equ $2000
+sat: equ $1B00
+spt: equ $2800
+
 
 
 ; BIOS DEFINITIONS **************************
-ascii_table: equ 0x006a
-number_table: equ 0x006c
-play_songs: equ 0x1f61
+ascii_table: equ $006A
+number_table: equ $006C
+play_songs: equ $1F61
 
-fill_vram: equ 0x1f82
-init_table: equ 0x1fb8
-put_vram: equ 0x1fbe
-init_spr_nm_tbl: equ 0x1fc1
-wr_spr_nm_tbl: equ 0x1fc4
-init_timer: equ 0x1fc7
-free_signal: equ 0x1fca
-request_signal: equ 0x1fcd
-test_signal: equ 0x1fd0
-time_mgr: equ 0x1fd3
-write_register: equ 0x1fd9
-read_register: equ 0x1fdc
-write_vram: equ 0x1fdf
-read_vram: equ 0x1fe2
-poller: equ 0x1feb
-sound_init: equ 0x1fee
-play_it: equ 0x1ff1
-sound_man: equ 0x1ff4
-rand_gen: equ 0x1ffd
+fill_vram: equ $1F82
+init_table: equ $1FB8
+put_vram: equ $1FBE
+init_spr_nm_tbl: equ $1FC1
+wr_spr_nm_tbl: equ $1FC4
+init_timer: equ $1FC7
+free_signal: equ $1FCA
+request_signal: equ $1FCD
+test_signal: equ $1FD0
+time_mgr: equ $1FD3
+write_register: equ $1FD9
+read_register: equ $1FDC
+write_vram: equ $1FDF
+read_vram: equ $1FE2
+poller: equ $1FEB
+sound_init: equ $1FEE
+play_it: equ $1FF1
+sound_man: equ $1FF4
+rand_gen: equ $1FFD
 
 ; VDP
-data_port: equ 0x00be  ; MSX 098h
-ctrl_port: equ 0x00bf  ; MSX 099h
+data_port: equ $00BE
+ctrl_port: equ $00BF
 
 
-coleco_title_on: equ 0x55aa
-coleco_title_off: equ 0xaa55
+coleco_title_on: equ $55AA
+coleco_title_off: equ $AA55
 
 
 ; SOUND DEFINITIONS *************************
-opening_tune_snd_0a: equ 0x01
-background_tune_0a: equ 0x02
-opening_tune_snd_0b: equ 0x03
-background_tune_0b: equ 0x04
-grab_cherries_snd: equ 0x05
-bouncing_ball_snd_0a: equ 0x06
-bouncing_ball_snd_0b: equ 0x07
-ball_stuck_snd: equ 0x08
-ball_return_snd: equ 0x09
-apple_falling_snd: equ 0x0a
-apple_break_snd_0a: equ 0x0b
-apple_break_snd_0b: equ 0x0c
-no_extra_tune_0a: equ 0x0d
-no_extra_tune_0b: equ 0x0e
-no_extra_tune_0c: equ 0x0f
-diamond_snd: equ 0x10
-extra_walking_tune_0a: equ 0x11
-extra_walking_tune_0b: equ 0x12
-game_over_tune_0a: equ 0x13
-game_over_tune_0b: equ 0x14
-win_extra_do_tune_0a: equ 0x15
-win_extra_do_tune_0b: equ 0x16
-end_of_round_tune_0a: equ 0x17
-end_of_round_tune_0b: equ 0x18
-lose_life_tune_0a: equ 0x19
-lose_life_tune_0b: equ 0x1a
-blue_chomper_snd_0a: equ 0x1b
-blue_chomper_snd_0b: equ 0x1c
+opening_tune_snd_0a: equ $01
+background_tune_0a: equ $02
+opening_tune_snd_0b: equ $03
+background_tune_0b: equ $04
+grab_cherries_snd: equ $05
+bouncing_ball_snd_0a: equ $06
+bouncing_ball_snd_0b: equ $07
+ball_stuck_snd: equ $08
+ball_return_snd: equ $09
+apple_falling_snd: equ $0A
+apple_break_snd_0a: equ $0B
+apple_break_snd_0b: equ $0C
+no_extra_tune_0a: equ $0D
+no_extra_tune_0b: equ $0E
+no_extra_tune_0c: equ $0F
+diamond_snd: equ $10
+extra_walking_tune_0a: equ $11
+extra_walking_tune_0b: equ $12
+game_over_tune_0a: equ $13
+game_over_tune_0b: equ $14
+win_extra_do_tune_0a: equ $15
+win_extra_do_tune_0b: equ $16
+end_of_round_tune_0a: equ $17
+end_of_round_tune_0b: equ $18
+lose_life_tune_0a: equ $19
+lose_life_tune_0b: equ $1A
+blue_chomper_snd_0a: equ $1B
+blue_chomper_snd_0b: equ $1C
+very_good_tune_0a: equ $1D
+very_good_tune_0b: equ $1E
+very_good_tune_0c: equ $1F
+sfx_coin_insert_snd: equ $20
 
 
 ; RAM DEFINITIONS ***************************
-    org 0x7000
+    org $7000
 sprite_order_table:
-    org $ + 20  ;EQU $7000
+    org $ + 20  ;EQU $7000	; used by the sprite rotation system
 timer_data_block:
-    org $ + 23  ;EQU $7014
-
+    org $ + 12  ;EQU $7014
+statestart:
+    org $ + 11  ;EQU $7020 	; Sound Buffer Start
 sound_bank_01_ram:
     org $ + 10  ;EQU $702B
 sound_bank_02_ram:
@@ -120,54 +153,109 @@ sprite_name_table:
 badguy_bhvr_cnt_ram:
     org $ + 1  ;EQU $7139 ; HOW MANY BYTES IN TABLE
 badguy_behavior_ram:
-    org $ + 28  ;EQU $713A ; BEHAVIOR TABLE. UP TO 28 ELEMENTS
+    org $ + 28  ;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 
-    org $ + 280  ; ?? 
+    org $ + 52  ; ??
+gamestate:
+    org $ + 160  ;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
+
+    org $ + 2  ;EQU $722A
+appledata:
+    org $ + 25  ;EQU $722C ; Apple sprite data 5x5 bytes
+
+    org $ + 25  ;EQU $7245
+
+    org $ + 16  ;EQU $725E ; ??
 gamecontrol:
-    org $ + 1  ;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players
+    org $ + 1  ;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players B5-> Pause/Game
+gametimer:
+    org $ + 1  ;EQU $726F  ??
 
-    org $ + 2  ; ??
+    org $ + 1  ; ??
 skilllevel:
     org $ + 1  ;EQU $7271 ; Skill Level 1-4
 
     org $ + 1  ; ??
 diamond_ram:
     org $ + 1  ;EQU $7273
-current_level_ram:
-    org $ + 2  ;EQU $7274
+current_level_p1:
+    org $ + 1  ;EQU $7274
+current_level_p2:
+    org $ + 1  ;EQU $7275
 lives_left_p1_ram:
     org $ + 1  ;EQU $7276
 lives_left_p2_ram:
     org $ + 1  ;EQU $7277
+enemy_num_p1:
+    org $ + 1  ;EQU $7278 Initialised at 7 by LOC_8573
+enemy_num_p2:
+    org $ + 1  ;EQU $7279 Initialised at 7 by LOC_8573
 
-    org $ + 5  ;EQU $7278 ?? Initialised at 7 by LOC_8573
+    org $ + 2  ;EQU $727A ?? 
+
+    org $ + 1  ;EQU $727C FLAG about SCORE ???
 
 score_p1_ram:
-    org $ + 2  ;EQU $727D ;  $727D/7E  2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
+    org $ + 2  ;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER$1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
 score_p2_ram:
-    org $ + 2  ;EQU $727F ;  $727F/80  2 BYTES SCORING FOR PLAYER#2
+    org $ + 2  ;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER$2
+mrdo_data:
+    org $ + 3  ;EQU $7281 ;+0	; Mr. Do's sprite data
+mrdo_data.y:
+    org $ + 1  ;EQU $7284 ;+3
+mrdo_data.x:
+    org $ + 1  ;EQU $7285 ;+4
+mrdo_data.frame:
+    org $ + 1  ;EQU $7286 ;+5
 
-    org $ + 110  ; ??
+    org $ + 1  ;EQU $7287 ;+6
+
+    org $ + 1  ;EQU $7288 ;+7
+
+    org $ + 5  ;EQU $7289	; ??
+enemy_data_array:
+    org $ + 49  ;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
+
+    org $ + 4  ;EQU $72BE	??
+gameflags:
+    org $ + 1  ;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
+
+    org $ + 2  ;??
+timerchomp1:
+    org $ + 1  ;EQU $72C6  Game timer chomper mode
+chompdata:
+    org $ + 18  ;EQU $72C7  3x6 = 18 bytes (3 chompers)
+balldata:
+    org $ + 6  ;EQU $72D9
+satbuff1:  ; MULTIPLE USE
+sptbuff1:
+    org $ + 8  ;EQU $72DF	; ?? SPT buffer
+satbuff2:  ; MULTIPLE USE
+sptbuff2:
+    org $ + 8  ;EQU $72E7	; ?? SPT buffer
 work_buffer:
-    org $ + 215  ;EQU $72EF
-defer_writes:
-    org $ + 2  ;EQU $73C6
+    org $ + 24  ;EQU $72EF
+work_buffer2:
+    org $ + 24  ;EQU $7307	; ??
+savebuff:
+    org $ + 16  ;EQU $731F	;  Free ram ??
+freebuff:
+    org $ + 16  ; work ram
 
-    org $ + 8  ; ??
-stored_color_pointer:
-    org $ + 2  ;EQU $73D0    ; 2 bytes for storing the pointer
-stored_color_data:
-    org $ + 12  ;EQU $73D2    ; 12 bytes for actual color data
+defer_writes: equ $73C6  ; System flag
 
-mode: equ 0x73ff  ; maybe used by OS ??
-
+mode: equ $73FD  ; maybe unused used by OS 
+; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
+; B1==0 -> ISR served 	B1==1 -> ISR pending
+; B3-B6 spare
+; B7==0 -> game mode, 	B7==1 -> intermission mode
 
 
 
 ;	CPU Z80
 
 
-    org 0x8000
+    org $8000
 
     dw coleco_title_on  ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
     dw sprite_name_table
@@ -176,30 +264,17 @@ mode: equ 0x73ff  ; maybe used by OS ??
     dw controller_buffer
     dw start
 
+; RST 08H vector
+; RST 10H vector
+; RST 20H vector
+; RST 28H vector
+; RST 30H vector
+; RST 38H vector
+    ds 20, 0
     ret
-    nop
-    nop
-    ret
-    nop
-    nop
-    ret
-    nop
-    nop
-    ret
-    nop
-    nop
-    ret
-    nop
-    nop
-    ret
-    nop
-    nop
-    reti
-    nop
-;    JP      NMI
     jp nmi_handler
 
-    db "MR. DO!", 0x1e, 0x1f
+    db "MR. DO!", $1E, $1F
     db "/PRESENTS UNIVERSAL'S/1983"
 
 nmi:
@@ -215,19 +290,19 @@ nmi:
     push hl
     push ix
     push iy
-    ld bc, 0x01c2
+    ld bc, $01C2
     call write_register
     call read_register
     ld hl, work_buffer
-    ld de, 0x7307
-    ld bc, 0x18
+    ld de, work_buffer2
+    ld bc, $18
     ldir
     ld hl, gamecontrol
     bit 5, (hl)
     jr z, loc_807e
     bit 4, (hl)
     jr z, loc_809f
-    ld a, 0x14
+    ld a, $14
     call wr_spr_nm_tbl
     call sub_8107
     jr loc_809f
@@ -235,15 +310,15 @@ loc_807e:
     ld a, (gamecontrol)
     bit 3, a
     jr nz, loc_808d
-    ld a, 0x14
+    ld a, $14
     call wr_spr_nm_tbl
     call sub_8107
 loc_808d:
 ;     call sub_80d1  ; -mdl
 
 sub_80d1:
-    ld hl, 0x7259
-    ld bc, 0x1401
+    ld hl, $7259
+    ld bc, $1401  ; B = 20 sprites
 loc_80d7:
     ld a, (hl)
     and a
@@ -253,13 +328,13 @@ loc_80d7:
 loc_80dd:
     push hl
     push de
-    ld hl, 0x7259
+    ld hl, $7259
     ld a, e
     call sub_ac0b
     jr z, loc_80f7
     pop de
     push de
-    ld hl, 0x7259
+    ld hl, $7259
     ld a, e
     call sub_abf6
     pop de
@@ -281,7 +356,7 @@ loc_80ff:
     inc hl
     djnz loc_80d7
 ;     ret  ; -mdl
-    call sub_8229
+    call sub_8229  ; UPDATE MR DO SPRITE
     call sub_8251
     call display_extra_01
     call sub_82de
@@ -289,9 +364,9 @@ loc_80ff:
 loc_809f:
     call poller
     call sub_c952  ; PLAY MUSIC
-    ld hl, 0x7307
+    ld hl, work_buffer2  ; related to sprite rotation
     ld de, work_buffer
-    ld bc, 0x18
+    ld bc, $18
     ldir
     ld hl, gamecontrol
     bit 7, (hl)
@@ -299,7 +374,7 @@ loc_809f:
     res 7, (hl)
     jr finish_nmi
 loc_80bb:
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
 finish_nmi:
     pop iy
@@ -316,29 +391,29 @@ finish_nmi:
     pop af
     retn
 
-sub_8107:
+sub_8107:  ; sprite rotation system: Very cumbersome and applied only to enemies
     ld hl, byte_8215
     ld de, work_buffer
-    ld bc, 0x14
+    ld bc, $14  ; only 20 sprites on screen = 7 enemies + 3 chompers + 5 apples + 1 letter + 1 ball + 2 MrDo + 1 diamond
     ldir
     ld a, 3
-    ld (0x72e7), a
-    ld a, 0x13
-    ld (0x72e8), a
-    ld hl, 0x72f2
-    ld iy, 0x70f5
-    ld b, 0x11
-loc_8125:
+    ld ($72E7), a
+    ld a, $13
+    ld ($72E8), a
+    ld hl, $72F2
+    ld iy, $70F5
+    ld b, $11  ; number of actual sprites rotated. Sprites from 0 to 3 are fixed (MrDo and letter)
+loc_8125:  ; PROBABLY INTRODUCING IN THE ROTATION MRDO's SPRITES WOULD IMPROVE THE FINAL RESULT
     ld a, (hl)
     and a
     jp nz, loc_81dc
     ld a, (iy + 0)
-    cp 0x10
+    cp $10
     jr nc, loc_813c
-    ld a, (0x72e7)
+    ld a, ($72E7)
     ld (hl), a
     inc a
-    ld (0x72e7), a
+    ld ($72E7), a
     jp loc_81dc
 loc_813c:
     push bc
@@ -346,48 +421,48 @@ loc_813c:
     push iy
     ld de, 0
     ld c, (iy + 0)
-    ld a, (0x726d)
+    ld a, ($726D)
     res 6, a
-    ld (0x726d), a
+    ld ($726D), a
     and 3
     cp 1
     jr c, loc_81a1
     jr nz, loc_816f
     ld d, 4
-    ld a, (0x70ed)
+    ld a, ($70ED)
     sub c
     jr nc, loc_8160
     cpl
     inc a
 loc_8160:
-    cp 0x10
+    cp $10
     jr nc, loc_81a1
-    ld a, (0x726d)
+    ld a, ($726D)
     set 6, a
-    ld (0x726d), a
+    ld ($726D), a
     dec d
     jr loc_81a1
 loc_816f:
     ld d, 8
-    ld a, (0x70ed)
+    ld a, ($70ED)
     sub c
     jr nc, loc_8179
     cpl
     inc a
 loc_8179:
-    cp 0x10
+    cp $10
     jr nc, loc_81a1
-    ld a, (0x726d)
+    ld a, ($726D)
     set 6, a
-    ld (0x726d), a
+    ld ($726D), a
     ld d, 6
     jr loc_81a1
 loc_81b6:
-    ld a, (0x72e8)
+    ld a, ($72E8)
     ld (hl), a
     dec a
-    ld (0x72e8), a
-;     JR      LOC_8189  ; -mdl
+    ld ($72E8), a
+; 	JR		LOC_8189  ; -mdl
 loc_8189:
     dec b
     jr z, loc_81c0
@@ -402,7 +477,7 @@ loc_8189:
     cpl
     inc a
 loc_819d:
-    cp 0x10
+    cp $10
     jr nc, loc_8189
 loc_81a1:
     inc e
@@ -413,10 +488,10 @@ loc_81a1:
     cp d
     jr c, loc_81b6
     jr z, loc_81b6
-    ld a, (0x72e7)
+    ld a, ($72E7)
     ld (hl), a
     inc a
-    ld (0x72e7), a
+    ld ($72E7), a
     jr loc_8189
 loc_81c0:
     ld a, e
@@ -424,13 +499,13 @@ loc_81c0:
     jr nc, loc_81d0
     cp 7
     jr c, loc_81d8
-    ld a, (0x726d)
+    ld a, ($726D)
     bit 6, a
     jr z, loc_81d8
 loc_81d0:
-    ld a, (0x726d)
+    ld a, ($726D)
     set 7, a
-    ld (0x726d), a
+    ld ($726D), a
 loc_81d8:
     pop iy
     pop hl
@@ -443,7 +518,7 @@ loc_81dc:
     inc iy
     dec b
     jp nz, loc_8125
-    ld hl, 0x726d
+    ld hl, $726D
     ld a, (hl)
     inc a
     and 3
@@ -455,17 +530,18 @@ loc_81dc:
 loc_81fa:
     xor a
 loc_81fb:
-    ld (0x726d), a
+    ld ($726D), a
     ld de, sprite_order_table
-    ld b, 0x14
+    ld b, $14
     ld iy, work_buffer
     xor a
+    ld c, a
 loop_8208:
-    ld h, 0
+    ld h, a
     ld l, (iy + 0)
     add hl, de
-    ld (hl), a
-    inc a
+    ld (hl), c
+    inc c
     inc iy
     djnz loop_8208
     ret
@@ -474,30 +550,53 @@ byte_8215:
     db 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 sub_8229:
-    ld hl, 0x7281
+    ld hl, mrdo_data  ; Mr. Do's sprite data
     bit 7, (hl)
-    jr z, locret_8250
+    ret z
     res 7, (hl)
     ld d, 1
-    ld a, (0x7286)
+    ld a, (mrdo_data.frame)  ; if >0 update the MrDo sprite (CURRENT FRAME ?)
     and a
     jr z, loc_8241
-    add a, 0x1b
-    call deal_with_sprites
+; 1 walk right01
+; 2 walk right02
+; 3 PUSH right01
+; 4 PUSH right02
+; 
+    add a, $1B  ; MrDo Position offeset = 27+1 in SPRITE_GENERATOR
+    ld iy, 8  ; number of 8x8 tiles to process (8 <=> 2 layers)
+    call deal_with_sprites  ; rotate the current frame of the player
+
     ld d, 0
 loc_8241:
-    ld a, (0x7284)
-    sub 1
-    ld b, a
-    ld a, (0x7285)
-    ld c, a
-    ld a, 0x81
-    call sub_b629
-locret_8250:
+    ld hl, (mrdo_data.y)  ; HL = MrDo's X,Y
+    dec l
+    ld b, l
+    ld c, h
+    ld a, $81
+    call sub_b629  ; put sprite A at BC = Y-1	,X with step D
+
+; HACK TO ADD A SECOND COLOR LAYER
+    ld hl, sprite_name_table + 8
+    ld a, (ix + 2)
+    cp 148  ; smashed player
+    jp nz, loc_8241.patch  ; patch only if the player is not smashed
+    ld (hl), 209  ; hide the second layer if player is smashed
+    ret
+loc_8241.patch:
+    ld a, (ix + 0)
+    ld (hl), a
+    inc hl
+    ld a, (ix + 1)
+    ld (hl), a
+    inc hl
+    ld (hl), 45 * 4
+    inc hl
+    ld (hl), 15
     ret
 
 sub_8251:
-    ld hl, 0x727c
+    ld hl, $727C
     bit 7, (hl)
     jr z, loc_825d
     res 7, (hl)
@@ -505,20 +604,18 @@ sub_8251:
     jr loc_8265
 loc_825d:
     bit 6, (hl)
-    jr z, locret_8268
+    ret z
     res 6, (hl)
     ld a, 1
 loc_8265:
-    call patterns_to_vram
-locret_8268:
-    ret
+    jp patterns_to_vram
 
 display_extra_01:
-    ld a, (0x72bc)
+    ld a, ($72BC)
     and a
     jr z, loc_82aa
     ld hl, byte_82d3
-    ld de, 0x2b
+    ld de, $2B
     ld bc, extra_01_txt
 loc_8278:
     rrca
@@ -530,15 +627,15 @@ loc_8278:
     inc bc
     jr loc_8278
 loc_8282:
-    ld a, (0x72bc)
+    ld a, ($72BC)
     and (hl)
-    ld (0x72bc), a
+    ld ($72BC), a
     inc hl
     ld a, (gamecontrol)
     bit 1, a
-    ld a, (0x72b8)
+    ld a, ($72B8)
     jr z, loc_8297
-    ld a, (0x72b9)
+    ld a, ($72B9)
 loc_8297:
     and (hl)
     ld hl, 0
@@ -550,11 +647,11 @@ loc_82a0:
     ld iy, 1
     call put_vram
 loc_82aa:
-    ld a, (0x72bb)
+    ld a, ($72BB)
     and a
-    jr z, locret_82d2
+    ret z
     ld hl, byte_82d3
-    ld de, 0x2b
+    ld de, $2B
 loc_82b6:
     rrca
     jr c, loc_82bf
@@ -564,16 +661,14 @@ loc_82b6:
     inc de
     jr loc_82b6
 loc_82bf:
-    ld hl, 0x72bb
+    ld hl, $72BB
     ld a, (hl)
     and (hl)
     ld (hl), a
     ld hl, byte_82dd
     ld a, 2
     ld iy, 1
-    call put_vram
-locret_82d2:
-    ret
+    jp put_vram
 
 byte_82d3:
     db 254, 1, 253, 2, 251, 4, 247, 8, 239, 16
@@ -581,22 +676,22 @@ byte_82dd:
     db 0
 
 sub_82de:
-    ld hl, 0x7272
+    ld hl, $7272
     bit 0, (hl)
     jr z, loc_8305
     res 0, (hl)
     ld a, (gamecontrol)
     bit 1, a
-    ld a, (current_level_ram)
+    ld a, (current_level_p1)
     jr z, loc_82f4
-    ld a, (0x7275)
+    ld a, (current_level_p2)
 loc_82f4:
     dec a
-    cp 0x0a
+    cp $0A
     jr c, loc_82fb
     ld a, 9
 loc_82fb:
-    ld hl, byte_8333
+    ld hl, bonus_obj_list
     ld c, a
     ld b, 0
     add hl, bc
@@ -606,14 +701,14 @@ loc_8305:
     bit 1, (hl)
     jr z, loc_8310
     res 1, (hl)
-    ld a, 0x0e
+    ld a, $0E
 loc_830d:
     call deal_with_playfield
 loc_8310:
     ld hl, diamond_ram
     bit 7, (hl)
-    jr z, locret_8332
-    ld ix, 0x722c
+    ret z
+    ld ix, appledata
     ld b, (ix + 1)
     ld c, (ix + 2)
     ld d, 0
@@ -624,86 +719,51 @@ loc_8329:
     ld a, (hl)
     xor 1
     ld (hl), a
-    ld a, 0x8d
-    call sub_b629
-locret_8332:
-    ret
+    ld a, $8D
+    jp sub_b629
 
-byte_8333:
-    db 10, 11, 12, 13, 10, 11, 12, 13, 10, 11
+; BONUS ITEM LIST
+bonus_obj_list:
+    db 10, 11, 12, 13, 16, 17, 18, 19, 20, 21
 
 start:
-    ld hl, 0x7000
-    ld de, 0x7000 + 1
-    ld bc, 0x0300
-    ld (hl), c
+    ld hl, $7000  ; clean user ram
+    ld de, $7000 + 1
+    ld (hl), l
+    ld bc, $03B0 - 1
     ldir
     ld hl, mode
     ld (hl), b
 
-    ld de, sprite_order_table
-loc_8340:
-    xor a
-    ld (de), a
-    inc de
-    ld hl, 0x73b0
-    sbc hl, de
-    ld a, h
-    or l
-    jr nz, loc_8340
     ld a, 1
     ld (defer_writes + 1), a
-    ld a, 0
+    ld a, b
     ld (defer_writes), a
     call initialize_the_sound
-    ld a, 0x14
+    ld a, $14
     call init_spr_nm_tbl
     ld hl, timer_table
     ld de, timer_data_block
     call init_timer
     ld hl, controller_buffer
-    ld a, 0x9b
+    ld a, $9B
     ld (hl), a
     inc hl
     ld (hl), a
-;     JP      LOC_8372  ; -mdl
-loc_8372:
-;     call gameinit  ; -mdl
 
-gameinit:  ; Initialize the game
+loc_8372:
+; DEBUGGER
+; CALL 	EXTRASCREEN		; TEST EXTRA MRDO SCREEN
+; CALL 	INTERMISSION	; TEST INTERMISSION
+; CALL 	CONGRATULATION	; CONGRATULATION
+
+; Initialize the game
 
     call cvb_animatedlogo
     call init_vram
-
-;	call	ExtraMrDo		; test the  Extra MrDo! screen
-
     xor a
-;     ret  ; -mdl
-loc_8375:
-;     call sub_84f8  ; -mdl
-
-sub_84f8:  ; Disables NMI, sets up the game
-    push af
-    ld hl, gamecontrol
-    set 7, (hl)
-loc_84fe:
-    bit 7, (hl)
-    jr nz, loc_84fe
-    pop af
-    push af
-    and a
-    jr nz, loc_850a
-    call sub_851c
-loc_850a:
-    call sub_8585
-    pop af
-    cp 2
-    jr z, loc_8515
-    call clear_screen_and_sprites_01
-loc_8515:
-    call clear_screen_and_sprites_02
-    call sub_87f4
-;     ret  ; -mdl
+loc_8375:  ; GAME MAIN LOOP
+    call sub_84f8
 loc_8378:
     call sub_8828
     call deal_with_apple_falling
@@ -722,7 +782,7 @@ loc_8378:
     jr nz, loc_83ab
     call sub_9842
     cp 1
-    jr z, loc_83ab
+    jr z, loc_83ab  ; if Z MrDo collided an enemy
     and a
     jr nz, loc_83cb
     call sub_a53e
@@ -731,136 +791,218 @@ loc_8378:
     cp 1
     jr nz, loc_83cb
 loc_83ab:
-    ld ix, 0x722c
-    ld b, 5
-loop_83b1:
+
+; animate here the MrDo death
+    call mrdodeathsequence
+
+loc_83abx:
+    ld ix, appledata  ; apple data array
+    ld b, 5  ; apple number
+loop_83b1:  ; MrDo is dead, let apples fall if any
     bit 3, (ix + 0)
-    jr nz, loc_83c0
+    jr nz, loc_83c0  ; if this apple is falling make it fall
     ld de, 5
     add ix, de
-    djnz loop_83b1
-;     JR      LOC_83C5  ; -mdl
+    djnz loop_83b1  ; ?? probably only one apple falling at time...
+
 loc_83c5:
-    or a
+    and a  ; if Z you have an extra MrDo ?
     jr nz, loc_83cb
     ld a, 1
 loc_83cb:
-    call got_diamond
+    call got_diamond  ; this is dealing with more than Diamonds
     cp 3
     jr z, loc_8372
     jr loc_8375
 loc_83c0:
     call deal_with_apple_falling
-    jr loc_83ab
+    jr loc_83abx
 
+mrdodeathsequence:
+    push af
+    ld bc, 4 * 256 + 28 + 48  ; C is the pointer to the current frame
+mrdodeathsequence.nextframe:
+    push bc
+    ld hl, 20  ; 20 x 4 = 80 /60 = 1.33 sec
+    xor a
+    call request_signal
+    push af
+mrdodeathsequence.wait:
+
+    ld ix, appledata  ; apple data array
+    ld b, 5  ; apple number
+mrdodeathsequence.nextapple:  ; MrDo is dead, let apples fall if any
+    bit 3, (ix + 0)
+    push ix
+    push bc
+    call nz, deal_with_apple_falling  ; if this apple is falling make it fall
+    pop bc
+    pop ix
+    ld de, 5
+    add ix, de
+    djnz mrdodeathsequence.nextapple
+
+    pop af
+    push af
+    call test_signal
+    and a
+    jr z, mrdodeathsequence.wait
+    pop af
+    pop bc
+    ld a, c
+    inc c
+    push bc
+    ld iy, 8  ; number of 8x8 tiles to process (8 <=> 2 layers)
+    call deal_with_sprites  ; Update the current frame of the player
+    pop bc
+    djnz mrdodeathsequence.nextframe
+    pop af
+    ret
 
 init_vram:
     ld bc, 0
     call write_register
-    ld bc, 0x01c2
+    ld bc, $01C2
     call write_register
-    ld bc, 0x0700
+    ld bc, $0700
     call write_register
 
-    xor a
-    ld hl, 0x1900
-    call init_table
-    ld a, 1
-    ld hl, 0x2000
-    call init_table
-    ld a, 2
-    ld hl, 0x1000
-    call init_table
-    ld a, 3
-    ld hl, 0
-    call init_table
-    ld a, 4
-    ld hl, 0x1800
-    call init_table
-    ld hl, 0
-    ld de, 0x4000
-    xor a
+    ld hl, ct  ; avoid glitches during screen transition
+    ld de, 256 * 3
+    xor a  ; CLEAR CT
     call fill_vram
-    ld ix, variouts_patterns
-loc_844e:
-    ld a, (ix + 0)
-    and a
-    jr z, load_fonts
-    ld b, 0
-    ld c, a
-    push bc
-    pop iy
-    ld d, b
-    ld e, (ix + 1)
-    ld l, (ix + 2)
-    ld h, (ix + 3)
-    ld a, 3
-    push ix
-    call put_vram
-    pop ix
-    ld bc, 4
-    add ix, bc
-    jr loc_844e
-load_fonts:
-    ld hl, (number_table)
-    ld de, 0x00d8
-    ld iy, 0x0a
-    ld a, 3
-    call put_vram
-    ld hl, (ascii_table)
-    ld de, 0x00e2
-    ld iy, 0x1a
-    ld a, 3
-    call put_vram
-    ld hl, (number_table)
-    ld bc, 0xffe0
-    add hl, bc
-    ld de, 0x00fc
-    ld iy, 3
-    ld a, iyl
-    call put_vram
-    ld hl, (number_table)
-    ld bc, 0xff88
-    add hl, bc
-    ld de, 0x00ff
-    ld iy, 1
-    ld a, 3
-    call put_vram
-    ld a, 0x1b
+
+    xor a  ; SAT
+    ld hl, sat
+    call init_table
+    ld a, 1  ; SPT
+    ld hl, spt
+    call init_table
+    ld a, 2  ; PNT
+    ld hl, pnt
+    call init_table
+    ld a, 3  ; PT
+    ld hl, pt
+    call init_table
+    ld a, 4  ; CT
+    ld hl, ct
+    call init_table
+
+    ld hl, 0
+    ld de, $2000
+    xor a  ; CLEAR PT,PNT,SAT
+    call fill_vram
+
+
+    ld a, $1B  ; Load enemies in the SPT
 load_graphics:
     push af
+    ld iy, 4  ; number of 8x8 tiles to process 
     call deal_with_sprites
     pop af
     dec a
     jp p, load_graphics
     ld hl, extra_sprite_pat
-    ld de, 0x60
-    ld iy, 0x40
+    ld de, $60
+    ld iy, $40
     ld a, 1
     call put_vram
     ld hl, ball_sprite_pat
-    ld de, 0x00c0
-    ld iy, 0x18
+    ld de, $00C0
+    ld iy, $18
     ld a, 1
     call put_vram
-    ld hl, phase_01_colors
-    ld de, 0
-    ld iy, 0x20
-    ld a, 4
-    call put_vram
-    ld bc, 0x01e2
-    jp write_register
+
+    call mydisscr  ; LOAD ARCADE FONTS
+
+; screen 2 hack
+
+    call mynmi_off
+    ld bc, $0200  ; move to screen 2
+    call mywrtvdp
+    ld bc, $9F03
+    call mywrtvdp  ; color mirrored at 2000h
+    ld bc, $0304  ; $0304 for non mirrored patterns ar 0000h, $0004 for mirrored patterns
+    call mywrtvdp
+
+; load graphics	
+;  IS UNPACK SAFE ONLY IN INTREMISSION MODE ?
+    ld de, pt
+    ld hl, tileset_bitmap
+    call unpack
+    ld de, pt + 256 * 8
+    ld hl, tileset_bitmap
+    call unpack
+    ld de, pt + 256 * 8 * 2
+    ld hl, tileset_bitmap
+    call unpack
+
+    ld de, ct
+    ld hl, tileset_color
+    call unpack
+
+; load fonts	
+    ld de, pt + 8 * $00D7  ; start fonts here
+    ld hl, arcadefonts
+    call unpack
+    ld de, pt + 256 * 8 + 8 * $00D7  ; start fonts here
+    ld hl, arcadefonts
+    call unpack
+    ld de, pt + 256 * 8 * 2 + 8 * $00D7  ; start fonts here
+    ld hl, arcadefonts
+    call unpack
+
+
+    ld b, 64
+    ld de, ct + 6 * 32 * 8
+load_graphics.1:    push bc
+    ld hl, fontcolor
+    ld bc, 8
+    push de
+    call mynmi_off
+    call myldirvm
+    call mynmi_on
+    pop de
+    ld hl, 8
+    add hl, de
+    ex de, hl
+    pop bc
+    djnz load_graphics.1
+
+    jp myenascr
+
+fontcolor:
+    db $41, $41, $71, $E1, $F1, $71, $41, $41
+
+
+sub_84f8:  ; Disables NMI, sets up the game
+    push af
+    ld hl, gamecontrol
+    set 7, (hl)
+loc_84fe:
+    bit 7, (hl)
+    jr nz, loc_84fe
+    pop af
+    push af
+    and a
+    call z, sub_851c
+    call sub_8585
+    pop af
+    cp 2
+    call nz, clear_screen_and_sprites_01
+    call clear_screen_and_sprites_02
+    jp sub_87f4
 
 sub_851c:  ; If we're here, the game just started
     ld hl, 0
     ld (score_p1_ram), hl
     ld (score_p2_ram), hl
     ld a, 1  ; Set the starting level to 1
-    ld (current_level_ram), a
-    ld (0x7275), a
+    ld (current_level_p1), a
+    ld (current_level_p2), a
     xor a
-    ld (0x727a), a
-    ld (0x727b), a
+    ld ($727A), a
+    ld ($727B), a
     ld a, (skilllevel)
     cp 2
     ld a, 3  ; Set the number of lives to 3
@@ -874,64 +1016,64 @@ loc_853f:
     and 1
     ld (hl), a
     ld a, 1
-    call sub_b286
-    ld hl, 0x718a
-    ld de, 0x3400
-    ld bc, 0x00d4
+    call sub_b286  ; build level 1
+    ld hl, gamestate
+    ld de, $3400  ; VRAM area for P1 data
+    ld bc, $00D4  ; save in VRAM 212 bytes of game state for P1 
     call write_vram
-    ld hl, 0x718a
-    ld de, 0x3600
-    ld bc, 0x00d4
+    ld hl, gamestate
+    ld de, $3600  ; VRAM area for P2 data
+    ld bc, $00D4  ; save in VRAM 212 bytes of game state for P2 
     call write_vram
     call sub_866b
-    ld hl, 0x72b8
-    ld b, 0x0b
+    ld hl, $72B8
+    ld b, $0B
     xor a
 loc_8573:
     ld (hl), a
     inc hl
     djnz loc_8573
     ld a, 8
-    ld (0x72ba), a
-    ld a, 7
-    ld (0x7278), a
-    ld (0x7279), a
+    ld ($72BA), a
+    ld a, 7  ; Enemy Number
+    ld (enemy_num_p1), a
+    ld (enemy_num_p2), a
     ret
 
 sub_8585:
     xor a
-    ld (0x72d9), a
-    ld (0x72dd), a
-    ld (0x7272), a
+    ld (balldata), a
+    ld ($72DD), a
+    ld ($7272), a
     ld (diamond_ram), a
     ld hl, gamecontrol
     res 6, (hl)
     ld a, (hl)
-    ld de, 0x3400
+    ld de, $3400
     bit 1, a
     jr z, loc_85a4
     set 1, d
 loc_85a4:
-    ld hl, 0x718a
-    ld bc, 0x00d4
+    ld hl, gamestate
+    ld bc, $00D4
     call read_vram
     xor a
     ld (badguy_bhvr_cnt_ram), a
     ld hl, badguy_behavior_ram
-    ld b, 0x50
+    ld b, $50
 loc_85b6:
     ld (hl), a
     inc hl
     djnz loc_85b6
     ld a, (gamecontrol)
     bit 1, a
-    ld a, (current_level_ram)
+    ld a, (current_level_p1)
     jr z, loc_85c7
-    ld a, (0x7275)
+    ld a, (current_level_p2)
 loc_85c7:
-    cp 0x0b
+    cp $0B
     jr c, deal_with_badguy_behavior
-    sub 0x0a
+    sub $0A
     jr loc_85c7
 
 deal_with_badguy_behavior:
@@ -945,54 +1087,34 @@ deal_with_badguy_behavior:
     ld h, (ix + 1)
     ld a, (hl)
     ld (badguy_bhvr_cnt_ram), a
-    ld b, d
     ld c, (hl)
+    ld b, d
     inc hl
     ld de, badguy_behavior_ram
     ldir
     ld hl, timer_table
     ld de, timer_data_block
     call init_timer
-    ld a, (gamecontrol)
-    bit 1, a
-    ld a, (current_level_ram)
-    jr z, loc_8603
-    ld a, (0x7275)
-loc_8603:
-    cp 0x0b
-    jr c, send_phase_colors_to_vram
-    sub 0x0a
-    jr loc_8603
 
-send_phase_colors_to_vram:
-    dec a
-    add a, a
-    ld c, a
-    ld b, 0
-    ld iy, playfield_colors
-    add iy, bc
-    ld l, (iy + 0)
-    ld h, (iy + 1)
-    ld de, 0
-    ld iy, 0x0c
-    ld a, 4
-    call put_vram
-    ld hl, 0x72c3
-    ld b, 0x16
+    call set_level_colors
+
+    ld hl, gameflags
+    ld b, $16  ; 22 bytes of GAMEFLAGS ?
     xor a
 loc_862e:
-    ld (hl), a
+    ld (hl), a  ; Reset GAMEFLAGS ??
     inc hl
     djnz loc_862e
     call sub_866b
-    ld hl, 0x72c1
+    ld hl, $72C1
     ld a, (hl)
     and 7
     ld (hl), a
-    ld a, (0x72ba)
-    and 0x3f
-    ld (0x72ba), a
-    ld l, 120
+    ld l, 186
+    ld a, (hl)
+    and $3F
+    ld (hl), a
+    ld hl, enemy_num_p1
     ld a, (gamecontrol)
     inc a
     and 3
@@ -1001,21 +1123,20 @@ loc_862e:
 loc_8652:
     ld a, (hl)
     cp 7
-    jp nc, locret_866a
-    ld iy, 0x72b2
+    ret nc
+    ld iy, $72B2
 loc_865c:
-    ld (iy + 4), 0x00c0
-    ld de, 0xfffa
+    ld (iy + 4), $00C0
+    ld de, $FFFA
     add iy, de
     inc a
     cp 7
     jr nz, loc_865c
-locret_866a:
     ret
 
 sub_866b:
-    ld hl, 0x728a
-    ld b, 0x2e
+    ld hl, $728A
+    ld b, $2E
     xor a
 loop_8671:
     ld (hl), a
@@ -1024,16 +1145,16 @@ loop_8671:
     ret
 
 clear_screen_and_sprites_01:
-    ld hl, 0x1000
-    ld a, l
-    ld de, 0x0300
+    ld hl, pnt
+    ld de, $0300
+    xor a
     call fill_vram
-    ld hl, 0x1900
-    ld a, l
-    ld de, 0x80
+    ld hl, sat
+    ld de, $80
+    xor a
     call fill_vram
     ld hl, sprite_name_table
-    ld b, 0x50
+    ld b, $50
 loop_8691:
     ld (hl), 0
     inc hl
@@ -1045,9 +1166,9 @@ loop_8691:
     inc a
 loc_86a1:
     call deal_with_playfield
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
-    ld hl, 0x00b4
+    ld hl, $00B4
     xor a
     call request_signal
     push af
@@ -1066,21 +1187,21 @@ loc_86c0:
     ret
 
 clear_screen_and_sprites_02:
-    ld hl, 0x1000
-    ld a, l
-    ld de, 0x0300
+    ld hl, pnt  ; vram PATTERN_NAME_TABLE
+    ld de, $0300
+    xor a
     call fill_vram
-    ld hl, 0x1900
-    ld de, 0x80
-    ld a, d
+    ld hl, sat  ; vram SPRITE_ATTRIBUTE_TABLE
+    ld de, $80
+    xor a
     call fill_vram
     ld hl, sprite_name_table
-    ld b, 0x50
+    ld b, $50
 loop_86e0:
     ld (hl), 0
     inc hl
     djnz loop_86e0
-    ld a, 0x00a0
+    ld a, $00A0
 loop_till_playfield_parts_are_done:
     push af
     call display_play_field_parts
@@ -1094,51 +1215,51 @@ loop_till_playfield_parts_are_done:
     ld a, (gamecontrol)
     rra
     jr nc, loc_8709
-    ld a, 0x0f
+    ld a, $0F
     call deal_with_playfield
     ld a, 1
     call patterns_to_vram
 loc_8709:
     ld a, (gamecontrol)
     bit 1, a
-    ld a, (current_level_ram)
+    ld a, (current_level_p1)
     jr z, loc_8716
-    ld a, (0x7275)
+    ld a, (current_level_p2)
 loc_8716:
-    ld hl, 0x72e7
-    ld d, 0x00d8
+    ld hl, $72E7
+    ld d, $00D8
     ld iy, 1
-    cp 0x0a
+    cp $0A
     jr nc, loc_8728
     add a, d
     ld (hl), a
     jr loc_8739
 loc_8728:
-    cp 0x0a
+    cp $0A
     jr c, loc_8731
-    sub 0x0a
+    sub $0A
     inc d
     jr loc_8728
 loc_8731:
     inc iy
     ld (hl), d
     inc hl
-    add a, 0x00d8
+    add a, $00D8
     ld (hl), a
     dec hl
 loc_8739:
-    ld de, 0x3d
+    ld de, $3D
     ld a, 2
     call put_vram
     ld a, 2
     call deal_with_playfield
-    ld hl, 0x72b8
+    ld hl, $72B8
     ld a, (gamecontrol)
     bit 1, a
     jr z, loc_8753
     inc l
 loc_8753:
-    ld de, 0x012b
+    ld de, $012B
     ld bc, 0
 loc_8759:
     ld a, (hl)
@@ -1172,7 +1293,7 @@ send_extra_to_vram:
     inc l
 loc_878c:
     ld b, (hl)
-    ld de, 0x35
+    ld de, $35
 send_lives_to_vram:
     dec b
     jr z, loc_87b9
@@ -1184,7 +1305,7 @@ send_lives_to_vram:
     call put_vram
     pop hl
     push hl
-    ld de, 0x20
+    ld de, $20
     add hl, de
     ex de, hl
     ld hl, mr_do_lower
@@ -1199,8 +1320,8 @@ loc_87b9:
     ld a, 3
     call deal_with_playfield
     ld b, 5
-    ld iy, 0x722c
-    ld a, 0x0c
+    ld iy, appledata
+    ld a, $0C
 loop_87c6:
     bit 7, (iy + 0)
     jr z, loc_87df
@@ -1231,24 +1352,25 @@ mr_do_lower:
     db 121
 
 sub_87f4:  ; Start the level
-    ld iy, 0x7281
+    ld iy, mrdo_data
     xor a
-    ld (iy + 6), a
-    ld (iy + 7), a
+    ld (iy + 6), a  ; $7287 = ??
+    ld (iy + 7), a  ; $7288 = ??
     ld a, 1
-    ld (iy + 1), a  ; Set Mr. Do's starting direction
-    ld (iy + 5), a
-    ld (iy + 3), 0x00b0  ; Set Mr. Do's starting Y coordinate
-    ld (iy + 4), 0x78  ; Set Mr. Do's starting X coordinate
-    ld (iy + 0), 0x00c0
-    ld bc, 0x01e2
+    ld (iy + 1), a  ; $7282 = Set Mr. Do's starting direction 1=Right,2=Left,3=Up,4=Down
+    ld (iy + 5), a  ; $7286 = ?? CURRENT MRDO FRAME !!!
+    ld (iy + 3), $00B0  ; $7284 = Set Mr. Do's starting Y coordinate
+    ld (iy + 4), $0078  ; $7285 = Set Mr. Do's starting X coordinate
+    ld (iy + 0), $00C0  ; $7281 = flag
+    ld bc, $01E2
     call write_register
+
     call play_opening_tune
     ld hl, 1
     xor a
     call request_signal
-    ld (0x7283), a
-    pop af
+    ld ($7283), a  ; $7283 = Mr Do's Timer ?
+;	POP	AF	; WTF??? Potential critical bug
     ret
 
 sub_8828:
@@ -1258,8 +1380,8 @@ sub_8828:
     jr z, check_for_pause
     ld a, (keyboard_p2)
 check_for_pause:
-    cp 0x0a
-    jp nz, locret_88d0
+    cp $0A
+    ret nz
     ld hl, gamecontrol
     set 7, (hl)
 enter_pause:
@@ -1267,17 +1389,17 @@ enter_pause:
     jr nz, enter_pause
     set 5, (hl)
     xor a
-    ld hl, 0x1900
-    ld de, 0x80
+    ld hl, sat  ; remove sprites
+    ld de, $80
     call fill_vram
     ld a, 2
-    ld hl, 0x3800
-    call init_table
-    ld hl, 0x7020
-    ld de, 0x3b00
-    ld bc, 0x5d
+    ld hl, $3800
+    call init_table  ; enable alternative PNT at 3800H
+    ld hl, statestart  ; save to VRAM the sound state
+    ld de, $3B00
+    ld bc, $5D  ; 93 bytes of sound state saved at 3B00h in VRAM
     call write_vram
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
     call play_end_of_round_tune
     ld b, 2
@@ -1296,7 +1418,7 @@ loop_till_un_pause:
     jr z, check_to_leave_pause
     ld a, (keyboard_p2)
 check_to_leave_pause:
-    cp 0x0a
+    cp $0A
     jr nz, loop_till_un_pause
     call initialize_the_sound
     ld hl, gamecontrol
@@ -1306,9 +1428,9 @@ loc_8891:
     jr nz, loc_8891
     set 4, (hl)
     ld a, 2
-    ld hl, 0x1000
+    ld hl, pnt
     call init_table
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
     ld b, 4
 loc_88a7:
@@ -1325,30 +1447,25 @@ loc_88b6:
     bit 7, (hl)
     jr nz, loc_88b6
     ld a, (hl)
-    and 0x00cf
+    and $00CF
     ld (hl), a
-    ld hl, 0x7020
-    ld de, 0x3b00
-    ld bc, 0x5d
+    ld hl, statestart  ; restore from VRAM the sound state
+    ld de, $3B00
+    ld bc, $5D
     call read_vram
-    ld bc, 0x01e2
-    call write_register
-locret_88d0:
-    ret
+    ld bc, $01E2
+    jp write_register
 
 deal_with_apple_falling:
-;     call leads_to_falling_apple_03  ; -mdl
-
-leads_to_falling_apple_03:
-    ld iy, 0x722c
+    ld iy, appledata
     ld hl, byte_896c
-    ld a, (0x722a)
+    ld a, ($722A)
     ld c, a
     ld b, 0
     add hl, bc
     ld c, (hl)
     add iy, bc
-;     ret  ; -mdl
+
     xor a
     bit 7, (iy + 0)
     jr z, leads_to_falling_apple_04
@@ -1383,14 +1500,14 @@ leads_to_falling_apple_05:
 leads_to_falling_apple_07:
     ld a, (iy + 4)
     ld b, a
-    and 0x00cf
+    and $00CF
     ld c, a
     ld a, b
-    add a, 0x10
-    and 0x30
+    add a, $10
+    and $30
     or c
     ld (iy + 4), a
-    and 0x30
+    and $30
     jr z, loc_892a
     jr loc_8941
 loc_892a:
@@ -1413,30 +1530,30 @@ loc_8945:
     pop af
 leads_to_falling_apple_04:
     push af
-    ld a, (0x722a)
+    ld a, ($722A)
     inc a
     cp 5
     jr c, loc_8954
     xor a
 loc_8954:
-    ld (0x722a), a
+    ld ($722A), a
     pop af
     and a
     ret
+
 
 byte_896c:
     db 0, 5, 10, 15, 20, 25
 
 sub_8972:
-    ld hl, 0x0f
+    ld hl, $0F
     ld a, (iy + 0)
     bit 6, a
     jr nz, loc_8992
-    bit 5, a
     ld l, 4
+    bit 5, a
     jr nz, loc_8992
-    ld l, 0x19
-;     JR      LOC_8992  ; -mdl
+    ld l, $19
 
 loc_8992:
     xor a
@@ -1472,16 +1589,16 @@ loc_89c1:
     ld a, d
     and a
     jr nz, loc_89c8
-    ld bc, 0x0808
+    ld bc, $0808
 loc_89c8:
-    ld a, (0x722a)
-    add a, 0x0c
+    ld a, ($722A)
+    add a, $0C
     jp sub_b629
 
 sub_89d1:
     push iy
     ld a, (iy + 4)
-    and 0x0f
+    and $0F
     jr z, loc_89e9
     dec a
     add a, a
@@ -1508,7 +1625,7 @@ sub_8a31:
     push bc
     push de
     push ix
-    ld ix, 0x722c
+    ld ix, appledata
     ld de, 5
     ld b, e
     ld c, d
@@ -1523,19 +1640,20 @@ loc_8a47:
     pop ix
     pop de
     pop bc
+;	AND		A	; unused
 ;     ret  ; -mdl
     cp 1
     jr nz, loc_8a2e
     call rand_gen
-    and 0x0f
+    and $0F
     cp 2
     jr nc, loc_8a2e
     ld b, (iy + 1)
     ld c, (iy + 2)
-    ld ix, 0x722c
+    ld ix, appledata
     ld (ix + 1), b
     ld (ix + 2), c
-    ld a, 0x80
+    ld a, $80
     ld (diamond_ram), a
     call play_diamond_sound
 loc_8a2e:
@@ -1546,13 +1664,13 @@ deal_with_apple_hitting_something:
     ld b, (iy + 1)
     ld c, (iy + 2)
     ld a, c
-    and 0x0f
+    and $0F
     jr z, loc_8a67
     cp 8
     jr z, loc_8a67
     ld a, c
     add a, 8
-    and 0x00f0
+    and $00F0
     ld c, a
 loc_8a67:
     call sub_8ad9
@@ -1584,14 +1702,18 @@ loc_8a80:
     jr nz, apple_fell_on_something
     bit 6, a
     jr nz, apple_fell_on_something
-    and 0x0f
+    and $0F
     jr nz, apple_fell_on_something
     ld a, (iy + 0)
     and 7
     cp 5
     jr nc, apple_fell_on_something
-    ld (iy + 0), 0x80
-    ld (iy + 4), 0x10
+;	LD		A, 80H
+;	LD		(IY+0), A
+    ld (iy + 0), $80
+;	LD		A, 10H
+;	LD		(IY+4), A
+    ld (iy + 4), $10
     xor a
     jr loc_8ad7
 apple_fell_on_something:
@@ -1600,7 +1722,7 @@ apple_fell_on_something:
     call play_apple_breaking_sound
     pop iy
     ld a, (iy + 4)
-    add a, 0x10
+    add a, $10
     ld (iy + 4), a
 loc_8ad7:
     and a
@@ -1608,28 +1730,28 @@ loc_8ad7:
 
 sub_8ad9:
     ld a, b
-    and 0x0f
+    and $0F
     ret nz
     call sub_ac3f
     dec ix
     dec d
-    ld a, (ix + 0x11)
+    ld a, (ix + $11)
     and 3
     cp 3
     ret nz
     bit 3, c
     jr nz, loc_8af7
-    ld a, (ix + 0x10)
+    ld a, (ix + $10)
     and 3
     cp 3
     ret nz
 loc_8af7:
     ld a, (ix + 1)
-    and 0x0c
-    cp 0x0c
+    and $0C
+    cp $0C
     jr nz, loc_8b09
     ld a, b
-    cp 0x00e8
+    cp $00E8
     jr nc, loc_8b09
     set 5, (ix + 1)
 loc_8b09:
@@ -1645,44 +1767,44 @@ loc_8b1d:
     inc a
     call sub_8bb1
     ld a, b
-    cp 0x00b8
+    cp $00B8
     jr nc, loc_8b54
     ld a, (ix + 1)
-    and 0x0c
-    cp 0x0c
+    and $0C
+    cp $0C
     jr nz, loc_8b34
-    set 4, (ix + 0x11)
+    set 4, (ix + $11)
 loc_8b34:
-    ld a, (ix + 0x11)
+    ld a, (ix + $11)
     cpl
     and 5
     jr nz, loc_8b4e
-    ld a, (ix + 0x10)
+    ld a, (ix + $10)
     cpl
-    and 0x0a
+    and $0A
     jr nz, loc_8b4e
     bit 3, c
     jr nz, loc_8b4e
-    set 7, (ix + 0x11)
+    set 7, (ix + $11)
 loc_8b4e:
     ld a, d
-    add a, 0x11
+    add a, $11
     call sub_8bb1
 loc_8b54:
     bit 3, c
     ret nz
     ld a, (ix + 0)
-    and 0x0c
-    cp 0x0c
+    and $0C
+    cp $0C
     jr nz, loc_8b69
     ld a, b
-    cp 0x00b8
+    cp $00B8
     jr nc, loc_8b69
     set 5, (ix + 0)
 loc_8b69:
     ld a, (ix + 0)
-    and 0x0a
-    cp 0x0a
+    and $0A
+    cp $0A
     jr nz, loc_8b7f
     ld a, (ix + 1)
     and 5
@@ -1693,33 +1815,33 @@ loc_8b7f:
     ld a, d
     call sub_8bb1
     ld a, b
-    cp 0x00b8
+    cp $00B8
     ret nc
     ld a, (ix + 0)
-    and 0x0c
-    cp 0x0c
+    and $0C
+    cp $0C
     jr nz, loc_8b94
-    set 4, (ix + 0x10)
+    set 4, (ix + $10)
 loc_8b94:
-    ld a, (ix + 0x10)
+    ld a, (ix + $10)
     cpl
-    and 0x0a
+    and $0A
     jr nz, loc_8baa
-    ld a, (ix + 0x11)
+    ld a, (ix + $11)
     cpl
     and 5
     jr nz, loc_8baa
-    set 6, (ix + 0x10)
+    set 6, (ix + $10)
 loc_8baa:
     ld a, d
-    add a, 0x10
+    add a, $10
     jp sub_8bb1
 
 sub_8bb1:
     push bc
     push de
     push ix
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop ix
     pop de
@@ -1727,39 +1849,41 @@ sub_8bb1:
     ret
 
 sub_8bc0:  ; Mr. Do interesecting with a falling apple
-    ld a, (0x7284)
+    ld a, (mrdo_data.y)  ; A = MrDo's Y
     ld d, a
     bit 7, (iy + 4)
     jr z, loc_8bce
     add a, 4
     jr loc_8be4
 loc_8bce:
-    ld a, (0x7285)
+    ld a, (mrdo_data.x)  ; A = MrDo's X
     ld e, a
     call sub_8cfe
-    jr nz, loc_8bf4
+    ret nz  ;	JR		NZ, LOC_8BF4
     set 7, (iy + 4)
     ld a, (gamecontrol)
     set 6, a
     ld (gamecontrol), a
     ld a, d
 loc_8be4:
-    ld (0x7284), a
+    ld (mrdo_data.y), a
     xor a
-    ld (0x7286), a
-    ld a, (0x7281)
+    ld (mrdo_data.frame), a  ; Mr Do current frame
+    ld a, (mrdo_data)
     set 7, a
-    ld (0x7281), a
-loc_8bf4:
+    ld (mrdo_data), a
+    xor a
+;LOC_8BF4:
+;	AND		A
     ret
 
 sub_8bf6:  ; Falling apple
-    ld a, (0x72ba)
+    ld a, ($72BA)
     ld b, a
     ld a, 1
     bit 7, b
     jr z, loc_8c38
-    ld a, (0x72bf)
+    ld a, ($72BF)
     ld d, a
     bit 6, (iy + 4)
     jr z, loc_8c0f
@@ -1767,22 +1891,22 @@ sub_8bf6:  ; Falling apple
     ld d, a
     jr loc_8c28
 loc_8c0f:
-    ld a, (0x72be)
+    ld a, ($72BE)
     ld e, a
     call sub_8cfe
     jr nz, loc_8c38
-    ld a, (0x72bd)
+    ld a, ($72BD)
     set 7, a
-    ld (0x72bd), a
+    ld ($72BD), a
     set 6, (iy + 4)
     inc (iy + 4)
     ld a, d
 loc_8c28:
-    ld (0x72bf), a
+    ld ($72BF), a
     ld b, d
-    ld a, (0x72be)
+    ld a, ($72BE)
     ld c, a
-    ld d, 0x0b
+    ld d, $0B
     ld a, 3
     call sub_b629
     xor a
@@ -1792,7 +1916,7 @@ loc_8c38:
 
 sub_8c3a:  ; Falling apple
     ld b, 7
-    ld ix, 0x728e
+    ld ix, enemy_data_array
 loc_8c40:
     push bc
     bit 7, (ix + 4)
@@ -1804,7 +1928,7 @@ loc_8c40:
     bit 7, (ix + 0)
     jr z, loc_8c68
     ld b, (ix + 5)
-    ld a, (0x722a)
+    ld a, ($722A)
     cp b
     jr nz, loc_8c8d
     ld a, d
@@ -1815,7 +1939,7 @@ loc_8c68:
     call sub_8cfe
     jr nz, loc_8c8d
     set 7, (ix + 0)
-    ld a, (0x722a)
+    ld a, ($722A)
     ld (ix + 5), a
     inc (iy + 4)
 loc_8c7a:
@@ -1824,7 +1948,7 @@ loc_8c7a:
     ld c, e
     call sub_b7ef
     add a, 5
-    ld d, 0x25
+    ld d, $25
     push ix
     call sub_b629
     pop ix
@@ -1835,9 +1959,9 @@ loc_8c8d:
     djnz loc_8c40
     ret
 
-sub_8c96:  ; Falling apple
-    ld b, 3
-    ld ix, 0x72c7
+sub_8c96:  ; Falling apple ?
+    ld b, 3  ; chomper number
+    ld ix, chompdata  ; chomper data
 loc_8c9c:
     push bc
     bit 7, (ix + 4)
@@ -1847,7 +1971,7 @@ loc_8c9c:
     bit 7, (ix + 0)
     jr z, loc_8cbe
     ld b, (ix + 5)
-    ld a, (0x722a)
+    ld a, ($722A)
     cp b
     jr nz, loc_8cf5
     ld a, d
@@ -1858,7 +1982,7 @@ loc_8cbe:
     call sub_8cfe
     jr nz, loc_8cf5
     set 7, (ix + 0)
-    ld a, (0x722a)
+    ld a, ($722A)
     ld (ix + 5), a
     inc (iy + 4)
 loc_8cd0:
@@ -1868,7 +1992,8 @@ loc_8cd0:
     push ix
     pop hl
     xor a
-    ld de, 0x72c7
+    ld de, chompdata
+;	AND		A		; CF==0  already
     sbc hl, de
     jr z, loc_8cea
     ld de, 6
@@ -1878,7 +2003,7 @@ loc_8ce4:
     sbc hl, de
     jr nz, loc_8ce4
 loc_8cea:
-    add a, 0x11
+    add a, $11
     ld d, 5
     push ix
     call sub_b629
@@ -1920,10 +2045,10 @@ loc_8d21:
     ret
 
 sub_8d25:
-    ld ix, 0x722c
+    ld ix, appledata
     ld bc, 0
 loc_8d2c:
-    ld a, (0x722a)
+    ld a, ($722A)
     cp c
     jr z, loc_8d80
     ld a, (ix + 0)
@@ -1937,7 +2062,7 @@ loc_8d2c:
     cpl
     inc a
 loc_8d47:
-    cp 0x10
+    cp $10
     jr nc, loc_8d80
     ld a, (ix + 1)
     sub (iy + 1)
@@ -1947,13 +2072,13 @@ loc_8d47:
     res 6, (ix + 0)
     res 5, (ix + 0)
     ld a, (iy + 4)
-    and 0x00cf
-    or 0x20
+    and $00CF
+    or $20
     ld (ix + 4), a
     bit 3, (ix + 0)
     jr nz, loc_8d7f
     set 3, (ix + 0)
-    ld hl, 0x0f
+    ld hl, $0F
     xor a
     push bc
     call request_signal
@@ -1979,8 +2104,8 @@ deal_with_loosing_life:
     ld l, 3
     jr nz, loc_8e05
 loc_8d9b:
-    ld ix, 0x728e
-    ld b, 7
+    ld ix, enemy_data_array  ; enemy data starts here = 6*7 bytes
+    ld b, 7  ; test each enemy 
 loc_8da1:
     push bc
     ld a, (ix + 4)
@@ -1991,21 +2116,22 @@ loc_8da1:
     bit 7, (ix + 0)
     jr z, loc_8dc5
     ld b, (ix + 5)
-    ld a, (0x722a)
+    ld a, ($722A)
     cp b
     jr nz, loc_8dc5
-    call sub_b7c4
+    call sub_b7c4  ; outupt = ZF and A 
     pop bc
     ld l, 2
     jr z, loc_8e05
     push bc
 loc_8dc5:
     ld de, 6
-    add ix, de
+    add ix, de  ; next enemy
     pop bc
     djnz loc_8da1
-    ld ix, 0x72c7
-    ld b, 3
+
+    ld ix, chompdata  ; chompers start here ?
+    ld b, 3  ; test each chompers
 loop_8dd3:
     push bc
     bit 7, (ix + 4)
@@ -2013,7 +2139,7 @@ loop_8dd3:
     bit 7, (ix + 0)
     jr z, lost_a_life
     ld b, (ix + 5)
-    ld a, (0x722a)
+    ld a, ($722A)
     cp b
     jr nz, lost_a_life
     call sub_b832
@@ -2026,7 +2152,7 @@ lost_a_life:
     bit 7, (iy + 4)
     jr z, loc_8e05
     push iy
-    call play_lose_life_sound
+    call play_lose_life_sound  ; smashed: no DEATH SEQUENCE HERE 
     pop iy
     ld l, 1
 loc_8e05:
@@ -2040,12 +2166,12 @@ sub_8e10:  ; Falling apple logic
     call sub_8e48
     jr z, loc_8e46
     ld e, a
-    ld a, (0x7284)
+    ld a, (mrdo_data.y)
     sub (iy + 1)
     jr c, loc_8e32
-    cp 0x11
+    cp $11
     jr nc, loc_8e32
-    ld a, (0x7285)
+    ld a, (mrdo_data.x)
     sub (iy + 2)
     jr nc, loc_8e2c
     cpl
@@ -2055,14 +2181,15 @@ loc_8e2c:
     cp 8
     jr c, loc_8e45
 loc_8e32:
-    ld b, 0x00c8
+    ld b, $00C8
     dec e
     jr z, loc_8e3b
     res 6, b
     set 5, b
 loc_8e3b:
     ld (iy + 0), b
-    ld (iy + 4), 0x10
+
+    ld (iy + 4), $10
     ld d, 1
 loc_8e45:
     ld a, d
@@ -2078,17 +2205,17 @@ sub_8e48:
     call sub_ac3f
     pop de
     ld a, b
-    cp 0x00b0
+    cp $00B0
     jr nc, loc_8e76
     ld a, (iy + 2)
     rlca
     rlca
     rlca
     rlca
-    and 0x00f0
+    and $00F0
     ld c, a
     ld a, (iy + 1)
-    and 0x0f
+    and $0F
     or c
     ld b, 8
     ld hl, unk_8f98
@@ -2115,7 +2242,7 @@ loc_8e7a:
     pop de
     jp (ix)
 loc_8e88:
-    ld bc, 0x10
+    ld bc, $10
     add hl, bc
     xor a
     bit 0, (hl)
@@ -2127,7 +2254,7 @@ loc_8e88:
 loc_8e97:
     jp loc_8f96
 loc_8e9a:
-    ld bc, 0x10
+    ld bc, $10
     add hl, bc
     xor a
     bit 0, (hl)
@@ -2143,7 +2270,7 @@ loc_8e9a:
     ld a, 1
     jr loc_8ecc
 loc_8eb4:
-    ld b, 0x00fc
+    ld b, $00FC
     bit 1, (hl)
     jr z, loc_8ec3
     ld b, 4
@@ -2162,7 +2289,7 @@ loc_8ecf:
     ld a, 2
     bit 5, (hl)
     jr nz, loc_8ee3
-    ld bc, 0x10
+    ld bc, $10
     add hl, bc
     xor a
     bit 0, (hl)
@@ -2173,7 +2300,7 @@ loc_8ecf:
 loc_8ee3:
     jp loc_8f96
 loc_8ee6:
-    ld bc, 0x10
+    ld bc, $10
     add hl, bc
     xor a
     bit 1, (hl)
@@ -2192,7 +2319,7 @@ loc_8f00:
     ld b, 4
     bit 0, (hl)
     jr z, loc_8f0f
-    ld b, 0x00fc
+    ld b, $00FC
     inc hl
     bit 0, (hl)
     jr z, loc_8f0f
@@ -2229,7 +2356,7 @@ loc_8f2a:
     ld a, 2
     jr loc_8f57
 loc_8f40:
-    ld b, 0x00fc
+    ld b, $00FC
     bit 3, (hl)
     jr z, loc_8f4e
     ld b, 4
@@ -2270,7 +2397,7 @@ loc_8f7e:
     ld b, 4
     bit 2, (hl)
     jr z, loc_8f8d
-    ld b, 0x00fc
+    ld b, $00FC
     inc hl
     bit 2, (hl)
     jr z, loc_8f8d
@@ -2287,34 +2414,30 @@ loc_8f96:
 unk_8f98:
     db 0
     dw loc_8e88
-    db 0x40
+    db $40
     dw loc_8e9a
-    db 0x80
+    db $80
     dw loc_8ecf
-    db 0x00c0
+    db $00C0
     dw loc_8ee6
     db 8
     dw loc_8f1b
-    db 0x48
+    db $48
     dw loc_8f2a
-    db 0x88
+    db $88
     dw loc_8f5a
-    db 0x00c8
+    db $00C8
     dw loc_8f68
 
 sub_8fb0:
-;     call sub_8fc4  ; -mdl
-
-sub_8fc4:
     ld a, (iy + 0)
     inc a
     ld (iy + 0), a
     and 3
     cp 3
-;     ret  ; -mdl
     jr nz, loc_8fc2
     ld a, (iy + 0)
-    and 0x00f8
+    and $00F8
     res 6, a
     set 5, a
     ld (iy + 0), a
@@ -2323,26 +2446,35 @@ loc_8fc2:
     and a
     ret
 
+
 deal_with_ball:
-    ld a, (0x72d9)
-    ld iy, 0x72d9
+    ld a, (balldata)
+    ld iy, balldata
     bit 7, (iy + 0)
     jr z, loc_8ff1
-    and 0x7f
-    or 0x40
+    and $7F
+    or $40
     ld (iy + 0), a
-    inc (iy + 4)
+
+    ld a, (gameflags)
+    and $80
+    jr z, deal_with_ball.normal_mode
+
+    ld (iy + 4), 0  ; Fast cooldown in chomper mode
+
+deal_with_ball.normal_mode:
+    inc (iy + 4)  ; In chomper mode SET to 1 the ball cooldown counter
     push iy
     call play_bouncing_ball_sound
     pop iy
     jr loc_9005
 loc_8ff1:
-    and 0x78
+    and $78
     jr z, loc_9071
     ld a, (iy + 3)
     call test_signal
     and a
-    jr z, loc_9071
+    ret z  ;JR		Z, LOC_9071
     ld a, (iy + 0)
     bit 6, a
     jr z, ball_returns_to_do
@@ -2354,14 +2486,14 @@ loc_9005:
     call sub_912d
     call sub_92f2
     cp 2
-    jr z, locret_9073
+    ret z
     dec a
     jr z, ball_gets_stuck
     call sub_936f
     cp 2
     jr nz, loc_9028
     ld a, 3
-    jr locret_9073
+    ret
 loc_9028:
     cp 1
     jr z, ball_gets_stuck
@@ -2397,8 +2529,7 @@ ball_returns_to_do:
 loc_906e:
     call sub_93ce
 loc_9071:
-    ld a, 0
-locret_9073:
+    xor a
     ret
 
 sub_9074:
@@ -2428,7 +2559,7 @@ loc_9092:
 
 sub_9099:
     ld de, 0
-    ld ix, 0x722c
+    ld ix, appledata
     ld b, 5
 loc_90a2:
     bit 7, (ix + 0)
@@ -2437,7 +2568,7 @@ loc_90a2:
     sub 9
     cp (iy + 1)
     jr nc, loc_911e
-    add a, 0x11
+    add a, $11
     cp (iy + 1)
     jr c, loc_911e
     ld a, (ix + 2)
@@ -2446,7 +2577,7 @@ loc_90a2:
     jr z, loc_90c5
     jr nc, loc_911e
 loc_90c5:
-    add a, 0x10
+    add a, $10
     jr c, loc_90ce
     cp (iy + 2)
     jr c, loc_911e
@@ -2455,7 +2586,7 @@ loc_90ce:
     jr z, loc_90dc
     set 4, (ix + 0)
     ld e, 4
-    jr locret_912c
+    ret
 loc_90dc:
     ld a, (iy + 1)
     cp (ix + 1)
@@ -2475,7 +2606,7 @@ loc_90fc:
     cp (ix + 2)
     jr c, loc_9110
     bit 0, (iy + 0)
-    jr z, locret_912c
+    ret z
     res 0, (iy + 0)
     jr loc_911a
 loc_9110:
@@ -2484,7 +2615,7 @@ loc_9110:
     set 0, (iy + 0)
 loc_911a:
     set 0, d
-    jr locret_912c
+    ret
 loc_911e:
     inc ix
     inc ix
@@ -2493,7 +2624,6 @@ loc_911e:
     inc ix
     dec b
     jp nz, loc_90a2
-locret_912c:
     ret
 
 sub_912d:
@@ -2516,10 +2646,10 @@ loc_9145:
     call sub_ac3f
     pop de
     ld a, (iy + 1)
-    and 0x0f
+    and $0F
     bit 1, (iy + 0)
     jr z, loc_918a
-    cp 0x0a
+    cp $0A
     jr nz, loc_9167
     set 7, e
     bit 4, (ix + 0)
@@ -2531,7 +2661,7 @@ loc_9167:
     jr nz, loc_91bb
     set 5, e
     ld a, (iy + 2)
-    and 0x0f
+    and $0F
     cp 8
     jr nc, loc_9180
     bit 0, (ix + 0)
@@ -2552,11 +2682,11 @@ loc_918a:
     set 1, e
     jr loc_91bb
 loc_919a:
-    cp 0x0e
+    cp $0E
     jr nz, loc_91bb
     set 5, e
     ld a, (iy + 2)
-    and 0x0f
+    and $0F
     cp 8
     jr nc, loc_91b3
     bit 2, (ix + 0)
@@ -2569,7 +2699,7 @@ loc_91b3:
     set 1, e
 loc_91bb:
     ld a, (iy + 2)
-    and 0x0f
+    and $0F
     bit 0, (iy + 0)
     jr z, loc_91f9
     cp 2
@@ -2580,11 +2710,11 @@ loc_91bb:
     set 0, e
     jr loc_922a
 loc_91d6:
-    cp 0x0a
+    cp $0A
     jr nz, loc_922a
     set 4, e
     ld a, (iy + 1)
-    and 0x0f
+    and $0F
     cp 8
     jr c, loc_91ef
     bit 2, (ix + 0)
@@ -2597,7 +2727,7 @@ loc_91ef:
     set 0, e
     jr loc_922a
 loc_91f9:
-    cp 0x0e
+    cp $0E
     jr nz, loc_9209
     set 6, e
     bit 6, (ix + 0)
@@ -2609,7 +2739,7 @@ loc_9209:
     jr nz, loc_922a
     set 4, e
     ld a, (iy + 1)
-    and 0x0f
+    and $0F
     cp 8
     jr c, loc_9222
     bit 3, (ix + 0)
@@ -2722,7 +2852,7 @@ loc_92e8:
     ret
 
 sub_92f2:
-    ld ix, 0x728e
+    ld ix, enemy_data_array
     ld c, 0
 loc_92f8:
     bit 7, (ix + 4)
@@ -2746,22 +2876,21 @@ loc_9316:
     cp 7
     jr c, loc_92f8
     xor a
-    jr locret_9336
+    ret
 loc_9324:
-    call sub_b7c4
+    call sub_b7c4  ; outupt = ZF and A 
     push af
-    ld de, 0x32
+    ld de, $32
     call sub_b601
     pop af
-    and a
+;	AND	A			; already in AF
     ld a, 2
-    jr z, locret_9336
-    dec a
-locret_9336:
+    ret z
+    ld a, 1
     ret
 
 sub_9337:
-    ld ix, 0x72c7
+    ld ix, chompdata
     ld c, 0
 loc_933d:
     bit 7, (ix + 4)
@@ -2783,52 +2912,49 @@ loc_9355:
     cp 3
     jr c, loc_933d
     xor a
-    jr locret_936e
+    ret
 loc_9363:
     call sub_b832
-    ld de, 0x32
+    ld de, $32
     call sub_b601
     ld a, 1
-locret_936e:
     ret
 
 sub_936f:
-    ld a, (0x72bd)
+    ld a, ($72BD)
     bit 6, a
-    jr z, locret_9398
-    ld a, (0x72bf)
+    ret z
+    ld a, ($72BF)
     ld b, a
-    ld a, (0x72be)
+    ld a, ($72BE)
     ld c, a
     call sub_b5dd
     and a
-    jr z, locret_9398
-    ld bc, 0x0808
+    ret z
+    ld bc, $0808
     ld d, 0
     ld a, 3
     call sub_b629
-    ld de, 0x32
+    ld de, $32
     call sub_b601
     call sub_b76d
     inc a
-locret_9398:
     ret
 
 sub_9399:
-    ld a, (0x7284)
+    ld a, (mrdo_data.y)
     ld b, a
-    ld a, (0x7285)
+    ld a, (mrdo_data.x)
     ld c, a
     call sub_b5dd
     and a
-    jr z, locret_93b5
-    ld hl, 0x7281
+    ret z
+    ld hl, mrdo_data
     set 6, (hl)
     push iy
     call sub_c98a
     pop iy
     ld a, 1
-locret_93b5:
     ret
 
 sub_93b6:
@@ -2853,7 +2979,7 @@ sub_93ce:  ; Ball intersecting with sprite
     ld c, a
     ld a, 9
     sub c
-    ld ix, 0x7281
+    ld ix, mrdo_data
     ld b, (ix + 3)
     ld c, (ix + 4)
 loc_93ed:
@@ -2868,7 +2994,7 @@ loc_93ed:
     xor a
     call request_signal
     ld (iy + 3), a
-    jr locret_944d
+    ret
 loc_9409:
     bit 4, (iy + 0)
     jr z, loc_9444
@@ -2890,16 +3016,14 @@ loc_9421:  ; Ball intersects with sprite
     xor a
     call request_signal
     ld (iy + 3), a
-    ld bc, 0x0808
+    ld bc, $0808
     ld d, 0
     ld a, 4
-    call sub_b629
-    jr locret_944d
+    jp sub_b629
 loc_9444:
     res 3, (iy + 0)
-    ld hl, 0x7281
+    ld hl, mrdo_data
     set 6, (hl)
-locret_944d:
     ret
 
 byte_944e:
@@ -2910,9 +3034,9 @@ leads_to_cherry_stuff:
     bit 6, a
     jr z, loc_9463
     xor a
-    jr locret_94a8
+    ret
 loc_9463:
-    ld iy, 0x7281  ; IY points to Mr. Do's sprite data
+    ld iy, mrdo_data  ; IY points to Mr. Do's sprite data
     ld a, (iy + 2)
     call test_signal
     and a
@@ -2937,36 +3061,35 @@ loc_9489:
     call sub_96e4
     pop af
 loc_9491:
-    call sub_9732
+    call sub_9732  ; MrDo movements
     call sub_9807
     and a
-    jr nz, locret_94a8
+    ret nz
 loc_949a:
-    ld hl, 0x7245
-    ld b, 0x14
+    ld hl, $7245
+    ld b, $14
     xor a
 loc_94a0:
     cp (hl)
-    jr nz, locret_94a8
+    ret nz
     inc hl
     djnz loc_94a0
     ld a, 2
-locret_94a8:
     ret
 
 sub_94a9:
-    ld ix, 0x7088
+    ld ix, $7088
     ld a, (gamecontrol)
     bit 1, a
     jr z, loc_94b8
-    ld ixl, 0x8d
+    ld ixl, $8D
 loc_94b8:
     bit 6, (ix + 0)
     jr nz, loc_94c4
     bit 6, (ix + 3)
     jr z, loc_9538
 loc_94c4:
-    ld a, (0x7281)
+    ld a, (mrdo_data)
     bit 6, a
     jr z, loc_9538
     ld b, (iy + 3)
@@ -2978,54 +3101,54 @@ loc_94c4:
     ld a, c
     jr nz, loc_94ed
     add a, 6
-    ld (0x72db), a
+    ld ($72DB), a
     add a, 3
     jr c, loc_9538
     ld c, a
     ld a, b
-    ld (0x72da), a
+    ld ($72DA), a
     jr loc_9524
 loc_94ed:
     sub 6
-    ld (0x72db), a
+    ld ($72DB), a
     sub 3
     jr c, loc_9538
     ld c, a
     ld a, b
-    ld (0x72da), a
+    ld ($72DA), a
     jr loc_9524
 loc_94fd:
     cp 3
     ld a, b
     jr nz, loc_9514
     sub 6
-    ld (0x72da), a
+    ld ($72DA), a
     sub 3
-    cp 0x1c
+    cp $1C
     jr c, loc_9538
     ld b, a
     ld a, c
-    ld (0x72db), a
+    ld ($72DB), a
     jr loc_9524
 loc_9514:
     add a, 6
-    ld (0x72da), a
+    ld ($72DA), a
     add a, 3
-    cp 0x00b5
+    cp $00B5
     jr nc, loc_9538
     ld b, a
     ld a, c
-    ld (0x72db), a
+    ld ($72DB), a
 loc_9524:
     push ix
     call sub_ac3f
     ld a, (ix + 0)
     pop ix
-    and 0x0f
-    cp 0x0f
+    and $0F
+    cp $0F
     jr nz, loc_9538
     ld a, 5
-    jr locret_9576
+    ret
 loc_9538:
     ld a, 1
     bit 1, (ix + 1)
@@ -3040,31 +3163,30 @@ loc_9538:
     bit 2, (ix + 1)
     jr nz, loc_9558
     xor a
-    jr locret_9576
+    ret
+
 loc_9566:
     ld a, (iy + 4)
-    and 0x0f
+    and $0F
     cp 8
     jr z, loc_9575
 loc_956f:
     pop af
     ld a, (iy + 1)
-    jr locret_9576
+    ret
 loc_9558:
     push af
     cp 3
     jr nc, loc_9566
     ld a, (iy + 3)
-    and 0x0f
+    and $0F
     jr nz, loc_956f
-;     JR      LOC_9575  ; -mdl
 loc_9575:
     pop af
-locret_9576:
     ret
 
 sub_9577:
-    ld ix, 0x72d9
+    ld ix, balldata
     ld a, (iy + 1)
     dec a
     ld b, a
@@ -3084,14 +3206,6 @@ loc_9593:
     set 3, (iy + 0)
     res 6, (iy + 0)
     ret
-loc_95ce:  ; Mr. Do intersects with an apple while facing up or down
-    ld d, a
-    call sub_b12d  ; Returns A=0 if no collision, A=1 if collision
-    and a
-    jr z, loc_95d5
-
-    pop bc
-    jp loc_961c  ; Treat as a "wall" collision
 
 sub_95a1:  ; Mr. Do Sprite intersection logic
     call sub_961f  ; Mr. Do's sprite collision logic with the screen bounds
@@ -3113,7 +3227,6 @@ sub_95a1:  ; Mr. Do Sprite intersection logic
 loc_95c8:
     cp 2
     jr nc, loc_9617
-;     JR      LOC_95D5  ; -mdl
 loc_95d5:
     pop bc
     ld (iy + 3), b
@@ -3148,14 +3261,21 @@ loc_9606:
     call sub_aeb7
     pop de
     xor a
-    jr locret_961e
+    ret
 loc_9617:
     set 5, (iy + 0)
     pop bc
 loc_961c:
     ld a, 1
-locret_961e:
     ret
+loc_95ce:  ; Mr. Do intersects with an apple while facing up or down
+    ld d, a
+    scf  ; CF==1 Mr. Do collision offset to fix stuck in apple bug
+    call sub_b12d  ; Returns A=0 if no collision, A=1 if collision
+    and a
+    jr z, loc_95d5
+    pop bc  ; here A==1
+    ret  ; Treat as a "wall" collision
 
 sub_961f:  ; Mr. Do's sprite collision logic with the screen bounds
     ld (iy + 1), a
@@ -3164,7 +3284,7 @@ sub_961f:  ; Mr. Do's sprite collision logic with the screen bounds
     cp 3  ; Check if Mr. Do is facing up or down
     jr nc, loc_964b  ; If facing up or down, jump to LOC_964B
     ld a, b
-    and 0x0f
+    and $0F
     jr nz, loc_966d
     ld a, c
     add a, 4
@@ -3177,14 +3297,14 @@ sub_961f:  ; Mr. Do's sprite collision logic with the screen bounds
     ld c, a
 loc_9640:
     ld a, c
-    cp 0x18
+    cp $18
     jr c, loc_966d
-    cp 0x00e9
+    cp $00E9
     jr nc, loc_966d
     jr loc_966a
 loc_964b:
     ld a, c
-    and 0x0f
+    and $0F
     cp 8
     jr nz, loc_966d
     ld a, b
@@ -3198,33 +3318,32 @@ loc_964b:
     ld b, a
 loc_9661:
     ld a, b
-    cp 0x20
+    cp $20
     jr c, loc_966d
-    cp 0x00b1
+    cp $00B1
     jr nc, loc_966d
 loc_966a:
     xor a
-    jr locret_966f
+    ret
 loc_966d:  ; Mr. Do has collided with the bounds of the screen
     ld a, 1
-locret_966f:
     ret
 
 deal_with_cherries:
     call sub_b173
     jr c, grab_some_cherries
     bit 1, (iy + 0)
-    jr z, locret_96e3
+    ret z
     ld a, (iy + 8)
     call test_signal
     and a
-    jr z, locret_96e3
+    ret z
     ld (iy + 7), 0
     res 1, (iy + 0)
     push iy
     call sub_c97f
     pop iy
-    jr locret_96e3
+    ret
 grab_some_cherries:
     ld de, 5
     call sub_b601
@@ -3241,10 +3360,10 @@ grab_some_cherries:
     cp 8
     jr c, loc_96d5
     ld (iy + 7), 0
-    ld de, 0x2d  ; final cherry scores 500 not 550
+    ld de, $2D  ; final cherry scores 500 not 550
     call sub_b601
     res 1, (iy + 0)
-    jr locret_96e3
+    ret
 loc_96ca:
     ld (iy + 7), 1
     push iy
@@ -3252,57 +3371,58 @@ loc_96ca:
     pop iy
 loc_96d5:
     xor a
-    ld hl, 0x1e
+    ld hl, $1E
     call request_signal
     ld (iy + 8), a
     set 1, (iy + 0)
-locret_96e3:
     ret
 
 sub_96e4:
-    ld a, (0x7272)
-    rla
-    jr nc, locret_9731
+    ld a, ($7272)
+    bit 7, a
+    ret z
     ld a, (iy + 3)
-    cp 0x60
-    jr nz, locret_9731
+    cp $60
+    ret nz
     ld a, (iy + 4)
-    cp 0x78
-    jr nz, locret_9731
-    ld hl, 0x7272
+    cp $78
+    ret nz
+    ld hl, $7272
     res 7, (hl)
     ld a, (hl)
-    or 0x32
+    or $32
     ld (hl), a
-    ld a, 0x0a
-    ld (0x728c), a
+    ld a, $0A
+    ld ($728C), a
+;	LD		HL, (SCORE_P1_RAM)		; unused
     ld a, (gamecontrol)
     ld c, a
-    ld a, (current_level_ram)
+    ld a, (current_level_p1)
     bit 1, c
     jr z, loc_971b
-    ld a, (0x7275)
+;	LD		HL, (SCORE_P2_RAM)		; unused
+    ld a, (current_level_p2)
 loc_971b:
     ld hl, 0
-    ld de, 0x32
+    ld de, $32
 loc_9721:
     add hl, de
     dec a
     jp p, loc_9721
     ex de, hl
-    call sub_b601
-    nop
-    nop
-    nop
-locret_9731:
-    ret
+    jp sub_b601
+;	PUSH	IY
+;	NOP
+;	NOP
+;	NOP
+;	POP		IY
 
 sub_9732:
-    and a
+    and a  ; if MrDo is halted reset animation
     jr nz, loc_973d
     ld a, (iy + 6)
     inc a
-    cp 2
+    cp 4  ; Number of steps in the animation
     jr c, loc_973e
 loc_973d:
     xor a
@@ -3312,14 +3432,14 @@ loc_973e:
     add a, c
     bit 5, (iy + 0)
     jr z, loc_974c
-    add a, 2
+    add a, 4  ; PUSH/WALK offset <-> add 4 if PUSHING
 loc_974c:
     ld c, a
-    ld a, (iy + 1)
+    ld a, (iy + 1)  ; MrDo Direction
     cp 2
     jr nz, loc_975a
     ld a, c
-    add a, 7
+    add a, 8  ; walk left offset
     ld c, a
     jr loc_9786
 loc_975a:
@@ -3329,12 +3449,12 @@ loc_975a:
     and a
     jp p, loc_976b
     ld a, c
-    add a, 0x0e
+    add a, 16  ;0EH		; walk up offset
     ld c, a
     jr loc_9786
 loc_976b:
     ld a, c
-    add a, 0x1c
+    add a, 32  ;1CH		; walk up-mirror offset
     ld c, a
     jr loc_9786
 loc_9771:
@@ -3344,15 +3464,15 @@ loc_9771:
     and a
     jp p, loc_9782
     ld a, c
-    add a, 0x15
+    add a, 24  ;15H		; walk down offset
     ld c, a
     jr loc_9786
 loc_9782:
     ld a, c
-    add a, 0x23
+    add a, 40  ;23H			; walk down-mirror offset
     ld c, a
 loc_9786:
-    ld (iy + 5), c
+    ld (iy + 5), c  ; !!!!! MODIFY HERE TO HAVE 4 MrDO STEPS
     bit 6, (iy + 0)
     jr z, loc_97c8
     ld a, (iy + 1)
@@ -3388,10 +3508,10 @@ loc_97a9:
     ld a, 4
     call sub_b629
 loc_97c8:
-    ld hl, 0x1e
+    ld hl, $1E
     bit 3, (iy + 0)
     jr nz, loc_97dd
-    rrc l
+    ld l, $0F
     bit 5, (iy + 0)
     jr nz, loc_97dd
     ld l, 7
@@ -3400,8 +3520,8 @@ loc_97dd:
     call request_signal
     ld (iy + 2), a
     ld a, (iy + 0)
-    and 0x00e7
-    or 0x80
+    and $00E7
+    or $80
     ld (iy + 0), a
     ret
 
@@ -3412,7 +3532,7 @@ sub_9807:
     ld a, (diamond_ram)
     rla
     jr nc, loc_983f
-    ld ix, 0x722c
+    ld ix, appledata
     ld b, (ix + 1)
     ld c, (ix + 2)
     ld a, (iy + 3)
@@ -3431,38 +3551,37 @@ loc_9820:
 loc_982c:
     cp 6
     jr nc, loc_983f
-    ld de, 0x03e8
+    ld de, $03E8
     call sub_b601
     ld hl, diamond_ram
     res 7, (hl)
     ld a, 2
-    jr locret_9840
+    ret
 loc_983f:
     xor a
-locret_9840:
     ret
 
-sub_9842:
-    ld a, (0x7272)
+sub_9842:  ; TEST MRDO COLLISION AGAINST ENEMIES
+    ld a, ($7272)
     bit 4, a
     jr z, loc_98a2
-    ld a, (0x72c3)
-    bit 7, a
+    ld a, (gameflags)
+    bit 7, a  ; test chomper mode 
     jr nz, loc_986c
-    ld a, (0x728b)
+    ld a, ($728B)
     call test_signal
     and a
     jr z, loc_986c
-    ld hl, 0x1e
+    ld hl, $1E
     xor a
     call request_signal
-    ld (0x728b), a
-    ld a, (0x728c)
+    ld ($728B), a
+    ld a, ($728C)
     dec a
-    ld (0x728c), a
+    ld ($728C), a
     jr z, loc_9892
 loc_986c:
-    ld iy, 0x728e
+    ld iy, enemy_data_array
     ld b, 7
 loc_9872:
     bit 7, (iy + 4)
@@ -3481,29 +3600,25 @@ loc_9887:
     ld l, d
     jr loc_98cb
 loc_9892:
-    ld a, (0x7272)
+    ld a, ($7272)
     res 4, a
-    ld (0x7272), a
-    ld a, (0x728a)
+    ld ($7272), a
+    ld a, ($728A)
     set 4, a
-    ld (0x728a), a
+    ld ($728A), a
 loc_98a2:
     jp loc_d40b
 loc_98a5:
     call sub_98ce
-;     call sub_9a12  ; -mdl
-
-sub_9a12:
-    ld a, (0x728c)
+    ld a, ($728C)
     ld c, a
     ld b, 0
     ld hl, byte_9a24
     add hl, bc
     ld c, (hl)
-    ld iy, 0x728e
-    add iy, bc
-;     ret  ; -mdl
+    ld iy, enemy_data_array
     ld l, b
+    add iy, bc
     ld a, (iy + 4)
     bit 7, a
     jr z, loc_98c2
@@ -3514,74 +3629,71 @@ sub_9a12:
     call sub_9a2c
     ld l, a
 loc_98c2:
-    ld a, (0x728c)
+    ld a, ($728C)
     inc a
     and 7
-    ld (0x728c), a
+    ld ($728C), a
 loc_98cb:
     ld a, l
-    and a
+    and a  ; return L=A=1 if collison
     ret
 
 sub_98ce:
     push ix
-    ld a, (0x728a)
+    ld a, ($728A)
     bit 3, a
     jr nz, loc_9928
-    ld ix, 0x72b2
+    ld ix, $72B2
     ld a, (ix + 3)
     call test_signal
     and a
     jr z, loc_9928
     call sub_9980
     jr z, loc_991e
+;	LD		BC, 6078H	; unused
     call sub_992b
     jr z, loc_98f6
     ld hl, 1
     jr loc_9915
 loc_98f6:
-;     call sub_9962  ; -mdl
-
-sub_9962:
-    ld (iy + 0), 0x28
-    ld (iy + 4), 0x81
+    ld (iy + 0), $28
+    ld (iy + 4), $81
     xor a
     ld hl, 6
     call request_signal
     ld (iy + 3), a
-    ld bc, 0x6078
+    ld bc, $6078
     ld (iy + 2), b
     ld (iy + 1), c
-;     ret  ; -mdl
     ld (iy + 5), 5
     call sub_9980
     jr z, loc_991e
-    ld hl, 0x00d2
-    ld a, (0x728a)
+    ld hl, $00D2
+    ld a, ($728A)
     bit 2, a
     jr nz, loc_9910
-    ld l, 0x1e
+    ld l, $1E
 loc_9910:
     xor 4
-    ld (0x728a), a
+    ld ($728A), a
 loc_9915:
     xor a
     call request_signal
     ld (ix + 3), a
     jr loc_9928
 loc_991e:
-    ld a, (0x7272)
+    ld a, ($7272)
     set 0, a
     set 7, a
-    ld (0x7272), a
+    ld ($7272), a
 loc_9928:
     pop ix
     ret
 
 sub_992b:
     push iy
-    ld iy, 0x728e
-    ld bc, 0x0700
+    ld iy, enemy_data_array  ; enemy data starts here = 6*7 bytes
+    ld bc, $0700  ; B = enemy number
 loc_9934:
     ld a, (iy + 4)
     bit 7, a
@@ -3589,17 +3701,17 @@ loc_9934:
     bit 6, a
     jr nz, loc_994d
     ld a, (iy + 2)
-    sub 0x60
+    sub $60
     jr nc, loc_9948
     cpl
     inc a
 loc_9948:
-    cp 0x0d
+    cp $0D
     jr nc, loc_994d
     inc c
 loc_994d:
     ld de, 6
-    add iy, de
+    add iy, de  ; next enemy
     djnz loc_9934
     ld a, c
     cp 2
@@ -3614,7 +3726,7 @@ loc_995e:
     ret
 
 sub_9980:
-    ld iy, 0x728e
+    ld iy, enemy_data_array
     ld l, 7
     ld de, 6
 loc_9989:
@@ -3623,54 +3735,54 @@ loc_9989:
     add iy, de
     dec l
     jr nz, loc_9989
-    ld a, (0x728a)
+    ld a, ($728A)
     set 3, a
-    ld (0x728a), a
+    ld ($728A), a
 loc_999c:
     ld a, l
     and a
     ret
 
 sub_999f:
-    ld a, (0x728a)
+    ld a, ($728A)
     bit 5, a
     jr nz, loc_99bb
     set 5, a
-    ld (0x728a), a
-    ld hl, 0x3c
+    ld ($728A), a
+    ld hl, $3C
     xor a
     call request_signal
-    ld ix, 0x72b2
+    ld ix, $72B2
     ld (ix + 3), a
     jr loc_9a07
 loc_99bb:
-    ld a, (0x728b)
+    ld a, ($728B)
     call test_signal
     and a
-    jr z, locret_9a11
-    ld a, (0x728d)
+    ret z
+    ld a, ($728D)
     ld d, a
-    ld a, (0x728a)
+    ld a, ($728A)
     set 6, a
     bit 7, a
     jr z, loc_99e4
     res 7, a
-    ld (0x728a), a
+    ld ($728A), a
     inc d
     jr nz, loc_99db
-    ld d, 0x00ff
+    ld d, $00FF
 loc_99db:
     ld a, d
-    ld (0x728d), a
-    ld a, (0x728a)
+    ld ($728D), a
+    ld a, ($728A)
     jr loc_99e9
 loc_99e4:
     set 7, a
-    ld (0x728a), a
+    ld ($728A), a
 loc_99e9:
     ld e, 7
     ld bc, 6
-    ld iy, 0x728e
+    ld iy, enemy_data_array
 loc_99f2:
     ld h, (iy + 4)
     set 5, h
@@ -3684,12 +3796,12 @@ loc_99ff:
     dec e
     jr nz, loc_99f2
 loc_9a07:
-    ld hl, 0x1e
+    ld hl, $1E
     xor a
     call request_signal
-    ld (0x728b), a
-locret_9a11:
+    ld ($728B), a
     ret
+
 
 byte_9a24:
     db 0, 6, 12, 18, 24, 30, 36, 42
@@ -3757,7 +3869,7 @@ loc_9aa0:
     call sub_9ab9
     call sub_9ae2
     ld a, (iy + 4)
-    and 0x00c7
+    and $00C7
     ld (iy + 4), a
     call sub_9fc8
 loc_9ab1:
@@ -3799,7 +3911,7 @@ sub_9ae2:
     ld d, 1
     bit 6, h
     jr nz, loc_9b07
-    ld d, 0x0d
+    ld d, $0D
     bit 5, h
     jr nz, loc_9b07
     call sub_9b4f
@@ -3808,7 +3920,7 @@ sub_9ae2:
     call sub_ac3f
     ld d, a
     call sub_b173
-    ld d, 0x19
+    ld d, $19
 loc_9b07:
     ld a, (iy + 4)
     and 7
@@ -3821,7 +3933,7 @@ loc_9b07:
     ld l, 4
     ld b, a
     ld a, (iy + 1)
-    cp 0x80
+    cp $80
     jr nc, loc_9b22
     ld l, 8
 loc_9b22:
@@ -3843,7 +3955,7 @@ loc_9b36:
     ld a, d
     add a, l
     ld d, a
-    ld a, (0x728c)
+    ld a, ($728C)
     add a, 5
     ld b, (iy + 2)
     ld c, (iy + 1)
@@ -3902,7 +4014,7 @@ sub_9b91:
     ld a, (iy + 0)
     res 5, a
     set 6, a
-    and 0x00f8
+    and $00F8
     ld (iy + 0), a
     inc b
 loc_9ba5:
@@ -3914,13 +4026,13 @@ sub_9ba8:
     ld a, (iy + 5)
     dec a
     ld (iy + 5), a
-    and 0x3f
+    and $3F
     ret
 
 sub_9bb2:
     ld c, a
     ld a, (iy + 5)
-    and 0x00c0
+    and $00C0
     or c
     ld (iy + 5), a
     ret
@@ -3930,7 +4042,7 @@ sub_9bbd:
     call sub_9ba8
     jr nz, loc_9bd7
     ld a, (iy + 0)
-    and 0x00f8
+    and $00F8
     res 5, a
     set 4, a
     ld (iy + 0), a
@@ -3962,7 +4074,7 @@ loc_9be8:
     ld ix, byte_9d1a
     add ix, bc
     ld c, (ix + 0)
-    ld hl, current_level_ram
+    ld hl, current_level_p1
     ld a, (gamecontrol)
     inc a
     and 3
@@ -3973,16 +4085,16 @@ loc_9c05:
     dec a
     add a, c
     ld c, a
-    ld a, (0x728a)
+    ld a, ($728A)
     bit 4, a
     jr z, loc_9c12
     inc c
     inc c
 loc_9c12:
     ld a, c
-    cp 0x0f
+    cp $0F
     jr c, loc_9c19
-    ld a, 0x0f
+    ld a, $0F
 loc_9c19:
     add a, a
     ld c, a
@@ -4009,25 +4121,25 @@ byte_9c56:
 sub_9c76:
     ld b, 0
     ld a, (iy + 5)
-    and 0x3f
+    and $3F
     jr z, loc_9c84
     call sub_9ba8
     jr nz, loc_9ca8
 loc_9c84:
     ld a, (iy + 2)
-    and 0x0f
+    and $0F
     jr nz, loc_9ca8
     ld a, (iy + 1)
-    and 0x0f
+    and $0F
     cp 8
     jr nz, loc_9ca8
     ld a, (iy + 0)
-    and 0x00f8
+    and $00F8
     res 4, a
     set 5, a
     set 3, a
     ld (iy + 0), a
-    ld a, 0x0a
+    ld a, $0A
     call sub_9bb2
     inc b
 loc_9ca8:
@@ -4045,7 +4157,7 @@ sub_9cab:
 loc_9cba:
     call sub_9ce0
     ld e, a
-    ld a, (0x728d)
+    ld a, ($728D)
     rra
     rra
     rra
@@ -4055,7 +4167,7 @@ loc_9cba:
     add a, e
     ld e, a
     call rand_gen
-    and 0x0f
+    and $0F
     res 2, b
     cp e
     jr nc, loc_9cda
@@ -4078,7 +4190,7 @@ sub_9ce0:
     ld hl, byte_9d1a
     add hl, de
     ld e, (hl)
-    ld hl, current_level_ram
+    ld hl, current_level_p1
     ld a, (gamecontrol)
     inc a
     and 3
@@ -4089,16 +4201,16 @@ loc_9cfb:
     dec a
     add a, e
     ld e, a
-    ld a, (0x728a)
+    ld a, ($728A)
     bit 4, a
     jr z, loc_9d08
     inc e
     inc e
 loc_9d08:
     ld a, e
-    cp 0x0f
+    cp $0F
     jr c, loc_9d0f
-    ld a, 0x0f
+    ld a, $0F
 loc_9d0f:
     ld e, a
     ld d, 0
@@ -4119,20 +4231,20 @@ sub_9d2f:
     xor a
     ld h, (iy + 0)
     bit 0, h
-    jr nz, loc_9d9d
+    ret nz
     bit 5, h
-    jr nz, loc_9d9d
+    ret nz
     push bc
     ld b, (iy + 2)
     ld c, (iy + 1)
     call sub_9e07
     pop bc
-    jr nz, loc_9d9d
+    ret nz
     dec c
     ld a, c
     cp 4
     ld a, 0
-    jr nc, loc_9d9d
+    ret nc
     ld a, c
     rlca
     ld c, a
@@ -4171,7 +4283,7 @@ loc_9d79:
     push bc
     push iy
     pop hl
-    ld bc, 0x72b8
+    ld bc, $72B8
     and a
     sbc hl, bc
     pop bc
@@ -4180,13 +4292,12 @@ loc_9d79:
     ld a, (iy + 4)
     and 7
     call sub_9da7
-    jr nz, loc_9d9d
+    ret nz
 loc_9d92:
     call sub_9e07
-    jr nz, loc_9d9d
+    ret nz
     ld (iy + 2), b
     ld (iy + 1), c
-loc_9d9d:
     and a
     ret
 
@@ -4202,7 +4313,7 @@ sub_9da7:
     cp 3
     jr c, loc_9e01
     ld c, a
-    ld ix, 0x728e
+    ld ix, enemy_data_array
     ld hl, 7
 loc_9db6:
     bit 7, (ix + 4)
@@ -4216,14 +4327,14 @@ loc_9db6:
     jr z, loc_9dce
     jr nc, loc_9df0
 loc_9dce:
-    add a, 0x0c
+    add a, $0C
     cp b
     jr c, loc_9df0
     jr loc_9ddd
 loc_9dd5:
     cp b
     jr c, loc_9df0
-    sub 0x0d
+    sub $0D
     cp b
     jr nc, loc_9df0
 loc_9ddd:
@@ -4248,7 +4359,7 @@ loc_9df0:
     ld a, h
     cp 2
     jr c, loc_9e01
-    ld a, 0x00ff
+    ld a, $00FF
     jr loc_9e02
 loc_9e01:
     xor a
@@ -4282,6 +4393,7 @@ loc_9e17:
     set 3, (iy + 4)
     jr loc_9e3b
 loc_9e31:
+    and a  ; CF==0 Monster collision offset
     call sub_b12d  ; Returns A=1 if vertical apple collision
     ld l, 0
     and a
@@ -4304,26 +4416,24 @@ sub_9e3f:
     jr z, loc_9e75
 loc_9e54:
     call sub_9ce0
-    and 0x0f
+    and $0F
     ld b, a
     call rand_gen
-    and 0x0f
+    and $0F
     cp b
     jr nc, loc_9e75
     ld a, (iy + 0)
-    and 0x00f8
+    and $00F8
     res 6, a
     set 5, a
     res 3, a
     ld (iy + 0), a
-    ld a, 0x0a
+    ld a, $0A
     call sub_9bb2
 loc_9e75:
     res 3, (iy + 4)
     ret
 
-sub_9e7a:
-    jr loc_9ebd
 
 sub_9e7c:
     bit 4, (iy + 4)
@@ -4353,12 +4463,14 @@ sub_9e7c:
 loc_9eaa:
     set 0, (iy + 0)
     call rand_gen
-    and 0x0f
+    and $0F
     cp 8
     jr c, loc_9f10
     call sub_9f29
     and a
     jr z, loc_9f10
+
+sub_9e7a:
 loc_9ebd:
     ld ix, byte_9f15
     ld c, 4
@@ -4406,7 +4518,7 @@ loc_9efd:
 loc_9f03:
     res 0, (iy + 0)
     ld a, (iy + 4)
-    and 0x00f8
+    and $00F8
     or e
     ld (iy + 4), a
 loc_9f10:
@@ -4437,10 +4549,10 @@ sub_9f29:
     rlca
     rlca
     rlca
-    and 0x00f0
+    and $00F0
     ld b, a
     ld a, (iy + 2)
-    and 0x0f
+    and $0F
     or b
     ld e, 7
 loc_9f4a:
@@ -4451,10 +4563,10 @@ loc_9f4a:
     inc hl
     dec e
     jr nz, loc_9f4a
-;     JR      LOC_9FA0  ; -mdl
+; 	JR		LOC_9FA0  ; -mdl
 loc_9fa0:
     ld a, (hl)
-    and 0x00f0
+    and $00F0
     push af
     ld a, c
     call sub_abb7
@@ -4492,10 +4604,10 @@ loc_9f6c:
     jr loc_9faf
 loc_9f79:
     ld a, (hl)
-    and 0x00f0
+    and $00F0
     jr loc_9faf
 loc_9f7e:
-    ld a, 0x00c0
+    ld a, $00C0
     jr loc_9faf
 loc_9f82:
     bit 2, (hl)
@@ -4504,7 +4616,7 @@ loc_9f82:
     jr z, loc_9f8c
     set 5, a
 loc_9f8c:
-    ld bc, 0xfff0
+    ld bc, $FFF0
     add hl, bc
     bit 0, (hl)
     jr z, loc_9faf
@@ -4513,29 +4625,29 @@ loc_9f8c:
     set 4, a
     jr loc_9faf
 loc_9f9c:
-    ld a, 0x30
+    ld a, $30
     jr loc_9faf
 
 unk_9fb3:
     db 0
     dw loc_9f62
-    db 0x40
+    db $40
     dw loc_9f7e
-    db 0x80
+    db $80
     dw loc_9f79
-    db 0x00c0
+    db $00C0
     dw loc_9f7e
-    db 0x88
+    db $88
     dw loc_9f82
-    db 0x84
+    db $84
     dw loc_9f9c
-    db 0x8c
+    db $8C
     dw loc_9f9c
 
 sub_9fc8:
     push iy
     ld b, (iy + 2)
-    ld a, (0x7284)
+    ld a, (mrdo_data.y)
     sub b
     jr nc, loc_9fd5
     cpl
@@ -4545,7 +4657,7 @@ loc_9fd5:
     cp 5
     jr nc, loc_9fef
     ld b, (iy + 1)
-    ld a, (0x7285)
+    ld a, (mrdo_data.x)
     sub b
     jr nc, loc_9fe6
     cpl
@@ -4553,7 +4665,7 @@ loc_9fd5:
 loc_9fe6:
     cp 5
     jr nc, loc_9fef
-    call play_lose_life_sound
+    call play_lose_life_sound  ; XXX DEATH SEQUENCE HERE 
     ld l, 1
 loc_9fef:
     pop iy
@@ -4595,14 +4707,14 @@ sub_a028:
     push ix
     push af
     ld a, (iy + 2)
-    and 0x0f
+    and $0F
     ld c, a
     ld a, (iy + 1)
     rlca
     rlca
     rlca
     rlca
-    and 0x00f0
+    and $00F0
     or c
     ld c, 7
     ld hl, unk_a12a
@@ -4626,7 +4738,7 @@ loc_a04d:
     pop ix
     pop hl
     ld a, h
-    ld l, 0x00ff
+    ld l, $00FF
     call sub_a13f
     jr z, loc_a05e
     ld l, a
@@ -4634,19 +4746,19 @@ loc_a05e:
     jp (ix)
 
 loc_a060:
-    ld c, 0x41
+    ld c, $41
     ld a, h
     dec a
     call sub_a13f
     jr z, loc_a06f
     cp l
     jr nc, loc_a06f
-    ld c, 0x82
+    ld c, $82
     ld l, a
 loc_a06f:
     jp loc_a102
 loc_a072:
-    ld c, 0x82
+    ld c, $82
     ld a, h
     inc a
     call sub_a13f
@@ -4654,37 +4766,37 @@ loc_a072:
     cp l
     jr nc, loc_a081
     ld l, a
-    ld c, 0x41
+    ld c, $41
 loc_a081:
     jp loc_a102
 loc_a084:
-    ld c, 0x13
+    ld c, $13
     ld a, h
-    add a, 0x10
+    add a, $10
     call sub_a13f
     jr z, loc_a094
     cp l
     jr nc, loc_a094
     ld l, a
-    ld c, 0x24
+    ld c, $24
 loc_a094:
     jp loc_a102
 loc_a097:
-    ld c, 0x24
+    ld c, $24
     ld a, h
-    sub 0x10
+    sub $10
     call sub_a13f
     jr z, loc_a0a7
     cp l
     jr nc, loc_a0a7
     ld l, a
-    ld c, 0x13
+    ld c, $13
 loc_a0a7:
     jp loc_a102
 loc_a0aa:
-    ld l, 0x00ff
+    ld l, $00FF
     ld a, h
-    and 0x0f
+    and $0F
     jr z, loc_a0bf
     bit 6, b
     jr z, loc_a0bf
@@ -4693,11 +4805,11 @@ loc_a0aa:
     call sub_a13f
     jr z, loc_a0bf
     ld l, a
-    ld c, 0x41
+    ld c, $41
 loc_a0bf:
     ld a, h
     dec a
-    and 0x0f
+    and $0F
     jr z, loc_a0d6
     bit 7, b
     jr z, loc_a0d6
@@ -4708,33 +4820,33 @@ loc_a0bf:
     cp l
     jr nc, loc_a0d6
     ld l, a
-    ld c, 0x82
+    ld c, $82
 loc_a0d6:
     ld a, h
-    cp 0x11
+    cp $11
     jr c, loc_a0ec
     bit 4, b
     jr z, loc_a0ec
-    sub 0x10
+    sub $10
     call sub_a13f
     jr z, loc_a0ec
     cp l
     jr nc, loc_a0ec
     ld l, a
-    ld c, 0x13
+    ld c, $13
 loc_a0ec:
     ld a, h
-    cp 0x91
+    cp $91
     jr nc, loc_a102
     bit 5, b
     jr z, loc_a102
-    add a, 0x10
+    add a, $10
     call sub_a13f
     jr z, loc_a102
     cp l
     jr nc, loc_a102
     ld l, a
-    ld c, 0x24
+    ld c, $24
 loc_a102:
     ld d, 0
     ld a, l
@@ -4744,12 +4856,12 @@ loc_a102:
     and 7
     ld l, a
     ld a, (iy + 4)
-    and 0x00f8
+    and $00F8
     or l
     ld (iy + 4), a
-    inc d
     ld a, c
-    and 0x00f0
+    inc d
+    and $00F0
     and b
     jr nz, loc_a124
     set 0, (iy + 0)
@@ -4764,17 +4876,17 @@ loc_a124:
 unk_a12a:
     db 0
     dw loc_a060
-    db 0x40
+    db $40
     dw loc_a060
-    db 0x00c0
+    db $00C0
     dw loc_a072
-    db 0x84
+    db $84
     dw loc_a084
-    db 0x88
+    db $88
     dw loc_a097
-    db 0x8c
+    db $8C
     dw loc_a097
-    db 0x80
+    db $80
     dw loc_a0aa
 
 sub_a13f:
@@ -4797,7 +4909,7 @@ sub_a13f:
     jr z, loc_a182
 loc_a159:
     ld hl, badguy_behavior_ram
-    ld bc, 0x4f
+    ld bc, $4F
     add hl, bc
     push hl
     pop ix
@@ -4829,7 +4941,7 @@ loc_a182:
     ld b, 0
     and a
     jr nz, loc_a193
-    ld c, 0x50
+    ld c, $50
 loc_a193:
     dec bc
     add hl, bc
@@ -4837,8 +4949,9 @@ loc_a193:
     xor a
     sbc hl, bc
     jr nc, loc_a1a0
-    ld e, 0x50
+    ld e, $50
     add hl, de
+;	XOR		A	; unused
 loc_a1a0:
     inc l
     ld a, l
@@ -4856,7 +4969,7 @@ loc_a1a5:
 sub_a1ac:
     ld l, 0
     ld h, (iy + 1)
-    ld a, (0x7285)
+    ld a, (mrdo_data.x)
     cp h
     jr z, loc_a1bf
     jr c, loc_a1bd
@@ -4866,7 +4979,7 @@ loc_a1bd:
     set 7, l
 loc_a1bf:
     ld h, (iy + 2)
-    ld a, (0x7284)
+    ld a, (mrdo_data.y)
     cp h
     jr z, loc_a1d0
     jr c, loc_a1ce
@@ -4879,11 +4992,12 @@ loc_a1d0:
     and b
     jr nz, loc_a1d8
     ld a, 2
-    jr loc_a1dd
+    ret  ;JR		LOC_A1DD
 loc_a1d8:
     call sub_9e7a
     ld a, 1
-loc_a1dd:
+;LOC_A1DD:
+;	AND		A	; unused
     ret
 
 sub_a1df:
@@ -4915,12 +5029,12 @@ loc_a20e:
     call sub_9ce0
     ld c, a
     call rand_gen
-    and 0x0f
+    and $0F
     cp c
     jr nc, loc_a254
 loc_a21e:
     ld a, (iy + 0)
-    and 0x00f8
+    and $00F8
     ld (iy + 0), a
     ld b, (iy + 2)
     ld c, (iy + 1)
@@ -4954,7 +5068,7 @@ sub_a259:
     push ix
     push de
     push bc
-    ld a, (0x72d9)
+    ld a, (balldata)
     ld b, a
     xor a
     bit 6, b
@@ -4963,9 +5077,9 @@ sub_a259:
     ld a, e
     call sub_abb7
     push bc
-    ld a, (0x72da)
+    ld a, ($72DA)
     ld b, a
-    ld a, (0x72db)
+    ld a, ($72DB)
     ld c, a
     call sub_ac3f
     push af
@@ -4978,7 +5092,7 @@ sub_a259:
     ld d, a
     sub e
     jr z, loc_a2b9
-    ld a, (0x72d9)
+    ld a, (balldata)
     and 3
     jr nz, loc_a297
     call sub_a2c0
@@ -5020,7 +5134,7 @@ sub_a2c0:
     ld a, l
     sub c
     jr c, loc_a2e3
-    cp 0x21
+    cp $21
     jr nc, loc_a2e3
     inc d
     bit 6, (ix + 0)
@@ -5031,7 +5145,7 @@ sub_a2c0:
     bit 6, (ix + 1)
     jr z, loc_a2e3
 loc_a2df:
-    ld a, 0x70
+    ld a, $70
     jr loc_a2e4
 loc_a2e3:
     xor a
@@ -5051,7 +5165,7 @@ sub_a2e8:
     ld a, c
     sub l
     jr c, loc_a30f
-    cp 0x21
+    cp $21
     jr nc, loc_a30f
     dec d
     bit 7, (ix + 0)
@@ -5063,7 +5177,7 @@ sub_a2e8:
     bit 7, (ix + 0)
     jr z, loc_a30f
 loc_a30b:
-    ld a, 0x00b0
+    ld a, $00B0
     jr loc_a310
 loc_a30f:
     xor a
@@ -5084,10 +5198,10 @@ sub_a316:
     ld a, b
     sub h
     jr c, loc_a345
-    cp 0x21
+    cp $21
     jr nc, loc_a345
     ld a, d
-    sub 0x10
+    sub $10
     ld d, a
     bit 4, (ix + 0)
     jr z, loc_a345
@@ -5095,13 +5209,13 @@ sub_a316:
     cp d
     jr z, loc_a341
     push bc
-    ld bc, 0xfff0
+    ld bc, $FFF0
     add ix, bc
     pop bc
     bit 4, (ix + 0)
     jr z, loc_a345
 loc_a341:
-    ld a, 0x00d0
+    ld a, $00D0
     jr loc_a346
 loc_a345:
     xor a
@@ -5109,6 +5223,7 @@ loc_a346:
     pop ix
     pop hl
     pop de
+;	AND		A		; unused
     ret
 
 sub_a34c:
@@ -5121,10 +5236,10 @@ sub_a34c:
     ld a, h
     sub b
     jr c, loc_a37b
-    cp 0x21
+    cp $21
     jr nc, loc_a37b
     ld a, d
-    add a, 0x10
+    add a, $10
     ld d, a
     bit 5, (ix + 0)
     jr z, loc_a37b
@@ -5132,13 +5247,13 @@ sub_a34c:
     cp d
     jr z, loc_a377
     push bc
-    ld bc, 0x10
+    ld bc, $10
     add ix, bc
     pop bc
     bit 5, (ix + 0)
     jr z, loc_a37b
 loc_a377:
-    ld a, 0x00e0
+    ld a, $00E0
     jr loc_a37c
 loc_a37b:
     xor a
@@ -5146,6 +5261,7 @@ loc_a37c:
     pop ix
     pop hl
     pop de
+;	AND		A	; unused
     ret
 
 sub_a382:
@@ -5158,7 +5274,7 @@ sub_a382:
     call sub_abb7
     pop de
     ld l, 5
-    ld iy, 0x722c
+    ld iy, appledata
 loc_a394:
     bit 7, (iy + 0)
     jr z, loc_a3ee
@@ -5185,20 +5301,20 @@ loc_a394:
     ld d, e
 loc_a3c1:
     push bc
-    ld bc, 0xfff0
+    ld bc, $FFF0
     add ix, bc
     pop bc
     ld a, d
-    sub 0x10
+    sub $10
     ld d, a
     ld a, (ix + 0)
     inc a
-    and 0x0f
+    and $0F
     jr nz, loc_a3ee
     ld a, h
     cp d
     jr c, loc_a3c1
-    ld l, 0x00e0
+    ld l, $00E0
     pop iy
     ld a, (iy + 1)
     cp c
@@ -5233,7 +5349,7 @@ sub_a402:
     ld b, (iy + 2)
     ld c, (iy + 1)
     ld l, 5
-    ld ix, 0x722c
+    ld ix, appledata
 loc_a412:
     bit 7, (ix + 0)
     jr z, loc_a44d
@@ -5245,7 +5361,7 @@ loc_a412:
     cp d
     jr c, loc_a44d
     sub d
-    cp 0x21
+    cp $21
     jr nc, loc_a44d
     ld a, c
     sub e
@@ -5253,10 +5369,12 @@ loc_a412:
     cpl
     inc a
 loc_a433:
-    cp 0x11
+    cp $11
     jr nc, loc_a44d
-    ld hl, 224
+; LD		H, 0
     ld a, (iy + 1)
+; LD		L, 0E0H
+    ld hl, $00E0
     cp (ix + 2)
     jr z, loc_a459
     res 7, l
@@ -5282,7 +5400,7 @@ loc_a459:
 
 sub_a460:
     call sub_a497
-    jr z, locret_a496
+    ret z
 loc_a465:
     ld l, a
     push hl
@@ -5291,13 +5409,13 @@ loc_a465:
     and 7
     call sub_9d2f
     pop hl
-    jr z, locret_a496
+    ret z
     ld a, (iy + 4)
     and 7
-    ld c, 0x00c0
+    ld c, $00C0
     cp 3
     jr nc, loc_a482
-    ld c, 0x30
+    ld c, $30
 loc_a482:
     ld a, l
     and c
@@ -5311,22 +5429,20 @@ loc_a490:
     dec a
 loc_a491:
     ld (iy + 4), a
-;     JR      LOCRET_A496  ; -mdl
-locret_a496:
     ret
 
 sub_a497:
     ld a, (iy + 2)
     ld b, a
-    and 0x0f
+    and $0F
     jr nz, loc_a512
     ld a, (iy + 1)
     ld c, a
-    and 0x0f
+    and $0F
     cp 8
     jr nz, loc_a512
     ld h, 0
-    ld a, (0x7284)
+    ld a, (mrdo_data.y)
     cp b
     jr z, loc_a4b9
     jr nc, loc_a4b7
@@ -5335,20 +5451,20 @@ sub_a497:
 loc_a4b7:
     set 5, h
 loc_a4b9:
-    ld a, (0x7285)
+    ld a, (mrdo_data.x)
     cp c
     jr z, loc_a520
     ld a, c
     jr c, loc_a4c8
     set 6, h
-    add a, 0x10
+    add a, $10
     jr loc_a4cc
 loc_a4c8:
     set 7, h
-    sub 0x10
+    sub $10
 loc_a4cc:
     ld c, a
-    ld ix, 0x722c
+    ld ix, appledata
     ld l, 5
 loc_a4d3:
     bit 7, (ix + 0)
@@ -5357,14 +5473,14 @@ loc_a4d3:
     sub 9
     cp b
     jr nc, loc_a4f3
-    add a, 0x12
+    add a, $12
     cp b
     jr c, loc_a4f3
     ld a, (ix + 2)
-    sub 0x0f
+    sub $0F
     cp c
     jr nc, loc_a4f3
-    add a, 0x1f
+    add a, $1F
     cp c
     jr nc, loc_a4fd
 loc_a4f3:
@@ -5375,12 +5491,12 @@ loc_a4f3:
     jr loc_a520
 loc_a4fd:
     ld a, h
-    and 0x30
+    and $30
     ld h, a
     jr nz, loc_a520
     set 4, h
     ld a, (iy + 2)
-    cp 0x30
+    cp $30
     jr nc, loc_a520
     res 4, h
     set 5, h
@@ -5406,42 +5522,42 @@ sub_a527:
     push bc
     ld a, (gamecontrol)
     ld b, a
-    ld a, (0x7278)
+    ld a, (enemy_num_p1)
     bit 0, b
     jr z, loc_a53a
     bit 1, b
     jr z, loc_a53a
-    ld a, (0x7279)
+    ld a, (enemy_num_p2)
 loc_a53a:
     cp 1
     pop bc
     ret
 
 sub_a53e:
-    ld a, (0x72ba)
+    ld a, ($72BA)
     bit 7, a
     jr nz, loc_a551
     set 7, a
-    ld (0x72ba), a
-    ld a, 0x40
-    ld (0x72bd), a
+    ld ($72BA), a
+    ld a, $40
+    ld ($72BD), a
     jr loc_a5a6
 loc_a551:
-    ld a, (0x72bd)
+    ld a, ($72BD)
     bit 7, a
     ld a, 0
     jr nz, loc_a5bb
-    ld a, (0x72c0)
+    ld a, ($72C0)
     call test_signal
     and a
     jr z, loc_a5bb
-    ld a, (0x72ba)
+    ld a, ($72BA)
     bit 6, a
     jr z, loc_a56f
     call sub_a6bb
     jr loc_a5aa
 loc_a56f:
-    ld a, (0x7272)
+    ld a, ($7272)
     bit 5, a
     jr nz, loc_a57b
     call sub_a61f
@@ -5450,7 +5566,7 @@ loc_a57b:
     call sub_a5f9
     jr nz, loc_a591
     call sub_a662
-    ld hl, 0x7272
+    ld hl, $7272
     bit 5, (hl)
     jr z, loc_a5a9
     res 5, (hl)
@@ -5461,10 +5577,10 @@ loc_a591:
 
 
 loc_a596:
-    ld a, (0x7272)
+    ld a, ($7272)
     bit 4, a
     jr nz, loc_a5a9
-    ld hl, 0x72c2
+    ld hl, $72C2
     dec (hl)
     jr nz, loc_a5a9
 loc_a5a6:
@@ -5473,10 +5589,10 @@ loc_a5a9:
     xor a
 loc_a5aa:
     push af
-    ld hl, 0x0a
+    ld hl, $0A
     xor a
     call request_signal
-    ld (0x72c0), a
+    ld ($72C0), a
     pop af
     push af
     call sub_a788
@@ -5486,44 +5602,44 @@ loc_a5bb:
     ret
 
 sub_a5bd:
-    ld a, (0x72ba)
+    ld a, ($72BA)
     inc a
-    and 0x00f7
-    ld (0x72ba), a
+    and $00F7
+    ld ($72BA), a
     ld hl, byte_a5f1
-    ld a, (0x72ba)
+    ld a, ($72BA)
     and 7
     ld c, a
     ld b, 0
     add hl, bc
     ld a, (hl)
-    ld (0x72be), a
-    ld a, 0x0c
-    ld (0x72bf), a
+    ld ($72BE), a
+    ld a, $0C
+    ld ($72BF), a
     ld hl, byte_a616
     add hl, bc
     ld a, (hl)
-    ld (0x72bc), a
+    ld ($72BC), a
     ld hl, byte_a617
     add hl, bc
     ld a, (hl)
-    ld (0x72bb), a
-    ld a, 0x18
-    ld (0x72c2), a
+    ld ($72BB), a
+    ld a, $18
+    ld ($72C2), a
     ret
 
 byte_a5f1:
     db 91, 107, 123, 139, 155, 139, 123, 107
 
 sub_a5f9:
-    ld a, (0x72ba)
+    ld a, ($72BA)
     and 7
     ld c, a
     ld b, 0
     ld hl, byte_a617
     add hl, bc
     ld b, (hl)
-    ld hl, 0x72b8
+    ld hl, $72B8
     ld a, (gamecontrol)
     inc a
     and 3
@@ -5540,8 +5656,9 @@ byte_a617:
     db 1, 2, 4, 8, 16, 8, 4, 2
 
 sub_a61f:
+;    LD      HL, $727A ; duplicated
     ld bc, (score_p1_ram)
-    ld hl, 0x727a
+    ld hl, $727A
     ld a, (gamecontrol)
     inc a
     and 3
@@ -5553,7 +5670,7 @@ loc_a637:
     ld e, 0
 loc_a63a:
     ld a, c
-    sub 0x00f4
+    sub $00F4
     ld c, a
     ld a, b
     sbc a, 1
@@ -5567,13 +5684,13 @@ loc_a647:
     cp d
     jr z, loc_a65f
     ld (hl), a
-    ld a, (0x72ba)
+    ld a, ($72BA)
     ld b, a
     bit 6, a
     jr nz, loc_a65f
-    ld a, (0x72ba)
+    ld a, ($72BA)
     set 5, a
-    ld (0x72ba), a
+    ld ($72BA), a
     inc e
 loc_a65f:
     ld a, e
@@ -5583,79 +5700,77 @@ loc_a65f:
 sub_a662:
     ld a, (gamecontrol)
     bit 1, a
-    ld a, (current_level_ram)
+    ld a, (current_level_p1)
     jr z, loc_a66f
-    ld a, (0x7275)
+    ld a, (current_level_p2)
 loc_a66f:
-    cp 0x0b
+    cp $0B
     jr c, loc_a677
-    sub 0x0a
+    sub $0A
     jr loc_a66f
 loc_a677:
     cp 4
     jr nz, loc_a67f
-    ld a, 0x98
+    ld a, $98
     jr loc_a681
 loc_a67f:
-    ld a, 0x78
+    ld a, $78
 loc_a681:
-    ld (0x72be), a
-    ld a, 0x20
-    ld (0x72bf), a
-    ld a, 0x0c
-    ld (0x72c2), a
-    ld a, (0x72ba)
+    ld ($72BE), a
+    ld a, $20
+    ld ($72BF), a
+    ld a, $0C
+    ld ($72C2), a
+    ld a, ($72BA)
     set 6, a
-    ld (0x72ba), a
-    ld a, (0x7272)
+    ld ($72BA), a
+    ld a, ($7272)
     bit 5, a
     jr nz, loc_a6ab
-    ld hl, 0x72c4
+    ld hl, $72C4
     set 0, (hl)
-    ld hl, 0x05a0
+    ld hl, $05A0
     call request_signal
-    ld (0x726f), a
+    ld (gametimer), a
 loc_a6ab:
-    ld a, (0x72ba)
+    ld a, ($72BA)
     bit 5, a
-    jr z, locret_a6ba
+    ret z
     res 5, a
-    ld (0x72ba), a
+    ld ($72BA), a
     jp loc_d31c
-locret_a6ba:
-    ret
 
 sub_a6bb:
     push ix
     push iy
-    ld a, (0x72c4)
+    ld a, ($72C4)
     bit 0, a
     jr z, loc_a6f2
     call sub_a61f
-    ld a, (0x726f)
+    ld a, (gametimer)
     call test_signal
     and a
     jr z, loc_a6f2
-    ld hl, 0x72c4
+    ld hl, $72C4
     res 0, (hl)
-    ld a, 0x40
-    ld (0x72bd), a
+    ld a, $40
+    ld ($72BD), a
     ld a, 1
-    ld (0x72c2), a
-    ld a, (0x72ba)
+    ld ($72C2), a
+    ld a, ($72BA)
     res 6, a
     res 5, a
-    ld (0x72ba), a
+    ld ($72BA), a
     call sub_ca24
     xor a
     jp loc_a77e
 loc_a6f2:
-    ld iy, 0x72bd
+    ld iy, $72BD
     set 4, (iy + 0)
     call sub_9f29
     ld d, a
     push de
-    ld hl, 0x7272
+    ld hl, $7272
     bit 5, (hl)
     jr z, loc_a70b
     res 5, (hl)
@@ -5664,23 +5779,23 @@ loc_a70b:
     call sub_a527
     pop de
     jr z, loc_a74b
-    ld a, (0x728a)
+    ld a, ($728A)
     bit 4, a
     jr nz, loc_a74b
 loc_a718:
-    ld a, (0x72c2)
+    ld a, ($72C2)
     dec a
-    ld (0x72c2), a
+    ld ($72C2), a
     jr nz, loc_a72f
-    ld a, 0x0c
-    ld (0x72c2), a
+    ld a, $0C
+    ld ($72C2), a
     call rand_gen
-    and 0x0f
+    and $0F
     cp 7
     jr nc, loc_a76b
 loc_a72f:
-    ld a, (0x72c1)
-    and 0x0f
+    ld a, ($72C1)
+    and $0F
     ld c, a
     ld b, 0
     ld hl, byte_a783
@@ -5688,15 +5803,15 @@ loc_a72f:
     ld a, (hl)
     and d
     jr z, loc_a76b
-    ld a, (0x72c1)
-    and 0x0f
+    ld a, ($72C1)
+    and $0F
     call sub_9d2f
     jr z, loc_a77b
     jr loc_a76b
 loc_a74b:
-    ld a, (0x72bf)
+    ld a, ($72BF)
     ld b, a
-    ld a, (0x72be)
+    ld a, ($72BE)
     ld c, a
     push de
     call sub_ac3f
@@ -5705,7 +5820,7 @@ loc_a74b:
     jr z, loc_a718
     cp 2
     jr z, loc_a76b
-    ld a, (0x72c1)
+    ld a, ($72C1)
     and 7
     call sub_9d2f
     jr z, loc_a77b
@@ -5713,7 +5828,7 @@ loc_a76b:
     call sub_9f29
     jr z, loc_a77b
     call sub_9e7a
-    ld a, (0x72c1)
+    ld a, ($72C1)
     and 7
     call sub_9d2f
 loc_a77b:
@@ -5727,20 +5842,20 @@ byte_a783:
     db 0, 64, 128, 16, 32
 
 sub_a788:
-    ld a, (0x7272)
+    ld a, ($7272)
     bit 4, a
     jr z, loc_a796
-    ld a, (0x72ba)
+    ld a, ($72BA)
     bit 6, a
-    jr z, locret_a7db
+    ret z
 loc_a796:
     ld a, (gamecontrol)
     bit 1, a
-    ld ix, 0x72b8
+    ld ix, $72B8
     jr z, loc_a7a5
     inc ixl
 loc_a7a5:
-    ld a, (0x72ba)
+    ld a, ($72BA)
     and 7
     ld hl, byte_a7dc
     ld c, a
@@ -5756,7 +5871,7 @@ loc_a7a5:
     inc hl
 loc_a7bc:
     ld d, (hl)
-    ld a, (0x72ba)
+    ld a, ($72BA)
     bit 5, a
     jr z, loc_a7c8
     res 5, a
@@ -5765,23 +5880,21 @@ loc_a7c8:
     set 5, a
     inc d
 loc_a7cb:
-    ld (0x72ba), a
-    ld a, (0x72bf)
+    ld ($72BA), a
+    ld a, ($72BF)
     ld b, a
-    ld a, (0x72be)
+    ld a, ($72BE)
     ld c, a
     ld a, 3
-    call sub_b629
-locret_a7db:
-    ret
+    jp sub_b629
 
 byte_a7dc:
     db 1, 1, 12, 2, 3, 14, 4, 5, 16, 8, 7, 18, 16, 9, 20, 8, 7, 18, 4, 5, 16, 2, 3, 14
 
 sub_a7f4:
-    ld a, (0x72c5)
+    ld a, ($72C5)
     and 3
-    ld iy, 0x72c7
+    ld iy, chompdata
     ld bc, 6
 loc_a800:
     dec a
@@ -5800,37 +5913,34 @@ loc_a808:
     call sub_a83e
     call sub_a8cb
     call sub_a921
-    call sub_a92c
+    call sub_9fc8
     jr loc_a82c
 loc_a82b:
     xor a
 loc_a82c:
     push af
-    ld hl, 0x72c5
+    ld hl, $72C5
     inc (hl)
     ld a, (hl)
     and 3
     cp 3
     jr nz, loc_a83c
     ld a, (hl)
-    and 0x00fc
+    and $00FC
     ld (hl), a
 loc_a83c:
     pop af
     ret
 
-sub_a83e:
-    jp loc_d383
 
 loc_a853:
-    call sub_a460
-    jr locret_a8c6
+    jp sub_a460
 loc_a858:
     ld a, (iy + 2)
-    and 0x0f
+    and $0F
     jr nz, loc_a868
     ld a, (iy + 1)
-    and 0x0f
+    and $0F
     cp 8
     jr z, loc_a878
 loc_a868:
@@ -5844,22 +5954,22 @@ loc_a868:
     ld h, (hl)
     jr loc_a898
 loc_a878:
-    ld h, 0x00f0
+    ld h, $00F0
     ld a, (iy + 2)
-    cp 0x28
+    cp $28
     jr nc, loc_a883
     res 4, h
 loc_a883:
-    cp 0x00a8
+    cp $00A8
     jr c, loc_a889
     res 5, h
 loc_a889:
     ld a, (iy + 1)
-    cp 0x20
+    cp $20
     jr nc, loc_a892
     res 7, h
 loc_a892:
-    cp 0x00e0
+    cp $00E0
     jr c, loc_a898
     res 6, h
 loc_a898:
@@ -5870,13 +5980,13 @@ loc_a898:
     and 7
     call sub_9d2f
     pop hl
-    jr z, locret_a8c6
+    ret z
     ld a, (iy + 4)
     jp loc_d3d5
 
 loc_a8af:
     jr nc, loc_a8b3
-    ld c, 0x30
+    ld c, $30
 loc_a8b3:
     ld a, h
     and c
@@ -5891,7 +6001,6 @@ loc_a8c2:
     dec a
 loc_a8c3:
     ld (iy + 4), a
-locret_a8c6:
     ret
 
 byte_a8c7:
@@ -5915,17 +6024,17 @@ sub_a8cb:
     inc d
     jr loc_a905
 loc_a8ee:
-    ld a, (0x72c5)
+    ld a, ($72C5)
     add a, a
     add a, a
     ld c, a
     ld b, 0
-    ld hl, 0x712f
+    ld hl, $712F
     add hl, bc
     ld a, (hl)
-    cp 0x00e0
+    cp $00E0
     jr z, loc_a905
-    cp 0x00e4
+    cp $00E4
     jr z, loc_a905
     inc d
     inc d
@@ -5935,12 +6044,12 @@ loc_a905:
     jr z, loc_a90d
     inc d
 loc_a90d:
-    xor 0x80
+    xor $80
     ld (iy + 5), a
     ld b, (iy + 2)
     ld c, (iy + 1)
-    ld a, (0x72c5)
-    add a, 0x11
+    ld a, ($72C5)
+    add a, $11
     jp sub_b629
 
 sub_a921:
@@ -5949,30 +6058,24 @@ sub_a921:
     call request_signal
     ld (iy + 3), a
     ret
-
-sub_a92c:
-    jp sub_9fc8
 completed_level:
     push af
-    ld hl, 0x1e
+    ld hl, $1E
     xor a
     call request_signal
     push af
-loc_a956:
+completed_level.wait:
     pop af
     push af
     call test_signal
     and a
-    jr z, loc_a956
+    jr z, completed_level.wait
     pop af
     pop af
     cp 2
     jr nz, loc_a969
-;     call deal_with_end_of_round_tune  ; -mdl
-
-deal_with_end_of_round_tune:
     call play_end_of_round_tune
-    ld hl, 0x0103
+    ld hl, $0103
     call request_signal
     push af
 loc_a992:
@@ -5982,88 +6085,54 @@ loc_a992:
     and a
     jr z, loc_a992
     pop af
-;     ret  ; -mdl
     jr loc_a96c
 loc_a969:
     call extramrdo
 loc_a96c:
-;     call sub_aa25  ; -mdl
-
-sub_aa25:
-    ld hl, gamecontrol
-    set 7, (hl)
-loc_aa2a:
-    bit 7, (hl)
-    jr nz, loc_aa2a
-    ld hl, current_level_ram
-    ld ix, 0x7278
-    ld a, (gamecontrol)
-    bit 1, a
-    jr z, loc_aa43
-    inc ixl
-    inc l
-loc_aa43:
-    ld (ix + 0), 7
-    inc (hl)
-    ld a, (hl)
-    call sub_b286
-    ld hl, 0x718a
-    ld de, 0x3400
-    ld a, (gamecontrol)
-    bit 1, a
-    jr z, loc_aa5c
-    set 1, d
-loc_aa5c:
-    ld bc, 0x00d4
-    call write_vram
-    ld bc, 0x01e2
-    call write_register
-;     ret  ; -mdl
+    call sub_aa25
     ld a, 2
-    jr locret_a987
+    ret
+
 
 got_diamond:
     ld hl, diamond_ram
     ld (hl), 0
     cp 1
     jr nz, completed_level
-    ld hl, 0x78
+    ld hl, $78
     xor a
     call request_signal
     push af
-no_diamond:
+got_diamond.wait:
     pop af
     push af
     call test_signal
     and a
-    jr z, no_diamond
+    jr z, got_diamond.wait
     pop af
-;     JR      LOC_A973  ; -mdl
+; 	JR		LOC_A973  ; -mdl
 loc_a973:
     call sub_aa69
     cp 1
-    jr z, locret_a987
+    ret z
     and a
     jr z, loc_a984
-;     call sub_aadc  ; -mdl
-
-sub_aadc:
     push af
     ld hl, gamecontrol
     set 7, (hl)
 loc_aae2:
     bit 7, (hl)
     jr nz, loc_aae2
-    ld hl, 0x1000
-    ld de, 0x0300
+    ld hl, pnt
+    ld de, $0300
     xor a
     call fill_vram
-    ld hl, 0x1900
-    ld de, 0x80
+    ld hl, sat
+    ld de, $80
     xor a
     call fill_vram
     ld hl, sprite_name_table
-    ld b, 0x50
+    ld b, $50
 loc_aaff:
     ld (hl), 0
     inc hl
@@ -6075,10 +6144,10 @@ loc_aaff:
     inc a
 loc_ab0d:
     call deal_with_playfield
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
     xor a
-    ld hl, 0x00b4
+    ld hl, $00B4
     call request_signal
     push af
 loc_ab1e:
@@ -6088,13 +6157,11 @@ loc_ab1e:
     and a
     jr z, loc_ab1e
     pop af
-;     ret  ; -mdl
     ld a, 1
-    jr locret_a987
-loc_a984:
-    call sub_ab28
-locret_a987:
     ret
+loc_a984:
+    jp sub_ab28
+
 
 extramrdo:  ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
     ld hl, gamecontrol
@@ -6104,26 +6171,25 @@ loc_a9a1:
     jr nz, loc_a9a1
 
     xor a
-    ld (0x72bc), a
-    ld (0x72bb), a
+    ld ($72BC), a
+    ld ($72BB), a
     ld hl, gamecontrol
     bit 1, (hl)
     jr nz, deal_with_extra_mr_do
-    ld (0x72b8), a
-    ld l, lives_left_p1_ram
+    ld ($72B8), a
+    ld l, lives_left_p1_ram and 255
     jr loc_a9ec
 deal_with_extra_mr_do:
-    ld (0x72b9), a
+    ld ($72B9), a
     ld hl, lives_left_p2_ram
 loc_a9ec:
     ld a, (hl)
-    cp 6
+    cp 6  ; max number of lives
     jr nc, loc_a9f2
     inc (hl)
 loc_a9f2:
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
-
 
 ; %%%%%%%%%%%%%%%%%%%%%%%%%%
 ; show the extra screen
@@ -6134,7 +6200,7 @@ loc_a9f2:
     call initialize_the_sound
     call play_win_extra_do_tune
 
-    ld hl, 0x0280  ; music duration
+    ld hl, $0280  ; music duration
     xor a
     call request_signal
 
@@ -6151,46 +6217,112 @@ loc_a9f2.1:
     jr z, loc_a9f2.1
     pop af
 
+    call mydisscr
+
     ld hl, sprite_name_table
-    ld b, 0x50  ; remove 20 sprites
+    ld b, $50  ; remove 20 sprites
 loc_a9c0:
     ld (hl), 0
     inc hl
     djnz loc_a9c0
 
-    ld hl, 0x0000
-    ld de, 0x4000
+    ld hl, $0000  ; do not delete playar data in VRAM
+    ld de, $3000
     xor a  ; fill with space
     call fill_vram
-
 
     ld hl, mode
     res 7, (hl)  ; switch to game mode
 
     call init_vram
+
     ld hl, gamecontrol
     set 7, (hl)
 loc_aa14:
     bit 7, (hl)
     jr nz, loc_aa14
 
-; Original code's final register writes
-    ld bc, 0x0700  ; R7: Border/background color
-    call write_register
-    ld bc, 0x01e2  ; Original game state register
+;	; Original code's final register writes
+    ld bc, $01E2  ; Original game state register
+    jp write_register
+
+wait8:
+    ld b, 8
+wait8.1:    halt
+    djnz wait8.1
+    ret
+
+
+sub_aa25:  ; Level complete, load next level
+    ld hl, gamecontrol
+    set 7, (hl)
+loc_aa2a:
+    bit 7, (hl)
+    jr nz, loc_aa2a
+    ld hl, current_level_p1  ; Player 1
+    ld ix, enemy_num_p1
+    ld a, (gamecontrol)
+    bit 1, a
+    jr z, loc_aa2a.playerone
+    inc ixl
+    inc l
+loc_aa2a.playerone:
+
+; Current level (either p1 or p2) is loaded into HL
+    ld a, (hl)  ; Load level number
+    ld b, 10
+    call mod_b  ; Get modulo B
+
+; test if we completed level 10xN
+; if A==0 then go to WONDERFUL SCREEN
+
+    jr nz, loc_aa2a.test_intermission
+    push ix  ; Save Player data pointer 
+    push hl  ; Save Level Pointer
+    call wonderful
+    pop hl
+    pop ix
+    jr loc_aa2a.continue_next_level
+
+loc_aa2a.test_intermission:
+; here A is in 0-9
+    ld b, 3
+    call mod_b  ; Get modulo B
+
+; now A contains just 0,1,2
+; if A==0 the level Number is multiple of 3
+
+    push ix  ; Save Player data pointer 
+    push hl  ; Save Level Pointer
+    call z, intermission
+    pop hl
+    pop ix
+
+loc_aa2a.continue_next_level:
+    ld (ix + 0), 7
+    inc (hl)  ; Increment the level number
+    ld a, (hl)
+    call sub_b286  ; buld level in A
+    ld hl, gamestate
+    ld de, $3400
+    ld a, (gamecontrol)
+    bit 1, a
+    jr z, loc_aa5c
+    set 1, d
+loc_aa5c:
+    ld bc, $00D4
+    call write_vram
+    ld bc, $01E2
     jp write_register
 
 
-wait8:
-    halt
-    halt
-    halt
-    halt
-    halt
-    halt
-    halt
-    halt
+; Get A modulo B
+mod_b:
+    sub b  ; Subtract B
+    jr nc, mod_b  ; If result >= 0, continue
+    add a, b  ; Add back B to get remainder in 0-(B-1)
     ret
+
 
 sub_aa69:
     ld hl, gamecontrol
@@ -6198,15 +6330,15 @@ sub_aa69:
 loc_aa6e:
     bit 7, (hl)
     jr nz, loc_aa6e
-    ld de, 0x3400
+    ld de, $3400
     bit 1, (hl)
     jr z, loc_aa7c
     set 1, d
 loc_aa7c:
-    ld hl, 0x718a
-    ld bc, 0x00d4
+    ld hl, gamestate
+    ld bc, $00D4
     call write_vram
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
     ld ix, lives_left_p1_ram
     ld iy, lives_left_p2_ram
@@ -6230,7 +6362,7 @@ loc_aaad:
     jr z, loc_aada
     set 1, (hl)
     ld a, 2
-    jr locret_aadb
+    ret
 loc_aabd:
     dec (iy + 0)
     jr z, loc_aace
@@ -6240,18 +6372,18 @@ loc_aabd:
     res 1, (hl)
 loc_aaca:
     ld a, 1
-    jr locret_aadb
+    ret
 loc_aace:
     ld a, (ix + 0)
     and a
     jr z, loc_aada
     res 1, (hl)
     ld a, 3
-    jr locret_aadb
+    ret
 loc_aada:
     xor a
-locret_aadb:
     ret
+
 
 sub_ab28:
     ld hl, gamecontrol
@@ -6259,22 +6391,22 @@ sub_ab28:
 loc_ab2d:
     bit 7, (hl)
     jr nz, loc_ab2d
-    ld hl, 0x1900
-    ld de, 0x80
+    ld hl, sat
+    ld de, $80
     xor a
     call fill_vram
     ld hl, sprite_name_table
-    ld b, 0x50
+    ld b, $50
 loc_ab40:
     ld (hl), 0
     inc hl
     djnz loc_ab40
     ld a, 9
     call deal_with_playfield
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
     call play_game_over_tune
-    ld hl, 0x0168
+    ld hl, $0168
     xor a
     call request_signal
     push af
@@ -6285,20 +6417,20 @@ loc_ab5b:
     and a
     jr z, loc_ab5b
     pop af
-    ld hl, 0x04b0
+    ld hl, $04B0
     xor a
     call request_signal
     push af
 loc_ab6c:
     ld a, (keyboard_p1)
-    cp 0x0a
+    cp $0A
     jr z, loc_aba5
-    cp 0x0b
+    cp $0B
     jr z, loc_aba9
     ld a, (keyboard_p2)
-    cp 0x0a
+    cp $0A
     jr z, loc_aba5
-    cp 0x0b
+    cp $0B
     jr z, loc_aba9
     pop af
     push af
@@ -6310,17 +6442,17 @@ loc_ab6c:
 loc_ab8f:
     bit 7, (hl)
     jr nz, loc_ab8f
-    ld hl, 0x1000
-    ld de, 0x0300
+    ld hl, pnt
+    ld de, $0300
     xor a
     call fill_vram
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
     jr loc_ab6c
 loc_aba5:
     pop af
     xor a
-    jr locret_abb5
+    ret
 loc_aba9:
     ld hl, gamecontrol
     set 7, (hl)
@@ -6329,7 +6461,6 @@ loc_abae:
     jr nz, loc_abae
     pop af
     ld a, 3
-locret_abb5:
     ret
 
 sub_abb7:
@@ -6337,33 +6468,31 @@ sub_abb7:
     ld d, 0
     dec a
 loc_abbe:
-    cp 0x10
+    cp $10
     jr c, loc_abc7
-    sub 0x10
+    sub $10
     inc d
     jr loc_abbe
 loc_abc7:
     ld e, a
 loc_abc8:
-    and e
-    or e
+    ld a, e
+    and a  ;	CP		0
     jr z, loc_abd4
     ld a, c
-    add a, 0x10
+    add a, $10
     ld c, a
     dec e
     jr loc_abc8
 loc_abd4:
     ld a, d
-    cp 0
-    jr z, locret_abe0
+    and a  ;	CP		0
+    ret z
     ld a, b
-    add a, 0x10
+    add a, $10
     ld b, a
     dec d
     jr loc_abc8
-locret_abe0:
-    ret
 
 sub_abe1:
     push ix
@@ -6426,20 +6555,20 @@ sub_ac3f:
     push bc
     ld d, 1
     ld a, b
-    sub 0x18
+    sub $18
 loc_ac45:
-    sub 0x10
+    sub $10
     jr c, loc_ac51
     push af
     ld a, d
-    add a, 0x10
+    add a, $10
     ld d, a
     pop af
     jr loc_ac45
 loc_ac51:
     ld a, c
 loc_ac52:
-    sub 0x10
+    sub $10
     jr c, loc_ac59
     inc d
     jr loc_ac52
@@ -6448,13 +6577,13 @@ loc_ac59:
     dec a
     ld b, 0
     ld c, a
-    ld ix, 0x718a
+    ld ix, gamestate
     add ix, bc
     ld a, d
     pop bc
     ret
 
-deal_with_playfield_map:
+init_playfield_map:
     dec a
     add a, a
     ld b, 0
@@ -6468,11 +6597,11 @@ deal_with_playfield_map:
 loc_acd5:
     ld a, 2
     cp (ix + 0)
-    jr z, locret_acff
-    ld a, 1
+    ret z  ; 2 == END of data
+    dec a
     cp (ix + 0)
     jr nz, loc_acf6
-    inc ix
+    inc ix  ; 1 == Encode a RUN of tiles
     ld b, (ix + 0)
     inc ix
     ld a, (ix + 0)
@@ -6484,54 +6613,112 @@ loc_aced:
     inc ix
     jr loc_acd5
 loc_acf6:
-    ld b, (ix + 0)
+    ld b, (ix + 0)  ; single tiles
     ld (hl), b
     inc hl
     inc ix
     jr loc_acd5
-locret_acff:
-    ret
 
 deal_with_sprites:
-    ld b, 0
-    ld c, a
+    ld l, a
+    ld h, 0
+    ld e, a
+    ld d, h
+    add hl, hl
+    add hl, hl
+    add hl, de  ; 5 bytes per entry 
+    ex de, hl
     ld ix, sprite_generator
-    add ix, bc
-    sla c
-    rl b
-    rl c
-    rl b
-    add ix, bc
-    ld a, (ix + 0)
+    add ix, de  ; +28*5 for MrDo
+
+; expect in IY the number of 8x8 tiles to process
+
+    ld a, (ix + 0)  ; flag
+    ld e, (ix + 1)  ; Position in the SPT in VRAM
+    ld d, (ix + 2)
+    ld l, (ix + 3)  ; pointer to sprite pattern
+    ld h, (ix + 4)
     and a
-    jr nz, loc_ad32
-    ld e, (ix + 1)
-    ld d, (ix + 2)
-    ld l, (ix + 3)
-    ld h, (ix + 4)
-    ld iy, 4
-    ld a, 1
-    call put_vram
-    jr locret_ad95
-loc_ad32:
-    ld l, (ix + 3)
-    ld h, (ix + 4)
-    ld e, (ix + 1)
-    ld d, (ix + 2)
+    jp nz, rotation
+norotation:
+    ld a, 1  ; write the SPT
+    jp put_vram
+rotation:
+
     push de
-    pop ix
-    ld b, 4
-loop_ad43:
+    exx
+    pop de  ; save DE pointer to SPT positions
+    exx
+    ld b, iyl
+
+    dec a  ; 1 mirror frame left
+    jp z, mirrorleft
+    dec a  ; 2 rotate face down 
+    jp z, rotatedwn
+    dec a  ; 3 rotate face up
+    jp z, rotateup
+    dec a  ; 4 rotate face down-mirror
+    jp z, rotatedwnmirror
+; rotate face up-mirror
+rotateupmirror:
+rotateupmirror.nextpattern:
     push bc
-    push af
     push hl
-    push ix
-    ld iy, 0x72e7
-    cp 1
-    jr nz, loc_ad55
+    ld iy, sptbuff2
+;     call sub_ae0c  ; -mdl
+
+sub_ae0c:  ; rotate face down-mirror
+    ld bc, 7
+    add hl, bc
+    ld d, $80
+    push hl
+    inc c
+loc_ae15:
+    pop hl
+    push hl
+    ld b, 8
+loc_ae19:
+    ld a, (hl)
+    and d
+    jr z, loc_ae1e
+    scf
+loc_ae1e:
+    rl e
+    dec hl
+    djnz loc_ae19
+    ld (iy + 0), e
+    inc iy
+    rrc d
+    dec c
+    jr nz, loc_ae15
+    pop hl
+;     ret  ; -mdl
+    exx
+    ld a, (de)
+    inc de
+    exx
+    ld e, a
+    ld d, 0
+    ld hl, sptbuff2
+    ld iy, 1
+    ld a, iyl
+    call put_vram
+    pop hl
+    ld bc, 8
+    add hl, bc
+    pop bc
+    djnz rotateupmirror.nextpattern
+    ret
+
+mirrorleft:
+mirrorleft.nextpattern:
+    push bc
+    push hl
+    ld iy, sptbuff2
 ;     call sub_ad96  ; -mdl
 
-sub_ad96:
+
+sub_ad96:  ; mirror frame left
     ld b, 8
 loc_ad98:
     ld d, (hl)
@@ -6546,45 +6733,31 @@ loc_ad9b:
     inc iy
     djnz loc_ad98
 ;     ret  ; -mdl
-    jr loc_ad73
-loc_ad55:
-    cp 2
-    jr nz, loc_ad5e
-    call sub_adab
-    jr loc_ad73
-loc_ad5e:
-    cp 3
-    jr nz, loc_ad67
-    call sub_adca
-    jr loc_ad73
-loc_ad67:
-    cp 4
-    jr nz, loc_ad70
-    call sub_ade9
-    jr loc_ad73
-loc_ad70:
-    call sub_ae0c
-loc_ad73:
-    pop ix
-    ld e, (ix + 0)
+    exx
+    ld a, (de)
+    inc de
+    exx
+    ld e, a
     ld d, 0
-    inc ix
-    push ix
-    ld hl, 0x72e7
+    ld hl, sptbuff2
     ld iy, 1
     ld a, iyl
     call put_vram
-    pop ix
     pop hl
     ld bc, 8
     add hl, bc
-    pop af
     pop bc
-    djnz loop_ad43
-locret_ad95:
+    djnz mirrorleft.nextpattern
     ret
 
-sub_adab:
+rotatedwn:
+rotatedwn.nextpattern:
+    push bc
+    push hl
+    ld iy, sptbuff2
+;     call sub_adab  ; -mdl
+
+sub_adab:  ; rotate face down 
     ld c, 8
     push hl
     ld d, 1
@@ -6607,12 +6780,35 @@ loc_adb9:
     dec c
     jr nz, loc_adb0
     pop hl
+;     ret  ; -mdl
+    exx
+    ld a, (de)
+    inc de
+    exx
+    ld e, a
+    ld d, 0
+    ld hl, sptbuff2
+    ld iy, 1
+    ld a, iyl
+    call put_vram
+    pop hl
+    ld bc, 8
+    add hl, bc
+    pop bc
+    djnz rotatedwn.nextpattern
     ret
 
-sub_adca:
+rotateup:
+rotateup.nextpattern:
+    push bc
+    push hl
+    ld iy, sptbuff2
+;     call sub_adca  ; -mdl
+
+sub_adca:  ; rotate face up
     ld c, 8
     push hl
-    ld d, 0x80
+    ld d, $80
 loc_adcf:
     pop hl
     push hl
@@ -6632,9 +6828,32 @@ loc_add8:
     dec c
     jr nz, loc_adcf
     pop hl
+;     ret  ; -mdl
+    exx
+    ld a, (de)
+    inc de
+    exx
+    ld e, a
+    ld d, 0
+    ld hl, sptbuff2
+    ld iy, 1
+    ld a, iyl
+    call put_vram
+    pop hl
+    ld bc, 8
+    add hl, bc
+    pop bc
+    djnz rotateup.nextpattern
     ret
 
-sub_ade9:
+rotatedwnmirror:
+rotatedwnmirror.nextpattern:
+    push bc
+    push hl
+    ld iy, sptbuff2
+;     call sub_ade9  ; -mdl
+
+sub_ade9:  ; rotate face up-mirror
     ld bc, 7
     add hl, bc
     inc c
@@ -6659,54 +6878,43 @@ loc_adfb:
     dec c
     jr nz, loc_adf2
     pop hl
-    ret
-
-sub_ae0c:
-    ld bc, 7
+;     ret  ; -mdl
+    exx
+    ld a, (de)
+    inc de
+    exx
+    ld e, a
+    ld d, 0
+    ld hl, sptbuff2
+    ld iy, 1
+    ld a, iyl
+    call put_vram
+    pop hl
+    ld bc, 8
     add hl, bc
-    ld d, 0x80
-    push hl
-    inc c
-loc_ae15:
-    pop hl
-    push hl
-    ld b, 8
-loc_ae19:
-    ld a, (hl)
-    and d
-    jr z, loc_ae1e
-    scf
-loc_ae1e:
-    rl e
-    dec hl
-    djnz loc_ae19
-    ld (iy + 0), e
-    inc iy
-    rrc d
-    dec c
-    jr nz, loc_ae15
-    pop hl
+    pop bc
+    djnz rotatedwnmirror.nextpattern
     ret
 
-deal_with_playfield:
+deal_with_playfield:  ; Print strings to the playfield
     dec a
     add a, a
     ld c, a
     ld b, 0
-    ld hl, byte_be21
+    ld hl, obj_position_list
     add hl, bc
     ld e, (hl)
     inc hl
     ld d, (hl)
-    ld ix, playfield_table
+    ld ix, obj_description_list
     add ix, bc
     ld l, (ix + 0)
     ld h, (ix + 1)
 loc_ae47:
     ld a, (hl)
-    cp 0x00ff
-    jr z, locret_ae87
-    cp 0x00fe
+    cp $00FF
+    ret z
+    cp $00FE
     jr nz, loc_ae5a
     inc hl
     ld c, (hl)
@@ -6717,7 +6925,7 @@ loc_ae47:
     ex de, hl
     jr loc_ae47
 loc_ae5a:
-    cp 0x00fd
+    cp $00FD
     jr nz, loc_ae76
     inc hl
     ld b, (hl)
@@ -6739,16 +6947,14 @@ loop_ae61:
 loc_ae76:
     push hl
     push de
-    ld iy, 1
     ld a, 2
+    ld iy, 1
     call put_vram
     pop de
     pop hl
     inc de
     inc hl
     jr loc_ae47
-locret_ae87:
-    ret
 
 loc_ae88:
     ld ix, byte_aead
@@ -6768,7 +6974,7 @@ loc_ae97:
 loc_ae9f:
     add hl, bc
     ex de, hl
-    add a, 0x00d8
+    add a, $00D8
     ld (hl), a
     inc hl
     inc ix
@@ -6785,7 +6991,7 @@ sub_aeb7:
     ld a, (badguy_bhvr_cnt_ram)
     dec a
     jp p, loc_aec1
-    ld a, 0x4f
+    ld a, $4F
 loc_aec1:
     ld e, a
     ld d, 0
@@ -6793,19 +6999,18 @@ loc_aec1:
     add hl, de
     ld a, (hl)
     cp b
-    jr z, locret_aee0
+    ret z
     ld a, (badguy_bhvr_cnt_ram)
     ld e, a
     ld hl, badguy_behavior_ram
     add hl, de
     ld (hl), b
     inc a
-    cp 0x50
+    cp $50
     jr c, loc_aedd
     xor a
 loc_aedd:
     ld (badguy_bhvr_cnt_ram), a
-locret_aee0:
     ret
 
 sub_aee1:  ; Apple Pushing/Intersection logic
@@ -6816,12 +7021,12 @@ loc_aee4:
     dec e
     ld a, c
     jr nz, loc_aef1
-    add a, 0x0c
+    add a, $0C
     jp c, loc_aff5
     jr loc_aef6
 loc_af26:
     ld a, (ix + 0)
-    and 0x78
+    and $78
     jp nz, loc_afd2
     inc h
     pop af
@@ -6845,7 +7050,7 @@ loc_af4a:
     ld c, a
     call sub_ac3f
     ld a, c
-    and 0x0f
+    and $0F
     cp 8
     ld a, (ix + 0)
     jr nc, loc_af60
@@ -6854,8 +7059,8 @@ loc_af4a:
     jr nz, loc_af6e
     jr loc_af66
 loc_af60:
-    and 0x0a
-    cp 0x0a
+    and $0A
+    cp $0A
     jr nz, loc_af6e
 loc_af66:
     pop ix
@@ -6870,12 +7075,12 @@ loc_af6e:
     pop bc
     jp loc_b061
 loc_aef1:
-    sub 0x0c
+    sub $0C
     jp c, loc_aff5
 loc_aef6:
     ld c, a
     ld e, 5
-    ld ix, 0x722c
+    ld ix, appledata
 loc_aefd:
     bit 7, (ix + 0)
     jr z, loc_af1a
@@ -6885,10 +7090,10 @@ loc_aefd:
     ld a, (ix + 1)
     cp b
     jr z, loc_af26
-    sub 0x10
+    sub $10
     cp b
     jr nc, loc_af1a
-    add a, 0x1f
+    add a, $1F
     cp b
     jp nc, loc_b061
 loc_af1a:
@@ -6898,7 +7103,7 @@ loc_af1a:
     pop de
     dec e
     jr nz, loc_aefd
-;     JR      LOC_AF76  ; -mdl
+; 	JR		LOC_AF76  ; -mdl
 loc_af76:
     ld e, 0
     ld a, h
@@ -6910,25 +7115,25 @@ loc_af76:
     jr nz, loc_afd7
     push de
     push hl
-    ld ix, 0x728e
+    ld ix, enemy_data_array
     ld l, 7
 loc_af8b:
     bit 7, (ix + 4)
     jr z, loc_afbf
     bit 6, (ix + 4)
     jr nz, loc_afbf
-    ld a, (0x7272)
+    ld a, ($7272)
     bit 4, a
     jr nz, loc_afa5
     ld a, (ix + 0)
-    and 0x30
+    and $30
     jr z, loc_afbf
 loc_afa5:
     ld a, (ix + 2)
-    sub 0x0c
+    sub $0C
     cp b
     jr nc, loc_afbf
-    add a, 0x18
+    add a, $18
     cp b
     jr c, loc_afbf
     ld a, (ix + 1)
@@ -6954,15 +7159,15 @@ loc_afd0:
 loc_afd2:
     ld e, 3
     jp loc_b063
-loc_afd7:  ; BADGUY PUshes APPLE
-    ld a, (0x7284)
-    sub 0x0c
+loc_afd7:  ; BADGUY Pushes APPLE
+    ld a, (mrdo_data.y)
+    sub $0C
     cp b
     jr nc, loc_aff6
-    add a, 0x18
+    add a, $18
     cp b
     jr c, loc_aff6
-    ld a, (0x7285)
+    ld a, (mrdo_data.x)
     sub 4
     cp c
     jr nc, loc_aff6
@@ -6983,13 +7188,13 @@ loc_affc:
     dec e
     ld a, c
     jr nz, loc_b006
-    sub 0x0c
+    sub $0C
     jr loc_b008
 loc_b006:
-    add a, 0x0c
+    add a, $0C
 loc_b008:
     ld c, a
-    ld ix, 0x722c
+    ld ix, appledata
     ld e, 5
 loc_b00f:
     bit 7, (ix + 0)
@@ -7005,12 +7210,12 @@ loc_b00f:
     ld a, c
     jr nz, loc_b02f
     add a, 4
-    cp 0x00e9
+    cp $00E9
     jr nc, loc_b061
     jr loc_b035
 loc_b02f:
     sub 4
-    cp 0x18
+    cp $18
     jr c, loc_b061
 loc_b035:
     ld (ix + 2), a
@@ -7020,7 +7225,7 @@ loc_b035:
     push ix
     ld c, a
     ld b, (ix + 1)
-    ld a, 0x11
+    ld a, $11
     sub e
     ld d, 1
     call sub_b629
@@ -7051,8 +7256,8 @@ loc_b063:
 sub_b066:
     push iy
     push hl
-    ld iy, 0x728e
-    ld hl, 0x0207
+    ld iy, enemy_data_array
+    ld hl, $0207
 loc_b070:
     ld a, (iy + 4)
     bit 7, a
@@ -7060,7 +7265,7 @@ loc_b070:
     add a, a
     jp m, loc_b105
     ld a, (iy + 0)
-    and 0x30
+    and $30
     jp nz, loc_b105
 loc_b085:
     ld a, (iy + 2)
@@ -7069,7 +7274,7 @@ loc_b085:
     cpl
     inc a
 loc_b08d:
-    cp 0x10
+    cp $10
     jr nc, loc_b105
     ld a, (iy + 1)
     bit 0, d
@@ -7125,6 +7330,7 @@ loc_b0d8:
     add a, 4
     ld (iy + 2), a
     jr loc_b105
+
 loc_b0f8:
     pop af
     bit 4, a
@@ -7141,10 +7347,10 @@ loc_b105:
     jp nz, loc_b070
     dec h
     jr z, loc_b123
-    ld a, (0x72ba)
+    ld a, ($72BA)
     bit 6, a
     jr z, loc_b123
-    ld iy, 0x72bd
+    ld iy, $72BD
     ld l, 1
     jp loc_b085
 loc_b123:
@@ -7156,7 +7362,6 @@ loc_b0ee:
     cp b
     jr z, loc_b0f8
     pop af
-;     JR      LOC_B126  ; -mdl
 loc_b126:
     ld a, 1
 loc_b128:
@@ -7166,11 +7371,14 @@ loc_b128:
     ret
 
 sub_b12d:  ; Mr. Do sprite intersection with apples from above and below
-    ld ix, 0x722c  ; IX points to the first apple's sprite data
+    ld ix, appledata  ; IX points to the first apple's sprite data
     ld e, 5  ; Number of apples to check
 ; Modified to offset the value used to detect a vertical collision
 ; with an apple so that Mr. Do doesn't get stuck in the apple from
 ; above or below.
+
+    jr nc, loc_b133  ; CF==0 -> monsters, CF==1 ->MrDo
+
     ld a, (iy + 3)  ; Get Y position of Mr. Do
     bit 1, d  ; Check if moving down
     jr z, check_up
@@ -7180,6 +7388,7 @@ check_up:
     add a, 4  ; Moving up, so add 4 to Y position
 start_check:
     ld b, a  ; Store the new Y position in B for checks
+
 loc_b133:
     bit 7, (ix + 0)  ; Check if the apple is active
     jr z, loc_b163
@@ -7188,7 +7397,7 @@ loc_b133:
     jr z, loc_b149
     sub (ix + 1)
     jr c, loc_b163
-    cp 0x0d
+    cp $0D
     jr nc, loc_b163
     jr loc_b156
 loc_b149:
@@ -7197,14 +7406,14 @@ loc_b149:
     jr nc, loc_b163
     cpl
     inc a
-    cp 0x0d
+    cp $0D
     jr nc, loc_b163
 loc_b156:
     ld a, (ix + 2)
     add a, 9
     cp c
     jr c, loc_b163
-    sub 0x12
+    sub $12
     cp c
     jr c, loc_b170
 loc_b163:
@@ -7215,16 +7424,15 @@ loc_b163:
     dec e
     jr nz, loc_b133
     xor a
-    jr locret_b172
+    ret
 loc_b170:
     ld a, 1
-locret_b172:
     ret
 
 sub_b173:
     ld a, d
     push af
-    ld hl, 0x7245
+    ld hl, $7245
     call sub_ac0b
     jr z, loc_b198
     pop af
@@ -7232,31 +7440,30 @@ sub_b173:
     dec a
     ld c, a
     ld b, 0
-    ld hl, 0x718a
+    ld hl, gamestate
     add hl, bc
     ld a, (hl)
-    and 0x0f
-    cp 0x0f
+    and $0F
+    cp $0F
     jr nz, loc_b198
     pop af
-    ld hl, 0x7245
+    ld hl, $7245
     call sub_abf6
     scf
-    jr locret_b19a
+    ret
 loc_b198:
     pop af
     and a
-locret_b19a:
     ret
 
 display_play_field_parts:
     push af
-    cp 0x48
+    cp $48
     jp z, loc_b24e
     dec a
     ld c, a
     ld b, 0
-    ld iy, 0x718a
+    ld iy, gamestate
     add iy, bc
     pop af
     push af
@@ -7272,7 +7479,7 @@ display_cherries:
     push de
     push ix
     push bc
-    ld hl, 0x7245
+    ld hl, $7245
     call sub_ac0b
     pop bc
     pop ix
@@ -7285,13 +7492,13 @@ display_playfield:
     push bc
     ld a, (gamecontrol)
     bit 1, a
-    ld a, (current_level_ram)
+    ld a, (current_level_p1)
     jr z, loc_b1e6
-    ld a, (0x7275)
+    ld a, (current_level_p2)
 loc_b1e6:
-    cp 0x0b
+    cp $0B
     jr c, loc_b1ee
-    sub 0x0a
+    sub $0A
     jr loc_b1e6
 loc_b1ee:
     dec a
@@ -7360,22 +7567,22 @@ tunnel_patterns:
 cherries_txt:
     db 17, 16, 9, 8
 playfield_patterns:
-    db 80, 81, 82, 80, 83, 82, 84, 80, 82, 83
+    db 80, 81, 82, 82, 82, 82, 83, 83, 83, 80
 
-sub_b286:
-    cp 0x0b
+sub_b286:  ; build level in A
+    cp $0B
     jr c, loc_b28e
-    sub 0x0a
+    sub $0A
     jr sub_b286
 loc_b28e:
     push af
-    ld hl, 0x718a
+    ld hl, gamestate
     ld (hl), 0
-    ld de, 0x718b
-    ld bc, 0x9f
+    ld de, $718B
+    ld bc, $9F
     ldir
-    ld hl, 0x718a
-    call deal_with_playfield_map
+    ld hl, gamestate
+    call init_playfield_map
     pop af
     dec a
     add a, a
@@ -7386,8 +7593,8 @@ loc_b28e:
     add ix, bc
     ld l, (ix + 0)
     ld h, (ix + 1)
-    ld c, 0x14
-    ld de, 0x7245
+    ld c, $14
+    ld de, $7245
     ldir
     call rand_gen
     ld ix, extra_behavior
@@ -7400,13 +7607,13 @@ loc_b2cc:
     ld l, (ix + 0)
     ld h, (ix + 1)
     ld b, 5
-    ld iy, 0x722c
+    ld iy, appledata
 loop_b2db:
     ld a, (hl)
     push hl
     push bc
     call sub_abb7
-    ld (iy + 0), 0x80
+    ld (iy + 0), $80
     ld (iy + 1), b
     ld (iy + 2), c
     ld (iy + 3), 0
@@ -7425,21 +7632,21 @@ sub_b2fa:
     ld d, a
     ld e, 0
     ld a, c
-    and 0x0f
+    and $0F
     cp 8
     jr nz, loc_b32c
     ld a, (ix + 0)
-    and 0x0a
-    cp 0x0a
+    and $0A
+    cp $0A
     jr z, loc_b31d
-    inc de
+    ld e, 1
     set 1, (ix + 0)
     set 3, (ix + 0)
 loc_b31d:
     push ix
     push de
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop de
     pop ix
@@ -7448,18 +7655,18 @@ loc_b32c:
     and a
     jr nz, loc_b370
     ld a, (ix + 0)
-    and 0x85
-    cp 0x85
+    and $85
+    cp $85
     jr z, loc_b342
     ld e, 1
     ld a, (ix + 0)
-    or 0x85
+    or $85
     ld (ix + 0), a
 loc_b342:
     push de
     push ix
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop ix
     pop de
@@ -7476,7 +7683,7 @@ loc_b342:
 loc_b360:
     set 6, (ix + 0)
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop de
     pop ix
@@ -7487,7 +7694,7 @@ loc_b370:
     cp 4
     jr z, loc_b38b
     inc ix
-    ld c, 0x80
+    ld c, $80
     ld a, (ix + 0)
     dec ix
     and 5
@@ -7497,10 +7704,10 @@ loc_b370:
     inc b
     jr loc_b397
 loc_b38b:
-    ld c, 0x84
+    ld c, $84
     ld a, (ix + 0)
-    and 0x0a
-    cp 0x0a
+    and $0A
+    cp $0A
     jr z, loc_b399
     ld b, d
 loc_b397:
@@ -7517,7 +7724,7 @@ sub_b39d:
     ld d, a
     ld e, 0
     ld a, c
-    and 0x0f
+    and $0F
     jr nz, loc_b3ec
     bit 7, (ix + 0)
     jr nz, loc_b3b7
@@ -7527,7 +7734,7 @@ loc_b3b7:
     push de
     push ix
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop ix
     pop de
@@ -7537,18 +7744,18 @@ loc_b3b7:
     dec d
     ld a, (ix + 0)
     cpl
-    and 0x4a
+    and $4A
     jr z, loc_b3e0
     pop de
     ld e, 1
     push de
     dec d
     ld a, (ix + 0)
-    or 0x4a
+    or $4A
     ld (ix + 0), a
 loc_b3e0:
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop de
     pop ix
@@ -7565,7 +7772,7 @@ loc_b3ec:
     set 2, (ix + 0)
 loc_b403:
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     push ix
     push de
     call sub_abe1
@@ -7577,7 +7784,7 @@ loc_b412:
     push iy
     cp 4
     jr nz, loc_b428
-    ld c, 0x85
+    ld c, $85
     ld a, (ix + 0)
     and 5
     cp 5
@@ -7585,12 +7792,12 @@ loc_b412:
     ld b, d
     jr loc_b439
 loc_b428:
-    ld c, 0x81
+    ld c, $81
     dec ix
     ld a, (ix + 0)
     inc ix
-    and 0x0a
-    cp 0x0a
+    and $0A
+    cp $0A
     jr z, loc_b43b
     ld b, d
     dec b
@@ -7608,39 +7815,39 @@ sub_b43f:
     ld d, a
     ld e, 0
     ld a, b
-    and 0x0f
+    and $0F
     cp 8
     jr nz, loc_b493
     bit 4, (ix + 0)
     jr nz, loc_b45b
-    inc de
+    ld e, 1
     set 4, (ix + 0)
 loc_b45b:
     push de
     push ix
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop ix
     pop de
     push ix
     push de
-    ld bc, 0xfff0
+    ld bc, $FFF0
     add ix, bc
     ld a, (ix + 0)
     xor b
-    and 0x2c
+    and $2C
     jr z, loc_b485
     pop de
     ld e, 1
     push de
     ld a, (ix + 0)
-    or 0x2c
+    or $2C
     ld (ix + 0), a
 loc_b485:
     ld a, d
-    sub 0x10
-    ld hl, 0x7259
+    sub $10
+    ld hl, $7259
     call sub_abe1
     pop de
     pop ix
@@ -7659,7 +7866,7 @@ loc_b4a9:
     push ix
     push de
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop de
     pop ix
@@ -7672,21 +7879,21 @@ loc_b4b8:
     cp 3
     jr z, loc_b4e5
     ld b, d
-    ld c, 0x82
+    ld c, $82
     jr loc_b4e3
 loc_b4ca:
-    ld bc, 0xfff0
+    ld bc, $FFF0
     add ix, bc
     ld a, (ix + 0)
-    ld bc, 0x10
+    ld bc, $10
     add ix, bc
-    and 0x0c
-    cp 0x0c
+    and $0C
+    cp $0C
     jr z, loc_b4e5
     ld a, d
     sub c
     ld b, a
-    ld c, 0x86
+    ld c, $86
 loc_b4e3:
     ld e, 1
 loc_b4e5:
@@ -7700,28 +7907,28 @@ sub_b4e9:
     call sub_ac3f
     ld d, a
     ld a, b
-    and 0x0f
+    and $0F
     cp 8
     jr nz, loc_b53b
     ld a, (ix + 0)
-    and 0x13
-    cp 0x13
+    and $13
+    cp $13
     jr z, loc_b50a
     ld e, 1
     ld a, (ix + 0)
-    or 0x13
+    or $13
     ld (ix + 0), a
 loc_b50a:
     push de
     push ix
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop ix
     pop de
     push ix
     push de
-    ld bc, 0xfff0
+    ld bc, $FFF0
     add ix, bc
     bit 5, (ix + 0)
     jr nz, loc_b52d
@@ -7731,8 +7938,8 @@ loc_b50a:
     set 5, (ix + 0)
 loc_b52d:
     ld a, d
-    sub 0x10
-    ld hl, 0x7259
+    sub $10
+    ld hl, $7259
     call sub_abe1
     pop de
     pop ix
@@ -7741,8 +7948,8 @@ loc_b53b:
     and a
     jr nz, loc_b560
     ld a, (ix + 0)
-    and 0x0c
-    cp 0x0c
+    and $0C
+    cp $0C
     jr z, loc_b551
     ld e, 1
     set 2, (ix + 0)
@@ -7751,7 +7958,7 @@ loc_b551:
     push ix
     push de
     ld a, d
-    ld hl, 0x7259
+    ld hl, $7259
     call sub_abe1
     pop de
     pop ix
@@ -7759,18 +7966,18 @@ loc_b551:
 loc_b560:
     cp 4
     jr nz, loc_b57f
-    ld bc, 0x10
+    ld bc, $10
     add ix, bc
     ld a, (ix + 0)
-    ld bc, 0xfff0
+    ld bc, $FFF0
     add ix, bc
-    and 0x0c
-    cp 0x0c
+    and $0C
+    cp $0C
     jr z, loc_b58d
     ld a, d
-    add a, 0x10
+    add a, $10
     ld b, a
-    ld c, 0x87
+    ld c, $87
     jr loc_b58b
 loc_b57f:
     ld a, (ix + 0)
@@ -7778,7 +7985,7 @@ loc_b57f:
     cp 3
     jr z, loc_b58d
     ld b, d
-    ld c, 0x83
+    ld c, $83
 loc_b58b:
     ld e, 1
 loc_b58d:
@@ -7787,14 +7994,14 @@ loc_b58d:
     ret
 
 sub_b591:
-    ld hl, 0x60
-    ld de, 0x40
+    ld hl, $60
+    ld de, $40
     dec a
 loc_b598:
-    cp 0x10
+    cp $10
     jr c, loc_b5a1
     add hl, de
-    sub 0x10
+    sub $10
     jr loc_b598
 loc_b5a1:
     add a, a
@@ -7819,16 +8026,16 @@ patterns_to_vram:
     ld e, (hl)
     inc hl
     ld d, (hl)
-    ld hl, 0x72e7
+    ld hl, $72E7
     call loc_ae88
-    ld a, 0x00d8
-    ld (0x72ec), a
+    ld a, $00D8
+    ld ($72EC), a
     ld a, 2
     pop hl
     ld e, (hl)
     inc hl
     ld d, (hl)
-    ld hl, 0x72e7
+    ld hl, $72E7
     ld iy, 6
     jp put_vram
 
@@ -7840,56 +8047,54 @@ sub_b5dd:  ; Ball collision detection
     sub 7
     cp (iy + 1)
     jr nc, loc_b5ff
-    add a, 0x0e
+    add a, $0E
     cp (iy + 1)
     jr c, loc_b5ff
     ld a, c
     sub 7
     cp (iy + 2)
     jr nc, loc_b5ff
-    add a, 0x0e
+    add a, $0E
     cp (iy + 2)
     jr c, loc_b5ff
     ld a, 1
-    jr locret_b600
+    ret
 loc_b5ff:
     xor a
-locret_b600:
     ret
 
-sub_b601:
+sub_b601:  ; add DE to the SCORE of the active player
     ld ix, score_p1_ram
-    ld c, 0x80
+    ld c, $80
     ld a, (gamecontrol)
     bit 1, a
     jr z, loc_b614
-    ld c, 0x40
-    ld ixl, score_p2_ram
+    ld c, $40
+    ld ixl, score_p2_ram and 255
 loc_b614:
     ld l, (ix + 0)
     ld h, (ix + 1)
     add hl, de
     ld (ix + 0), l
     ld (ix + 1), h
-    ld a, (0x727c)
+    ld a, ($727C)
     or c
-    ld (0x727c), a
-
+    ld ($727C), a
     ret
 
-sub_b629:
-    ld ix, 0x72df
+sub_b629:  ; put sprite A with step D at  BC = Y,X
+    ld ix, satbuff1  ; SAT buffer in RAM (8 bytes)
     bit 7, a
     jr z, loc_b637
-    and 0x7f
-    ld ixl, 0xe7
+    ld ixl, satbuff2 and 255
+    and $7F
 loc_b637:
     push af
     push de
     add a, a
     ld e, a
     ld d, 0
-    ld hl, off_b691
+    ld hl, off_b691  ; color table (pointer)
     add hl, de
     ld e, (hl)
     inc hl
@@ -7966,10 +8171,10 @@ byte_b6c3:
     db 0, 0, 184, 10  ; Pattern 184 uses Dark Yellow (Yellow)
 
 byte_b6c7:
-    db 176, 15, 148, 15  ; Patterns 176,148 use White
+    db 44 * 4, 6, 148, 15  ; Patterns 176,148 use White
 
 byte_b6cb:
-    db 180, 3, 160, 3  ; Patterns 180,160 use Light Green
+    db 180, 15, 160, 3  ; Patterns 180,160 use Light Green
 
 byte_b6cf:
     db 0, 0, 96, 11, 100, 11, 104, 11, 108, 11, 112, 11, 116, 11, 120, 11, 124, 11, 128, 11, 132, 11  ; Series using Light Yellow
@@ -7990,9 +8195,9 @@ byte_b761:
     db 0, 0, 224, 5, 228, 5, 232, 5, 236, 5, 148, 5  ; Series using Light Blue
 
 sub_b76d:
-    ld a, 0x40
-    ld (0x72bd), a
-    ld hl, 0x72c4
+    ld a, $40
+    ld ($72BD), a
+    ld hl, $72C4
     bit 0, (hl)
     jr z, loc_b781
     res 0, (hl)
@@ -8001,18 +8206,18 @@ sub_b76d:
 loc_b781:
     call sub_ca24
     ld a, 1
-    ld (0x72c2), a
-    ld a, (0x72ba)
+    ld ($72C2), a
+    ld a, ($72BA)
     res 6, a
     res 5, a
-    ld (0x72ba), a
+    ld ($72BA), a
     and 7
     ld c, a
     ld b, 0
     ld hl, byte_b7bc
     add hl, bc
     ld b, (hl)
-    ld hl, 0x72b8
+    ld hl, $72B8
     ld a, (gamecontrol)
     inc a
     and 3
@@ -8023,7 +8228,7 @@ loc_b7aa:
     ld a, (hl)
     or b
     ld (hl), a
-    cp 0x1f
+    cp $1F
     jr nz, loc_b7b4
     inc c
 loc_b7b4:
@@ -8040,27 +8245,28 @@ byte_b7bc:
 sub_b7c4:
     push hl
     push ix
-    ld (ix + 4), 0x00c0
-    ld a, 8
-    ld b, a
-    ld c, a
+;	LD		A, 0C0H
+    ld (ix + 4), $00C0  ;	LD		(IX+4), A
+;	LD		A, 8	; unused
+;	LD		B, A
+    ld bc, $0808  ;	LD		C, A
     call sub_b7ef
     add a, 5
     ld d, 0
     call sub_b629
-    ld hl, 0x7278
+    ld hl, enemy_num_p1
     ld a, (gamecontrol)
     and 3
     cp 3
     jr nz, loc_b7e7
-    inc hl
+    inc hl  ; point to ENEMY_NUM_P2
 loc_b7e7:
     ld a, (hl)
     dec a
-    ld (hl), a
-    pop ix
-    pop hl
-    and a
+    ld (hl), a  ; one enemy killed 
+    pop ix  ; This seems fine 
+    pop hl  ; maybe the problem is in the enemy generation ?
+    and a  ; Needed -> ZF is tested from the caller
     ret
 
 sub_b7ef:
@@ -8068,10 +8274,10 @@ sub_b7ef:
     push hl
     push ix
     pop hl
-    ld e, 142
-    and a
+;	LD		DE, ENEMY_DATA_ARRAY
+    ld e, -enemy_data_array and 255
     ld a, l
-    sbc a, e
+    add a, e
     ld h, 0
     and a
     jr z, loc_b805
@@ -8086,7 +8292,7 @@ loc_b805:
     ret
 
 sub_b809:
-    ld ix, 0x72c7
+    ld ix, chompdata
     ld b, 3
 loc_b80f:
     bit 7, (ix + 4)
@@ -8096,7 +8302,7 @@ loc_b80f:
     push bc
     call sub_b832
     push ix
-    ld de, 0x32
+    ld de, $32
     call sub_b601
     pop ix
     pop bc
@@ -8112,8 +8318,8 @@ sub_b832:
     ld (ix + 4), 0
     ld a, (ix + 3)
     call free_signal
-    ld bc, 0x72c7
-    ld d, 0x11
+    ld bc, chompdata
+    ld d, $11
     and a
     push ix
     pop hl
@@ -8126,11 +8332,11 @@ loc_b850:
     sbc hl, bc
     jr nz, loc_b850
 loc_b856:
-    ld bc, 0x0808
+    ld bc, $0808
     ld a, d
     ld d, 0
     call sub_b629
-    ld ix, 0x72c7
+    ld ix, chompdata
     ld b, 3
 loc_b865:
     bit 7, (ix + 4)
@@ -8141,26 +8347,26 @@ loc_b865:
     jp loc_d345
 loc_b875:
     res 4, (hl)
-    ld a, (0x72c3)
-    bit 0, a
+    ld a, (gameflags)
+    bit 0, a  ; b0 in GAMEFLAGS ??
     jr nz, loc_b884
-    ld a, (0x72c6)
+    ld a, (timerchomp1)
     call free_signal
 loc_b884:
     xor a
-    ld (0x72c3), a
-    ld a, (0x72ba)
+    ld (gameflags), a
+    ld a, ($72BA)
     bit 6, a
     jr z, loc_b89b
-    ld hl, 0x72c4
+    ld hl, $72C4
     jp loc_d300
 loc_b895:
     call request_signal
     jp loc_d35d
 loc_b89b:
-    nop
-    nop
-    nop
+;	NOP
+;	NOP
+;	NOP
 loc_b89e:
     pop ix
     pop iy
@@ -8174,17 +8380,17 @@ sub_b8a3:
     jp loc_d326
 
 loc_b8ab:
-    ld ix, 0x72c7
-    ld b, 3
+    ld ix, chompdata  ; chomper data
+    ld b, 3  ; chomper number
 loc_b8b1:
-    ld (ix + 0), 0x10
-    ld a, (0x72bf)
+    ld (ix + 0), $10
+    ld a, ($72BF)
     ld (ix + 2), a
-    ld a, (0x72be)
+    ld a, ($72BE)
     ld (ix + 1), a
-    ld a, (0x72c1)
+    ld a, ($72C1)
     and 7
-    or 0x80
+    or $80
     ld (ix + 4), a
     ld (ix + 5), 0
     push bc
@@ -8197,12 +8403,34 @@ loc_b8b1:
     add ix, de
     djnz loc_b8b1
     xor a
-    ld hl, 0x78
+    ld hl, $78
     call request_signal
     jp loc_d36d
 loc_b8ec:
-    ld a, 0x80
-    ld (0x72c3), a
+    ld a, $80
+    ld (gameflags), a  ; b7 in GAMEFLAGS -> chomper mode
+
+; immediately return the ball when in chomper mode
+; only if Mr. Do is in cool down mode (Bit 6 is SET)
+    ld iy, balldata  ; Load ball state pointer
+    bit 5, (iy + 0)  ; Check if BIT 5 is SET
+    jr z, loc_b8ec.skip_ball_return  ; Skip ball return if not in cooldown phase
+
+    ld (iy + 0), $20  ; Set BIT 5, reset direction flags 
+    ld (iy + 1), 0  ; reset ball's X
+    ld (iy + 2), 0  ; reset ball's Y
+
+    ld hl, 1
+    xor a
+    call request_signal
+    ld (iy + 3), a  ; Store signal result	
+    res 5, (iy + 0)
+    set 3, (iy + 0)
+    ld (iy + 5), 0
+    call play_ball_return_sound
+loc_b8ec.skip_ball_return:
+; Ensure balls in flight are returned immediately after they strike an enemy
+    ld (iy + 4), 1  ; Set cooldown to 1
     pop bc
     pop de
     pop hl
@@ -8218,63 +8446,183 @@ loc_b8fe:
     bit 7, (hl)
     jr nz, loc_b8fe
 
-; Set red flash colors (original code)
-    ld hl, playfield_color_flash_extra
-    ld de, 0
-    ld iy, 0x0c
-    ld a, 4
-    call put_vram
-    ld bc, 0x01e2
-    call write_register
+    ld a, 11
+    call set_level_colors.restore_colors
 
-; Store current level's color pointer
-    ld a, (current_level_ram)
-    dec a  ; Adjust for 0-based index
-    add a, a  ; Multiply by 2 for word-sized entries
-    ld hl, playfield_colors
-    ld b, 0
-    ld c, a
-    add hl, bc  ; HL now points to the correct pointer
-    ld (stored_color_pointer), hl
+    ld bc, $01E2
+    call write_register
 
     pop iy
     ret
-playfield_color_flash_extra:
-    db 0, 25, 137, 144, 128, 240, 240, 160, 160, 128, 153, 144, 0
-restore_playfield_colors:
-    push iy
 
-; Calculate correct level colors using original logic
+
+restore_playfield_colors:
+    push iy  ; Calculate correct level colors using original logic
+    call set_level_colors
+    ld bc, $01E2
+    call write_register
+    pop iy
+    ret
+
+set_level_colors:
     ld a, (gamecontrol)
     bit 1, a
-    ld a, (current_level_ram)
-    jr z, use_current_level
-    ld a, (0x7275)
-use_current_level:
-    cp 0x0b
-    jr c, continue_restore
-    sub 0x0a
-    jr use_current_level
-continue_restore:
+    ld a, (current_level_p1)
+    jr z, set_level_colors.ply1
+    ld a, (current_level_p2)
+set_level_colors.ply1:
+    cp $0B
+    jr c, set_level_colors.restore_colors
+    sub $0A
+    jr set_level_colors.ply1
+set_level_colors.restore_colors:
     dec a
+    push af
+
     add a, a
-    ld c, a
-    ld b, 0
-    ld iy, playfield_colors
-    add iy, bc
-    ld l, (iy + 0)
-    ld h, (iy + 1)
+    add a, a
+    add a, a  ;x8
+    ld l, a
+    ld h, 0
 
-; Restore the colors
-    ld de, 0
-    ld iy, 0x0c
-    ld a, 4
-    call put_vram
+    call mynmi_off
 
-    ld bc, 0x01e2
-    call write_register
+    push hl
 
-    pop iy
+    ld de, pt + 32 * 3 * 8  ; copy background
+    add hl, de
+    ex de, hl
+    ld hl, freebuff
+    ld bc, 8
+    call myinirvm
+
+    ld b, 5
+    ld de, pt + (32 * 2 + 16) * 8
+    call repcol  ; plot background 5 times
+    ld b, 5
+    ld de, pt + (32 * 2 + 16) * 8 + 256 * 8
+    call repcol  ; plot background 5 times
+    ld b, 5
+    ld de, pt + (32 * 2 + 16) * 8 + 256 * 2 * 8
+    call repcol  ; plot background 5 times
+
+    pop hl
+    push hl
+
+    ld de, ct + 32 * 3 * 8  ; copy background
+    add hl, de
+    ex de, hl
+    ld hl, freebuff
+    ld bc, 8
+    call myinirvm
+
+    ld b, 5
+    ld de, ct + (32 * 2 + 16) * 8
+    call repcol  ; plot background 5 times
+
+    pop hl
+    add hl, hl  ; a*16
+    push hl
+
+    ld de, pt + 32 * 4 * 8  ; cherry top  tiles
+    add hl, de
+    ex de, hl
+    ld hl, freebuff
+    ld bc, 16  ; using FREEBUFF
+    call myinirvm
+
+    ld de, pt + (8) * 8
+    ld hl, freebuff
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+    ld de, pt + (8) * 8 + 256 * 8
+    ld hl, freebuff
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+    ld de, pt + (8) * 8 + 256 * 2 * 8
+    ld hl, freebuff
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+
+    pop hl
+    push hl
+
+    ld de, ct + 32 * 4 * 8
+    add hl, de
+    ex de, hl
+    ld hl, freebuff
+    ld bc, 16  ; using FREEBUFF
+    call myinirvm
+
+    ld hl, freebuff
+    ld de, ct + (8) * 8
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+
+    pop hl
+    push hl
+
+    ld de, pt + 32 * 5 * 8
+    add hl, de
+    ex de, hl
+    ld hl, freebuff
+    ld bc, 16  ; using FREEBUFF
+    call myinirvm
+
+    ld hl, freebuff
+    ld de, pt + (16) * 8
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+    ld hl, freebuff
+    ld de, pt + (16) * 8 + 256 * 8
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+    ld hl, freebuff
+    ld de, pt + (16) * 8 + 256 * 2 * 8
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+
+    pop hl
+
+    ld de, ct + 32 * 5 * 8
+    add hl, de
+    ex de, hl
+    ld hl, freebuff
+    ld bc, 16  ; using FREEBUFF
+    call myinirvm
+
+    ld hl, freebuff
+    ld de, ct + (16) * 8
+    ld bc, 16  ; using FREEBUFF
+    call myldirvm
+
+    pop af  ; level number
+    ld e, a
+    ld d, 0
+    ld hl, staticcolors
+    add hl, de
+    ld a, (hl)
+    ld e, 8 * 8
+    ld hl, ct + (2 * 32 + 24) * 8
+    call fill_vram
+
+    jp mynmi_on
+
+staticcolors:
+    db $21, $71, $41, $D1, $A1, $71, $A1, $31, $B1, $71, $91
+
+repcol:  ; In B $ of times, DE VRAM addr
+repcol.1:    push bc
+    ld hl, freebuff
+    ld bc, 8
+    push de
+    call myldirvm
+    pop de
+    ld hl, 8
+    add hl, de
+    ex de, hl
+    pop bc
+    djnz repcol.1
     ret
 
 extra_behavior:
@@ -8424,26 +8772,35 @@ phase_10_map:
     db 6, 95, 175, 1, 0, 4, 63, 0, 0, 63, 1, 0, 7, 95, 175, 1, 0, 3, 63, 0, 0, 63, 1, 0, 8, 95, 175, 0, 0, 63
     db 0, 0, 95, 175, 1, 0, 8, 95, 207, 239, 159, 1, 0, 3, 95, 1, 207, 10, 159, 0, 0, 2, 0
 
-byte_be21:
-    db 33, 0, 10, 0, 110, 1, 136, 1, 136, 1, 72, 1, 102, 1, 102, 1, 106, 1, 110, 1, 110, 1, 110, 1, 110, 1, 110, 1, 65, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+obj_position_list:
+    dw $0021, $000A, $016E, $0188, $0188, $0148, $0166, $0166, $016A, $016E, $016E, $016E, $016E, $016E, $0041, $016E, $016E, $016E, $016E, $016E, $016E
 
-playfield_table:
-    dw p1st_phase_level_gen
-    dw extra_border_gen
-    dw badguy_outline_gen
-    dw get_ready_p1_gen
-    dw get_ready_p2_gen
-    dw win_extra_gen
-    dw game_over_p1_gen
-    dw game_over_p2_gen
-    dw game_over_gen
-    dw sundae_gen
-    dw wheat_square_gen
-    dw gumdrop_gen
-    dw pie_slice_gen
-    dw blank_space_gen
-    dw p2nd_gen
-;    DB 000,000,000,000,000,000,000,000,000,000
+obj_description_list:
+    dw p1st_phase_level_gen  ; 1 
+    dw extra_border_gen  ; 2
+    dw badguy_outline_gen  ; 3
+    dw get_ready_p1_gen  ; 4
+    dw get_ready_p2_gen  ; 5
+    dw win_extra_gen  ; 6
+    dw game_over_p1_gen  ; 7
+    dw game_over_p2_gen  ; 8
+    dw game_over_gen  ; 9
+
+    dw sundae_gen  ;10
+    dw wheat_square_gen  ;11
+    dw gumdrop_gen  ;12
+    dw pie_slice_gen  ;13
+
+    dw blank_space_gen  ;14
+    dw p2nd_gen  ;15
+
+    dw eggs  ;16
+    dw burger  ;17
+    dw drink  ;18
+    dw sandwich  ;19
+    dw milk  ;20
+    dw bagel  ;21
+
 
 p1st_phase_level_gen:
     db 66, 67, 68, 254, 23, 241, 233, 255
@@ -8456,8 +8813,8 @@ get_ready_p1_gen:
 get_ready_p2_gen:
     db 232, 230, 245, 0, 243, 230, 226, 229, 250, 0, 241, 237, 226, 250, 230, 243, 0, 218, 255
 win_extra_gen:  ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT
-    db 228, 240, 239, 232, 243, 226, 245, 246, 237, 226, 245, 234, 240, 239, 244, 0, 253, 1, 255, 254, 76, 250, 240, 246, 0, 248
-    db 234, 239, 0, 226, 239, 0, 230, 249, 245, 243, 226, 0, 238, 243, 253, 1, 254, 0, 229, 240, 0, 253, 1, 255, 255
+;	DB 228,240,239,232,243,226,245,246,237,226,245,234,240,239,244,000,253,001,255,254,076,250,240,246,000,248
+;	DB 234,239,000,226,239,000,230,249,245,243,226,000,238,243,253,001,254,000,229,240,000,253,001,255,255
 game_over_p1_gen:
     db 253, 20, 0, 254, 12, 0, 232, 226, 238, 230, 0, 240, 247, 230, 243, 0, 241, 237, 226, 250, 230, 243, 0, 217, 0, 254, 12, 253, 20, 0, 255
 game_over_p2_gen:
@@ -8469,13 +8826,21 @@ sundae_gen:
 wheat_square_gen:
     db 32, 33, 254, 30, 34, 35, 255
 gumdrop_gen:
-    db 24, 25, 254, 30, 26, 27, 255
+    db 38, 39, 254, 30, 40, 41, 255
 pie_slice_gen:
     db 44, 45, 254, 30, 36, 37, 255
 blank_space_gen:
     db 0, 0, 254, 30, 0, 0, 255
 p2nd_gen:
     db 69, 70, 71, 255
+
+eggs:    db 46, 47, 254, 30, 48, 49, 255
+burger:    db 150, 151, 254, 30, 182, 183, 255
+drink:    db 152, 153, 254, 30, 184, 185, 255
+sandwich:    db 154, 155, 254, 30, 186, 187, 255
+milk:    db 156, 157, 254, 30, 188, 189, 255
+bagel:    db 158, 159, 254, 30, 190, 191, 255
+
 
 playfield_colors:
     dw phase_01_colors
@@ -8488,26 +8853,27 @@ playfield_colors:
     dw phase_08_colors
     dw phase_09_colors
     dw phase_10_colors
-phase_01_colors:
-    db 0, 28, 140, 144, 128, 240, 240, 160, 160, 128, 202, 192, 192, 192, 128, 224, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 240, 240, 240, 240, 240
-phase_02_colors:
-    db 0, 20, 132, 144, 128, 240, 240, 160, 160, 128, 69, 64
-phase_03_colors:
-    db 0, 26, 138, 144, 128, 240, 240, 160, 160, 128, 202, 160
-phase_04_colors:
-    db 0, 29, 141, 144, 128, 240, 240, 160, 160, 128, 209, 208
-phase_05_colors:
-    db 0, 21, 133, 144, 128, 240, 240, 160, 160, 128, 165, 80
-phase_06_colors:
-    db 0, 27, 139, 144, 128, 240, 240, 160, 160, 128, 155, 176
-phase_07_colors:
-    db 0, 28, 140, 144, 128, 240, 240, 160, 160, 128, 60, 192
-phase_08_colors:
-    db 0, 23, 135, 144, 128, 240, 240, 160, 160, 128, 116, 112
-phase_09_colors:
-    db 0, 20, 132, 144, 128, 240, 240, 160, 160, 128, 180, 64
+; CONTROL_BYTE,BLACK CHERRY STEM+BG, MED RED CHERRY+BG,.......BG1+BG2,BG Walls + Invisible Corridor)
+phase_01_colors:  ; Med Green + Light Green
+    db $00, $12, $82, $90, $80, $F0, $F0, $A0, $A0, $80, $23, $20, $C0, $C0, $80, $E0, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $B1, $F0, $F0, $F0, $F0, $F0  ; NOTE the $B1 is for the 500/1000 bonus in the tileset
+phase_02_colors:  ; Dark Blue + Cyan  
+    db $00, $17, $87, $90, $80, $F0, $F0, $A0, $A0, $80, $47, $70
+phase_03_colors:  ; Magenta + Cyan
+    db $00, $14, $84, $90, $80, $F0, $F0, $A0, $A0, $80, $D7, $70
+phase_04_colors:  ; Dark Yellow + Magenta
+    db $00, $1D, $8D, $90, $80, $F0, $F0, $A0, $A0, $80, $AD, $D0
+phase_05_colors:  ; Cyan + Dark Yellow
+    db $00, $1A, $8A, $90, $80, $F0, $F0, $A0, $A0, $80, $7A, $A0
+phase_06_colors:  ; Magenta + Cyan (repeat of phase 3)
+    db $00, $17, $87, $90, $80, $F0, $F0, $A0, $A0, $80, $D7, $70
+phase_07_colors:  ; Dark Red + Dark Yellow
+    db $00, $1A, $8A, $90, $80, $F0, $F0, $A0, $A0, $80, $6A, $A0
+phase_08_colors:  ; Light Gray + Light Green
+    db $00, $13, $83, $90, $80, $F0, $F0, $A0, $A0, $80, $E3, $30
+phase_09_colors:  ; Light Gray + Dark Yellow
+    db $00, $1A, $8A, $90, $80, $F0, $F0, $A0, $A0, $80, $EA, $A0
 phase_10_colors:
-    db 0, 28, 140, 144, 128, 240, 240, 160, 160, 128, 220, 192
+    db $00, $17, $87, $90, $80, $F0, $F0, $A0, $A0, $80, $74, $70
 
 badguy_behavior:
     dw phase_01_bgb
@@ -8544,205 +8910,223 @@ phase_10_bgb:
 
 
 sprite_generator:
-    db 0, 0, 0
-    dw badguy_right_walk_01_pat
-    db 0, 4, 0
-    dw badguy_right_walk_02_pat
-    db 1
-    dw byte_c234
-    dw badguy_right_walk_01_pat
-    db 1
-    dw byte_c238
-    dw badguy_right_walk_02_pat
-    db 2
-    dw byte_c23c
-    dw badguy_right_walk_01_pat
-    db 2
-    dw byte_c240
-    dw badguy_right_walk_02_pat
-    db 3
-    dw byte_c244
-    dw badguy_right_walk_01_pat
-    db 3
-    dw byte_c248
-    dw badguy_right_walk_02_pat
-    db 4
-    dw byte_c24c
-    dw badguy_right_walk_01_pat
-    db 4
-    dw byte_c250
-    dw badguy_right_walk_02_pat
-    db 5
-    dw byte_c254
-    dw badguy_right_walk_01_pat
-    db 5
-    dw byte_c258
-    dw badguy_right_walk_02_pat
-    db 0, 48, 0
-    dw digger_right_01_pat
-    db 0, 52, 0
-    dw digger_right_02_pat
-    db 1
-    dw byte_c25c
-    dw digger_right_01_pat
-    db 1
-    dw byte_c260
-    dw digger_right_02_pat
-    db 2
-    dw byte_c264
-    dw digger_right_01_pat
-    db 2
-    dw byte_c268
-    dw digger_right_02_pat
-    db 3
-    dw byte_c26c
-    dw digger_right_01_pat
-    db 3
-    dw byte_c270
-    dw digger_right_02_pat
-    db 4
-    dw byte_c274
-    dw digger_right_01_pat
-    db 4
-    dw byte_c278
-    dw digger_right_02_pat
-    db 5
-    dw byte_c27c
-    dw digger_right_01_pat
-    db 5
-    dw byte_c280
-    dw digger_right_02_pat
-    db 0, 224, 0
-    dw chomper_right_closed_pat
-    db 0, 228, 0
-    dw chomper_right_open_pat
-    db 1
-    dw byte_c298
-    dw chomper_right_closed_pat
-    db 1
-    dw byte_c29c
-    dw chomper_right_open_pat
-    db 0, 176, 0
-    dw mr_do_walk_right_01_pat
-    db 0, 176, 0
-    dw mr_do_walk_right_02_pat
-    db 0, 176, 0
-    dw mr_do_push_right_01_pat
-    db 0, 176, 0
-    dw mr_do_push_right_02_pat
-    db 0, 176, 0
-    dw mr_do_unused_push_anim_02_pat
-    db 0, 176, 0
-    dw mr_do_unused_push_anim_03_pat
-    db 0, 176, 0
-    dw mr_do_push_right_02_pat
-    db 1
-    dw byte_c284
-    dw mr_do_walk_right_01_pat
-    db 1
-    dw byte_c284
-    dw mr_do_walk_right_02_pat
-    db 1
-    dw byte_c284
-    dw mr_do_push_right_01_pat
-    db 1
-    dw byte_c284
-    dw mr_do_push_right_02_pat
-    db 1
-    dw byte_c284
-    dw mr_do_unused_push_anim_02_pat
-    db 1
-    dw byte_c284
-    dw mr_do_unused_push_anim_03_pat
-    db 1
-    dw byte_c284
-    dw mr_do_push_right_02_pat
-    db 2
-    dw byte_c288
-    dw mr_do_walk_right_01_pat
-    db 2
-    dw byte_c288
-    dw mr_do_walk_right_02_pat
-    db 2
-    dw byte_c288
-    dw mr_do_push_right_01_pat
-    db 2
-    dw byte_c288
-    dw mr_do_push_right_02_pat
-    db 2
-    dw byte_c288
-    dw mr_do_unused_push_anim_02_pat
-    db 2
-    dw byte_c288
-    dw mr_do_unused_push_anim_03_pat
-    db 2
-    dw byte_c288
-    dw mr_do_push_right_02_pat
-    db 3
-    dw byte_c28c
-    dw mr_do_walk_right_01_pat
-    db 3
-    dw byte_c28c
-    dw mr_do_walk_right_02_pat
-    db 3
-    dw byte_c28c
-    dw mr_do_push_right_01_pat
-    db 3
-    dw byte_c28c
-    dw mr_do_push_right_02_pat
-    db 3
-    dw byte_c28c
-    dw mr_do_unused_push_anim_02_pat
-    db 3
-    dw byte_c28c
-    dw mr_do_unused_push_anim_03_pat
-    db 3
-    dw byte_c28c
-    dw mr_do_push_right_02_pat
-    db 4
-    dw byte_c290
-    dw mr_do_walk_right_01_pat
-    db 4
-    dw byte_c290
-    dw mr_do_walk_right_02_pat
-    db 4
-    dw byte_c290
-    dw mr_do_push_right_01_pat
-    db 4
-    dw byte_c290
-    dw mr_do_push_right_02_pat
-    db 4
-    dw byte_c290
-    dw mr_do_unused_push_anim_02_pat
-    db 4
-    dw byte_c290
-    dw mr_do_unused_push_anim_03_pat
-    db 4
-    dw byte_c290
-    dw mr_do_push_right_02_pat
-    db 5
-    dw byte_c294
-    dw mr_do_walk_right_01_pat
-    db 5
-    dw byte_c294
-    dw mr_do_walk_right_02_pat
-    db 5
-    dw byte_c294
-    dw mr_do_push_right_01_pat
-    db 5
-    dw byte_c294
-    dw mr_do_push_right_02_pat
-    db 5
-    dw byte_c294
-    dw mr_do_unused_push_anim_02_pat
-    db 5
-    dw byte_c294
-    dw mr_do_unused_push_anim_03_pat
-    db 5
-    dw byte_c294
-    dw mr_do_push_right_02_pat
-    db 0, 176, 0
-    dw five_hundred_score_pat
+    db 0  ;0
+    dw 0, badguy_right_walk_01_pat
+    db 0  ;1
+    dw 4, badguy_right_walk_02_pat
+    db 1  ;2
+    dw byte_c234, badguy_right_walk_01_pat
+    db 1  ;3
+    dw byte_c238, badguy_right_walk_02_pat
+    db 2  ;4
+    dw byte_c23c, badguy_right_walk_01_pat
+    db 2  ;5
+    dw byte_c240, badguy_right_walk_02_pat
+    db 3  ;6
+    dw byte_c244, badguy_right_walk_01_pat
+    db 3  ;7
+    dw byte_c248, badguy_right_walk_02_pat
+    db 4  ;8
+    dw byte_c24c, badguy_right_walk_01_pat
+    db 4  ;9
+    dw byte_c250, badguy_right_walk_02_pat
+    db 5  ;10
+    dw byte_c254, badguy_right_walk_01_pat
+    db 5  ;11
+    dw byte_c258, badguy_right_walk_02_pat
+    db 0  ;12
+    dw 48, digger_right_01_pat
+    db 0  ;13
+    dw 52, digger_right_02_pat
+    db 1  ;14
+    dw byte_c25c, digger_right_01_pat
+    db 1  ;15
+    dw byte_c260, digger_right_02_pat
+    db 2  ;16
+    dw byte_c264, digger_right_01_pat
+    db 2  ;17
+    dw byte_c268, digger_right_02_pat
+    db 3  ;18
+    dw byte_c26c, digger_right_01_pat
+    db 3  ;19
+    dw byte_c270, digger_right_02_pat
+    db 4  ;20
+    dw byte_c274, digger_right_01_pat
+    db 4  ;21
+    dw byte_c278, digger_right_02_pat
+    db 5  ;22
+    dw byte_c27c, digger_right_01_pat
+    db 5  ;23
+    dw byte_c280, digger_right_02_pat
+    db 0  ;24
+    dw 224, chomper_right_closed_pat
+    db 0  ;25
+    dw 228, chomper_right_open_pat
+    db 1  ;26
+    dw byte_c298, chomper_right_closed_pat
+    db 1  ;27
+    dw byte_c29c, chomper_right_open_pat
+
+; MrDo 4 frames
+
+    db 0  ; 0	right	0	; MrDo sprites start from here
+    dw 44 * 4, mr_do_walk_right_00_pat
+    db 0  ; 1
+    dw 44 * 4, mr_do_walk_right_01_pat
+    db 0  ; 2
+    dw 44 * 4, mr_do_walk_right_02_pat
+    db 0  ; 3
+    dw 44 * 4, mr_do_walk_right_01_pat
+
+    db 0  ; 0 right 4
+    dw 44 * 4, mr_do_push_right_00_pat
+    db 0  ; 1
+    dw 44 * 4, mr_do_push_right_01_pat
+    db 0  ; 2
+    dw 44 * 4, mr_do_push_right_02_pat
+    db 0  ; 3
+    dw 44 * 4, mr_do_push_right_01_pat
+
+    db 1  ; 0 left 8
+    dw byte_c284, mr_do_walk_right_00_pat
+    db 1  ; 1
+    dw byte_c284, mr_do_walk_right_01_pat
+    db 1  ; 2
+    dw byte_c284, mr_do_walk_right_02_pat
+    db 1  ; 3
+    dw byte_c284, mr_do_walk_right_01_pat
+
+    db 1  ; 0 left 12
+    dw byte_c284, mr_do_push_right_00_pat
+    db 1  ; 1 
+    dw byte_c284, mr_do_push_right_01_pat
+    db 1  ; 2 
+    dw byte_c284, mr_do_push_right_02_pat
+    db 1  ; 3 
+    dw byte_c284, mr_do_push_right_01_pat
+
+    db 2  ; 0 up 	16
+    dw byte_c288, mr_do_walk_right_00_pat
+    db 2  ; 1 
+    dw byte_c288, mr_do_walk_right_01_pat
+    db 2  ; 2 
+    dw byte_c288, mr_do_walk_right_02_pat
+    db 2  ; 3 
+    dw byte_c288, mr_do_walk_right_01_pat
+
+    db 2  ; 0 up 20
+    dw byte_c288, mr_do_push_right_00_pat
+    db 2  ; 1 
+    dw byte_c288, mr_do_push_right_01_pat
+    db 2  ; 2 
+    dw byte_c288, mr_do_push_right_02_pat
+    db 2  ; 3 
+    dw byte_c288, mr_do_push_right_01_pat
+
+    db 3  ; 0 down	24
+    dw byte_c28c, mr_do_walk_right_00_pat
+    db 3  ; 1 
+    dw byte_c28c, mr_do_walk_right_01_pat
+    db 3  ; 2 
+    dw byte_c28c, mr_do_walk_right_02_pat
+    db 3  ; 3 
+    dw byte_c28c, mr_do_walk_right_01_pat
+
+    db 3  ; 0 down 28
+    dw byte_c28c, mr_do_push_right_00_pat
+    db 3  ; 1 
+    dw byte_c28c, mr_do_push_right_01_pat
+    db 3  ; 2 
+    dw byte_c28c, mr_do_push_right_02_pat
+    db 3  ; 3 
+    dw byte_c28c, mr_do_push_right_01_pat
+
+    db 4  ; 0 up-mirror 32
+    dw byte_c290, mr_do_walk_right_00_pat
+    db 4  ; 1 
+    dw byte_c290, mr_do_walk_right_01_pat
+    db 4  ; 2 
+    dw byte_c290, mr_do_walk_right_02_pat
+    db 4  ; 3 
+    dw byte_c290, mr_do_walk_right_01_pat
+
+    db 4  ; 0 up-mirror 36
+    dw byte_c290, mr_do_push_right_00_pat
+    db 4  ; 1 
+    dw byte_c290, mr_do_push_right_01_pat
+    db 4  ; 2 
+    dw byte_c290, mr_do_push_right_02_pat
+    db 4  ; 3 
+    dw byte_c290, mr_do_push_right_01_pat
+
+    db 5  ; 0 down-mirror 40
+    dw byte_c294, mr_do_walk_right_00_pat
+    db 5  ; 1 
+    dw byte_c294, mr_do_walk_right_01_pat
+    db 5  ; 2 
+    dw byte_c294, mr_do_walk_right_02_pat
+    db 5  ; 3 
+    dw byte_c294, mr_do_walk_right_01_pat
+
+    db 5  ; 0 down-mirror 44
+    dw byte_c294, mr_do_push_right_00_pat
+    db 5  ; 1 
+    dw byte_c294, mr_do_push_right_01_pat
+    db 5  ; 2 
+    dw byte_c294, mr_do_push_right_02_pat
+    db 5  ; 3 
+    dw byte_c294, mr_do_push_right_01_pat
+
+    db 0  ; 0	Death 48
+    dw 44 * 4, mr_do_death_f0
+    db 0  ; 1
+    dw 44 * 4, mr_do_death_f1
+    db 0  ; 2
+    dw 44 * 4, mr_do_death_f2
+    db 0  ; 3
+    dw 44 * 4, mr_do_death_f3
+
+
+byte_c284:    db 178, 179, 176, 177, 45 * 4 + 2, 45 * 4 + 3, 45 * 4 + 0, 45 * 4 + 1
+byte_c288:    db 177, 179, 176, 178, 45 * 4 + 1, 45 * 4 + 3, 45 * 4 + 0, 45 * 4 + 2
+byte_c28c:    db 176, 178, 177, 179, 45 * 4 + 0, 45 * 4 + 2, 45 * 4 + 1, 45 * 4 + 3
+byte_c290:    db 179, 177, 178, 176, 45 * 4 + 3, 45 * 4 + 1, 45 * 4 + 2, 45 * 4 + 0
+byte_c294:    db 178, 176, 179, 177, 45 * 4 + 2, 45 * 4 + 0, 45 * 4 + 3, 45 * 4 + 1
+
+
+mr_do_walk_right_00_pat:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$03,$01,$20,$00,$1e,$00,$00,$00,$00,$00,$00,$00,$f0,$00,$00,$00,$e0,$c0,$00,$00,$c0,$f0,$00,$00,$0f,$1f,$3e,$3e,$3b,$3c,$1f,$0e,$1c,$1e,$1f,$1f,$01,$00,$00,$00,$80,$c0,$a0,$a0,$00,$60,$c0,$80,$00,$00,$c0,$c0,$00,$00
+    db $00, $03, $05, $0F, $1D, $36, $00, $00, $2C, $3B, $07, $1D, $17, $01, $00, $00, $00, $C0, $A0, $E0, $00, $00, $00, $00, $40, $E0, $D8, $78, $C0, $60, $C0, $00, $00, $00, $02, $00, $02, $08, $41, $00, $51, $44, $00, $62, $68, $40, $40, $00, $00, $00, $40, $00, $E0, $B0, $B0, $E0, $80, $00, $24, $84, $00, $80, $3C, $00
+mr_do_walk_right_01_pat:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$04,$06,$06,$06,$04,$03,$03,$00,$00,$00,$00,$00,$00,$00,$f0,$00,$00,$00,$00,$00,$00,$00,$c0,$00,$00,$0f,$1f,$3f,$3f,$3e,$3b,$1c,$0b,$19,$19,$19,$1b,$0c,$00,$00,$00,$80,$c0,$e0,$e0,$a0,$00,$40,$80,$c0,$c0,$c0,$c0,$80,$00
+    db $00, $07, $0B, $1F, $35, $0E, $00, $00, $00, $03, $0F, $1D, $1F, $09, $03, $00, $00, $C0, $60, $E0, $00, $00, $00, $00, $40, $E0, $B8, $E8, $60, $C0, $80, $00, $00, $00, $04, $40, $0A, $00, $01, $00, $01, $04, $00, $02, $00, $06, $00, $00, $00, $00, $80, $00, $E0, $B0, $B0, $E0, $80, $00, $44, $14, $80, $00, $78, $00
+mr_do_walk_right_02_pat:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$04,$1e,$3c,$00,$00,$19,$1e,$00,$00,$00,$00,$00,$00,$f0,$00,$00,$00,$00,$20,$00,$00,$e0,$00,$00,$00,$0f,$1f,$3e,$3e,$3b,$3c,$1f,$0b,$01,$03,$1f,$1f,$04,$00,$00,$00,$80,$c0,$a0,$a0,$00,$60,$c0,$80,$c0,$c0,$c0,$c0,$00,$00
+    db $00, $03, $0D, $3F, $15, $0E, $00, $00, $06, $0F, $2E, $3B, $07, $07, $00, $00, $00, $C0, $60, $E0, $00, $00, $00, $00, $78, $E8, $A0, $F0, $40, $00, $00, $00, $00, $00, $42, $00, $0A, $00, $01, $00, $01, $00, $51, $44, $00, $00, $07, $00, $00, $00, $80, $00, $E0, $B0, $B0, $E0, $84, $14, $40, $00, $BC, $00, $C0, $00
+
+mr_do_push_right_00_pat:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$1e,$00,$00,$00,$00,$00,$00,$00,$00,$78,$00,$01,$3f,$7f,$00,$00,$c0,$f0,$00,$00,$07,$8f,$1f,$1e,$1f,$1d,$0e,$07,$0f,$1f,$1f,$1f,$01,$00,$00,$00,$c0,$e4,$f0,$02,$50,$80,$20,$c0,$c0,$80,$c0,$c0,$00,$00
+    db $00, $01, $02, $07, $0E, $1B, $00, $00, $00, $03, $05, $1F, $16, $01, $00, $00, $00, $E0, $D0, $F0, $80, $00, $00, $00, $20, $F0, $EC, $BC, $C0, $E0, $C0, $00, $00, $00, $01, $00, $01, $04, $20, $00, $00, $00, $02, $60, $69, $40, $40, $00, $00, $00, $20, $00, $70, $58, $D8, $70, $C0, $01, $13, $43, $00, $00, $3C, $00
+mr_do_push_right_01_pat:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$03,$03,$00,$00,$00,$00,$00,$00,$00,$78,$00,$01,$3f,$7f,$00,$00,$00,$c0,$00,$00,$07,$0f,$1f,$1f,$1f,$1d,$0e,$07,$0f,$1f,$1f,$1f,$0c,$00,$00,$00,$c0,$e0,$f0,$50,$50,$80,$20,$c0,$c0,$80,$c0,$c0,$80,$00
+    db $00, $01, $02, $07, $0D, $03, $00, $00, $07, $0F, $0A, $0F, $05, $03, $00, $00, $00, $F0, $D8, $F8, $40, $80, $00, $00, $00, $E0, $FC, $BC, $C0, $80, $00, $00, $00, $00, $01, $10, $02, $00, $00, $00, $00, $00, $05, $00, $02, $00, $03, $00, $00, $00, $20, $00, $B8, $2C, $6C, $38, $60, $01, $03, $43, $00, $00, $E0, $00
+mr_do_push_right_02_pat:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$19,$1e,$00,$00,$00,$00,$00,$00,$00,$00,$3c,$01,$3f,$7f,$00,$00,$e0,$00,$00,$00,$23,$07,$0f,$0f,$0f,$0f,$07,$0c,$0f,$1f,$1f,$1f,$04,$00,$00,$00,$e4,$f1,$f8,$20,$88,$a8,$c0,$20,$c0,$80,$c0,$c0,$00,$00
+    db $00, $07, $03, $01, $01, $00, $00, $00, $01, $02, $07, $0D, $17, $3C, $00, $00, $00, $E0, $58, $FC, $A0, $C0, $00, $00, $80, $F0, $FC, $5C, $E0, $C0, $00, $00, $00, $00, $08, $00, $00, $00, $00, $00, $00, $01, $00, $02, $08, $00, $3E, $00, $00, $00, $A0, $00, $5C, $16, $36, $1C, $30, $01, $03, $A3, $00, $3C, $00, $00
+
+mr_do_death_f0:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$22,$66,$c6,$00,$00,$00,$00,$00,$00,$00,$00,$00,$1f,$1f,$19,$0e,$03,$19,$1c,$00,$00,$00,$00,$00,$00,$00,$00,$00,$f8,$f8,$98,$70,$c0,$98,$38
+    db $00, $38, $68, $F8, $58, $E0, $8A, $1F, $1A, $07, $0A, $1F, $1A, $04, $00, $00, $00, $00, $00, $00, $00, $00, $06, $FE, $A8, $F0, $B0, $E8, $78, $28, $30, $00, $00, $00, $10, $01, $A3, $01, $04, $A0, $21, $00, $05, $00, $04, $78, $00, $00, $00, $F0, $F0, $F8, $6C, $68, $F1, $01, $50, $00, $40, $10, $00, $10, $0F, $00
+mr_do_death_f1:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$22,$66,$c6,$00,$00,$00,$00,$00,$0f,$1f,$3f,$3f,$3f,$3f,$39,$1e,$03,$19,$1c,$00,$00,$00,$00,$00,$f0,$f8,$fc,$fc,$fc,$fc,$9c,$78,$c0,$98,$38
+    db $00, $00, $03, $0D, $3F, $7A, $6F, $34, $08, $08, $18, $2C, $38, $00, $00, $00, $00, $00, $60, $B0, $F8, $A8, $FC, $0C, $06, $06, $04, $00, $00, $E0, $40, $00, $00, $00, $00, $02, $00, $85, $90, $81, $81, $83, $06, $12, $01, $30, $01, $00, $00, $00, $00, $40, $00, $50, $00, $E0, $E0, $F0, $DA, $D2, $E2, $02, $80, $00
+mr_do_death_f2:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$22,$66,$c6,$07,$1f,$3f,$7f,$ff,$ff,$ff,$ff,$ff,$7f,$3d,$1a,$0f,$03,$19,$1c,$e0,$f8,$fc,$fe,$ff,$ff,$ff,$ff,$ff,$fe,$bc,$58,$f0,$c0,$98,$38
+    db $00, $00, $06, $05, $07, $0A, $0F, $0D, $0F, $08, $00, $00, $50, $78, $00, $00, $00, $00, $00, $1C, $34, $DC, $F8, $50, $F0, $10, $00, $00, $0E, $1A, $00, $00, $00, $0F, $38, $02, $00, $05, $00, $02, $00, $03, $03, $07, $AD, $85, $03, $00, $00, $00, $06, $03, $0B, $21, $01, $A1, $00, $C0, $C0, $E0, $B1, $A5, $C0, $00
+mr_do_death_f3:
+; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$00,$22,$66,$c6,$08,$4c,$70,$24,$86,$c0,$24,$0e,$05,$0d,$0c,$07,$02,$03,$19,$1c,$10,$32,$0e,$24,$61,$03,$24,$70,$a0,$b0,$30,$e0,$40,$c0,$98,$38
+    db $00, $00, $00, $00, $00, $00, $06, $0A, $5F, $78, $00, $00, $50, $78, $00, $00, $00, $00, $00, $00, $00, $00, $60, $B0, $F6, $1C, $00, $00, $0E, $1A, $00, $00, $00, $03, $04, $03, $00, $00, $80, $85, $A0, $83, $03, $07, $AD, $85, $03, $00, $00, $C0, $20, $C0, $00, $00, $01, $41, $09, $C1, $C0, $E0, $B1, $A5, $C0, $00
+
 
 byte_c234:    db 10, 11, 8, 9
 byte_c238:    db 14, 15, 12, 13
@@ -8764,56 +9148,13 @@ byte_c274:    db 83, 81, 82, 80
 byte_c278:    db 87, 85, 86, 84
 byte_c27c:    db 90, 88, 91, 89
 byte_c280:    db 94, 92, 95, 93
-byte_c284:    db 178, 179, 176, 177
-byte_c288:    db 177, 179, 176, 178
-byte_c28c:    db 176, 178, 177, 179
-byte_c290:    db 179, 177, 178, 176
-byte_c294:    db 178, 176, 179, 177
+
 byte_c298:    db 234, 235, 232, 233
 byte_c29c:    db 238, 239, 236, 237
 
-mr_do_walk_right_01_pat:
-    db 0, 7, 13, 95, 58, 14, 5, 6
-    db 1, 2, 7, 13, 15, 5, 3, 0
-    db 0, 192, 96, 0, 224, 176, 176, 224
-    db 128, 64, 176, 248, 88, 128, 224, 0
-mr_do_walk_right_02_pat:
-    db 0, 3, 6, 11, 30, 54, 77, 6
-    db 25, 126, 103, 11, 62, 25, 12, 0
-    db 0, 192, 224, 0, 224, 176, 176, 224
-    db 128, 64, 176, 248, 216, 224, 120, 0
-mr_do_push_right_01_pat:
-    db 0, 15, 26, 190, 117, 29, 11, 5
-    db 27, 60, 47, 59, 31, 10, 15, 0
-    db 0, 128, 192, 0, 192, 96, 96, 192
-    db 0, 136, 248, 248, 0, 0, 128, 0
-mr_do_push_right_02_pat:
-    db 0, 7, 13, 22, 61, 109, 155, 13
-    db 3, 12, 31, 251, 223, 130, 129, 0
-    db 0, 128, 192, 0, 192, 96, 96, 192
-    db 0, 196, 252, 124, 128, 192, 184, 0
 
-mr_do_unused_push_anim_01_pat:
-    db 0, 0, 3, 7, 9, 13, 7, 3
-    db 7, 14, 31, 31, 18, 31, 0, 0
-    db 0, 0, 192, 224, 144, 176, 224, 200
-    db 248, 56, 192, 192, 0, 128, 0, 0
-mr_do_unused_push_anim_02_pat:
-    db 0, 0, 3, 7, 9, 13, 7, 3
-    db 3, 6, 15, 15, 15, 1, 0, 0
-    db 0, 0, 192, 224, 144, 176, 224, 200
-    db 248, 56, 192, 192, 0, 192, 0, 0
-mr_do_unused_push_anim_03_pat:
-    db 0, 0, 3, 7, 9, 13, 7, 3
-    db 7, 14, 31, 31, 19, 28, 0, 0
-    db 0, 0, 192, 224, 144, 176, 224, 200
-    db 248, 56, 128, 128, 128, 0, 0, 0
 
-five_hundred_score_pat:
-    db 0, 0, 0, 0, 0, 113, 66, 114
-    db 10, 74, 49, 0, 0, 0, 0, 0
-    db 0, 0, 0, 0, 0, 140, 82, 82
-    db 82, 82, 140, 0, 0, 0, 0, 0
+
 digger_right_01_pat:
     db 7, 29, 54, 124, 212, 63, 45, 120
     db 215, 55, 120, 222, 33, 126, 0, 0
@@ -8835,10 +9176,10 @@ badguy_right_walk_02_pat:
     db 0, 240, 56, 220, 156, 0, 252, 254
     db 128, 100, 108, 248, 16, 16, 0, 0
 chomper_right_closed_pat:
-    db 0, 0, 14, 31, 25, 14, 17, 63
-    db 56, 53, 56, 63, 59, 17, 0, 0
-    db 0, 0, 56, 124, 100, 184, 192, 252
-    db 0, 84, 0, 252, 220, 136, 0, 0
+    db 0, 14, 31, 25, 14, 17, 63, 56
+    db 53, 56, 63, 59, 17, 0, 0, 0
+    db 0, 56, 124, 100, 184, 192, 252, 0
+    db 84, 0, 252, 220, 136, 0, 0, 0
 chomper_right_open_pat:
     db 14, 25, 25, 14, 17, 63, 56, 53
     db 48, 48, 50, 56, 63, 36, 0, 0
@@ -8898,13 +9239,13 @@ extra_sprite_pat:
     db 0, 0, 0, 0, 0, 8, 14, 29
     db 29, 59, 62, 62, 124, 120, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 0  ; Squished character from apple
-    db 0, 0, 31, 63, 31, 63, 0, 0
+    db 0, 0, 48, 126, 51, 124, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 0
-    db 0, 0, 248, 252, 248, 252, 0, 0
-    db 0, 0, 7, 9, 18, 36, 56, 39  ; Diamond
-    db 20, 18, 9, 4, 2, 1, 0, 0
-    db 0, 0, 224, 144, 72, 36, 28, 228
-    db 40, 72, 144, 32, 64, 128, 0, 0
+    db 0, 0, 12, 126, 204, 62, 0, 0
+    db 0, 0, 14, 21, 59, 76, 55, 31  ; Diamond
+    db 11, 5, 2, 1, 0, 0, 0, 0
+    db 0, 0, 224, 80, 184, 100, 216, 240
+    db 160, 64, 128, 0, 0, 0, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 1  ; Mr Do Ball
     db 1, 0, 0, 0, 0, 0, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 128
@@ -8935,113 +9276,152 @@ ball_sprite_pat:
     db 0, 0, 8, 0, 0, 0, 0, 0
     db 0, 0, 0, 0, 8, 0, 0, 0
 
-variouts_patterns:
-    db 1, 0
-    dw blank_line_pat
-    db 2, 8
-    dw cherry_top_pat
-    db 2, 16
-    dw cherry_bottom_pat
-    db 4, 24
-    dw gumdrop_pat
-    db 6, 32
-    dw wheat_square_pat
-    db 15, 40
-    dw hud_pats_01
-    db 16, 56
-    dw hud_pats_02
-    db 5, 72
-    dw extra_pats
-    db 5, 80
-    dw playfield_pats
-    db 8, 88
-    dw hallway_border_pat
-    db 4, 112
-    dw badguy_outline_pat
-    db 2, 120
-    dw hud_pats_01
-    db 0
-blank_line_pat:
-    db 0, 0, 0, 0, 0, 0, 0, 0
-cherry_top_pat:
-    db 0, 0, 0, 0, 0, 0, 0, 1
-    db 0, 0, 0, 16, 40, 72, 136, 16
-cherry_bottom_pat:
-    db 14, 29, 31, 31, 14, 0, 0, 0
-    db 56, 116, 124, 124, 56, 0, 0, 0
-gumdrop_pat:
-    db 0, 0, 1, 3, 7, 14, 28, 29
-    db 0, 0, 128, 192, 224, 240, 248, 248
-    db 57, 59, 31, 15, 3, 0, 0, 0
-    db 252, 252, 248, 240, 192, 0, 0, 0
-wheat_square_pat:
-    db 0, 0, 42, 63, 22, 63, 23, 63
-    db 0, 0, 192, 128, 192, 128, 108, 248
-    db 31, 53, 3, 1, 3, 3, 0, 0
-    db 108, 248, 252, 104, 252, 84, 0, 0
-    db 63, 62, 49, 15, 63, 56, 0, 0
-    db 240, 8, 248, 248, 0, 0, 0, 0
-badguy_outline_pat:
-    db 0, 0, 0, 31, 48, 33, 34, 34
-    db 49, 16, 16, 48, 96, 63, 62, 0
-    db 0, 0, 0, 240, 24, 140, 68, 68
-    db 140, 24, 16, 16, 48, 224, 248, 0
-hud_pats_01:
-    db 0, 56, 92, 240, 172, 234, 218, 172  ; Mr. Do extra life sprite
-    db 24, 36, 122, 110, 56, 28, 0, 0
-    db 0, 0, 0, 0, 1, 3, 13, 30  ; Ice Cream dessert unaligned
-    db 0, 0, 0, 0, 128, 192, 176, 120
-    db 0, 0, 0, 3, 7, 15, 31, 63
-    db 0, 0, 0, 192, 248, 248, 248, 232
-    db 0, 0, 7, 9, 18, 36, 56, 39  ; Diamond pieces not lined up
-    db 0, 0, 224, 144, 72, 36, 28, 228
-    db 20, 18, 9, 4, 2, 1, 0, 0
-    db 40, 72, 144, 32, 64, 128, 0, 0
-    db 0, 254, 128, 248, 128, 128, 254, 0  ; E
-    db 0, 198, 108, 24, 48, 108, 198, 0  ; XTRA
-    db 0, 254, 16, 16, 16, 16, 16, 0
-    db 0, 252, 134, 134, 252, 136, 142, 0
-    db 0, 56, 108, 198, 130, 254, 130, 0
-hud_pats_02:
-    db 63, 43, 10, 1, 1, 3, 0, 0  ; Bottom of Ice Cream, Extra border
-    db 252, 180, 96, 128, 128, 192, 0, 0
-    db 255, 255, 192, 192, 192, 192, 192, 192
-    db 192, 192, 192, 192, 192, 192, 192, 192
-    db 192, 192, 192, 192, 192, 192, 255, 255  ; Extra Border Box
-    db 255, 255, 0, 0, 0, 0, 0, 0
-    db 0, 0, 0, 0, 0, 0, 255, 255
-    db 255, 255, 3, 3, 3, 3, 3, 3
-    db 3, 3, 3, 3, 3, 3, 3, 3  ; Border box, 1ST Text
-    db 3, 3, 3, 3, 3, 3, 255, 255
-    db 33, 98, 34, 33, 32, 34, 113, 0
-    db 207, 34, 2, 194, 34, 34, 194, 0
-    db 128, 0, 0, 0, 0, 0, 0, 0  ; 2ND Text
-    db 114, 138, 11, 50, 66, 130, 250, 0
-    db 47, 40, 40, 168, 104, 40, 47, 0
-    db 0, 128, 128, 128, 128, 128, 0, 0
-extra_pats:
-    db 0, 254, 128, 248, 128, 128, 254, 0  ; EXTRA TEXT HUD (RED)
-    db 0, 198, 108, 24, 48, 108, 198, 0
-    db 0, 254, 16, 16, 16, 16, 16, 0
-    db 0, 252, 134, 134, 252, 136, 142, 0
-    db 0, 56, 108, 198, 130, 254, 130, 0
-playfield_pats:
-    db 30, 30, 255, 255, 225, 225, 255, 255  ; Brick pattern
-    db 241, 227, 199, 143, 31, 62, 124, 248  ; Diagonal Stripes
-    db 129, 66, 36, 24, 24, 36, 66, 129  ; cross hatch
-    db 51, 102, 204, 136, 204, 102, 51, 17  ; wavy up/down/vertical
-    db 195, 102, 60, 0, 195, 102, 60, 0  ; wavy horizontal
-hallway_border_pat:
-    db 192, 192, 128, 128, 192, 192, 128, 128
-    db 1, 1, 3, 3, 1, 1, 3, 3
-    db 255, 204, 0, 0, 0, 0, 0, 0
-    db 0, 0, 0, 0, 0, 0, 51, 255
-    db 255, 204, 128, 128, 192, 192, 128, 128
-    db 255, 205, 3, 3, 1, 1, 3, 3
-    db 192, 192, 128, 128, 192, 192, 179, 255
-    db 1, 1, 3, 3, 1, 1, 51, 255
-    db 0
+;%%%%%%%%%%%%%%%%%%%%%%%%
+; Multicolor Compressed Tileset
 
+tileset_bitmap:
+    db $5A, $00, $AA, $A0, $00, $36, $3F, $16
+    db $10, $38, $3B, $13, $07, $C0, $C0, $80
+    db $00, $00, $6C, $FC, $39, $33, $03, $01
+    db $03, $42, $03, $0D, $68, $FC, $FC, $02
+    db $41, $6C, $07, $30, $0C, $33, $0C, $41
+    db $0E, $00, $1C, $64, $98, $60, $70, $1F
+    db $00, $03, $07, $03, $18, $0C, $0F, $1F
+    db $2F, $E0, $04, $C0, $30, $F0, $B8, $1F
+    db $1D, $06, $E0, $1F, $58, $D0, $00, $B0
+    db $18, $78, $68, $30, $09, $01, $84, $40
+    db $0E, $0F, $1E, $07, $80, $05, $48, $90
+    db $20, $50, $B8, $2F, $0E, $1F, $13, $3C
+    db $1F, $22, $0E, $80, $3C, $FC, $F0, $42
+    db $00, $0E, $3F, $7F, $7F, $F3, $00, $7C
+    db $FE, $00, $FF, $FF, $E7, $C3, $C3, $E1
+    db $E1, $F3, $12, $7F, $7E, $1C, $14, $E7
+    db $0D, $38, $7E, $3C, $5E, $FE, $80, $08
+    db $F8, $80, $80, $FE, $07, $C6, $6C, $0C
+    db $18, $30, $6C, $C6, $0F, $74, $10, $00
+    db $07, $FC, $04, $86, $86, $FC, $88, $8E
+    db $07, $38, $86, $14, $82, $FE, $82, $A0
+    db $BD, $02, $20, $1F, $07, $01, $02, $07
+    db $07, $02, $04, $F8, $E0, $80, $40, $E0
+    db $07, $9A, $46, $C0, $E5, $00, $15, $6F
+    db $00, $0E, $F3, $0F, $6B, $03, $98, $00
+    db $25, $47, $04, $CC, $47, $41, $4C, $E7
+    db $22, $CF, $04, $61, $01, $C1, $61, $C1
+    db $07, $E0, $F0, $32, $7C, $C6, $18, $06
+    db $7C, $C0, $97, $00, $C2, $E2, $B2, $9A
+    db $8E, $86, $E0, $8F, $82, $43, $82, $91
+    db $D5, $06, $AF, $BF, $D2, $00, $B5, $B9
+    db $7D, $03, $01, $8B, $B5, $8D, $03, $FF
+    db $CC, $E2, $1D, $33, $FF, $0F, $D8, $1F
+    db $FF, $CD, $DB, $1F, $63, $2F, $B3, $FF
+    db $68, $2F, $1F, $70, $8F, $8C, $22, $0E
+    db $F1, $03, $00, $1C, $38, $70, $E0, $C1
+    db $83, $07, $0F, $00, $66, $F0, $9F, $F0
+    db $66, $0F, $F9, $E0, $C2, $13, $1F, $0E
+    db $03, $F8, $07, $70, $70, $CA, $23, $07
+    db $03, $01, $E3, $38, $8F, $E0, $3E, $83
+    db $F8, $FC, $1F, $F0, $00, $99, $0F, $60
+    db $0F, $99, $F0, $06, $FF, $F3, $00, $77
+    db $00, $C2, $1F, $30, $21, $11, $22, $22
+    db $31, $B3, $0E, $30, $60, $3F, $3E, $0F
+    db $01, $F0, $18, $8C, $44, $44, $8C, $18
+    db $86, $10, $E0, $F8, $AB, $00, $3D, $1C
+    db $2E, $78, $56, $75, $6D, $56, $03, $CC
+    db $12, $3D, $37, $1C, $0E, $D5, $8F, $BF
+    db $81, $FF, $FE, $80, $07, $EF, $D7, $B7
+    db $77, $EF, $F0, $87, $B3, $FE, $07, $4D
+    db $0F, $89, $8F, $0E, $FE, $9A, $07, $78
+    db $0F, $EF, $19, $FE, $07, $BA, $78, $0F
+    db $A7, $57, $FE, $07, $9B, $4F, $1A, $AF
+    db $4F, $07, $D7, $4D, $3F, $89, $C7, $F1
+    db $FE, $9A, $07, $78, $0F, $CE, $72, $AC
+    db $ED, $1F, $09, $B1, $A2, $14, $1B, $1F
+    db $F4, $C8, $98, $B0, $14, $F8, $78, $F8
+    db $9D, $90, $C4, $1F, $10, $14, $00, $10
+    db $1F, $F0, $98, $08, $88, $98, $F0, $3A
+    db $40, $C0, $FF, $85, $03, $0D, $1E, $3F
+    db $07, $25, $E6, $40, $91, $91, $FC, $DD
+    db $B0, $AB, $36, $09, $1F, $80, $0F, $F8
+    db $D0, $F8, $6C, $10, $F8, $71, $FC, $3F
+    db $1E, $1E, $61, $14, $3F, $F0, $78, $03
+    db $3F, $F0, $0E, $1D, $E0, $1F, $90, $FF
+    db $38, $74, $83, $32, $7C, $38, $07, $0F
+    db $49, $1F, $0F, $CF, $87, $C9, $0F, $7C
+    db $0F, $F9, $68, $07, $0F, $7F, $9E, $8F
+    db $88, $0F, $7E, $07, $F1, $E2, $43, $E0
+    db $AA, $10, $EF, $C7, $8B, $83, $33, $83
+    db $C7, $07, $FA, $0F, $4F, $AE, $0F, $06
+    db $4F, $8F, $0F, $38, $FF, $13, $1F, $30
+    db $AF, $D1, $1F, $06, $77, $07, $0F, $37
+    db $C7, $38, $A9, $3F, $89, $6F, $80, $C7
+    db $E8, $6F, $81, $B4, $07, $1F, $79, $FF
+    db $1F, $C0, $57, $07, $18, $07, $08, $07
+    db $C4, $F6, $E0, $19, $18, $E0, $10, $9B
+    db $81, $0D, $0F, $07, $02, $02, $82, $CD
+    db $D5, $9D, $E1, $F1, $CC, $86, $27, $28
+    db $15, $38, $10, $9E, $F8, $E4, $14, $A8
+    db $61, $1C, $9E, $06, $3F, $2B, $15, $15
+    db $3F, $10, $8D, $5C, $54, $4C, $54, $60
+    db $FC, $FD, $1C, $17, $08, $17, $3E, $00
+    db $2E, $E8, $10, $01, $DA, $DF, $FF, $FF
+    db $FF, $F8
+
+tileset_color:
+    db $5A, $F1, $AA, $A0, $00, $B1, $B1, $A1
+    db $96, $00, $91, $07, $28, $05, $F1, $07
+    db $00, $81, $81, $2F, $61, $61, $0D, $AC
+    db $07, $04, $01, $6B, $F1, $71, $07, $19
+    db $61, $B1, $65, $00, $11, $10, $95, $32
+    db $09, $29, $D9, $17, $3C, $B7, $30, $67
+    db $39, $52, $47, $1F, $00, $D1, $D1, $2A
+    db $39, $E1, $04, $02, $00, $FB, $07, $9B
+    db $00, $FA, $69, $05, $00, $F7, $10, $FA
+    db $34, $00, $E1, $00, $E1, $C5, $BF, $6F
+    db $00, $7B, $2D, $9F, $25, $6A, $2C, $7A
+    db $07, $6A, $32, $CD, $07, $81, $35, $00
+    db $5B, $07, $77, $C6, $00, $21, $A9, $00
+    db $FB, $7F, $1D, $0D, $00, $C3, $32, $C1
+    db $0D, $03, $75, $74, $8D, $01, $E7, $73
+    db $82, $01, $BA, $EA, $B1, $E1, $03, $81
+    db $E0, $A7, $A3, $C1, $03, $71, $31, $B7
+    db $A7, $2E, $D3, $03, $36, $B3, $CB, $01
+    db $09, $E3, $B3, $E1, $B1, $03, $31, $25
+    db $17, $B3, $EC, $46, $03, $1F, $73, $A7
+    db $CF, $01, $91, $37, $00, $70, $C2, $37
+    db $81, $3F, $00, $B5, $0F, $F9, $F8, $79
+    db $00, $EA, $C7, $BF, $E1, $FF, $D0, $03
+    db $CD, $D4, $87, $2E, $71, $03, $EF, $00
+    db $0F, $8F, $69, $07, $0F, $F1, $97, $EE
+    db $07, $B8, $BF, $1E, $9F, $07, $B5, $00
+    db $8F, $A7, $5A, $03, $2D, $85, $AF, $B1
+    db $DD, $03, $00, $F1, $B7, $EB, $07, $01
+    db $58, $BF, $F5, $07, $00, $A8, $C7, $5D
+    db $71, $03, $DF, $00, $1D, $CF, $63, $D7
+    db $A6, $98, $ED, $A1, $D5, $06, $07, $62
+    db $A6, $94, $ED, $C5, $71, $4D, $81, $8E
+    db $05, $21, $B1, $12, $B4, $06, $07, $76
+    db $D1, $84, $F3, $07, $43, $A1, $DB, $3E
+    db $6E, $D9, $00, $06, $83, $83, $C9, $82
+    db $83, $0F, $FB, $85, $07, $87, $87, $97
+    db $02, $87, $81, $D3, $07, $0F, $81, $C0
+    db $07, $A8, $E8, $B9, $E8, $A8, $C1, $FF
+    db $CE, $07, $B8, $07, $2C, $A8, $A9, $02
+    db $FF, $1F, $43, $07, $24, $B9, $A8, $87
+    db $07, $F7, $C2, $07, $B8, $B8, $B9, $02
+    db $C3, $81, $F4, $07, $34, $E9, $30, $B8
+    db $83, $FF, $31, $83, $07, $E8, $9A, $07
+    db $60, $17, $FF, $FB, $07, $4C, $67, $81
+    db $3F, $0B, $07, $98, $98, $96, $02, $07
+    db $F7, $DD, $07, $EF, $F8, $BD, $1B, $C1
+    db $C1, $7B, $EE, $0D, $E7, $86, $DD, $04
+    db $A7, $A1, $F6, $DB, $9F, $EF, $07, $EE
+    db $9F, $61, $B4, $40, $D5, $7F, $7F, $07
+    db $FF, $FF, $FF, $E0
+
+
+
+;%%%%%%%%%%%%%%%%%%%%%%%%
+; sound
 sub_c952:
     call play_songs
     jp sound_man
@@ -9057,11 +9437,11 @@ play_opening_tune:
     ld b, opening_tune_snd_0b  ; Play second part of opening tune
     call play_it
     ld a, (sound_bank_01_ram)
-    and 0x00c0
+    and $00C0
     or 2
     ld (sound_bank_01_ram), a
     ld a, (sound_bank_02_ram)
-    and 0x00c0
+    and $00C0
     or 4
     ld (sound_bank_02_ram), a
     ret
@@ -9072,7 +9452,7 @@ play_background_tune:
     jp play_it
 
 sub_c97f:
-    ld a, 0x00ff
+    ld a, $00FF
     ld (sound_bank_03_ram), a
     ret
 
@@ -9081,7 +9461,7 @@ play_grab_cherries_sound:
     jp play_it
 
 sub_c98a:
-    ld a, 0x00ff
+    ld a, $00FF
     ld (sound_bank_04_ram), a
     ld (sound_bank_05_ram), a
     ret
@@ -9090,17 +9470,17 @@ play_bouncing_ball_sound:
     ld b, bouncing_ball_snd_0a
     call play_it
     ld a, (sound_bank_05_ram)
-    cp 0x00ff
+    cp $00FF
     ret nz
     ld b, bouncing_ball_snd_0b
     jp play_it
 
 play_ball_stuck_sound_01:
     ld a, (sound_bank_05_ram)
-    and 0x3f
+    and $3F
     cp 7
     jr nz, play_ball_stuck_sound_02
-    ld a, 0x00ff
+    ld a, $00FF
     ld (sound_bank_05_ram), a
 play_ball_stuck_sound_02:
     ld b, ball_stuck_snd
@@ -9118,7 +9498,7 @@ play_apple_breaking_sound:
     ld b, apple_break_snd_0a
     call play_it
     ld a, (sound_bank_05_ram)
-    and 0x3f
+    and $3F
     cp 7
     ret z
     ld b, apple_break_snd_0b
@@ -9156,6 +9536,18 @@ play_win_extra_do_tune:
     ld b, win_extra_do_tune_0b
     jp play_it
 
+play_very_good_tune:
+    ld b, very_good_tune_0a
+    call play_it
+    ld b, very_good_tune_0b
+    call play_it
+    ld b, very_good_tune_0c
+    jp play_it
+
+play_coin_insert_sfx:
+    ld b, sfx_coin_insert_snd
+    jp play_it
+
 play_end_of_round_tune:
     call initialize_the_sound
     ld b, end_of_round_tune_0a
@@ -9171,13 +9563,13 @@ play_lose_life_sound:
     jp play_it
 
 sub_ca24:
-    ld a, 0x00ff
+    ld a, $00FF
     ld (sound_bank_07_ram), a
     ld (sound_bank_08_ram), a
     ret
 
 sub_ca2d:
-    ld a, 0x00ff
+    ld a, $00FF
     ld (sound_bank_08_ram), a
     ld (sound_bank_09_ram), a
     ret
@@ -9245,6 +9637,14 @@ sound_table:
     dw sound_bank_08_ram
     dw new_blue_chomper_sound_0b
     dw sound_bank_09_ram
+    dw very_good_tune_p1
+    dw sound_bank_01_ram
+    dw very_good_tune_p2
+    dw sound_bank_02_ram
+    dw very_good_tune_p3
+    dw sound_bank_03_ram
+    dw sfx_coin_insert
+    dw sound_bank_01_ram
 
 grab_cherries_sound:
     db 193, 214, 48, 2, 51, 149, 193, 214, 48, 2, 51, 149, 193, 214, 48, 2, 51, 149, 234, 193, 190, 48
@@ -9299,26 +9699,26 @@ lose_life_tune_p1:
     db 64, 160, 80, 4, 99
 ; Sec G
     db 64, 142, 80, 7, 107
-; SEcond Highest G#
+; SEcond Highest G$
     db 64, 67, 80, 7, 99
 ; B Flat (B5)
     db 64, 119, 80, 7, 107
-; D# (low)
+; D$ (low)
     db 64, 206, 82, 7, 99
 ; C (low)
     db 64, 86, 83, 7, 80
 lose_life_tune_p2:
     db 128, 56, 96, 7, 162
     db 128, 53, 96, 7, 170
-; Middle G#
+; Middle G$
     db 128, 134, 96, 4, 162
 ; Middle B (B4)
     db 192, 142, 96, 7, 235
-; D# (D5)
+; D$ (D5)
     db 192, 89, 96, 7, 227
-; F# (middle)
+; F$ (middle)
     db 192, 119, 96, 7, 235
-; D# (low)
+; D$ (low)
     db 192, 206, 98, 7, 227
 ; C (low)
     db 192, 86, 99, 7, 144
@@ -9348,6 +9748,43 @@ game_over_tune_p1:
     db 48, 11, 107, 64, 160, 48, 22, 64, 107, 48, 7, 100, 64, 107, 48, 7, 100, 64, 127, 48, 11
     db 107, 64, 160, 48, 11, 107, 64, 143, 48, 11, 107, 64, 107, 48, 7, 100, 64, 107, 48, 7, 100
     db 64, 107, 48, 22, 118, 118, 64, 213, 48, 11, 107, 64, 160, 48, 11, 80
+; GAME_OVER_TUNE_P1:
+; 	DB 064,$50,096,010,106 ; F
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$3F,096,017,099 ; A
+;   DB 064,$50,096,017,099 ; F
+;   DB 064,$50,096,010,106 ; F
+
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$3F,096,017,099 ; A
+;   DB 064,$50,096,017,099 ; F
+
+;   DB 064,$47,096,010,106 ; G
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,007,099 ; C
+;   DB 064,$35,096,040,116 ; C
+;   DB 096,$6A,096,010,106 ; lower C
+;   DB 064,$50,096,010,106,080 ; F
+
+; GAME_OVER_TUNE_P2:
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$7F,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$8E,096,017,163
+;   DB 128,$6A,096,017,163
+;   DB 128,$8E,096,017,163
+;   DB 128,$6A,096,020,180
+;   DB 128,171,097,010,170
+;   DB 128,064,097,020,144
+
+
 game_over_tune_p2:
     db 182, 182, 128, 64, 81, 22, 128, 214, 80, 7, 164, 128, 214, 80, 7, 164, 128, 254, 80, 11, 171
     db 128, 64, 81, 11, 171, 128, 64, 81, 22, 128, 214, 80, 7, 164, 128, 214, 80, 7, 164, 128, 240
@@ -9379,7 +9816,7 @@ end_of_round_tune_p2:
 ; HIGH NOTES
 ; C4 Middle
     db 192, 213, 64, 7, 227  ;+3
-; F4 
+; F4
     db 192, 160, 64, 7, 227  ;+3
 ; A4
     db 192, 127, 64, 7, 227  ;+3
@@ -9397,11 +9834,11 @@ blue_chomper_sound_0b:
 
 loc_d300:
     set 0, (hl)
-    ld hl, 0x05a0
+    ld hl, $05A0
     xor a
     jp loc_b895
 loc_d309:
-    ld hl, 0x7272
+    ld hl, $7272
     bit 5, (hl)
     jr z, loc_d319
     res 5, (hl)
@@ -9411,7 +9848,7 @@ loc_d309:
 loc_d319:
     jp loc_a596
 loc_d31c:
-    ld a, (0x7272)
+    ld a, ($7272)
     bit 5, a
     ret nz
     jp play_extra_walking_tune_no_chompers
@@ -9424,7 +9861,7 @@ loc_d326:
 loc_d333:
     bit 7, (hl)
     jr nz, loc_d333
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
     call play_blue_chompers_sound
     pop iy
@@ -9436,12 +9873,12 @@ loc_d345:
 loc_d34d:
     bit 7, (hl)
     jr nz, loc_d34d
-    ld bc, 0x01e2
+    ld bc, $01E2
     call write_register
-    ld hl, 0x7272
+    ld hl, $7272
     jp loc_b875
 loc_d35d:
-    ld (0x726f), a
+    ld (gametimer), a
     call play_extra_walking_tune_no_chompers
     jp loc_b89b
 loc_d366:
@@ -9449,51 +9886,52 @@ loc_d366:
     xor a
     jp loc_9481
 loc_d36d:
-    ld (0x72c6), a
-    ld hl, 0x72c4
+    ld (timerchomp1), a  ; save signal timer for chomper mode
+    ld hl, $72C4
     bit 0, (hl)
     jp z, loc_b8ec
     res 0, (hl)
-    ld a, (0x726f)
+    ld a, (gametimer)
     call test_signal
     jp loc_b8ec
+sub_a83e:
 loc_d383:
-    ld a, (0x72c6)
+    ld a, (timerchomp1)
     call test_signal
     and a
     jp z, loc_d3a6
-    ld hl, 0x72c3
+    ld hl, gameflags
     ld a, (hl)
     xor 1
     ld (hl), a
-    ld hl, 0x78
+    ld hl, $78
     rra
     jr nc, loc_d39f
-    ld l, 0x3c
+    ld l, $3C
 loc_d39f:
     xor a
     call request_signal
-    ld (0x72c6), a
+    ld (timerchomp1), a
 loc_d3a6:
-    ld a, (0x72c3)
+    ld a, (gameflags)
     rra
     jp nc, loc_a853
     jp loc_a858
 
 loc_d3d5:
     and 7
-    ld c, 0x00c0
+    ld c, $00C0
     cp 3
     jp loc_a8af
 loc_d3de:
     call play_it
-    ld a, 0x00ff
+    ld a, $00FF
     ld (sound_bank_01_ram), a
     ld (sound_bank_02_ram), a
     ret
 loc_d3ea:
     call play_it
-    ld a, 0x00ff
+    ld a, $00FF
     ld (sound_bank_01_ram), a
     ld (sound_bank_02_ram), a
     ld (sound_bank_07_ram), a
@@ -9501,7 +9939,7 @@ loc_d3ea:
 
 loc_d3f9:
     ld a, (sound_bank_01_ram)
-    and 0x0f
+    and $0F
     cp 2
     jr z, loc_d405
     call restore_playfield_colors
@@ -9514,7 +9952,7 @@ loc_d40b:
     rla
     jp nc, loc_d3f9
     ld a, (sound_bank_09_ram)
-    cp 0x00ff
+    cp $00FF
     jp nz, loc_d405
     call play_diamond_sound
     jp loc_d405
@@ -9655,9 +10093,9 @@ new_background_tune_p2:
     db 128, 29, 97, 10, 170
 ; Note 7: G3 (longer duration)
     db 128, 29, 97, 10, 170
-; Note 8: G3 
+; Note 8: G3
     db 128, 29, 97, 7, 163
-; Note 9: A4 
+; Note 9: A4
     db 128, 254, 96, 7, 163
 ; Note 10: E3
     db 128, 83, 97, 7, 163
@@ -9704,14 +10142,14 @@ new_win_extra_do_tune_p1:
     db 64, 169, 96, 7, 99  ;10
 ; Long f
     db 64, 160, 96, 10, 106  ;20
-; Short f#
+; Short f$
     db 64, 151, 96, 7, 99  ;10
 ; Very long g
     db 64, 142, 96, 30, 116  ;50
 
 ; BEGIN 2
 
-; very short gf#g
+; very short gf$g
     db 64, 142, 96, 7, 99  ;10
     db 64, 151, 96, 7, 99  ;10
     db 64, 142, 96, 7, 99  ;10
@@ -9737,23 +10175,14 @@ new_win_extra_do_tune_p1:
 
     db 116  ; 20 pad
 
-
-
-
-
-
 ; short f (plays over the c pad)
-    db 64, 80, 96, 7, 99  ;10 
+    db 64, 80, 96, 7, 99  ;10
 
 ; short e
     db 64, 84, 96, 7, 99  ;10
 
-
-
-
 ; long D
     db 64, 95, 96, 20, 106  ;30
-
 
 ; short a (over end of long f)
     db 64, 127, 80, 10, 106  ;20
@@ -9771,7 +10200,7 @@ new_win_extra_do_tune_p1:
 ; short g
     db 64, 142, 64, 10, 106  ;20
 
-; short f#
+; short f$
     db 64, 151, 96, 7, 99  ;10
 
 ; short g
@@ -9858,8 +10287,6 @@ new_win_extra_do_tune_p2:
 
 ;++++++++++++++++++++++++++++++++
 
-
-
 ; BEGIN 3 (at end of C)
 
 ; over first half of 20 pad
@@ -9873,8 +10300,6 @@ new_win_extra_do_tune_p2:
 
 ; short c (over short e)
     db 128, 106, 112, 7, 163  ;10
-
-
 
 
 ; very long f (over d and a)
@@ -9891,7 +10316,7 @@ new_win_extra_do_tune_p2:
 
 ;********************************
 
-; short f#
+; short f$
     db 128, 46, 113, 7, 163  ;10
 ; very short a
     db 128, 254, 112, 7, 163  ;10
@@ -9912,7 +10337,282 @@ new_win_extra_do_tune_p2:
 ; short c
     db 128, 171, 113, 10, 144  ;10
 
+very_good_tune_p1:
+; F Sharp
+    db 64, $4B, 64, 5, 98  ;7
+; G
+    db 64, $47, 64, 5, 98  ;7
+; E
+    db 64, $54, 64, 11, 99  ;14
+; E
+    db 64, $54, 64, 11, 99  ;14
+; E
+    db 64, $54, 64, 11, 99  ;14
 
+; F Sharp
+    db 64, $4B, 64, 5, 98  ;7
+; G
+    db 64, $47, 64, 5, 98  ;7
+; E
+    db 64, $54, 64, 11, 99  ;14
+; E
+    db 64, $54, 64, 11, 99  ;14
+;--------------------------------
+
+; Highest E
+    db 64, $2A, 64, 11, 99  ;14
+; D
+    db 64, $2F, 64, 5, 98  ;7
+; C
+    db 64, $35, 64, 5, 98  ;7
+; B
+    db 64, $38, 64, 5, 98  ;7
+; A
+    db 64, $3F, 64, 5, 98  ;7
+
+; G
+    db 64, $47, 64, 11, 99  ;14
+; F
+    db 64, $50, 64, 11, 99  ;14
+; E
+    db 64, $54, 64, 11, 99  ;14
+; Short F
+    db 64, $50, 64, 11, 99  ;14
+; G
+    db 64, $47, 64, 25, 99  ;28
+
+;--------------------------------
+; F Sharp
+    db 64, $4B, 64, 5, 98  ;7
+; G
+    db 64, $47, 64, 5, 98  ;7
+; E
+    db 64, $54, 64, 11, 99  ;14
+; E
+    db 64, $54, 64, 11, 99  ;14
+; E
+    db 64, $54, 64, 11, 99  ;14
+
+; F Sharp
+    db 64, $4B, 64, 5, 98  ;7
+; G
+    db 64, $47, 64, 5, 98  ;7
+; E
+    db 64, $54, 64, 11, 99  ;14
+; E
+    db 64, $54, 64, 11, 98  ;14
+
+
+; Highest E
+    db 64, $2A, 64, 11, 99  ;14
+; D
+    db 64, $2F, 64, 5, 98  ;7
+; C
+    db 64, $35, 64, 5, 98  ;7
+; B
+    db 64, $38, 64, 5, 98  ;7
+; A
+    db 64, $3F, 64, 5, 98  ;7
+
+; G
+    db 64, $47, 64, 11, 99  ;14
+
+; B
+    db 64, $38, 64, 11, 99  ; 14
+; C
+    db 64, $35, 64, 11, 99  ; 14
+; Highest E
+    db 64, $2A, 64, 11, 99  ;14
+; C
+    db 64, $35, 64, 14, 80  ; 14
+
+;32
+very_good_tune_p2:
+; F$
+    db 128, 46, 81, 5, 162  ;7
+; G
+    db 128, 29, 81, 5, 162  ;7
+; E
+    db 128, 83, 81, 11, 163  ;14
+; Low E
+    db 128, 166, 82, 11, 163  ;14
+; C
+    db 128, 171, 81, 11, 163  ;14
+
+; F$
+    db 128, 46, 81, 5, 162  ;7
+; G
+    db 128, 29, 81, 5, 162  ;7
+; E
+    db 128, 83, 81, 11, 163  ;14
+; Low E
+    db 128, 166, 82, 11, 163  ;14
+
+;--------------------------------
+
+; C
+    db 128, 171, 81, 11, 163  ;14
+; B
+    db 128, 196, 81, 5, 162  ;7
+; A
+    db 128, 252, 81, 5, 162  ;7
+; G
+    db 128, 58, 82, 5, 162  ;7
+; F
+    db 128, 128, 82, 5, 162  ;7
+; E
+    db 128, 166, 82, 11, 163  ;14
+; D
+    db 128, 249, 82, 11, 163  ;14
+; Short E
+    db 128, 166, 82, 11, 163  ;14
+; Short D
+    db 128, 249, 82, 11, 163  ;14
+; Short E
+    db 128, 166, 82, 11, 163  ;14
+; Short E
+    db 128, 166, 82, 11, 163  ;14
+;--------------------------------
+; F$
+    db 128, 46, 65, 5, 162  ;7
+; G
+    db 128, 29, 65, 5, 162  ;7
+; E
+    db 128, 83, 65, 11, 163  ;14
+; Low E
+    db 128, 166, 66, 11, 163  ;14
+; C
+    db 128, 171, 65, 11, 163  ;14
+
+; F$
+    db 128, 46, 65, 5, 162  ;7
+; G
+    db 128, 29, 65, 5, 162  ;7
+; E
+    db 128, 83, 65, 11, 163  ;14
+; Low E
+    db 128, 166, 66, 11, 163  ;14
+
+; C
+    db 128, 171, 65, 11, 163  ;14
+; B
+    db 128, 196, 65, 5, 162  ;7
+; A
+    db 128, 252, 65, 5, 162  ;7
+; G
+    db 128, 58, 66, 5, 162  ;7
+; F
+    db 128, 128, 66, 5, 162  ;7
+; E
+    db 128, 166, 66, 11, 163  ;14
+; D
+    db 128, 249, 66, 11, 163  ;14
+; Short E
+    db 128, 166, 66, 11, 163  ;14
+; Short E
+    db 128, 166, 66, 11, 163  ;14
+; E
+    db 128, 166, 66, 14, 144  ;14
+
+very_good_tune_p3:
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+
+; G
+    db 192, 58, 146, 11, 227  ; 14
+; F
+    db 192, 128, 146, 11, 227  ; 14
+
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+
+; G
+    db 192, 58, 146, 11, 227  ; 14
+; F
+    db 192, 128, 146, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 11, 227  ; 14
+    db 192, 86, 147, 14, 208  ; 14
+
+sfx_coin_insert:
+; AY volume to SN volume: SN_vol = 0xF - AY_vol
+; AY period to SN period: SN_period = AY_period / 2 (integer division)
+; Pos 000: AY period 0x05F(95) → SN period 95/2=47=0x2F
+
+; Pos 000: SN=0x2F → doubled=0x5E
+    db $40, $5E, $A0, 1
+
+; 001: 0x32→0x64
+    db $40, $64, $90, 2
+
+; 002: 0x23→0x46
+    db $40, $46, $80, 1
+
+; 003: 0x25→0x4A
+    db $40, $4A, $70, 2
+
+; 004: 0x25→0x4A
+    db $40, $4A, $60, 1
+
+; 005: 0x20→0x40
+    db $40, $40, $60, 2
+
+; 006: 0x20→0x40
+    db $40, $40, $60, 1
+
+; 007: 0x23→0x46
+    db $40, $46, $60, 2
+
+; 008: 0x25→0x4A
+    db $40, $4A, $60, 1
+
+; 009: 0x1B→0x36
+    db $40, $36, $60, 2
+
+; 00A: 0x1E→0x3C
+    db $40, $3C, $60, 1
+
+; 00B: 0x1E→0x3C
+    db $40, $3C, $60, 2
+
+; 00C: 0x19→0x32
+    db $40, $32, $60, 1
+
+; 00D: 0x19→0x32
+    db $40, $32, $70, 2
+
+; 00E: 0x1B→0x36
+    db $40, $36, $80, 1
+
+; 00F: 0x1F→0x3E
+    db $40, $3E, $90, 2
+
+; 010: 0x14→0x28
+    db 64, 40, $A0, 1
+    db 64, 40, $B0, 1
+    db 64, 40, $C0, 1
+
+    db $50
 
 nmi_handler:
     push af
@@ -9920,24 +10620,24 @@ nmi_handler:
     ld hl, mode
     bit 0, (hl)  ; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
     jr z, nmi_handler.1
+; here ISR is disabled
 
-    set 1, (hl)  ; ISR disabled, B1 == 1 -> ISR not executed
+    set 1, (hl)  ; ISR pending
+; B1==0 -> ISR served 	B1==1 -> ISR pending
     pop hl
     pop af
     retn
 
-nmi_handler.0:    res 1, (hl)  ; B1 == 0 -> ISR executed
-
-nmi_handler.1:  ; ISR Enabled
+nmi_handler.0:    res 1, (hl)  ; ISR served
+nmi_handler.1:  ; ISR enabled
     bit 7, (hl)
-    jr z, nmi_handler.2  ; 0 -> Game Mode, 1 -> intermission mode
+    jr z, nmi_handler.2  ; B7==0 -> game Mode, 	B7==1 -> intermission mode
 
+; Intermission Mode
     pop hl
     in a, (ctrl_port)
     pop af
-;     call fakenmi  ; -mdl
 
-fakenmi:  ; Intermission Mode
     push af
     push bc
     push de
@@ -9951,7 +10651,7 @@ fakenmi:  ; Intermission Mode
     push ix
     push iy
     call time_mgr  ; udate timers
-    call poller  ; update controllers
+;	CALL	POLLER			; update controllers
     call sub_c952  ; PLAY MUSIC
     pop iy
     pop ix
@@ -9965,59 +10665,105 @@ fakenmi:  ; Intermission Mode
     pop de
     pop bc
     pop af
-;     ret  ; -mdl
     retn
 
-nmi_handler.2:
-    pop hl  ; Game Mode
+nmi_handler.2:    pop hl  ; Game Mode
     pop af
     jp nmi
 
-; Proper text
+
+; select 1/2 players
 showplyrnum:
     call mynmi_off
-    ld bc, 8
-    ld de, 0x1800 + 11 + 32 * 15
+    ld de, $1800 + 11 + 32 * 15
     ld hl, plyr1slct
-    call myldirvm
-    ld bc, 9
-    ld de, 0x1800 + 11 + 32 * 17
+    call myprint
+    ld de, $1800 + 11 + 32 * 17
     ld hl, plyr2slct
-    call myldirvm
+    call myprint
     jp mynmi_on
 
-plyr1slct:    db 0x6a, 0x68, 0x5b, 0x5d, 0x66, 0x5f, 0x59, 0x5a, 0x65  ;1.PLAYER
-plyr2slct:    db 0x64, 0x68, 0x5b, 0x5d, 0x66, 0x5f, 0x59, 0x5a, 0x65, 0x68  ;2.PLAYERS
+; Proper text
 
+plyr1slct:    db "1.PLAYE", "R" or 128
+plyr2slct:    db "2.PLAYER", "s" or 128
+
+; select skill 1-4
 showskill:
     call mynmi_off
-    ld bc, 6
-    ld de, 0x1800 + 11 + 32 * 13
+    ld de, $1800 + 11 + 32 * 13
     ld hl, skill1
-    call myldirvm
-    ld bc, 10
-    ld de, 0x1800 + 11 + 32 * 15
+    call myprint
+    ld de, $1800 + 11 + 32 * 15
     ld hl, skill2
-    call myldirvm
-    ld bc, 8
-    ld de, 0x1800 + 11 + 32 * 17
+    call myprint
+    ld de, $1800 + 11 + 32 * 17
     ld hl, skill3
-    call myldirvm
-    ld bc, 5
-    ld de, 0x1800 + 11 + 32 * 19
+    call myprint
+    ld de, $1800 + 11 + 32 * 19
     ld hl, skill4
-    call myldirvm
+    call myprint
     jp mynmi_on
 
-skill1:    db 0x6a, 0x68, 0x59, 0x66, 0x65, 0x5f  ;1.EASY
-skill2:    db 0x64, 0x68, 0x66, 0x5c, 0x5e, 0x66, 0x58, 0x63, 0x59, 0x5c  ;2.ADVANCED
-skill3:    db 0x60, 0x68, 0x66, 0x5a, 0x63, 0x66, 0x5c, 0x59  ;3.ARCADE
-skill4:    db 0x67, 0x68, 0x5b, 0x5a, 0x62  ;4.PRO
+skill1:    db "1.EAS", "Y" or 128
+skill2:    db "2.ADVANCE", "D" or 128
+skill3:    db "3.ARCADE", " " or 128  ; " " needed to remove the S from "PLAYERS"
+skill4:    db "4.PR", "O" or 128
 
 ; Select  Number of Players and Skill
 
+get_game_options:
+    call showplyrnum  ; Show 1 or 2 Players
+get_game_options.plyrnumwait:
+    call poller
+    ld a, (keyboard_p1)
+    dec a  ; 0-1	valid range
+    cp 2
+    jr c, get_game_options.setplyrnum
+    ld a, (keyboard_p2)
+    dec a
+    cp 2
+    jr nc, get_game_options.plyrnumwait
+get_game_options.setplyrnum:
+    push af
+    call play_coin_insert_sfx
+    pop af
+    ld hl, gamecontrol
+    res 0, (hl)
+    dec a  ; If A==1 -> SET 2 players
+    jr nz, get_game_options.oneplyr
+    set 0, (hl)
+get_game_options.oneplyr:
 
+get_game_options.waitkeyrelease:
+    call poller
+    ld a, (keyboard_p1)
+    cp 15
+    jr nz, get_game_options.waitkeyrelease
+    ld a, (keyboard_p2)
+    cp 15
+    jr nz, get_game_options.waitkeyrelease
 
+    call showskill  ; Show Select skill 1-4
+get_game_options.skillwait:
+    call poller
+    ld a, (keyboard_p1)
+    dec a  ; 0-3 valid range
+    cp 4
+    jr c, get_game_options.setskill
+    ld a, (keyboard_p2)
+    dec a
+    cp 4
+    jr nc, get_game_options.skillwait
+get_game_options.setskill:
+    push af
+    call play_coin_insert_sfx
+    pop af
+    inc a  ; The game is expecting 1-4
+    ld (skilllevel), a
+    ret
+
+strinsertcoin:    db "INSERT COIN", " " or 128
 
 cvb_animatedlogo:
     ld hl, mode
@@ -10026,120 +10772,105 @@ cvb_animatedlogo:
     call mymode2
     call mydisscr
     call cvb_mycls
-    ld de, 0x0000
+
+    ld de, $0000
     ld hl, cvb_tileset
     call unpack
-    ld de, 0x1800
+    ld de, $1800
     ld hl, cvb_pnt
     call unpack
-
-    call pnthack  ; hide the text under the logo
+; LOAD ARCADE FONTS
+    ld de, $0000 + 8 * $00D7  ; start tiles here
+    ld hl, arcadefonts
+    call unpack
 
     ld hl, cvb_colorset0
-    call clrfrm
+    call nxtfrm
 
-    ld a, 208
-    ld hl, 0x1b00  ; remove all sprites (may be $1900 ??)
+    call mynmi_off
+    ld hl, strinsertcoin
+    ld de, $1800 + 23 * 32
+    call myprint
+    call mynmi_on
+
+    ld hl, $1B00  ; needed (some times) to remove all sprites 
+    ld a, 208  ; for hacked Colecovision Bios
+    call mynmi_off
     call mywrtvrm
+    call mynmi_on
+
 
     call myenascr
-; 
-;     call get_game_options  ; -mdl
-get_game_options:
-    call showplyrnum  ; Show 1 or 2 Players
-plyrnumwait:
-    call poller
-    ld a, (keyboard_p1)
-    dec a  ; 0-1	valid range
-    cp 2
-    jr c, plyrnumwait.setplyrnum
-    ld a, (keyboard_p2)
-    dec a
-    cp 2
-    jr nc, plyrnumwait
-plyrnumwait.setplyrnum:
-    ld hl, gamecontrol
-    res 0, (hl)
-    dec a  ; If A==1 -> set 2 players
-    jr nz, plyrnumwait.oneplyr
-    set 0, (hl)
-plyrnumwait.oneplyr:
-
-plyrnumwait.waitkeyrelease:
-    call poller
-    ld a, (keyboard_p1)
-    cp 15
-    jr nz, plyrnumwait.waitkeyrelease
-    ld a, (keyboard_p2)
-    cp 15
-    jr nz, plyrnumwait.waitkeyrelease
-
-    call showskill  ; Show Select skill 1-4
-skillwait:
-    call poller
-    ld a, (keyboard_p1)
-    dec a  ; 0-3 valid range
-    cp 4
-    jr c, skillwait.setskill
-    ld a, (keyboard_p2)
-    dec a
-    cp 4
-    jr nc, skillwait
-skillwait.setskill:
-    inc a  ; The game is expecting 1-4
-    ld (skilllevel), a
-;     ret  ; -mdl
-; 	
+;
+    call get_game_options
+;
     ld hl, cvb_colorset1
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset2
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset3
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset4
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset5
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset6
-    call clrfrm
-; 
-; 	FOR T=0 TO 10
+    call nxtfrm
+;
+;	FOR T=0 TO 10
     ld b, 10
 cvb_animatedlogo.mynext:
     push bc
 
     ld hl, cvb_colorset7
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset8
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset9
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset10
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset11
-    call clrfrm
+    call nxtfrm
     ld hl, cvb_colorset12
-    call clrfrm
+    call nxtfrm
 
-; 	NEXT
+;	NEXT
     pop bc
     djnz cvb_animatedlogo.mynext
+
+    call mydisscr
+
+    ld hl, sat  ; remove sprites in the new position of the SAT
+    ld a, 208
+    call mynmi_off
+    call mywrtvrm
+    call mynmi_on
+
 
     ld hl, mode
     res 7, (hl)  ; switch to game mode
 
     ret
 
-clrfrm:
+nxtfrm:
     halt
     halt
     halt
     halt
-    ld bc, 32
-    ld de, 0x2000
+    ld bc, 23
+    ld de, $2000
     call mynmi_off
     call myldirvm
+
+    ld hl, $2000 + 6 * 32 / 8
+    ld de, 8
+    ld a, $F1
+    call fill_vram
+
     jp mynmi_on
+
+
 
 ; MAKE SURE TO BE IN INTERMISSION MODE BEFORE CALLING
 
@@ -10148,74 +10879,735 @@ cvb_extrascreen:
     call mydisscr
     call cvb_mycls
 
-    ld de, 0x0000  ; Normal mode for patterns
-    ld hl, cvb_image_char
-    call unpack
-    ld de, 0x0800
-    ld hl, cvb_image_char
-    call unpack
-    ld de, 0x1000
-    ld hl, cvb_image_char
-    call unpack
-
-    ld de, 0x2000  ; Mirror mode for colors
+    ld de, $2000  ; Mirror mode for colors
     ld hl, cvb_image_color
     call unpack
 
-    ld de, 0x3800
+    ld de, $0000  ; Normal mode for patterns
+    ld hl, cvb_image_char
+    call unpack
+    ld de, $0800
+    ld hl, cvb_image_char
+    call unpack
+    ld de, $1000
+    ld hl, cvb_image_char
+    call unpack
+
+    ld de, $2800
     ld hl, cvb_image_sprites
     call unpack  ; 22 sprites
 
-    ld hl, cvb_image_pattern
-    ld de, 0x1800
-    ld bc, 768
+    ld hl, $1800
+    ld de, 3 * 256
+    ld a, 1  ; black tile
     call mynmi_off
-    call myldirvm
+    call fill_vram
     call mynmi_on
 
-    ld hl, cvb_image_pattern + 32 * 10
-    ld de, 0x1800
-    call cpyblk5x4
-
-    ld hl, cvb_image_pattern + 32 * 10
-    ld de, 0x1800 + 32 * 5
-    call cpyblk5x4
+    ld hl, cvb_image_pattern
+    ld de, $1800 + 5
+    ld bc, 24 * 256 + 22
+    ld a, c
+    call cpyblk_mxn
 
     ld bc, 128
-    ld de, 0x1b00
+    ld de, $1B00
     ld hl, cvb_sprite_overlay
     call mynmi_off
     call myldirvm
     call mynmi_on
-
     jp myenascr
 
 cvb_extrascreen_frm1:
-    ld hl, cvb_image_pattern
-    ld de, 0x1800 + 13 + 17 * 32
-    call cpyblk5x4
-    ld bc, 4
-    ld de, 0x1b00
-    ld hl, cvb_sprite_overlay_fr1
+    ld hl, cvb_image_pattern_fr1
+    ld de, $1800 + 13 + 17 * 32
+    ld bc, 5 * 256 + 4
+    ld a, c
+    call cpyblk_mxn
     call mynmi_off
-    call myldirvm
+    ld a, 2 + 17 * 8
+    ld hl, $1B00  ; SET in place sprite 0
+    call mywrtvrm
     jp mynmi_on
-cvb_sprite_overlay_fr1:
-    db 2 + 17 * 8, 24 + 13 * 8, 0, 3
+
 
 cvb_extrascreen_frm2:
-    ld hl, cvb_image_pattern + 5 * 32
-    ld de, 0x1800 + 13 + 17 * 32
-    call cpyblk5x4
-    ld bc, 4
-    ld de, 0x1b00
-    ld hl, cvb_sprite_overlay_fr2
+    ld hl, cvb_image_pattern_fr2
+    ld de, $1800 + 13 + 17 * 32
+    ld bc, 5 * 256 + 4
+    ld a, c
+    call cpyblk_mxn
+    call mynmi_off
+    ld a, 209
+    ld hl, $1B00  ; remove sprite 0
+    call mywrtvrm
+    jp mynmi_on
+
+;% place here the other intermission each 10xN levels
+wonderful:
+    jp congratulation
+
+intermission:
+; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+; Show the intermission screen 
+;
+    ld hl, mode
+    set 7, (hl)  ; switch to intermission  mode
+
+;     call cvb_intermission  ; -mdl
+
+cvb_intermission:
+    call mymode1
+    call mydisscr
+    call cvb_mycls
+
+    ld hl, $2000 + 6 * 32 * 8
+    ld de, 32 * 8 * 2
+    ld a, $F0
+    call fill_vram
+
+; LOAD ARCADE FONTS
+    ld de, $0000 + 8 * $00D7  ; start tiles here
+    ld hl, arcadefonts
+    call unpack
+    ld de, $0800 + 8 * $00D7  ; start tiles here
+    ld hl, arcadefonts
+    call unpack
+    ld de, $1000 + 8 * $00D7  ; start tiles here
+    ld hl, arcadefonts
+    call unpack
+
+    ld de, $0000
+    ld hl, intermission_char
+    call unpack
+    ld de, $0800
+    ld hl, intermission_char
+    call unpack
+    ld de, $1000
+    ld hl, intermission_char
+    call unpack
+
+    ld de, $2000
+    ld hl, intermission_color
+    call unpack
+
+    ld de, $2800
+    ld hl, intermission_sprites
+    call unpack
+
+    ld de, $1800 + 12 + 32 * 10
+    ld hl, verygood
+    call myprint
+
+    call myenascr
+
+;     ret  ; -mdl
+    call initialize_the_sound
+    call play_very_good_tune
+
+    ld hl, $0200  ; music duration
+    xor a
+    call request_signal
+
+    push af  ; wait for music to finish
+intermission.1:
+    call cvb_intermission_frm1  ; animate the monsters
+    call wait8
+    call cvb_intermission_frm2
+    call wait8
+    pop af
+    push af
+    call test_signal
+    and a
+    jr z, intermission.1
+    pop af
+
+    call mydisscr
+
+    ld hl, sprite_name_table
+    ld b, $50  ; remove 20 sprites
+intermission.2:
+    ld (hl), 0
+    inc hl
+    djnz intermission.2
+
+    ld hl, $0000  ; do not delete player data in VRAM
+    ld de, $3000
+    xor a  ; fill with space
+    call fill_vram
+
+    ld hl, mode
+    res 7, (hl)  ; switch to game mode
+
+    call init_vram
+    ld hl, gamecontrol
+    set 7, (hl)
+intermission.3:
+    bit 7, (hl)
+    jr nz, intermission.3
+    ret
+
+verygood:    db "VERY GOOD !", "!" or 128
+
+cvb_intermission_frm1:
+    ld bc, 41
+    ld de, $1B00
+    ld hl, cvb_sp1
     call mynmi_off
     call myldirvm
-    jp mynmi_on
-cvb_sprite_overlay_fr2:
-    db 209, 24, 0, 3
+    call mynmi_on
 
+    ld bc, 5 * 256 + 14
+    ld de, $1800 + 10 + 13 * 32
+    ld hl, cvb_fr1
+    ld a, 14
+    jp cpyblk_mxn
+
+cvb_intermission_frm2:
+    ld bc, 41
+    ld de, $1B00
+    ld hl, cvb_sp2
+    call mynmi_off
+    call myldirvm
+    call mynmi_on
+
+    ld bc, 5 * 256 + 14
+    ld de, $1800 + 10 + 13 * 32
+    ld hl, cvb_fr2
+    ld a, 14
+    jp cpyblk_mxn
+
+
+; 61 tiles - compressed
+intermission_char:
+
+    db $3F, $00, $03, $00, $03, $30, $78, $78  ;	DB $3f,$00,$03,$00,$03,$30,$78,$78
+    db $30, $00, $07, $FF, $06, $66, $60, $7F  ;	DB $30,$00,$07,$ff,$06,$66,$60,$7f
+    db $06, $00, $EF, $00, $C0, $C0, $C2, $18  ;	DB $06,$00,$ef,$00,$c0,$c0,$c2,$18
+    db $FF, $FF, $68, $1F, $1B, $80, $3C, $C0  ;	DB $ff,$ff,$68,$1f,$1b,$80,$3c,$c0
+    db $80, $24, $00, $F9, $EF, $06, $0F, $F9  ;	DB $80,$24,$00,$f9,$ef,$06,$0f,$f9
+    db $F9, $03, $E0, $04, $F0, $7F, $F8, $F0  ;	DB $f9,$03,$e0,$04,$f0,$7f,$f8,$f0
+    db $E0, $00, $A0, $20, $80, $20, $04, $70  ;	DB $e0,$00,$a0,$20,$80,$20,$04,$70
+    db $30, $18, $38, $70, $38, $1D, $07, $0F  ;	DB $30,$18,$38,$70,$38,$1d,$07,$0f
+    db $1F, $74, $3F, $41, $00, $19, $00, $04  ;	DB $1f,$74,$3f,$41,$00,$19,$00,$04
+    db $0E, $3C, $60, $BF, $3F, $7F, $98, $70  ;	DB $0e,$3c,$60,$bf,$3f,$7f,$98,$70
+    db $26, $3D, $E0, $F8, $FC, $71, $FC, $1F  ;	DB $26,$3d,$e0,$f8,$fc,$71,$fc,$1f
+    db $01, $03, $04, $21, $03, $F7, $CF, $1F  ;	DB $01,$03,$04,$21,$03,$f7,$cf,$1f
+    db $17, $7F, $1C, $FF, $FC, $FF, $00, $3E  ;	DB $17,$7f,$1c,$ff,$fc,$ff,$00,$1e
+    db $62, $F0, $5B, $E0, $4D, $00, $F0, $F8  ;	DB $62,$e0,$5b,$e0,$4d,$00,$f0,$f8
+    db $0C, $0E, $0F, $0F, $07, $03, $82, $23  ;	DB $0c,$0e,$0f,$0f,$07,$03,$82,$23
+    db $F8, $78, $38, $9F, $7A, $08, $7F, $07  ;	DB $f8,$78,$38,$9f,$7a,$08,$7f,$07
+    db $7F, $C0, $26, $0C, $20, $00, $71, $21  ;	DB $7f,$c0,$26,$0c,$20,$00,$71,$21
+    db $30, $E0, $E3, $C3, $02, $C6, $3B, $F7  ;	DB $30,$e0,$e3,$c3,$02,$c6,$3b,$f7
+    db $10, $33, $8D, $00, $03, $FF, $80, $00  ;	DB $10,$33,$8d,$00,$03,$ff,$80,$00
+    db $C7, $03, $03, $01, $01, $FF, $9C, $02  ;	DB $c7,$03,$03,$01,$01,$ff,$9c,$02
+    db $FE, $3F, $60, $03, $FF, $E0, $1F, $C1  ;	DB $fe,$3f,$60,$03,$ff,$e0,$1f,$c1
+    db $83, $02, $0A, $1D, $F1, $01, $00, $2A  ;	DB $83,$02,$19,$1d,$f1,$1a,$28,$2a
+    db $58, $F9, $50, $54, $FF, $01, $7E, $FF  ;	DB $f9,$50,$43,$f0,$ff,$01,$7e,$ff
+    db $CF, $CF, $78, $7C, $7C, $4B, $7C, $00  ;	DB $cf,$cf,$78,$7c,$7c,$4b,$7c,$00
+    db $F8, $16, $88, $9D, $00, $40, $E0, $04  ;	DB $f8,$29,$88,$9d,$00,$40,$e0,$04
+    db $40, $0C, $0C, $FF, $C0, $00, $70, $11  ;	DB $40,$0c,$0c,$ff,$c0,$00,$70,$11
+    db $1C, $FC, $60, $26, $60, $CF, $5A, $29  ;	DB $1c,$fc,$60,$26,$60,$cf,$16,$c6
+    db $74, $16, $B4, $60, $3C, $1E, $1F, $5E  ;	DB $74,$85,$b4,$60,$8f,$1e,$1f,$14
+    db $64, $EF, $47, $AE, $64, $51, $28, $80  ;	DB $5e,$ef,$2f,$00,$03,$c8,$51,$28
+    db $12, $80, $FE, $FE, $40, $E1, $55, $B1  ;	DB $80,$80,$25,$fe,$fe,$40,$e1,$55
+    db $5D, $41, $F9, $18, $B3, $56, $87, $02  ;	DB $60,$5d,$41,$f9,$ff,$3e,$c0,$56
+    db $CF, $1C, $3F, $BF, $BF, $1F, $B1, $02  ;	DB $87,$cf,$1c,$3f,$10,$bf,$bf,$1f
+    db $81, $E0, $C0, $F0, $DD, $15, $FE, $27  ;	DB $b1,$81,$50,$e0,$67,$dd,$fe,$a2
+    db $6E, $20, $BE, $08, $3E, $1F, $07, $01  ;	DB $27,$c3,$be,$41,$08,$3e,$1f,$07
+    db $AC, $45, $16, $00, $68, $E0, $B3, $81  ;	DB $01,$58,$45,$16,$00,$e0,$d1,$b3
+    db $F0, $FC, $1F, $F3, $F1, $07, $10, $A9  ;	DB $02,$f0,$fc,$1f,$f3,$f1,$07,$a9
+    db $09, $CF, $C7, $C7, $30, $C3, $40, $64  ;	DB $20,$09,$cf,$c7,$c7,$c3,$60,$40
+    db $BE, $BC, $31, $18, $10, $5F, $FE, $37  ;	DB $64,$be,$bc,$18,$62,$10,$5f,$fe
+    db $BE, $78, $57, $21, $55, $56, $09, $7F  ;	DB $be,$6e,$78,$21,$ae,$55,$56,$7f
+    db $38, $7C, $FE, $1C, $0F, $55, $0A, $66  ;	DB $12,$38,$7c,$fe,$1c,$0f,$0a,$aa
+    db $6C, $51, $03, $00, $FD, $FC, $6C, $60  ;	DB $66,$6c,$51,$00,$06,$fd,$fc,$6c
+    db $60, $30, $17, $B6, $31, $7F, $E0, $EE  ;	DB $60,$60,$60,$17,$b6,$7f,$63,$e0
+    db $D6, $7F, $3B, $3C, $7C, $7F, $C1, $CE  ;	DB $ee,$ac,$7f,$3c,$77,$7c,$7f,$83
+    db $1E, $92, $7A, $7E, $F6, $7C, $28, $7F  ;	DB $ce,$1e,$24,$7a,$7e,$f6,$7c,$7f
+    db $78, $83, $18, $18, $D6, $4F, $52, $FE  ;	DB $51,$78,$83,$18,$18,$ac,$4f,$fe
+    db $15, $C3, $1F, $8A, $8A, $54, $09, $67  ;	DB $a5,$15,$c3,$1f,$14,$8a,$54,$09
+    db $8C, $24, $FF, $FF, $FF, $FE  ;	DB $8c,$cf,$24,$ff,$ff,$ff,$fc
+
+intermission_color:
+    db $3F, $F1, $03, $00, $81, $C8, $C8, $C1  ;	DB $3f,$f1,$03,$00,$81,$c8,$c8,$c1
+    db $C1, $96, $07, $F8, $00, $55, $03, $07  ;	DB $c1,$96,$07,$f8,$00,$55,$03,$07
+    db $00, $07, $6C, $14, $1B, $81, $78, $C1  ;	DB $00,$07,$6c,$14,$1b,$81,$78,$c1
+    db $25, $FC, $B8, $1C, $28, $FC, $FC, $B6  ;	DB $25,$fc,$b8,$1c,$28,$fc,$fc,$b6
+    db $2C, $00, $6D, $81, $1F, $F3, $06, $81  ;	DB $2c,$00,$6d,$81,$1f,$f3,$06,$81
+    db $61, $06, $B8, $F8, $21, $2B, $00, $82  ;	DB $61,$06,$b8,$f8,$21,$2b,$00,$82
+    db $00, $07, $CF, $16, $A7, $1F, $48, $C8  ;	DB $00,$07,$cf,$16,$a7,$1f,$48,$c8
+    db $7C, $00, $3D, $FC, $BE, $14, $09, $78  ;	DB $7c,$00,$3d,$fc,$be,$14,$09,$78
+    db $FC, $60, $FC, $AA, $02, $00, $25, $60  ;	DB $fc,$60,$fc,$aa,$02,$00,$25,$60
+    db $CE, $09, $8A, $3C, $9D, $3E, $00, $7D  ;	DB $ce,$09,$8a,$3c,$9d,$3e,$00,$7d
+    db $F8, $07, $D9, $00, $05, $F3, $08, $81  ;	DB $f8,$07,$d9,$00,$05,$f3,$08,$81
+    db $33, $54, $16, $2E, $35, $39, $00, $EB  ;	DB $33,$54,$16,$b4,$58,$60,$eb,$4b
+    db $4B, $46, $EB, $68, $00, $E7, $3F, $FC  ;	DB $46,$eb,$68,$00,$e7,$3f,$fc,$99
+    db $99, $37, $19, $A6, $5A, $7B, $4F, $6C  ;	DB $37,$19,$a6,$5a,$7b,$4f,$6c,$60
+    db $60, $00, $82, $EB, $56, $28, $6E, $67  ;	DB $00,$82,$d3,$56,$36,$1c,$05,$ee
+    db $10, $CE, $48, $BD, $2E, $51, $53, $AF  ;	DB $58,$42,$ce,$5c,$53,$c7,$5f,$fc
+    db $5F, $67, $3E, $00, $98, $78, $D3, $AD  ;	DB $9f,$00,$3c,$98,$d3,$56,$0c,$00
+    db $0C, $00, $1D, $B8, $1E, $97, $58, $C9  ;	DB $8e,$b8,$8f,$97,$64,$58,$07,$84
+    db $07, $84, $C6, $8A, $09, $C7, $8C, $4F  ;	DB $e3,$8a,$63,$09,$8c,$a7,$09,$8c
+    db $09, $19, $06, $21, $25, $A7, $17, $6C  ;	DB $06,$21,$25,$d3,$17,$b6,$55,$f7
+    db $55, $F7, $6C, $80, $E7, $46, $DA, $52  ;	DB $36,$80,$73,$46,$ed,$52,$43,$97
+    db $86, $97, $5E, $5B, $17, $1F, $98, $DF  ;	DB $2f,$5b,$17,$0f,$98,$ef,$7f,$b6
+    db $7F, $6C, $27, $E5, $6D, $2F, $B5, $47  ;	DB $27,$e5,$36,$2f,$da,$47,$22,$d3
+    db $22, $A7, $17, $9F, $4F, $FF, $FF, $FF  ;	DB $17,$cf,$4f,$ff,$ff,$ff,$fc
+    db $F8  ;
+
+intermission_sprites:
+    db $26, $C8, $86, $00, $B0, $00, $F8, $F0
+    db $F0, $E0, $06, $C0, $E0, $E0, $F0, $80
+    db $0B, $F8, $00, $1C, $0C, $04, $06, $38
+    db $70, $78, $11, $07, $0C, $00, $1C, $38
+    db $30, $38, $BD, $FD, $01, $72, $D9, $28
+    db $80, $A1, $26, $80, $80, $6F, $07, $03
+    db $00, $72, $FF, $F0, $30, $06, $59, $0E
+    db $3E, $1F, $02, $02, $01, $5C, $0C, $2C
+    db $2B, $F0, $8F, $58, $C0, $00, $C0, $00
+    db $10, $00, $60, $00, $7C, $BE, $0C, $7C
+    db $F8, $08, $E0, $00, $2B, $98, $08, $66
+    db $1A, $F2, $2C, $3D, $F5, $9C, $00, $80
+    db $03, $77, $8D, $AB, $D0, $1C, $78, $F8
+    db $C1, $04, $3C, $7C, $FC, $A8, $10, $01
+    db $73, $01, $04, $02, $DB, $25, $8F, $FF
+    db $70, $00, $83, $00, $7F, $C3, $6A, $12
+    db $AB, $30, $BF, $C2, $0C, $39, $00, $17
+    db $B0, $A7, $03, $77, $0F, $91, $2D, $7B
+    db $00, $13, $4A, $3B, $DA, $8C, $0B, $D4
+    db $42, $63, $CE, $03, $DE, $B7, $7B, $F9
+    db $BF, $72, $C0, $73, $40, $00, $AF, $05
+    db $56, $C7, $1A, $1C, $FC, $BF, $FF, $FF
+    db $FF, $FF, $E0
+
+cvb_sp1:
+    db 64 + 41, 80, 0, 1
+    db 64 + 41, 97, 4, 15
+    db 64 + 46, 92, 8, 8
+    db 64 + 48, 160, 12, 1
+    db 64 + 57, 88, 16, 8
+    db 64 + 42, 88, 20, 12
+    db 64 + 62, 95, 24, 15
+    db 64 + 56, 161, 28, 8
+    db 64 + 58, 112, 32, 1
+    db 64 + 60, 80, 36, 1
+    db 208
+cvb_fr1:
+    db $01, $02, $03, $04, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+    db $05, $06, $07, $08, $09, $0A, $0B, $0C, $00, $00, $0D, $0E, $0F, $10
+    db $11, $12, $13, $14, $15, $16, $17, $18, $00, $00, $19, $1A, $1B, $1C
+    db $1D, $1E, $1F, $20, $21, $22, $23, $24, $00, $00, $25, $26, $27, $28
+    db $29, $2A, $2B, $00, $2C, $2D, $2E, $2F, $00, $00, $30, $31, $32, $33
+
+cvb_sp2:
+    db 105, 80, 40, 1
+    db 105, 97, 44, 15
+    db 110, 92, 48, 8
+    db 112, 160, 52, 1
+    db 121, 85, 56, 8
+    db 119, 81, 60, 12
+    db 126, 95, 64, 15
+    db 124, 166, 68, 12
+    db 122, 112, 72, 1
+    db 208
+cvb_fr2:
+    db $01, $02, $03, $04, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+    db $05, $06, $07, $08, $09, $0A, $0B, $0C, $00, $00, $0D, $0E, $0F, $10
+    db $11, $12, $13, $14, $15, $16, $17, $18, $00, $00, $19, $1A, $1B, $1C
+    db $34, $1E, $1F, $20, $21, $22, $23, $24, $00, $00, $35, $36, $37, $38
+    db $39, $2A, $2B, $00, $2C, $2D, $2E, $2F, $00, $00, $3A, $3B, $3C, $00
+
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+congratulation:
+; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+; Show the congratulation screen 
+;
+    ld hl, mode
+    set 7, (hl)  ; switch to intermission  mode
+
+;     call cvb_congratulation  ; -mdl
+
+cvb_congratulation:
+    call mymode1
+    call mydisscr
+    call cvb_mycls
+
+    ld hl, $2000 + 6 * 32 * 8
+    ld de, 32 * 2 * 8
+    ld a, $F0
+    call fill_vram
+; LOAD ARCADE FONTS
+    ld de, $0000 + 8 * $00D7  ; start tiles here
+    ld hl, arcadefonts
+    call unpack
+    ld de, $0800 + 8 * $00D7  ; start tiles here
+    ld hl, arcadefonts
+    call unpack
+    ld de, $1000 + 8 * $00D7  ; start tiles here
+    ld hl, arcadefonts
+    call unpack
+
+    ld de, $0000
+    ld hl, congratulation_char
+    call unpack
+    ld de, $0800
+    ld hl, congratulation_char
+    call unpack
+    ld de, $1000
+    ld hl, congratulation_char
+    call unpack
+
+    ld de, $2000
+    ld hl, congratulation_color
+    call unpack
+
+    ld de, $2800
+    ld hl, congratulation_sprites
+    call unpack
+
+    ld bc, 4 * 256 + 21
+    ld de, $1800 + 17 * 32 + 7
+    ld hl, cvb_universal
+    ld a, c
+    call cpyblk_mxn
+
+    ld bc, 10 * 256 + 7
+    ld de, $1800 + 1
+    ld hl, cvb_congratulation_pattern
+    ld a, c
+    call cpyblk_mxn
+
+    ld bc, 4 * 10 + 1
+    ld de, $1B00
+    ld hl, cvb_fsb
+    call mynmi_off
+    call myldirvm
+    call mynmi_on
+
+
+    ld de, $1800 + 10 + 32 * 10
+    ld hl, congratulations
+    call myprint
+
+    call myenascr
+
+;     ret  ; -mdl
+    call initialize_the_sound
+    call play_very_good_tune
+
+    ld hl, $0200  ; music duration
+    xor a
+    call request_signal
+
+    push af  ; wait for music to finish
+congratulation.1:
+    call cvb_congratulation_frm0  ; animate the diamond
+    call wait8
+    call cvb_congratulation_frm1
+    call wait8
+    call cvb_congratulation_frm2
+    call wait8
+    pop af
+    push af
+    call test_signal
+    and a
+    jr z, congratulation.1
+    pop af
+
+    call mydisscr
+
+    ld hl, sprite_name_table
+    ld b, $50  ; remove 20 sprites
+congratulation.2:
+    ld (hl), 0
+    inc hl
+    djnz congratulation.2
+
+    ld hl, $0000
+    ld de, $3000  ; do not delete the game data
+    xor a  ; fill with space
+    call fill_vram
+
+    ld hl, mode
+    res 7, (hl)  ; switch to game mode
+
+    call init_vram
+    ld hl, gamecontrol
+    set 7, (hl)
+congratulation.3:
+    bit 7, (hl)
+    jr nz, congratulation.3
+    ret
+
+congratulations:    db "CONGRATULATIONS !", "!" or 128
+
+cvb_congratulation_frm0:
+    ld bc, 4 * 5 + 1
+    ld de, $1B00 + 10 * 4
+    ld hl, cvb_fs0
+    call mynmi_off
+    call myldirvm
+    call mynmi_on
+
+    ld bc, 3 * 256 + 4
+    ld de, $1800 + 10 * 32
+    ld hl, cvb_frc0
+    ld a, c
+    jp cpyblk_mxn
+
+cvb_congratulation_frm1:
+    ld bc, 4 * 5 + 1
+    ld de, $1B00 + 10 * 4
+    ld hl, cvb_fs1
+    call mynmi_off
+    call myldirvm
+    call mynmi_on
+
+    ld bc, 3 * 256 + 4
+    ld de, $1800 + 10 * 32
+    ld hl, cvb_frc1
+    ld a, c
+    jp cpyblk_mxn
+
+cvb_congratulation_frm2:
+    ld bc, 4 * 5 + 1
+    ld de, $1B00 + 10 * 4
+    ld hl, cvb_fs2
+    call mynmi_off
+    call myldirvm
+    call mynmi_on
+
+    ld bc, 3 * 256 + 4
+    ld de, $1800 + 10 * 32
+    ld hl, cvb_frc2
+    ld a, c
+    jp cpyblk_mxn
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+cvb_fs0:
+    db 79, 9, 40, 2
+    db 81, 1, 44, 3
+    db 83, 18, 48, 3
+    db 86, 8, 52, 1
+    db 85, 8, 56, 2
+    db 208
+cvb_fs1:
+    db 119 - 40, 9, 60, 3
+    db 121 - 40, 1, 64, 4
+    db 123 - 40, 11, 68, 3
+    db 126 - 40, 12, 72, 2
+    db 125 - 40, 8, 76, 1
+    db 208
+cvb_fs2:
+    db 159 - 80, 7, 80, 3
+    db 161 - 80, 21, 84, 4
+    db 163 - 80, 5, 88, 3
+    db 166 - 80, 8, 92, 1
+    db 165 - 80, 8, 96, 2
+    db 208
+
+cvb_frc0:
+    db $33, $34, $35, $36
+    db $37, $38, $39, $3A
+    db $00, $3B, $3C, $00
+cvb_frc1:
+    db $3D, $3E, $3F, $40
+    db $41, $42, $43, $3A
+    db $00, $44, $45, $00
+cvb_frc2:
+    db $6D, $6E, $3E, $6F
+    db $37, $42, $43, $75
+    db $00, $76, $77, $00
+
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+cvb_universal:
+    db $46, $47, $48, $49, $4A, $46, $47, $48, $4B, $4C, $46, $47, $4D, $4E, $4F, $50, $51, $46, $51, $4A, $00
+    db $52, $53, $51, $54, $55, $52, $56, $57, $00, $58, $59, $5A, $5B, $5C, $5D, $5E, $5F, $60, $00, $55, $00
+    db $52, $53, $51, $61, $55, $52, $62, $63, $00, $64, $65, $53, $66, $67, $68, $69, $6A, $6B, $00, $55, $6C
+    db $70, $71, $48, $72, $4A, $46, $51, $46, $51, $4C, $46, $47, $73, $4B, $74, $71, $47, $48, $4B, $4C, $46
+
+cvb_fsb:
+    db 255, 16, 0, 1
+    db 15, 8, 4, 1
+    db 19, 44, 8, 8
+    db 23, 22, 12, 8
+    db 32, 16, 16, 1
+    db 35, 36, 20, 2
+    db 41, 29, 24, 1
+    db 47, 18, 28, 15
+    db 42, 48, 32, 2
+    db 56, 16, 36, 8
+    db 208
+
+; Width = 7, height = 10
+cvb_congratulation_pattern:
+    db $00, $01, $02, $00, $00, $00, $00
+    db $03, $04, $05, $00, $00, $00, $00
+    db $06, $07, $08, $00, $09, $0A, $00
+    db $0B, $0C, $0D, $0E, $0F, $10, $11
+    db $00, $12, $13, $14, $15, $16, $17
+    db $18, $19, $1A, $1B, $00, $1C, $1D
+    db $1E, $1F, $20, $21, $22, $23, $24
+    db $25, $26, $27, $28, $29, $2A, $2B
+    db $2C, $2D, $2E, $2F, $00, $00, $00
+    db $30, $31, $32, $00, $00, $00, $00
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+; Start tile = 0. Total_tiles = 120
+congratulation_char:
+    db $3B, $00, $C3, $00, $01, $03, $07, $45
+    db $07, $FC, $00, $A0, $07, $03, $0F, $1F
+    db $00, $0C, $18, $19, $C1, $FF, $FF, $FE
+    db $FC, $00, $F8, $F8, $F0, $E0, $F8, $7F
+    db $7F, $3F, $08, $E3, $C1, $3F, $7F, $00
+    db $81, $C3, $A2, $0F, $00, $FC, $FE, $19
+    db $21, $C0, $E0, $00, $C0, $C0, $80, $E1
+    db $40, $07, $1F, $B1, $07, $20, $70, $41
+    db $24, $2B, $1E, $0E, $06, $02, $0C, $39
+    db $87, $03, $01, $00, $2C, $1F, $7F, $2B
+    db $47, $04, $F8, $00, $C1, $F7, $FC, $37
+    db $1F, $14, $07, $7F, $03, $00, $6D, $0F
+    db $02, $FF, $7C, $7E, $80, $C0, $E1, $18
+    db $C3, $37, $3C, $7C, $04, $00, $78, $03
+    db $04, $38, $1C, $4E, $0C, $04, $F0, $56
+    db $59, $C0, $5D, $3C, $A5, $38, $47, $88
+    db $36, $C0, $25, $0F, $07, $01, $07, $F8
+    db $04, $06, $06, $03, $F0, $31, $7E, $78
+    db $00, $F0, $F1, $B8, $A0, $4D, $1F, $77
+    db $77, $58, $E0, $18, $95, $71, $B1, $66
+    db $0D, $43, $6C, $3F, $21, $F0, $9A, $0C
+    db $40, $16, $D2, $3F, $0C, $02, $02, $00
+    db $27, $05, $AE, $13, $00, $C3, $02, $FB
+    db $FB, $71, $20, $08, $19, $8C, $73, $80
+    db $00, $00, $51, $7F, $BF, $70, $78, $7C
+    db $7F, $C0, $81, $48, $F7, $F3, $E3, $C3
+    db $03, $96, $39, $69, $69, $02, $61, $80
+    db $33, $30, $10, $E0, $0F, $0F, $80, $DA
+    db $3F, $71, $DF, $70, $30, $DF, $FF, $D7
+    db $C6, $31, $70, $DB, $37, $02, $FA, $87
+    db $CF, $E7, $24, $53, $06, $07, $3E, $70
+    db $4B, $0F, $0C, $30, $70, $84, $A0, $31
+    db $F1, $C7, $83, $32, $83, $C7, $43, $9A
+    db $23, $2E, $00, $80, $71, $F3, $A6, $00
+    db $47, $C0, $01, $87, $FD, $FC, $DC, $98
+    db $96, $11, $1D, $D1, $16, $C0, $2C, $33
+    db $07, $0C, $84, $68, $4C, $95, $C2, $73
+    db $1F, $1F, $07, $80, $0E, $60, $70, $40
+    db $40, $60, $1F, $AA, $8B, $0E, $8B, $6E
+    db $58, $C3, $22, $9D, $15, $64, $0F, $00
+    db $1F, $E1, $08, $E3, $1F, $1E, $3C, $90
+    db $9C, $BA, $26, $80, $A9, $08, $04, $02
+    db $01, $A0, $35, $00, $9F, $BF, $7F, $80
+    db $F1, $4F, $F8, $B5, $47, $2B, $F7, $57
+    db $0D, $4F, $38, $3C, $1E, $F2, $4F, $00
+    db $64, $3C, $17, $47, $03, $84, $47, $06
+    db $0C, $08, $47, $40, $3C, $80, $FC, $00
+    db $78, $3F, $00, $0F, $F3, $00, $46, $9E
+    db $DF, $0F, $C3, $F0, $1E, $00, $C3, $3C
+    db $00, $FF, $00, $E7, $E7, $A2, $00, $D8
+    db $25, $E7, $17, $FE, $86, $17, $3C, $3C
+    db $CF, $4F, $03, $1E, $00, $30, $3C, $00
+    db $0C, $00, $E1, $A5, $70, $07, $A1, $38
+    db $C0, $9A, $00, $0F, $14, $0E, $0E, $07
+    db $26, $8E, $0E, $D5, $15, $47, $14, $D5
+    db $E3, $00, $B6, $35, $1A, $90, $5A, $21
+    db $17, $09, $84, $C1, $D1, $EE, $CD, $E3
+    db $8B, $FF, $3F, $6F, $9D, $F5, $99, $FE
+    db $F5, $B6, $21, $EF, $03, $9C, $0C, $18
+    db $1C, $AE, $55, $34, $36, $A4, $17, $1B
+    db $0E, $44, $9C, $AB, $17, $1B, $41, $6E
+    db $61, $27, $AA, $15, $14, $05, $F4, $E9
+    db $43, $B0, $DA, $BC, $B3, $2B, $67, $30
+    db $2D, $A5, $8C, $5C, $FC, $7C, $18, $D0
+    db $94, $D0, $83, $3B, $FE, $FE, $4B, $AB
+    db $25, $16, $00, $E8, $CF, $7E, $7E, $8D
+    db $0B, $18, $18, $45, $F7, $E0, $B3, $C5
+    db $3B, $FA, $34, $85, $70, $AB, $34, $C1
+    db $6F, $AE, $11, $00, $B9, $F6, $A5, $46
+    db $CF, $C7, $1F, $4D, $D3, $80, $E9, $D7
+    db $C0, $B5, $D7, $FF, $FF, $FF, $FF, $80
+
+congratulation_color:
+    db $3E, $F1, $F2, $00, $81, $00, $C4, $05
+    db $F8, $05, $82, $74, $82, $0F, $09, $F2
+    db $4C, $F2, $09, $21, $00, $79, $82, $00
+    db $74, $19, $0D, $00, $81, $F9, $30, $21
+    db $B6, $07, $66, $11, $00, $DF, $21, $6C
+    db $29, $11, $F1, $F3, $3C, $CC, $42, $3F
+    db $DB, $24, $EF, $72, $35, $31, $3B, $61
+    db $0B, $EB, $71, $1A, $97, $1F, $F2, $63
+    db $F7, $00, $D6, $54, $20, $A7, $6B, $76
+    db $11, $0D, $AD, $29, $D5, $00, $42, $46
+    db $71, $00, $08, $F8, $F8, $F5, $77, $32
+    db $5E, $12, $00, $3B, $7F, $81, $1A, $B7
+    db $00, $1F, $8A, $8B, $EB, $14, $A6, $57
+    db $95, $1B, $CE, $1F, $45, $DB, $3F, $4C
+    db $06, $12, $D5, $B9, $6F, $C6, $CB, $5A
+    db $2B, $34, $37, $52, $CF, $0F, $F8, $00
+    db $31, $31, $73, $41, $00, $43, $D8, $00
+    db $32, $32, $AC, $17, $00, $52, $1B, $32
+    db $43, $41, $5D, $00, $11, $00, $7D, $19
+    db $07, $F1, $17, $42, $42, $A2, $2F, $21
+    db $07, $EA, $09, $07, $11, $E2, $BC, $0E
+    db $F6, $00, $D4, $2E, $BB, $08, $58, $52
+    db $4F, $19, $D4, $07, $BA, $39, $1C, $38
+    db $6C, $41, $07, $A1, $FF, $C3, $00, $F1
+    db $A1, $77, $E9, $00, $B3, $D7, $6D, $76
+    db $1D, $DE, $37, $05, $FB, $4B, $7B, $15
+    db $6B, $A5, $55, $BE, $79, $25, $F3, $F7
+    db $6C, $32, $F7, $CF, $D9, $8D, $0F, $42
+    db $7E, $DD, $3E, $9F, $BE, $CF, $AD, $01
+    db $BF, $07, $FF, $FF, $FF, $F0
+
+
+congratulation_sprites:
+    db $3A, $00, $C7, $00, $C0, $00, $F0, $00
+    db $07, $0F, $1F, $68, $E0, $15, $80, $70
+    db $80, $05, $E0, $F0, $F8, $7F, $FC, $41
+    db $23, $00, $0C, $F8, $78, $08, $AA, $3A
+    db $14, $08, $00, $06, $37, $60, $40, $94
+    db $5D, $C0, $00, $05, $30, $7A, $3D, $39
+    db $28, $80, $5C, $80, $F1, $0D, $54, $24
+    db $FD, $5F, $E3, $25, $40, $1C, $3A, $E0
+    db $57, $0F, $F4, $17, $12, $F0, $FF, $01
+    db $04, $01, $00, $EE, $0B, $05, $92, $28
+    db $60, $25, $E0, $00, $E5, $0F, $10, $00
+    db $18, $03, $20, $94, $09, $38, $01, $38
+    db $30, $20, $30, $38, $3A, $00, $5A, $7B
+    db $00, $C7, $3B, $2E, $02, $B4, $4A, $E9
+    db $57, $3D, $63, $F7, $79, $88, $94, $31
+    db $39, $78, $31, $00, $C6, $07, $3E, $FC
+    db $1F, $FC, $1A, $FC, $78, $78, $C0, $55
+    db $0F, $0F, $02, $02, $07, $4F, $07, $05
+    db $01, $80, $3D, $C0, $0C, $1C, $38, $78
+    db $F0, $8B, $08, $0E, $06, $18, $5C, $D7
+    db $0D, $78, $38, $0E, $06, $03, $03, $1D
+    db $E1, $82, $C0, $34, $E3, $68, $94, $EE
+    db $8B, $83, $C0, $D9, $FF, $14, $39, $33
+    db $37, $9E, $3F, $DE, $21, $0F, $C3, $E3
+    db $F1, $F9, $C7, $33, $80, $B0, $9F, $F0
+    db $7C, $70, $9F, $73, $B5, $1E, $05, $3C
+    db $38, $11, $9F, $75, $3C, $1C, $CE, $C3
+    db $A9, $73, $BC, $0D, $01, $13, $E1, $61
+    db $61, $3F, $03, $0D, $AF, $88, $CB, $AE
+    db $B7, $5F, $39, $87, $6A, $18, $3F, $00
+    db $00, $48, $00, $C0, $F6, $0F, $04, $8F
+    db $9F, $40, $40, $E0, $D6, $36, $F0, $85
+    db $E8, $05, $84, $03, $3F, $3F, $1E, $1E
+    db $0C, $0C, $51, $CF, $54, $0E, $C4, $53
+    db $1C, $C5, $71, $07, $0A, $87, $0F, $60
+    db $C0, $CF, $D8, $D7, $78, $3F, $7B, $D8
+    db $65, $E6, $07, $03, $89, $FA, $03, $BD
+    db $87, $86, $86, $D6, $BF, $5A, $00, $A3
+    db $BF, $6A, $00, $CF, $BF, $FF, $FF, $FF
+    db $FE
+
+
+;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 mynmi_off:
     push hl
     ld hl, mode
@@ -10223,18 +11615,16 @@ mynmi_off:
     pop hl
     ret
 
+
 cvb_mycls:
-    ld hl, 0x1800
-    ld bc, 0x0300
+    ld bc, $0300
     xor a
-cvb_mycls.0:    call mynmi_off
+    call mynmi_off
     push af
-    ld a, l
+    xor a
     out (ctrl_port), a
-    ld a, h
-    and 0x3f
-    or 0x40
-    out (ctrl_port), a
+    ld a, $18 + $40
+    out (ctrl_port), a  ; 	addr $1800
     pop af
     dec bc  ; T-states (normal / M1)
 cvb_mycls.1:    out (data_port), a  ; 11 12
@@ -10242,7 +11632,7 @@ cvb_mycls.1:    out (data_port), a  ; 11 12
     bit 7, b  ;  8 10
     jp z, cvb_mycls.1  ; 10 11
 
-; 	jp MyNMI_on  ; -mdl
+; 	JP MyNMI_on  ; -mdl
 
 mynmi_on:
     push af
@@ -10256,99 +11646,164 @@ mynmi_on:
     pop af
     ret
 
-pnthack:
-    ld hl, 0x1800 + 15 * 32
-    ld bc, 32 * 7  ; hide 7 lines under the MrDo logo
-    ld a, 0x30  ; blank tile 
-    jp cvb_mycls.0
-
 
 ;	HL->ROM
 ;	DE->VRAM
+;	B -> Y size
+;	C -> X size
+;	A -> source width
 
-cpyblk5x4:
+cpyblk_mxn:
     call mynmi_off
-    ld b, 5
-cpyblk5x4.1:    push bc
-
+cpyblk_mxn.1:    push bc
+    push af
     push hl
     push de
-    ld bc, 4
+    ld b, 0
     call myldirvm
     pop hl
     ld bc, 32
     add hl, bc
     ex de, hl
     pop hl
+    pop af
+    ld c, a
     add hl, bc
-
     pop bc
-    djnz cpyblk5x4.1
+    djnz cpyblk_mxn.1
     jp mynmi_on
 
-mymode2:
+mymode2:  ; screen 1 no mirroring
     ld hl, mode
-    set 3, (hl)
-    ld bc, 0x0000
-    ld de, 0x8000  ; $2000 for color table, $0000 for bitmaps.
+    set 7, (hl)  ; intermission mode
+    ld bc, $0000
+    ld de, $8000  ; $2000 for color table, $0000 for bitmaps.
 
 vdp_chg_mode:
     call mynmi_off
     call mywrtvdp
-    ld bc, 0xa201
+    ld bc, $A201
     call mywrtvdp
-    ld bc, 0x0602  ; $1800 for pattern table.
+    ld bc, $0602  ; $1800 for pattern table.
     call mywrtvdp
     ld b, d
-    ld c, 0x03  ; for color table.
+    ld c, $03  ; for color table.
     call mywrtvdp
     ld b, e
-    ld c, 0x04  ; for bitmap table.
+    ld c, $04  ; for bitmap table.
     call mywrtvdp
-    ld bc, 0x3605  ; $1b00 for sprite attribute table.
+    ld bc, $3605  ; $1b00 for sprite attribute table.
     call mywrtvdp
-    ld bc, 0x0706  ; $3800 for sprites bitmaps.
+    ld bc, $0506  ; $2800 for sprites patterns.
     call mywrtvdp
-    ld bc, 0x0107
-; 	jp MYWRTVDP  ; -mdl
+    ld bc, $0107
+; 	JP MYWRTVDP  ; -mdl
 
 ; BIOS HELPER CODE
-mywrtvdp:
+mywrtvdp:  ; write value B in the VDP register C 
     ld a, b
     out (ctrl_port), a
     ld a, c
-    or 0x80
+    or $80
     out (ctrl_port), a
     ret
 
-mymode1:
+mymode1:  ; screen 2 with mirror mode for patterns
     ld hl, mode
-    res 3, (hl)
-    ld bc, 0x0200
-    ld de, 0x9f03  ; $2000 for color table - Mirror Mode, $0000 for bitmaps  - Normal mode
+    set 7, (hl)  ; intermission mode
+    ld bc, $0200
+    ld de, $9F03  ; $2000 for color table - Mirror Mode, $0000 for bitmaps  - Normal mode
     jp vdp_chg_mode
 
 mydisscr:
     call mynmi_off
-    ld a, 0xa2
+    ld a, $A2
     out (ctrl_port), a
-    ld a, 0x81
+    ld a, $81
     out (ctrl_port), a
     jp mynmi_on
 
 myenascr:
     call mynmi_off
-    ld a, 0xe2
+    ld a, $E2
     out (ctrl_port), a
-    ld a, 0x81
+    ld a, $81
     out (ctrl_port), a
     jp mynmi_on
+
+myprint:
+    ld a, e
+    out (ctrl_port), a
+    ld a, d
+    or $40
+    out (ctrl_port), a
+
+myprint.1:    ld a, (hl)
+    and $7F
+    sub "0"
+    cp "9" - "0" + 1
+    jr nc, myprint.2  ; not in range 0-9
+    add a, 216  ; position of "0" in the tileset
+    jr myprint.99
+myprint.2:    add a, "0" - "A"
+    cp "Z" - "A" + 1
+    jr nc, myprint.3  ; not in range A-Z
+    add a, 226  ; position of "A" in the tileset
+    jr myprint.99
+myprint.3:    add a, "A"
+    cp " "
+    jr nz, myprint.4
+    ld a, 215  ; position of " " in the tileset
+    jr myprint.99
+myprint.4:    cp "!"
+    jr nz, myprint.5
+    ld a, 255  ; position of "!" in the tileset
+    jr myprint.99
+myprint.5:    cp "."
+    jr nz, myprint.6
+    ld a, 254  ; position of "." in the tileset
+    jr myprint.99
+myprint.6:    cp "-"
+    jr nz, myprint.7
+    ld a, 253  ; position of "-" in the tileset
+    jr myprint.99
+myprint.7:    cp ","
+    jr nz, myprint.8
+    ld a, 252  ; position of "," in the tileset
+    jr myprint.99
+myprint.8:    ld a, 215  ; any other tile is mapped by " "	
+myprint.99:
+    out (data_port), a
+    ld a, (hl)
+    bit 7, a
+    ret nz
+    inc hl
+    jr myprint.1
+
+
+myinirvm:  ; read from DE (VRAM) to HL (RAM) BC bytes
+    ld a, e
+    out (ctrl_port), a
+    ld a, d
+    out (ctrl_port), a
+    dec bc
+    inc c
+    ld a, b
+    ld b, c
+    inc a
+    ld c, data_port
+myinirvm.1:
+    ini
+    jp nz, myinirvm.1
+    dec a
+    jp nz, myinirvm.1
+    ret
 
 myldirvm:
     ld a, e
     out (ctrl_port), a
     ld a, d
-    or 0x40
+    or $40
     out (ctrl_port), a
     dec bc
     inc c
@@ -10368,7 +11823,7 @@ mywrtvrm:
     ld a, l
     out (ctrl_port), a
     ld a, h
-    or 0x40
+    or $40
     out (ctrl_port), a
     pop af
     out (data_port), a
@@ -10488,9 +11943,11 @@ myrdvrm:
     ld a, l
     out (ctrl_port), a
     ld a, h
-    and 0x3f
+    and $3F
     out (ctrl_port), a
-    in a, (data_port)
+    LD a,(ix)			; 21 cycles of delay
+    nop  ;  5 cycles of delay
+    in a, (data_port)  ; 12 cycles of delay
 ;     ret  ; -mdl
     ex de, hl
     call mywrtvrm
@@ -10528,274 +11985,286 @@ unpack.modes:
     dw unpack.mode6
 
 ;	EXTRA MrDo Intermission Screen - Compressed data
-; 	
-; 	' Start tile = 0. Total_tiles = 204
+;
+;	' Start tile = 0. Total_tiles = 204
 ; image_char:
 cvb_image_char:
-    db 0x3e, 0xff, 0x3c, 0x00, 0x00, 0x00, 0xf8, 0x0f
-    db 0x0f, 0x1f, 0x0b, 0x3f, 0x3f, 0x1f, 0x07, 0x04
-    db 0x63, 0x0d, 0x03, 0x1f, 0xa8, 0x04, 0x0f, 0x0e
-    db 0x3f, 0xc3, 0x18, 0x0f, 0xc0, 0x80, 0x00, 0xff
-    db 0x61, 0x7e, 0x06, 0xc0, 0x7e, 0x01, 0x15, 0x7c
-    db 0xc6, 0x82, 0x82, 0xc6, 0x7c, 0x01, 0x07, 0xc2
-    db 0xe2, 0xb2, 0x9a, 0x8e, 0x86, 0xc3, 0x0f, 0x80
-    db 0x8e, 0xc2, 0x00, 0x17, 0xfc, 0x86, 0x86, 0xfc
-    db 0x88, 0x8e, 0x88, 0x07, 0x38, 0x6c, 0x20, 0xfe
-    db 0x82, 0x8e, 0x07, 0xfe, 0x10, 0x00, 0xad, 0x07
-    db 0x2d, 0x9c, 0x2f, 0x80, 0x00, 0xfe, 0xce, 0x1f
-    db 0x16, 0x71, 0x38, 0x37, 0x70, 0x1c, 0x97, 0x17
-    db 0x68, 0xb7, 0x00, 0x73, 0x6a, 0x00, 0x01, 0x8f
-    db 0x00, 0x03, 0x03, 0x16, 0x15, 0xf8, 0x4e, 0x30
-    db 0x00, 0xf0, 0x1a, 0x7d, 0x39, 0x08, 0x93, 0xc7
-    db 0xef, 0xef, 0x07, 0x83, 0x39, 0x4a, 0x7d, 0x0a
-    db 0x83, 0x0f, 0x05, 0xf8, 0x07, 0x6d, 0x45, 0x2c
-    db 0x11, 0xbb, 0x07, 0x1c, 0x90, 0x00, 0xc7, 0x07
-    db 0x3d, 0x1d, 0x4d, 0x1a, 0x65, 0x71, 0x79, 0x8f
-    db 0x56, 0x41, 0x1e, 0x07, 0x7e, 0x05, 0x07, 0x07
-    db 0xff, 0xc0, 0xf8, 0x01, 0xe0, 0x0c, 0xe0, 0xf8
-    db 0xe0, 0xfb, 0x0a, 0x00, 0xe4, 0xbf, 0x83, 0xbf
-    db 0xbf, 0x80, 0x68, 0x9c, 0x88, 0xc1, 0xe3, 0xe7
-    db 0xc9, 0x60, 0x9c, 0x8f, 0xf7, 0xe0, 0x00, 0xff
-    db 0x81, 0x80, 0xbc, 0x00, 0x80, 0x81, 0xbb, 0xb8
-    db 0xff, 0xe3, 0xc1, 0x88, 0x00, 0x9c, 0xbe, 0x80
-    db 0xbe, 0xff, 0x63, 0x77, 0x7f, 0x08, 0x5d, 0x49
-    db 0x41, 0x41, 0x57, 0x40, 0x40, 0x16, 0x5e, 0x73
-    db 0x40, 0x00, 0xc1, 0x3e, 0x60, 0x60, 0x43, 0x41
-    db 0xc8, 0x00, 0x43, 0x67, 0x3c, 0x26, 0x40, 0x63
-    db 0x07, 0x63, 0x3e, 0x07, 0x0f, 0x0f, 0x16, 0x0e
-    db 0x0c, 0x08, 0x17, 0xc4, 0xce, 0x00, 0xfe, 0xfc
-    db 0xef, 0x75, 0x0f, 0xe2, 0x1e, 0x89, 0xe7, 0x09
-    db 0x3c, 0x0c, 0x07, 0x3b, 0xad, 0x18, 0xa3, 0x8e
-    db 0xb1, 0x34, 0x0f, 0x80, 0xe6, 0x0e, 0x46, 0x1c
-    db 0xb4, 0x0c, 0x9a, 0xa6, 0x0c, 0x46, 0x7f, 0x49
-    db 0xbf, 0x9f, 0xc7, 0x17, 0x02, 0x07, 0x81, 0xd1
-    db 0xf0, 0x03, 0x00, 0x78, 0xfb, 0xfb, 0xf3, 0xe7
-    db 0xef, 0xc0, 0xc0, 0x03, 0xe0, 0x60, 0x70, 0x70
-    db 0x38, 0xb8, 0x00, 0x14, 0x1c, 0x3e, 0xbf, 0x3f
-    db 0x7f, 0xf8, 0x00, 0xf0, 0xe0, 0x08, 0x08, 0x0f
-    db 0x9f, 0xcf, 0x6e, 0x04, 0x4e, 0xde, 0x9e, 0xbe
-    db 0x3e, 0xa6, 0x00, 0xdf, 0xcf, 0xc7, 0xe7, 0xe7
-    db 0xf3, 0xfd, 0x24, 0x71, 0x07, 0x2f, 0x3f, 0x1d
-    db 0x7f, 0x02, 0xff, 0xf0, 0xf8, 0xfc, 0xfc, 0xf8
-    db 0x04, 0xd8, 0xa6, 0x1a, 0x30, 0x78, 0x7c, 0x4d
-    db 0x07, 0x12, 0xe0, 0xbe, 0x76, 0xaf, 0xed, 0x73
-    db 0x8e, 0x06, 0x08, 0x18, 0xa9, 0xa8, 0x6b, 0x3b
-    db 0xcf, 0xdf, 0x64, 0x9f, 0x5d, 0x00, 0xb8, 0x0b
-    db 0xbc, 0x9d, 0xdd, 0xdf, 0x00, 0x50, 0xb8, 0x63
-    db 0xef, 0xd3, 0x1a, 0x8d, 0x09, 0x4e, 0x07, 0x03
-    db 0x01, 0xce, 0xa6, 0x93, 0x79, 0x17, 0x82, 0x11
-    db 0x5d, 0x0f, 0x35, 0x46, 0xd5, 0x1f, 0x80, 0x77
-    db 0x76, 0x72, 0xd2, 0x8f, 0xfe, 0x55, 0xb4, 0x1c
-    db 0x0b, 0x79, 0xf0, 0x16, 0x3c, 0x79, 0xc1, 0x07
-    db 0xda, 0x28, 0xac, 0x23, 0x4d, 0xc0, 0xfc, 0x6f
-    db 0x1b, 0xa0, 0x09, 0x89, 0x7f, 0x0f, 0xe0, 0x06
-    db 0x83, 0xf1, 0xf9, 0xfd, 0x08, 0x3c, 0x1c, 0x1e
-    db 0x1e, 0xe5, 0xfb, 0xd3, 0x60, 0xc1, 0x90, 0x0c
-    db 0x75, 0x1c, 0x83, 0x7a, 0x72, 0x03, 0xc0, 0xff
-    db 0xf9, 0xf0, 0xb9, 0x6d, 0x73, 0x3f, 0x38, 0xbb
-    db 0x45, 0x38, 0x01, 0x18, 0x90, 0xd0, 0xd0, 0x21
-    db 0x92, 0xd0, 0x08, 0x0b, 0xf0, 0xc0, 0x07, 0x24
-    db 0xc1, 0x80, 0xd3, 0xfd, 0xfb, 0x9d, 0xb0, 0x00
-    db 0x79, 0x1f, 0x0f, 0x99, 0x00, 0x07, 0x72, 0xc7
-    db 0x36, 0xfe, 0x03, 0x5a, 0x50, 0x76, 0x96, 0xac
-    db 0xd4, 0xe7, 0xcd, 0xef, 0x58, 0xd3, 0xc0, 0xf6
-    db 0x2a, 0x84, 0xb7, 0x4f, 0x22, 0x01, 0x62, 0xe2
-    db 0xe2, 0xf2, 0xf2, 0xf0, 0x7c, 0x40, 0xfd, 0x81
-    db 0xc1, 0xc4, 0xc7, 0x0f, 0xe3, 0x9e, 0x27, 0x64
-    db 0x92, 0x6a, 0x29, 0x39, 0x00, 0xab, 0x5e, 0x03
-    db 0x2d, 0xcc, 0x4f, 0x1f, 0x0c, 0xc0, 0xc1, 0xf1
-    db 0x81, 0xfc, 0xa7, 0x72, 0x90, 0x80, 0xbb, 0x40
-    db 0x88, 0x9e, 0x58, 0x0f, 0x72, 0x68, 0x2b, 0xe3
-    db 0xc6, 0x12, 0xff, 0x0e, 0x1c, 0xca, 0xd1, 0x7c
-    db 0xb0, 0xcf, 0xaf, 0x9c, 0xa1, 0xa0, 0x78, 0xfb
-    db 0x4d, 0xdd, 0xfd, 0x02, 0x1c, 0x0e, 0x06, 0xf1
-    db 0xf0, 0xe4, 0x78, 0x00, 0xc7, 0xb0, 0x74, 0xf0
-    db 0x00, 0xd2, 0x11, 0x50, 0x78, 0xc0, 0x34, 0x00
-    db 0x74, 0x5e, 0x53, 0x3f, 0x00, 0x74, 0x1f, 0xe7
-    db 0x92, 0x8d, 0xab, 0x95, 0xd9, 0x81, 0x59, 0xe0
-    db 0x71, 0x9f, 0xf1, 0xf3, 0x0b, 0xf3, 0xe3, 0xe3
-    db 0xc3, 0x00, 0x34, 0x1b, 0x00, 0x2f, 0x11, 0x05
-    db 0xce, 0x34, 0x36, 0xe0, 0x08, 0x18, 0x19, 0x8a
-    db 0x08, 0x30, 0x60, 0x40, 0xc0, 0xc7, 0x30, 0xe3
-    db 0xe7, 0x81, 0x15, 0x07, 0xe3, 0xe0, 0x5a, 0x94
-    db 0x60, 0x4e, 0x0c, 0x7f, 0x3f, 0xf9, 0x51, 0x06
-    db 0xa1, 0x00, 0x0e, 0x0c, 0x7d, 0xde, 0x00, 0x18
-    db 0x3f, 0xf8, 0x78, 0x00, 0x38, 0x18, 0x3c, 0x3c
-    db 0x74, 0x00, 0x70, 0x5d, 0x30, 0x00, 0xfc, 0xf7
-    db 0x00, 0xd7, 0x2f, 0xa4, 0x11, 0x90, 0x50, 0x7f
-    db 0x18, 0x61, 0xb4, 0x30, 0x78, 0x79, 0x33, 0x0c
-    db 0x9d, 0x8f, 0xf4, 0x48, 0xf0, 0x70, 0xab, 0x43
-    db 0xe7, 0x00, 0xe3, 0xc1, 0xc1, 0x1d, 0xd9, 0x34
-    db 0x00, 0xef, 0x6c, 0x0e, 0x04, 0xc8, 0xc9, 0xf9
-    db 0x40, 0x00, 0x60, 0x38, 0xbf, 0xff, 0xdf, 0xcf
-    db 0xcf, 0x03, 0x27, 0x0f, 0x7f, 0x1f, 0x8f, 0x7c
-    db 0x73, 0x4d, 0x60, 0x15, 0xf0, 0x18, 0x18, 0x62
-    db 0x00, 0x37, 0x8c, 0x71, 0x75, 0x00, 0xe7, 0xdb
-    db 0x00, 0x5a, 0xb0, 0x20, 0xe5, 0x03, 0xef, 0x8f
-    db 0xc7, 0xc3, 0x09, 0xe1, 0xc1, 0x7f, 0x1e, 0x55
-    db 0x7f, 0x18, 0x66, 0x3f, 0xe0, 0xcd, 0x16, 0x1c
-    db 0x08, 0x9c, 0x9f, 0x4b, 0x9f, 0x16, 0x70, 0x67
-    db 0x97, 0x92, 0xe0, 0x7c, 0xf5, 0xca, 0x56, 0x15
-    db 0x87, 0xf0, 0x64, 0x60, 0xe4, 0x83, 0xc8, 0x07
-    db 0xd0, 0xeb, 0xbe, 0x65, 0xae, 0xe3, 0x4d, 0x04
-    db 0x58, 0x78, 0x1d, 0xe7, 0x3c, 0x84, 0xb3, 0x02
-    db 0x3e, 0x0c, 0x04, 0xfc, 0x7d, 0x9d, 0x2d, 0xc0
-    db 0x20, 0x67, 0x2b, 0x68, 0x1f, 0x23, 0x70, 0xf8
-    db 0x78, 0xb0, 0xf6, 0x2b, 0xc6, 0x40, 0x70, 0xca
-    db 0x44, 0xe3, 0xc8, 0x00, 0xc7, 0x33, 0xe0, 0xf0
-    db 0x0b, 0xa9, 0x36, 0x04, 0xf8, 0x3a, 0x63, 0x01
-    db 0x3a, 0xac, 0x6c, 0x59, 0xb8, 0xb8, 0xf5, 0x8b
-    db 0xc8, 0x35, 0x1d, 0x5f, 0x01, 0x22, 0x60, 0xc3
-    db 0x3c, 0x60, 0xf8, 0xec, 0xc4, 0x48, 0x13, 0xd3
-    db 0x70, 0x78, 0x30, 0x64, 0xff, 0xd8, 0xc0, 0xd8
-    db 0x48, 0xe0, 0xf8, 0x4b, 0xe0, 0x44, 0xf9, 0x5c
-    db 0x02, 0x26, 0x81, 0x81, 0x83, 0xc7, 0x19, 0x8d
-    db 0x92, 0x1c, 0xf7, 0xad, 0x81, 0x3c, 0x7e, 0x7e
-    db 0x3c, 0x18, 0x8b, 0x06, 0x3c, 0x05, 0xbe, 0xf7
-    db 0x71, 0xb4, 0x34, 0xfc, 0x51, 0x1c, 0xf1, 0x55
-    db 0x72, 0x13, 0x08, 0xd7, 0x4e, 0x02, 0x01, 0x96
-    db 0x09, 0x40, 0xe0, 0x37, 0xd8, 0xc5, 0xbb, 0x12
-    db 0x07, 0x77, 0xef, 0xe7, 0x1f, 0x0f, 0xc5, 0xb6
-    db 0x48, 0xde, 0x88, 0xc7, 0xd4, 0xdd, 0xb3, 0x72
-    db 0x7c, 0x48, 0xd1, 0x81, 0xfe, 0x7e, 0x3e, 0x1c
-    db 0xfc, 0x04, 0x57, 0xa6, 0x31, 0x5c, 0xa6, 0x61
-    db 0xd0, 0xba, 0x7d, 0x26, 0x9c, 0xb4, 0xc0, 0x3e
-    db 0x98, 0xf6, 0x97, 0x11, 0xf8, 0xef, 0x37, 0xac
-    db 0x73, 0x79, 0x67, 0x17, 0x32, 0x30, 0xe0, 0x00
-    db 0x35, 0xff, 0xff, 0xff, 0xff, 0xc0
-; 
+    db $3E, $FF, $3C, $00, $00, $00, $F8, $0F
+    db $0F, $1F, $0B, $3F, $3F, $1F, $07, $04
+    db $63, $0D, $03, $1F, $A8, $04, $0F, $0E
+    db $3F, $C3, $18, $0F, $C0, $80, $00, $FF
+    db $61, $7E, $06, $C0, $7E, $01, $15, $7C
+    db $C6, $82, $82, $C6, $7C, $01, $07, $C2
+    db $E2, $B2, $9A, $8E, $86, $C3, $0F, $80
+    db $8E, $C2, $00, $17, $FC, $86, $86, $FC
+    db $88, $8E, $88, $07, $38, $6C, $20, $FE
+    db $82, $8E, $07, $FE, $10, $00, $AD, $07
+    db $2D, $9C, $2F, $80, $00, $FE, $CE, $1F
+    db $16, $71, $38, $37, $70, $1C, $97, $17
+    db $68, $B7, $00, $73, $6A, $00, $01, $8F
+    db $00, $03, $03, $16, $15, $F8, $4E, $30
+    db $00, $F0, $1A, $7D, $39, $08, $93, $C7
+    db $EF, $EF, $07, $83, $39, $4A, $7D, $0A
+    db $83, $0F, $05, $F8, $07, $6D, $45, $2C
+    db $11, $BB, $07, $1C, $90, $00, $C7, $07
+    db $3D, $1D, $4D, $1A, $65, $71, $79, $8F
+    db $56, $41, $1E, $07, $7E, $05, $07, $07
+    db $FF, $C0, $F8, $01, $E0, $0C, $E0, $F8
+    db $E0, $FB, $0A, $00, $E4, $BF, $83, $BF
+    db $BF, $80, $68, $9C, $88, $C1, $E3, $E7
+    db $C9, $60, $9C, $8F, $F7, $E0, $00, $FF
+    db $81, $80, $BC, $00, $80, $81, $BB, $B8
+    db $FF, $E3, $C1, $88, $00, $9C, $BE, $80
+    db $BE, $FF, $63, $77, $7F, $08, $5D, $49
+    db $41, $41, $57, $40, $40, $16, $5E, $73
+    db $40, $00, $C1, $3E, $60, $60, $43, $41
+    db $C8, $00, $43, $67, $3C, $26, $40, $63
+    db $07, $63, $3E, $07, $0F, $0F, $16, $0E
+    db $0C, $08, $17, $C4, $CE, $00, $FE, $FC
+    db $EF, $75, $0F, $E2, $1E, $89, $E7, $09
+    db $3C, $0C, $07, $3B, $AD, $18, $A3, $8E
+    db $B1, $34, $0F, $80, $E6, $0E, $46, $1C
+    db $B4, $0C, $9A, $A6, $0C, $46, $7F, $49
+    db $BF, $9F, $C7, $17, $02, $07, $81, $D1
+    db $F0, $03, $00, $78, $FB, $FB, $F3, $E7
+    db $EF, $C0, $C0, $03, $E0, $60, $70, $70
+    db $38, $B8, $00, $14, $1C, $3E, $BF, $3F
+    db $7F, $F8, $00, $F0, $E0, $08, $08, $0F
+    db $9F, $CF, $6E, $04, $4E, $DE, $9E, $BE
+    db $3E, $A6, $00, $DF, $CF, $C7, $E7, $E7
+    db $F3, $FD, $24, $71, $07, $2F, $3F, $1D
+    db $7F, $02, $FF, $F0, $F8, $FC, $FC, $F8
+    db $04, $D8, $A6, $1A, $30, $78, $7C, $4D
+    db $07, $12, $E0, $BE, $76, $AF, $ED, $73
+    db $8E, $06, $08, $18, $A9, $A8, $6B, $3B
+    db $CF, $DF, $64, $9F, $5D, $00, $B8, $0B
+    db $BC, $9D, $DD, $DF, $00, $50, $B8, $63
+    db $EF, $D3, $1A, $8D, $09, $4E, $07, $03
+    db $01, $CE, $A6, $93, $79, $17, $82, $11
+    db $5D, $0F, $35, $46, $D5, $1F, $80, $77
+    db $76, $72, $D2, $8F, $FE, $55, $B4, $1C
+    db $0B, $79, $F0, $16, $3C, $79, $C1, $07
+    db $DA, $28, $AC, $23, $4D, $C0, $FC, $6F
+    db $1B, $A0, $09, $89, $7F, $0F, $E0, $06
+    db $83, $F1, $F9, $FD, $08, $3C, $1C, $1E
+    db $1E, $E5, $FB, $D3, $60, $C1, $90, $0C
+    db $75, $1C, $83, $7A, $72, $03, $C0, $FF
+    db $F9, $F0, $B9, $6D, $73, $3F, $38, $BB
+    db $45, $38, $01, $18, $90, $D0, $D0, $21
+    db $92, $D0, $08, $0B, $F0, $C0, $07, $24
+    db $C1, $80, $D3, $FD, $FB, $9D, $B0, $00
+    db $79, $1F, $0F, $99, $00, $07, $72, $C7
+    db $36, $FE, $03, $5A, $50, $76, $96, $AC
+    db $D4, $E7, $CD, $EF, $58, $D3, $C0, $F6
+    db $2A, $84, $B7, $4F, $22, $01, $62, $E2
+    db $E2, $F2, $F2, $F0, $7C, $40, $FD, $81
+    db $C1, $C4, $C7, $0F, $E3, $9E, $27, $64
+    db $92, $6A, $29, $39, $00, $AB, $5E, $03
+    db $2D, $CC, $4F, $1F, $0C, $C0, $C1, $F1
+    db $81, $FC, $A7, $72, $90, $80, $BB, $40
+    db $88, $9E, $58, $0F, $72, $68, $2B, $E3
+    db $C6, $12, $FF, $0E, $1C, $CA, $D1, $7C
+    db $B0, $CF, $AF, $9C, $A1, $A0, $78, $FB
+    db $4D, $DD, $FD, $02, $1C, $0E, $06, $F1
+    db $F0, $E4, $78, $00, $C7, $B0, $74, $F0
+    db $00, $D2, $11, $50, $78, $C0, $34, $00
+    db $74, $5E, $53, $3F, $00, $74, $1F, $E7
+    db $92, $8D, $AB, $95, $D9, $81, $59, $E0
+    db $71, $9F, $F1, $F3, $0B, $F3, $E3, $E3
+    db $C3, $00, $34, $1B, $00, $2F, $11, $05
+    db $CE, $34, $36, $E0, $08, $18, $19, $8A
+    db $08, $30, $60, $40, $C0, $C7, $30, $E3
+    db $E7, $81, $15, $07, $E3, $E0, $5A, $94
+    db $60, $4E, $0C, $7F, $3F, $F9, $51, $06
+    db $A1, $00, $0E, $0C, $7D, $DE, $00, $18
+    db $3F, $F8, $78, $00, $38, $18, $3C, $3C
+    db $74, $00, $70, $5D, $30, $00, $FC, $F7
+    db $00, $D7, $2F, $A4, $11, $90, $50, $7F
+    db $18, $61, $B4, $30, $78, $79, $33, $0C
+    db $9D, $8F, $F4, $48, $F0, $70, $AB, $43
+    db $E7, $00, $E3, $C1, $C1, $1D, $D9, $34
+    db $00, $EF, $6C, $0E, $04, $C8, $C9, $F9
+    db $40, $00, $60, $38, $BF, $FF, $DF, $CF
+    db $CF, $03, $27, $0F, $7F, $1F, $8F, $7C
+    db $73, $4D, $60, $15, $F0, $18, $18, $62
+    db $00, $37, $8C, $71, $75, $00, $E7, $DB
+    db $00, $5A, $B0, $20, $E5, $03, $EF, $8F
+    db $C7, $C3, $09, $E1, $C1, $7F, $1E, $55
+    db $7F, $18, $66, $3F, $E0, $CD, $16, $1C
+    db $08, $9C, $9F, $4B, $9F, $16, $70, $67
+    db $97, $92, $E0, $7C, $F5, $CA, $56, $15
+    db $87, $F0, $64, $60, $E4, $83, $C8, $07
+    db $D0, $EB, $BE, $65, $AE, $E3, $4D, $04
+    db $58, $78, $1D, $E7, $3C, $84, $B3, $02
+    db $3E, $0C, $04, $FC, $7D, $9D, $2D, $C0
+    db $20, $67, $2B, $68, $1F, $23, $70, $F8
+    db $78, $B0, $F6, $2B, $C6, $40, $70, $CA
+    db $44, $E3, $C8, $00, $C7, $33, $E0, $F0
+    db $0B, $A9, $36, $04, $F8, $3A, $63, $01
+    db $3A, $AC, $6C, $59, $B8, $B8, $F5, $8B
+    db $C8, $35, $1D, $5F, $01, $22, $60, $C3
+    db $3C, $60, $F8, $EC, $C4, $48, $13, $D3
+    db $70, $78, $30, $64, $FF, $D8, $C0, $D8
+    db $48, $E0, $F8, $4B, $E0, $44, $F9, $5C
+    db $02, $26, $81, $81, $83, $C7, $19, $8D
+    db $92, $1C, $F7, $AD, $81, $3C, $7E, $7E
+    db $3C, $18, $8B, $06, $3C, $05, $BE, $F7
+    db $71, $B4, $34, $FC, $51, $1C, $F1, $55
+    db $72, $13, $08, $D7, $4E, $02, $01, $96
+    db $09, $40, $E0, $37, $D8, $C5, $BB, $12
+    db $07, $77, $EF, $E7, $1F, $0F, $C5, $B6
+    db $48, $DE, $88, $C7, $D4, $DD, $B3, $72
+    db $7C, $48, $D1, $81, $FE, $7E, $3E, $1C
+    db $FC, $04, $57, $A6, $31, $5C, $A6, $61
+    db $D0, $BA, $7D, $26, $9C, $B4, $C0, $3E
+    db $98, $F6, $97, $11, $F8, $EF, $37, $AC
+    db $73, $79, $67, $17, $32, $30, $E0, $00
+    db $35, $FF, $FF, $FF, $FF, $C0
+;
 ; image_color:
 cvb_image_color:
-    db 0x5e, 0x31, 0x3c, 0x00, 0xf1, 0x00, 0x78, 0x51
-    db 0x00, 0xb3, 0xf3, 0x00, 0x63, 0x1d, 0x83, 0x83
-    db 0x40, 0x04, 0xf8, 0xf8, 0xf1, 0xb3, 0x0c, 0xb8
-    db 0xb8, 0x83, 0xf3, 0x00, 0x34, 0x51, 0xb5, 0x00
-    db 0x6b, 0x51, 0xfd, 0x07, 0x7b, 0x61, 0x66, 0x00
-    db 0x6a, 0x83, 0x81, 0xbb, 0x73, 0x0b, 0xcf, 0x15
-    db 0x27, 0x0f, 0x17, 0x51, 0xbb, 0x3f, 0x00, 0xa5
-    db 0xb6, 0x07, 0xdd, 0x17, 0x00, 0x77, 0x6b, 0x0a
-    db 0x76, 0x74, 0x0a, 0xea, 0x79, 0x50, 0x00, 0xf7
-    db 0x08, 0xb7, 0x15, 0x7b, 0x17, 0x3c, 0x00, 0xf3
-    db 0x00, 0xf8, 0xef, 0x47, 0xd6, 0x63, 0xef, 0x7c
-    db 0x11, 0x8f, 0xb7, 0x85, 0xf7, 0x07, 0xf2, 0x8a
-    db 0xf1, 0x6e, 0xc5, 0xe3, 0x07, 0xc1, 0xc6, 0x0e
-    db 0xc5, 0xd7, 0x0d, 0x00, 0xb0, 0x95, 0x3e, 0x85
-    db 0x85, 0x07, 0x4d, 0xc5, 0x00, 0xc1, 0xee, 0x00
-    db 0x2d, 0xfb, 0x07, 0xf3, 0x17, 0x97, 0x2f, 0x81
-    db 0x31, 0x7d, 0x00, 0x07, 0xe7, 0x47, 0x7a, 0x07
-    db 0x4f, 0x00, 0xaf, 0xf8, 0x85, 0xd9, 0x03, 0x69
-    db 0xde, 0x6c, 0xb3, 0x00, 0xca, 0x3c, 0x00, 0x07
-    db 0x13, 0xa1, 0xca, 0x81, 0x00, 0xc8, 0xb1, 0x00
-    db 0x07, 0xa8, 0x8f, 0x00, 0xa1, 0x1d, 0x07, 0xa8
-    db 0x7b, 0xdd, 0x00, 0x55, 0xdf, 0x4e, 0xd7, 0x52
-    db 0x79, 0xb7, 0x07, 0x7d, 0x27, 0x07, 0xdb, 0x09
-    db 0x83, 0xfd, 0x70, 0xf5, 0x9f, 0xa1, 0xa1, 0x77
-    db 0x10, 0x05, 0x0e, 0x88, 0x56, 0xfe, 0x9c, 0x0f
-    db 0xca, 0x21, 0x07, 0x9d, 0xe7, 0x0f, 0x68, 0x0b
-    db 0x95, 0x33, 0x05, 0x85, 0xa0, 0x46, 0xc3, 0xa7
-    db 0x41, 0xa9, 0x36, 0x21, 0xc8, 0xbf, 0x19, 0x08
-    db 0x5c, 0x36, 0x03, 0x24, 0xa1, 0xef, 0x04, 0x3e
-    db 0x00, 0x3f, 0xd8, 0x5d, 0xfc, 0xf1, 0xd6, 0x07
-    db 0xf0, 0x84, 0xf8, 0x21, 0xa8, 0xfa, 0x00, 0x55
-    db 0xf3, 0x04, 0xb8, 0x61, 0x9c, 0xfd, 0x00, 0xb5
-    db 0x39, 0x16, 0xd7, 0x12, 0x2f, 0x77, 0x64, 0x13
-    db 0x1a, 0x63, 0xa8, 0xca, 0xdd, 0x00, 0x5c, 0x53
-    db 0x00, 0xbf, 0x99, 0x03, 0xf8, 0x3f, 0xa6, 0x04
-    db 0xe3, 0x07, 0xfc, 0xcf, 0x00, 0xbe, 0x2f, 0x3b
-    db 0xda, 0x55, 0x07, 0xee, 0x79, 0x08, 0xd6, 0x71
-    db 0xef, 0x00, 0x17, 0x0b, 0xc8, 0x45, 0xda, 0x0f
-    db 0xdb, 0x6f, 0x9e, 0x7c, 0x0e, 0xe7, 0x5f, 0xda
-    db 0xd7, 0x3d, 0x81, 0xbc, 0x00, 0x83, 0x1f, 0xc3
-    db 0x87, 0xde, 0x00, 0xda, 0x6f, 0xf7, 0x95, 0x71
-    db 0x2b, 0x57, 0x03, 0xae, 0xcd, 0x00, 0x0c, 0x91
-    db 0x11, 0xc3, 0x6d, 0xc3, 0x25, 0x7d, 0x1f, 0x07
-    db 0xb5, 0x55, 0xb1, 0x74, 0x6e, 0xd8, 0x82, 0xb1
-    db 0xf1, 0x06, 0xf1, 0xb7, 0x0f, 0xd5, 0x7d, 0xed
-    db 0xcc, 0x24, 0x41, 0xb7, 0xe9, 0xf5, 0x3f, 0xfc
-    db 0xa8, 0x00, 0x04, 0xc3, 0x31, 0x8d, 0x8f, 0x5b
-    db 0xd9, 0x00, 0x64, 0xd6, 0x29, 0x69, 0x96, 0x2d
-    db 0x00, 0x99, 0x7d, 0x8f, 0xba, 0x54, 0x59, 0x3a
-    db 0xfb, 0xfb, 0x4c, 0x05, 0x9e, 0x00, 0xb8, 0x65
-    db 0x00, 0x22, 0x04, 0x9b, 0x14, 0x7a, 0xc7, 0x07
-    db 0x4f, 0xf6, 0x00, 0x9a, 0x3b, 0xf3, 0x3c, 0x43
-    db 0x83, 0xe8, 0xff, 0x63, 0xe4, 0xb3, 0xb1, 0x6b
-    db 0x00, 0x4b, 0xed, 0x00, 0xbb, 0x0e, 0x53, 0xc1
-    db 0xc7, 0xda, 0x0a, 0x77, 0x04, 0x5f, 0xe6, 0x56
-    db 0x9b, 0x53, 0x0f, 0xf1, 0xb3, 0x66, 0x00, 0x3e
-    db 0x58, 0xb7, 0xfb, 0x5e, 0x53, 0x0f, 0x3e, 0x5c
-    db 0xf1, 0xc8, 0x3d, 0x56, 0xbd, 0x58, 0xfd, 0x54
-    db 0x7c, 0x21, 0x13, 0xf3, 0xdb, 0x05, 0x4e, 0x57
-    db 0xb2, 0x1d, 0x4b, 0x36, 0x5c, 0xf1, 0x00, 0x62
-    db 0xfb, 0xef, 0xe7, 0x56, 0xf1, 0x70, 0x4f, 0xb8
-    db 0xdb, 0x35, 0x4c, 0x7c, 0xc5, 0x37, 0x04, 0x05
-    db 0x0d, 0xc3, 0xf3, 0xc1, 0xc3, 0x05, 0xcf, 0x0e
-    db 0xc3, 0x31, 0x07, 0x00, 0xb3, 0xe7, 0x00, 0x83
-    db 0xff, 0xe7, 0x0e, 0x31, 0x9f, 0x13, 0xdf, 0x17
-    db 0xff, 0xff, 0xff, 0xf8
+    db $5E, $31, $3C, $00, $F1, $00, $78, $51
+    db $00, $B3, $F3, $00, $63, $1D, $83, $83
+    db $40, $04, $F8, $F8, $F1, $B3, $0C, $B8
+    db $B8, $83, $F3, $00, $34, $51, $B5, $00
+    db $6B, $51, $FD, $07, $7B, $61, $66, $00
+    db $6A, $83, $81, $BB, $73, $0B, $CF, $15
+    db $27, $0F, $17, $51, $BB, $3F, $00, $A5
+    db $B6, $07, $DD, $17, $00, $77, $6B, $0A
+    db $76, $74, $0A, $EA, $79, $50, $00, $F7
+    db $08, $B7, $15, $7B, $17, $3C, $00, $F3
+    db $00, $F8, $EF, $47, $D6, $63, $EF, $7C
+    db $11, $8F, $B7, $85, $F7, $07, $F2, $8A
+    db $F1, $6E, $C5, $E3, $07, $C1, $C6, $0E
+    db $C5, $D7, $0D, $00, $B0, $95, $3E, $85
+    db $85, $07, $4D, $C5, $00, $C1, $EE, $00
+    db $2D, $FB, $07, $F3, $17, $97, $2F, $81
+    db $31, $7D, $00, $07, $E7, $47, $7A, $07
+    db $4F, $00, $AF, $F8, $85, $D9, $03, $69
+    db $DE, $6C, $B3, $00, $CA, $3C, $00, $07
+    db $13, $A1, $CA, $81, $00, $C8, $B1, $00
+    db $07, $A8, $8F, $00, $A1, $1D, $07, $A8
+    db $7B, $DD, $00, $55, $DF, $4E, $D7, $52
+    db $79, $B7, $07, $7D, $27, $07, $DB, $09
+    db $83, $FD, $70, $F5, $9F, $A1, $A1, $77
+    db $10, $05, $0E, $88, $56, $FE, $9C, $0F
+    db $CA, $21, $07, $9D, $E7, $0F, $68, $0B
+    db $95, $33, $05, $85, $A0, $46, $C3, $A7
+    db $41, $A9, $36, $21, $C8, $BF, $19, $08
+    db $5C, $36, $03, $24, $A1, $EF, $04, $3E
+    db $00, $3F, $D8, $5D, $FC, $F1, $D6, $07
+    db $F0, $84, $F8, $21, $A8, $FA, $00, $55
+    db $F3, $04, $B8, $61, $9C, $FD, $00, $B5
+    db $39, $16, $D7, $12, $2F, $77, $64, $13
+    db $1A, $63, $A8, $CA, $DD, $00, $5C, $53
+    db $00, $BF, $99, $03, $F8, $3F, $A6, $04
+    db $E3, $07, $FC, $CF, $00, $BE, $2F, $3B
+    db $DA, $55, $07, $EE, $79, $08, $D6, $71
+    db $EF, $00, $17, $0B, $C8, $45, $DA, $0F
+    db $DB, $6F, $9E, $7C, $0E, $E7, $5F, $DA
+    db $D7, $3D, $81, $BC, $00, $83, $1F, $C3
+    db $87, $DE, $00, $DA, $6F, $F7, $95, $71
+    db $2B, $57, $03, $AE, $CD, $00, $0C, $91
+    db $11, $C3, $6D, $C3, $25, $7D, $1F, $07
+    db $B5, $55, $B1, $74, $6E, $D8, $82, $B1
+    db $F1, $06, $F1, $B7, $0F, $D5, $7D, $ED
+    db $CC, $24, $41, $B7, $E9, $F5, $3F, $FC
+    db $A8, $00, $04, $C3, $31, $8D, $8F, $5B
+    db $D9, $00, $64, $D6, $29, $69, $96, $2D
+    db $00, $99, $7D, $8F, $BA, $54, $59, $3A
+    db $FB, $FB, $4C, $05, $9E, $00, $B8, $65
+    db $00, $22, $04, $9B, $14, $7A, $C7, $07
+    db $4F, $F6, $00, $9A, $3B, $F3, $3C, $43
+    db $83, $E8, $FF, $63, $E4, $B3, $B1, $6B
+    db $00, $4B, $ED, $00, $BB, $0E, $53, $C1
+    db $C7, $DA, $0A, $77, $04, $5F, $E6, $56
+    db $9B, $53, $0F, $F1, $B3, $66, $00, $3E
+    db $58, $B7, $FB, $5E, $53, $0F, $3E, $5C
+    db $F1, $C8, $3D, $56, $BD, $58, $FD, $54
+    db $7C, $21, $13, $F3, $DB, $05, $4E, $57
+    db $B2, $1D, $4B, $36, $5C, $F1, $00, $62
+    db $FB, $EF, $E7, $56, $F1, $70, $4F, $B8
+    db $DB, $35, $4C, $7C, $C5, $37, $04, $05
+    db $0D, $C3, $F3, $C1, $C3, $05, $CF, $0E
+    db $C3, $31, $07, $00, $B3, $E7, $00, $83
+    db $FF, $E7, $0E, $31, $9F, $13, $DF, $17
+    db $FF, $FF, $FF, $F8
 
-; 
-; Width = 32, height = 24
+; Width = 22, height = 24
 ; image_pattern:
+cvb_image_pattern_fr1:
+    db $00, $00, $00, $00
+    db $00, $00, $00, $03
+    db $00, $04, $05, $06
+    db $00, $12, $13, $14
+    db $15, $16, $17, $00
+cvb_image_pattern_fr2:
+    db $00, $21, $22, $23
+    db $2F, $13, $30, $31
+    db $32, $33, $34, $35
+    db $00, $00, $00, $00
+    db $00, $00, $00, $00
+
 cvb_image_pattern:
-    db 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x00, 0x00, 0x00, 0x03, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x00, 0x04, 0x05, 0x06, 0x01, 0x02, 0x02, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x0c, 0x0d, 0x10, 0x08, 0x09, 0x11, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x00, 0x12, 0x13, 0x14, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x15, 0x16, 0x17, 0x00, 0x01, 0x02, 0x02, 0x18, 0x19, 0x1a, 0x02, 0x1b, 0x1c, 0x1d, 0x02, 0x02, 0x1e, 0x02, 0x02, 0x1f, 0x02, 0x20, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x00, 0x21, 0x22, 0x23, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x24, 0x25, 0x26, 0x27, 0x28, 0x02, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x2f, 0x13, 0x30, 0x31, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x32, 0x33, 0x34, 0x35, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x36, 0x37, 0x02, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x02, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x3d, 0x3e, 0x3f, 0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x02, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x46, 0x47, 0x48, 0x02, 0x02, 0x02, 0x49, 0x02, 0x02, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50, 0x51, 0x52, 0x53, 0x54, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60, 0x61, 0x4d, 0x4d, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x4d, 0x4d, 0x4d, 0x4d, 0x4d, 0x4d, 0x69, 0x6a, 0x6b, 0x6b, 0x6c, 0x4d, 0x4d, 0x4d, 0x6d, 0x6e, 0x6f, 0x70, 0x71, 0x72, 0x73, 0x74, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x4d, 0x4d, 0x4d, 0x4d, 0x4d, 0x4d, 0x75, 0x76, 0x77, 0x78, 0x79, 0x4d, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x80, 0x81, 0x82, 0x83, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x4d, 0x4d, 0x84, 0x85, 0x86, 0x4d, 0x4d, 0x87, 0x88, 0x89, 0x4d, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f, 0x90, 0x91, 0x92, 0x93, 0x4d, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x94, 0x94, 0x95, 0x96, 0x97, 0x94, 0x94, 0x98, 0x94, 0x99, 0x94, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f, 0x94, 0xa0, 0xa1, 0x94, 0x94, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0xa2, 0xa3, 0xa4, 0xa5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0xad, 0xae, 0xaf, 0xb0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0xb8, 0xb9, 0xba, 0xbb, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0xbc, 0xbd, 0xbe, 0xbf, 0xc0, 0xc1, 0xc2, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0xc3, 0xc4, 0xc5, 0xc6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0xcc, 0xcd, 0xce, 0xcf, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01
-    db 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+    db $02, $02, $07, $08, $09, $0A, $0B, $0C, $0D, $0E, $0F, $0C, $0D, $10, $08, $09, $11, $02, $02, $02, $02, $02
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+    db $02, $02, $18, $19, $1A, $02, $1B, $1C, $1D, $02, $02, $1E, $02, $02, $1F, $02, $20, $02, $02, $02, $02, $02
+    db $02, $02, $02, $02, $02, $24, $25, $26, $27, $28, $02, $29, $2A, $2B, $2C, $2D, $2E, $02, $02, $02, $02, $02
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $36, $37, $02, $38, $39, $3A, $3B, $3C, $02, $02
+    db $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $02, $3D, $3E, $3F, $40, $41, $42, $43, $44, $45, $02
+    db $02, $02, $46, $47, $48, $02, $02, $02, $49, $02, $02, $4A, $4B, $4C, $4D, $4E, $4F, $50, $51, $52, $53, $54
+    db $55, $56, $57, $58, $59, $5A, $5B, $5C, $5D, $5E, $5F, $60, $61, $4D, $4D, $62, $63, $64, $65, $66, $67, $68
+    db $4D, $4D, $4D, $4D, $4D, $4D, $69, $6A, $6B, $6B, $6C, $4D, $4D, $4D, $6D, $6E, $6F, $70, $71, $72, $73, $74
+    db $4D, $4D, $4D, $4D, $4D, $4D, $75, $76, $77, $78, $79, $4D, $7A, $7B, $7C, $7D, $7E, $7F, $80, $81, $82, $83
+    db $4D, $4D, $84, $85, $86, $4D, $4D, $87, $88, $89, $4D, $8A, $8B, $8C, $8D, $8E, $8F, $90, $91, $92, $93, $4D
+    db $94, $94, $95, $96, $97, $94, $94, $98, $94, $99, $94, $9A, $9B, $9C, $9D, $9E, $9F, $94, $A0, $A1, $94, $94
+    db $00, $A2, $A3, $A4, $A5, $00, $00, $00, $00, $00, $00, $00, $A6, $A7, $A8, $A9, $AA, $AB, $AC, $00, $00, $00
+    db $00, $00, $AD, $AE, $AF, $B0, $00, $00, $00, $00, $00, $03, $B1, $B2, $B3, $B4, $B5, $B6, $B7, $00, $00, $00
+    db $00, $00, $B8, $B9, $BA, $BB, $00, $00, $00, $00, $00, $35, $BC, $BD, $BE, $BF, $C0, $C1, $C2, $00, $00, $00
+    db $00, $00, $C3, $C4, $C5, $C6, $00, $00, $00, $00, $00, $00, $00, $C7, $C8, $C9, $CA, $CB, $00, $00, $00, $00
+    db $00, $CC, $CD, $CE, $CF, $00, $00, $00, $00, $00, $00, $00, $D0, $D1, $D2, $D3, $D4, $D5, $00, $00, $00, $00
+    db $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+    db $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 
 ; image_sprites:
 cvb_image_sprites:
-    db 0x3e, 0x00, 0x83, 0x00, 0xc0, 0x0c, 0x00, 0xf0
-    db 0x00, 0x03, 0x0e, 0xc1, 0x04, 0x60, 0xc0, 0xe0
-    db 0x6c, 0x00, 0x0f, 0x80, 0x04, 0xc0, 0x00, 0x10
-    db 0x10, 0x18, 0x00, 0x1c, 0x11, 0x1c, 0x1e, 0x0e
-    db 0x00, 0x0f, 0x0f, 0xf1, 0x27, 0xe0, 0x60, 0x06
-    db 0x00, 0x3c, 0x38, 0x30, 0x20, 0xf1, 0x3b, 0x58
-    db 0x08, 0xec, 0x4b, 0xe0, 0x0f, 0xc0, 0xc0, 0x80
-    db 0x00, 0xd9, 0x00, 0x8c, 0xea, 0x05, 0x19, 0x40
-    db 0x78, 0xfc, 0xfe, 0x7d, 0xef, 0x2d, 0x3f, 0xf0
-    db 0x5f, 0x4f, 0x1f, 0xed, 0x27, 0xf9, 0x15, 0xc0
-    db 0xfc, 0x0b, 0x20, 0x0d, 0x30, 0x38, 0x3c, 0x3e
-    db 0x91, 0x00, 0x3c, 0xcf, 0x1a, 0xd0, 0xa9, 0x41
-    db 0xc0, 0x00, 0x93, 0x38, 0x3e, 0x78, 0x70, 0xdd
-    db 0x1e, 0x19, 0xce, 0x1a, 0x9a, 0xf3, 0x1b, 0x03
-    db 0x1c, 0x00, 0x01, 0x76, 0xe0, 0xc3, 0x79, 0x01
-    db 0x03, 0x89, 0x12, 0x0f, 0x07, 0xdc, 0xd0, 0x1b
-    db 0x0e, 0xc7, 0x00, 0x83, 0x06, 0x0c, 0x0c, 0x1c
-    db 0x9e, 0xc0, 0x17, 0x9c, 0x0b, 0x67, 0xba, 0xeb
-    db 0xc9, 0x78, 0x01, 0x57, 0xf8, 0xc3, 0x07, 0x19
-    db 0x31, 0x31, 0xd0, 0x9f, 0x7a, 0x80, 0xcf, 0xa6
-    db 0xe8, 0xff, 0xb5, 0x80, 0x52, 0x9f, 0xd5, 0xb3
-    db 0x58, 0x99, 0x7d, 0xc0, 0xa1, 0x68, 0x05, 0x06
-    db 0x71, 0x04, 0x98, 0xb0, 0x00, 0x18, 0x3c, 0x18
-    db 0xc2, 0x16, 0x64, 0x00, 0xc9, 0x35, 0xd2, 0x7f
-    db 0x00, 0xbd, 0x4c, 0xe4, 0x1d, 0xc0, 0x1d, 0xfa
-    db 0xfe, 0x13, 0xff, 0xff, 0xff, 0xff, 0xc0
-; 
-; 
-; 
+    db $3E, $00, $83, $00, $C0, $0C, $00, $F0
+    db $00, $03, $0E, $C1, $04, $60, $C0, $E0
+    db $6C, $00, $0F, $80, $04, $C0, $00, $10
+    db $10, $18, $00, $1C, $11, $1C, $1E, $0E
+    db $00, $0F, $0F, $F1, $27, $E0, $60, $06
+    db $00, $3C, $38, $30, $20, $F1, $3B, $58
+    db $08, $EC, $4B, $E0, $0F, $C0, $C0, $80
+    db $00, $D9, $00, $8C, $EA, $05, $19, $40
+    db $78, $FC, $FE, $7D, $EF, $2D, $3F, $F0
+    db $5F, $4F, $1F, $ED, $27, $F9, $15, $C0
+    db $FC, $0B, $20, $0D, $30, $38, $3C, $3E
+    db $91, $00, $3C, $CF, $1A, $D0, $A9, $41
+    db $C0, $00, $93, $38, $3E, $78, $70, $DD
+    db $1E, $19, $CE, $1A, $9A, $F3, $1B, $03
+    db $1C, $00, $01, $76, $E0, $C3, $79, $01
+    db $03, $89, $12, $0F, $07, $DC, $D0, $1B
+    db $0E, $C7, $00, $83, $06, $0C, $0C, $1C
+    db $9E, $C0, $17, $9C, $0B, $67, $BA, $EB
+    db $C9, $78, $01, $57, $F8, $C3, $07, $19
+    db $31, $31, $D0, $9F, $7A, $80, $CF, $A6
+    db $E8, $FF, $B5, $80, $52, $9F, $D5, $B3
+    db $58, $99, $7D, $C0, $A1, $68, $05, $06
+    db $71, $04, $98, $B0, $00, $18, $3C, $18
+    db $C2, $16, $64, $00, $C9, $35, $D2, $7F
+    db $00, $BD, $4C, $E4, $1D, $C0, $1D, $FA
+    db $FE, $13, $FF, $FF, $FF, $FF, $C0
+
+;
 ; sprite_overlay:
 cvb_sprite_overlay:
-    db 2, 24, 0, 3
+;	DB 2+17*8,24+13*8,0,3
+    db 208, 24 + 13 * 8, 0, 3  ; hide
     db 74, 165, 4, 12
     db 70, 149, 8, 5
     db 70, 136, 12, 5
@@ -10820,152 +12289,160 @@ cvb_sprite_overlay:
     db 208
 
 ;	ANIMATED LOGO - Compressed data
-; 
+;
 ; TILESET:
 cvb_tileset:
-    db 0x5a, 0x00, 0x1a, 0x00, 0x01, 0x03, 0x23, 0x00
-    db 0x07, 0x00, 0x0e, 0x00, 0x63, 0x00, 0x0f, 0x07
-    db 0x8c, 0x00, 0x03, 0x01, 0x1b, 0x43, 0x01, 0x17
-    db 0x0f, 0x1f, 0x1f, 0x39, 0x10, 0x22, 0x3f, 0x95
-    db 0x08, 0x05, 0x13, 0x60, 0x12, 0x13, 0x3f, 0x7f
-    db 0x7f, 0xd8, 0x2d, 0x80, 0xc0, 0xd2, 0x2b, 0x06
-    db 0x68, 0xf0, 0x0e, 0xff, 0xb4, 0x00, 0x55, 0xda
-    db 0x07, 0x3f, 0xd8, 0x07, 0x03, 0x0f, 0xd8, 0x07
-    db 0x04, 0x0e, 0xca, 0x07, 0x5c, 0x41, 0x78, 0x3f
-    db 0x27, 0x80, 0xd2, 0x07, 0x52, 0x73, 0x9f, 0x07
-    db 0x03, 0xac, 0x16, 0x00, 0x5b, 0x33, 0xff, 0x3f
-    db 0x73, 0x98, 0x1e, 0xf0, 0x0f, 0x20, 0x1c, 0x78
-    db 0xfe, 0xff, 0x00, 0x18, 0x6c, 0xfc, 0x07, 0xff
-    db 0x18, 0x7f, 0x3f, 0x3f, 0x94, 0x1c, 0x0f, 0x09
-    db 0x60, 0xc0, 0x24, 0xe0, 0xe0, 0xc0, 0x80, 0xf1
-    db 0x7a, 0xff, 0xf4, 0x07, 0x3e, 0x02, 0x6d, 0x00
-    db 0x2a, 0x77, 0x29, 0x07, 0x69, 0x20, 0x3b, 0xf1
-    db 0x07, 0x07, 0x01, 0xb2, 0x07, 0x1f, 0x08, 0xd1
-    db 0x07, 0x81, 0x7c, 0x17, 0x5c, 0xff, 0xf2, 0x08
-    db 0xd2, 0x03, 0xc0, 0xe0, 0xf8, 0x16, 0x08, 0xc0
-    db 0x5e, 0x85, 0x00, 0xf8, 0xf0, 0x68, 0xdd, 0x0a
-    db 0x1c, 0x6d, 0x72, 0x07, 0xcf, 0x39, 0xc0, 0x0c
-    db 0x00, 0xff, 0xfe, 0x21, 0xca, 0x22, 0x05, 0x00
-    db 0xa8, 0x07, 0x08, 0x02, 0xf0, 0xf8, 0xf0, 0xb1
-    db 0x49, 0x00, 0xfc, 0x12, 0xff, 0x03, 0x20, 0xfe
-    db 0xfc, 0xfc, 0xf8, 0xf8, 0x6b, 0x10, 0x0a, 0xe7
-    db 0x1a, 0x00, 0xbe, 0x11, 0x00, 0x09, 0x01, 0x00
-    db 0x79, 0x7f, 0x16, 0x88, 0x31, 0x3c, 0x00, 0x7b
-    db 0x00, 0xe6, 0x0b, 0x18, 0x00, 0x00, 0xdd, 0xfd
-    db 0x3d, 0x3c, 0x1f, 0x0e, 0x06, 0x07, 0x06, 0xc6
-    db 0xe6, 0xe6, 0x0f, 0x31, 0x0f, 0xbd, 0x00, 0x60
-    db 0x88, 0x00, 0xf7, 0x00, 0xf0, 0x3d, 0x1d, 0x3d
-    db 0xfd, 0xdd, 0x13, 0x10, 0xc5, 0x9f, 0x9e, 0x86
-    db 0xc6, 0x83, 0x21, 0xc3, 0xe1, 0xf9, 0x79, 0x10
-    db 0x4a, 0x43, 0x89, 0x19, 0x9f, 0x9f, 0x1f, 0x00
-    db 0x5d, 0x23, 0x00, 0x2b, 0xc8, 0x33, 0x81, 0x00
-    db 0xc3, 0x8c, 0xc4, 0x00, 0xde, 0x00, 0xcc, 0x2e
-    db 0xed, 0xc0, 0x04, 0x0b, 0x21, 0xce, 0xce, 0x34
-    db 0xe3, 0xe3, 0xe9, 0x84, 0x00, 0xec, 0xec, 0x09
-    db 0xc7, 0x30, 0xc7, 0xe1, 0x00, 0xf3, 0xf3, 0x2b
-    db 0xe1, 0xed, 0x13, 0x00, 0x8b, 0x3b, 0xed, 0xed
-    db 0x0e, 0x98, 0x13, 0xf0, 0x0b, 0xe0, 0xcd, 0x00
-    db 0xf8, 0xbf, 0x00, 0xc1, 0xbe, 0xa2, 0xae, 0xa2
-    db 0xbe, 0xc1, 0x81, 0x76, 0xc1, 0x9c, 0x9e, 0xc0
-    db 0xfc, 0xa5, 0x07, 0x01, 0x74, 0x02, 0x07, 0x0d
-    db 0x9f, 0xc2, 0xde, 0xf7, 0x63, 0xe7, 0x41, 0xe3
-    db 0xd4, 0x9f, 0x20, 0xff, 0x9e, 0x8e, 0xa6, 0xb2
-    db 0x31, 0xb8, 0xbc, 0xdc, 0x06, 0xbf, 0x83, 0xbf
-    db 0xbf, 0x01, 0x2f, 0x81, 0xbc, 0xbc, 0x81, 0xbb
-    db 0xb8, 0xb5, 0x07, 0x10, 0xc5, 0x07, 0xbe, 0xbe
-    db 0x09, 0x57, 0x07, 0x0b, 0x00, 0x41, 0x1f, 0x0d
-    db 0x9c, 0xdd, 0xc9, 0xe3, 0x55, 0x07, 0x06, 0x05
-    db 0x58, 0x83, 0x37, 0xfc, 0xe1, 0xfc, 0x8e, 0x6f
-    db 0x80, 0xf7, 0x00, 0xeb, 0x77, 0x21, 0x88, 0x0f
-    db 0xc0, 0x9f, 0x2e, 0x9f, 0xc0, 0xd6, 0x87, 0x11
-    db 0x07, 0xc7, 0xf1, 0xc4, 0x17, 0xe3, 0xc9, 0x20
-    db 0x80, 0x40, 0xbe, 0x07, 0xf1, 0xe5, 0xcd, 0x9d
-    db 0x80, 0x6c, 0xfd, 0xbc, 0x8c, 0xcf, 0xcf, 0x17
-    db 0xe7, 0x3e, 0xe3, 0xfc, 0xaf, 0x37, 0x43, 0x00
-    db 0x08, 0x06, 0xa9, 0xfb, 0x0c, 0x10, 0xf6, 0x8b
-    db 0xeb, 0x99, 0x7c, 0x07, 0x99, 0xfa, 0x86, 0xd6
-    db 0xdb, 0xcd, 0x73, 0xb3, 0x09, 0x78, 0x78, 0x30
-    db 0x00, 0xfa, 0xf4, 0x91, 0xbc, 0x00, 0x1b, 0x7c
-    db 0xfe, 0x32, 0x3f, 0xf1, 0x00, 0x7f, 0xb5, 0x97
-    db 0x6d, 0x00, 0x0d, 0xcf, 0xd7, 0xa5, 0x82, 0x00
-    db 0x3a, 0x07, 0xf0, 0x86, 0x6e, 0x67, 0x57, 0x54
-    db 0x97, 0x87, 0xbc, 0x29, 0x4e, 0xc7, 0x65, 0xfd
-    db 0x83, 0xd4, 0x5d, 0xa6, 0x97, 0x3f, 0xb3, 0x3f
-    db 0xbc, 0x7e, 0xbe, 0x00, 0x99, 0xef, 0x04, 0x04
-    db 0xf3, 0x1d, 0x7c, 0x72, 0x00, 0x99, 0x0e, 0x7e
-    db 0x05, 0xf3, 0x00, 0x88, 0x1d, 0x20, 0x60, 0x99
-    db 0x60, 0x9f, 0xb3, 0x73, 0xd3, 0x56, 0x9a, 0xeb
-    db 0x67, 0x20, 0x20, 0x0d, 0x8f, 0xba, 0x1f, 0x9b
-    db 0xd4, 0xc3, 0xc0, 0x00, 0xd5, 0x60, 0x87, 0x18
-    db 0x1b, 0x3c, 0x3e, 0x7e, 0x32, 0x4f, 0x80, 0xeb
-    db 0xfc, 0xdf, 0x2c, 0x3c, 0x87, 0xd9, 0xf0, 0x8e
-    db 0xf1, 0xf1, 0x8d, 0xd3, 0x08, 0xf0, 0xdb, 0x00
-    db 0xb4, 0x22, 0x08, 0xab, 0x7b, 0x7c, 0x00, 0x50
-    db 0xee, 0x3a, 0xfb, 0x04, 0x10, 0xdf, 0xec, 0x97
-    db 0x07, 0x43, 0x1f, 0x03, 0x1c, 0x3e, 0x7f, 0x8c
-    db 0xcb, 0x04, 0x8f, 0x76, 0x07, 0x12, 0x8a, 0xa8
-    db 0x00, 0xb6, 0x0c, 0xe7, 0x38, 0x8e, 0x34, 0xb9
-    db 0xfe, 0x1c, 0x56, 0xdf, 0xe0, 0x00, 0xe1, 0x06
-    db 0xe3, 0xe7, 0xe7, 0xef, 0xef, 0xa7, 0x7c, 0x77
-    db 0x99, 0x00, 0xbf, 0x93, 0x00, 0x75, 0xf8, 0x86
-    db 0x97, 0xd8, 0x00, 0xbf, 0x74, 0x88, 0x17, 0xcf
-    db 0x07, 0x03, 0xc3, 0xc1, 0xc1, 0x80, 0x34, 0x1f
-    db 0x7f, 0x0f, 0x9c, 0xd4, 0xb9, 0xb8, 0xc1, 0x30
-    db 0x60, 0x11, 0x03, 0x1f, 0xec, 0x13, 0x08, 0xe4
-    db 0xf8, 0x83, 0xda, 0x45, 0xf5, 0x0a, 0x0f, 0x00
-    db 0xf6, 0x73, 0xc6, 0x77, 0x3e, 0x17, 0x3d, 0x89
-    db 0x7e, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xc0
+    db $5A, $00, $1A, $00, $01, $03, $23, $00
+    db $07, $00, $0E, $00, $63, $00, $0F, $07
+    db $8C, $00, $03, $01, $1B, $43, $01, $17
+    db $0F, $1F, $1F, $39, $10, $22, $3F, $95
+    db $08, $05, $13, $60, $12, $13, $3F, $7F
+    db $7F, $D8, $2D, $80, $C0, $D2, $2B, $06
+    db $68, $F0, $0E, $FF, $B4, $00, $55, $DA
+    db $07, $3F, $D8, $07, $03, $0F, $D8, $07
+    db $04, $0E, $CA, $07, $5C, $41, $78, $3F
+    db $27, $80, $D2, $07, $52, $73, $9F, $07
+    db $03, $AC, $16, $00, $5B, $33, $FF, $3F
+    db $73, $98, $1E, $F0, $0F, $20, $1C, $78
+    db $FE, $FF, $00, $18, $6C, $FC, $07, $FF
+    db $18, $7F, $3F, $3F, $94, $1C, $0F, $09
+    db $60, $C0, $24, $E0, $E0, $C0, $80, $F1
+    db $7A, $FF, $F4, $07, $3E, $02, $6D, $00
+    db $2A, $77, $29, $07, $69, $20, $3B, $F1
+    db $07, $07, $01, $B2, $07, $1F, $08, $D1
+    db $07, $81, $7C, $17, $5C, $FF, $F2, $08
+    db $D2, $03, $C0, $E0, $F8, $16, $08, $C0
+    db $5E, $85, $00, $F8, $F0, $68, $DD, $0A
+    db $1C, $6D, $72, $07, $CF, $39, $C0, $0C
+    db $00, $FF, $FE, $21, $CA, $22, $05, $00
+    db $A8, $07, $08, $02, $F0, $F8, $F0, $B1
+    db $49, $00, $FC, $12, $FF, $03, $20, $FE
+    db $FC, $FC, $F8, $F8, $6B, $10, $0A, $E7
+    db $1A, $00, $BE, $11, $00, $09, $01, $00
+    db $79, $7F, $16, $88, $31, $3C, $00, $7B
+    db $00, $E6, $0B, $18, $00, $00, $DD, $FD
+    db $3D, $3C, $1F, $0E, $06, $07, $06, $C6
+    db $E6, $E6, $0F, $31, $0F, $BD, $00, $60
+    db $88, $00, $F7, $00, $F0, $3D, $1D, $3D
+    db $FD, $DD, $13, $10, $C5, $9F, $9E, $86
+    db $C6, $83, $21, $C3, $E1, $F9, $79, $10
+    db $4A, $43, $89, $19, $9F, $9F, $1F, $00
+    db $5D, $23, $00, $2B, $C8, $33, $81, $00
+    db $C3, $8C, $C4, $00, $DE, $00, $CC, $2E
+    db $ED, $C0, $04, $0B, $21, $CE, $CE, $34
+    db $E3, $E3, $E9, $84, $00, $EC, $EC, $09
+    db $C7, $30, $C7, $E1, $00, $F3, $F3, $2B
+    db $E1, $ED, $13, $00, $8B, $3B, $ED, $ED
+    db $0E, $98, $13, $F0, $0B, $E0, $CD, $00
+    db $F8, $BF, $00, $C1, $BE, $A2, $AE, $A2
+    db $BE, $C1, $81, $76, $C1, $9C, $9E, $C0
+    db $FC, $A5, $07, $01, $74, $02, $07, $0D
+    db $9F, $C2, $DE, $F7, $63, $E7, $41, $E3
+    db $F4, $9F, $27, $08, $06, $43, $BB, $0C
+    db $10, $E9, $CB, $CE, $D9, $07, $F8, $D9
+    db $F3, $C6, $A4, $9B, $8D, $A2, $F3, $78
+    db $12, $78, $30, $00, $BA, $E5, $D1, $78
+    db $00, $1B, $FE, $F9, $32, $3F, $E3, $00
+    db $7F, $66, $D7, $00, $DB, $0D, $97, $97
+    db $2A, $C2, $00, $07, $72, $F0, $C6, $DC
+    db $57, $CF, $54, $1F, $C7, $79, $29, $4E
+    db $87, $65, $FD, $FD, $6B, $79, $F2, $D7
+    db $C3, $F3, $E5, $FC, $EB, $FE, $D2, $00
+    db $AF, $3E, $04, $04, $1D, $6E, $7C, $41
+    db $00, $99, $7E, $DE, $05, $71, $00, $1D
+    db $20, $60, $0C, $99, $9F, $16, $73, $59
+    db $93, $DA, $C8, $AB, $20, $20, $E1, $8F
+    db $B7, $1F, $3A, $DB, $83, $1A, $C0, $00
+    db $AC, $87, $03, $18, $3C, $3E, $7E, $66
+    db $4F, $80, $4F, $AB, $85, $DF, $3C, $93
+    db $C7, $29, $B0, $F1, $F1, $D2, $CD, $08
+    db $7B, $F0, $76, $00, $22, $95, $08, $7B
+    db $7C, $6A, $00, $07, $EE, $FB, $5B, $04
+    db $10, $FD, $D7, $08, $07, $1F, $03, $1C
+    db $3E, $71, $7F, $CB, $9D, $04, $8F, $F4
+    db $B6, $A8, $55, $00, $0C, $B1, $E7, $C1
+    db $8E, $A5, $F9, $F0, $56, $DF, $E0, $E0
+    db $00, $E1, $E3, $E7, $E7, $35, $EF, $EF
+    db $3A, $7C, $D9, $BD, $00, $FC, $00, $BB
+    db $75, $91, $F9, $00, $87, $BF, $6E, $B5
+    db $1F, $07, $03, $C3, $C1, $C1, $80, $34
+    db $1F, $7F, $0F, $9C, $D4, $B9, $B8, $C1
+    db $30, $60, $11, $03, $1F, $EC, $13, $08
+    db $E4, $F8, $83, $DA, $45, $F5, $0A, $0F
+    db $00, $F6, $73, $C6, $77, $3E, $17, $3D
+    db $89, $7E, $7F, $FF, $FF, $FF, $FF, $C0
 
 
 cvb_colorset0:
-cvb_colorset1:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0xbb, 0x0b, 0x0b
-cvb_colorset2:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0xcb, 0xcb, 0xbb, 0x0b, 0x0b
-cvb_colorset3:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x0b, 0x0b, 0x0b, 0xcb, 0xcb, 0x0b, 0x0b, 0x4b, 0x4b, 0xbb, 0x0b, 0x0b
-cvb_colorset4:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0xcb, 0x0b, 0x0b, 0x4b, 0x4b, 0x0b, 0x0b, 0x7b, 0x7b, 0xbb, 0x0b, 0x0b
-cvb_colorset5:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x4b, 0x0b, 0x0b, 0x7b, 0x7b, 0xcb, 0xcb, 0x3b, 0x3b, 0xbb, 0x0b, 0x0b
-cvb_colorset6:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x7b, 0xcb, 0xcb, 0x3b, 0x3b, 0x4b, 0x4b, 0x6b, 0x6b, 0xbb, 0x0b, 0x0b
-cvb_colorset7:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x3b, 0x4b, 0x4b, 0x6b, 0x6b, 0x7b, 0x7b, 0xab, 0xab, 0xbb, 0xcb, 0xcb
-cvb_colorset8:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x6b, 0x7b, 0x7b, 0xab, 0xab, 0x3b, 0x3b, 0xcb, 0xcb, 0xbb, 0x4b, 0x4b
-cvb_colorset9:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0xab, 0x3b, 0x3b, 0xcb, 0xcb, 0x6b, 0x6b, 0x4b, 0x4b, 0xbb, 0x7b, 0x7b
-cvb_colorset10:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0xcb, 0x6b, 0x6b, 0x4b, 0x4b, 0xab, 0xab, 0x7b, 0x7b, 0xbb, 0x3b, 0x3b
-cvb_colorset11:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x4b, 0xab, 0xab, 0x7b, 0x7b, 0xcb, 0xcb, 0x3b, 0x3b, 0xbb, 0x6b, 0x6b
-cvb_colorset12:    db 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0a, 0x0a, 0x0a, 0x08, 0x0f, 0x0f, 0x0f, 0x7b, 0xcb, 0xcb, 0x3b, 0x3b, 0x4b, 0x4b, 0x6b, 0x6b, 0xbb, 0xab, 0xab
-
-
+cvb_colorset1:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0B, $BB, $0B, $0B
+cvb_colorset2:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $0B, $0B, $0B, $0B, $0B, $0B, $0B, $CB, $CB, $BB, $0B, $0B
+cvb_colorset3:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $0B, $0B, $0B, $CB, $CB, $0B, $0B, $4B, $4B, $BB, $0B, $0B
+cvb_colorset4:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $CB, $0B, $0B, $4B, $4B, $0B, $0B, $7B, $7B, $BB, $0B, $0B
+cvb_colorset5:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $4B, $0B, $0B, $7B, $7B, $CB, $CB, $3B, $3B, $BB, $0B, $0B
+cvb_colorset6:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $7B, $CB, $CB, $3B, $3B, $4B, $4B, $6B, $6B, $BB, $0B, $0B
+cvb_colorset7:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $3B, $4B, $4B, $6B, $6B, $7B, $7B, $AB, $AB, $BB, $CB, $CB
+cvb_colorset8:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $6B, $7B, $7B, $AB, $AB, $3B, $3B, $CB, $CB, $BB, $4B, $4B
+cvb_colorset9:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $AB, $3B, $3B, $CB, $CB, $6B, $6B, $4B, $4B, $BB, $7B, $7B
+cvb_colorset10:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $CB, $6B, $6B, $4B, $4B, $AB, $AB, $7B, $7B, $BB, $3B, $3B
+cvb_colorset11:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $4B, $AB, $AB, $7B, $7B, $CB, $CB, $3B, $3B, $BB, $6B, $6B
+cvb_colorset12:    db $0B, $0B, $0B, $0B, $0B, $0B, $0B, $0A, $0A, $0A, $08, $7B, $CB, $CB, $3B, $3B, $4B, $4B, $6B, $6B, $BB, $AB, $AB
 
 
 cvb_pnt:
-    db 0x1e, 0x30, 0xbb, 0x00, 0x00, 0x27, 0x1b, 0x1d
-    db 0x1c, 0x28, 0x28, 0x2d, 0x47, 0x1e, 0x00, 0x1f
-    db 0x23, 0x0d, 0x0f, 0x2f, 0x21, 0x22, 0xe0, 0x1e
-    db 0x2e, 0xca, 0x7c, 0x98, 0x00, 0x02, 0x8b, 0xa8
-    db 0xc7, 0x7e, 0x9a, 0x73, 0x90, 0x70, 0x06, 0x10
-    db 0x26, 0xa9, 0x05, 0xde, 0x1f, 0x00, 0x2b, 0xc9
-    db 0x82, 0xa1, 0x76, 0x8d, 0xaa, 0xc3, 0x00, 0x80
-    db 0x9f, 0x74, 0x94, 0xab, 0x18, 0x1a, 0x20, 0x0d
-    db 0x30, 0x88, 0xb1, 0x01, 0xe0, 0x1f, 0x25, 0xc5
-    db 0x7a, 0x9c, 0x00, 0x75, 0x8c, 0x00, 0x08, 0x79
-    db 0x9d, 0xb8, 0x92, 0x00, 0xaf, 0xc6, 0x7d, 0x99
-    db 0x17, 0x89, 0xad, 0x07, 0xde, 0x1f, 0x00, 0x24
-    db 0x0c, 0x10, 0x0e, 0x0a, 0x0a, 0x09, 0x19, 0xc0
-    db 0x1f, 0x8e, 0xb0, 0xc0, 0x7f, 0x0d, 0xa0, 0x03
-    db 0x8a, 0x04, 0x70, 0xa4, 0x2a, 0xc8, 0x00, 0x7b
-    db 0x9e, 0x72, 0x94, 0xae, 0xc1, 0x78, 0xa2, 0x1a
-    db 0x70, 0x8f, 0x13, 0xe0, 0x1f, 0x29, 0xc4, 0x83
-    db 0x00, 0xa3, 0x77, 0x93, 0xac, 0xc2, 0x81, 0x9b
-    db 0x71, 0x35, 0x91, 0x0f, 0xc5, 0x1f, 0x2c, 0x62
-    db 0x00, 0x00, 0x0d, 0x15, 0x14, 0x0b, 0x12, 0x16
-    db 0x11, 0x6b, 0x30, 0xab, 0x00, 0x00, 0x6a, 0x68
-    db 0x5b, 0x5d, 0x66, 0x5f, 0x59, 0x68, 0x5a, 0x0a
-    db 0x59, 0x1b, 0x66, 0x65, 0x5f, 0xf8, 0x3f, 0x64
-    db 0xf1, 0x3f, 0x65, 0xc0, 0x0a, 0x66, 0x5c, 0x5e
-    db 0x66, 0x58, 0x1e, 0x63, 0x59, 0x5c, 0xec, 0x8a
-    db 0x60, 0x89, 0x3f, 0x5a, 0x63, 0x42, 0x59, 0xef
-    db 0xc8, 0xca, 0x67, 0x8a, 0x5a, 0x62, 0xd7, 0x80
-    db 0x18, 0x3d, 0x47, 0x39, 0x45, 0x3e, 0x3b, 0x0f
-    db 0x3c, 0x38, 0x49, 0x4a, 0x04, 0x10, 0x69, 0x58
-    db 0x65, 0xb1, 0x61, 0x17, 0x30, 0x63, 0x62, 0x08
-    db 0x00, 0x0e, 0x44, 0x48, 0x3a, 0x4b, 0x4c, 0x3f
-    db 0x40, 0x00, 0x41, 0x46, 0x43, 0x42, 0x30, 0x50
-    db 0x54, 0x51, 0x3f, 0x52, 0x53, 0xff, 0xff, 0xff
-    db 0xf0
+    db $1E, $30, $BB, $00, $00, $27, $1B, $1D
+    db $1C, $28, $28, $2D, $47, $1E, $00, $1F
+    db $23, $0D, $0F, $2F, $21, $22, $E0, $1E
+    db $2E, $B2, $64, $80, $00, $02, $73, $90
+    db $AF, $66, $82, $5B, $78, $70, $06, $10
+    db $26, $91, $05, $DE, $1F, $00, $2B, $B1
+    db $6A, $89, $5E, $75, $92, $AB, $00, $68
+    db $87, $5C, $7C, $93, $18, $1A, $20, $0D
+    db $30, $70, $99, $01, $E0, $1F, $25, $AD
+    db $62, $84, $00, $5D, $74, $00, $08, $61
+    db $85, $A0, $7A, $00, $97, $AE, $65, $81
+    db $17, $71, $95, $07, $DE, $1F, $00, $24
+    db $0C, $10, $0E, $0A, $0A, $09, $19, $C0
+    db $1F, $76, $98, $A8, $67, $0D, $88, $03
+    db $72, $04, $70, $A4, $2A, $B0, $00, $63
+    db $86, $5A, $7C, $96, $A9, $60, $8A, $1A
+    db $58, $77, $13, $E0, $1F, $29, $AC, $6B
+    db $00, $8B, $5F, $7B, $94, $AA, $69, $83
+    db $59, $35, $79, $0F, $C5, $1F, $2C, $62
+    db $00, $00, $0D, $15, $14, $0B, $12, $16
+    db $11, $6F, $30, $EE, $C0, $00, $3D, $47
+    db $39, $45, $3E, $06, $3B, $3C, $38, $49
+    db $4A, $EC, $1F, $44, $00, $48, $3A, $4B
+    db $4C, $3F, $40, $41, $46, $00, $43, $42
+    db $30, $50, $54, $51, $52, $53, $FF, $FF
+    db $FF, $FF, $C0
+
+
+
+arcadefonts:
+    db $1F, $00, $01, $00, $7C, $C6, $82, $82
+    db $C6, $7C, $09, $07, $10, $30, $10, $00
+    db $38, $C1, $0F, $06, $7C, $C0, $FE, $07
+    db $07, $FE, $06, $3C, $06, $01, $17, $1C
+    db $34, $64, $C4, $FE, $04, $0D, $07, $FC
+    db $80, $FC, $23, $0F, $1C, $FC, $86, $A0
+    db $07, $1F, $0C, $18, $30, $60, $EB, $2F
+    db $01, $A2, $17, $05, $C2, $7E, $39, $88
+    db $07, $38, $6C, $50, $FE, $82, $AA, $2F
+    db $25, $01, $02, $80, $07, $7E, $C0, $80
+    db $80, $C0, $7E, $EB, $0F, $67, $84, $0F
+    db $FE, $80, $F8, $10, $FE, $F1, $07, $80
+    db $C5, $37, $80, $8E, $39, $55, $07, $1D
+    db $35, $00, $8D, $3F, $10, $96, $87, $02
+    db $00, $80, $97, $86, $8C, $98, $B0, $EC
+    db $59, $C6, $07, $2C, $A4, $37, $14, $EE
+    db $30, $BA, $92, $27, $C2, $E2, $0D, $B2
+    db $9A, $8E, $86, $6E, $BF, $6D, $D8, $4F
+    db $82, $9A, $36, $CC, $76, $0F, $38, $88
+    db $8E, $0F, $70, $1C, $D1, $AF, $10, $DD
+    db $00, $67, $B6, $2F, $0E, $05, $44, $6C
+    db $38, $07, $08, $92, $BA, $EE, $44, $07
+    db $C6, $6C, $AE, $CE, $BA, $5F, $B9, $15
+    db $27, $FE, $D9, $DE, $6F, $C3, $00, $60
+    db $60, $40, $BC, $06, $0D, $E8, $0F, $03
+    db $18, $18, $CB, $25, $01, $FF, $FF, $FF
+    db $FF

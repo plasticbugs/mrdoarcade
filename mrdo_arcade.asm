@@ -1,15 +1,10 @@
-; DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS
-; 100 HUNDRED PERCENT ALL LINKS RESOLVED.
-; I SPENT A LOT OF TIME WORKING ON THIS AND IT WOULD SUCK 100% IF SOMEONE USED MY WORK TO MAKE MONEY.
-; THIS WAS DONE FOR EDUCATIONAL PURPOSES ONLY AND ALL CREDIT GOES TO ME AND ME ONLY.
-; STARTED NOVEMBER 7, 2023
-; COMPLETED ON NOVEMBER 10, 2023 (TECHNICALLY NOT COMPLETED...COMPLETED)  THERE CAN ALWAYS BE MORE DONE.
-; FOUND A POTENTIAL EASTER EGG THAT REPRESENTS AN EARLY PROTOTYPE SET OF SPRITE PATTERNS DEPICTING THE JAPANESE SNOWMAN.
-; MARKED AS MR_DO_UNUSED_PUSH_ANIM_01_PAT, MR_DO_UNUSED_PUSH_ANIM_02_PAT AND MR_DO_UNUSED_PUSH_ANIM_03_PAT
-; LET THE HISTORY BOOKS BE KNOWN ON 10 NOVEMBER 2023 CAPTAIN COZMOS, I DISCOVERED THIS AFTER 40 YEARS BEING HIDDEN WITHIN THE CODE...
-
+; BASED ON THE  ASM CODE DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS (November 10, 2023)
+;
+; https://archive.org/details/manualzilla-id-5667325/mode/1up?view=theater
+; OS listing
+;
 ; About moving the game to screen 2.... 
-; The current layout in the game is:
+; The layout of the VRAM in the original game is:
 ; 
 ; Pattern Table: 	0000h-07FFh (256*8 bytes in screen 1)
 ; Name Table: 		1000h-12FFh - 256*3 tiles
@@ -17,20 +12,20 @@
 ; SAT: 				1900h
 ; SPT: 				2000h (256*8 bytes)
 
-; in game VRAM tables
+; Original VRAM tables
 ; PT:		EQU	$0000
 ; PNT:		EQU	$1000
 ; CT:		EQU	$1800
 ; SAT:		EQU	$1900
 ; SPT:		EQU	$2000
-
+; 
 ; VRAM areas used for data
 ; 3400H		212 bytes for saving P1 game data
 ; 3600H		212 bytes for saving P2 game data
 ; 3800h 	768 bytes for alternative PNT during pause
 ; 3B00H		93 bytes for sound data
 
-; Possible screen 2 layout
+; Screen 2 layout
 ; Pattern Table: 	0000h-17FFh (3*256*8 bytes in screen 2)
 ; Name Table: 		1800h-1AFFh (3*256 tiles)
 ; SAT:				1B00h-1B7Fh (4*32 bytes)
@@ -42,7 +37,6 @@ PNT:	EQU	$1800
 CT:		EQU	$2000
 SAT:	EQU	$1B00
 SPT:	EQU	$2800
-
 
 
 ; BIOS DEFINITIONS **************************
@@ -60,6 +54,7 @@ FREE_SIGNAL:		EQU $1FCA
 REQUEST_SIGNAL:		EQU $1FCD
 TEST_SIGNAL:		EQU $1FD0
 TIME_MGR:			EQU $1FD3
+TURN_OFF_SOUND:		EQU $1FD6
 WRITE_REGISTER:		EQU $1FD9
 READ_REGISTER:		EQU $1FDC
 WRITE_VRAM:			EQU $1FDF
@@ -71,8 +66,8 @@ SOUND_MAN:			EQU $1FF4
 RAND_GEN:			EQU $1FFD
 
 ; VDP
-DATA_PORT: EQU 0BEh
-CTRL_PORT: EQU 0BFh
+DATA_PORT: EQU $BE
+CTRL_PORT: EQU $BF
 
 
 COLECO_TITLE_ON:	EQU $55AA
@@ -118,7 +113,7 @@ SFX_COIN_INSERT_SND:   EQU $20
 	ORG $7000,$73FF
 SPRITE_ORDER_TABLE:		RB	20	;EQU $7000	; used by the sprite rotation system
 TIMER_DATA_BLOCK:		RB	12	;EQU $7014
-STATESTART:				RB	11	;EQU $7020 	; Sound Buffer Start
+STATESTART:				RB	11	;EQU $7020 	; OS Sound Buffer Start
 SOUND_BANK_01_RAM:		RB	10	;EQU $702B
 SOUND_BANK_02_RAM:		RB	10	;EQU $7035
 SOUND_BANK_03_RAM:		RB	10	;EQU $703F
@@ -183,12 +178,14 @@ SATBUFF2:									; MULTIPLE USE
 SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
 WORK_BUFFER:			RB  24	;EQU $72EF
 WORK_BUFFER2:			RB  24	;EQU $7307	; ??
-SAVEBUFF:				RB  16	;EQU $731F	;  Free ram ??
-FREEBUFF:				RB	16	; work ram
+SAVEBUFF:				RB  16	;EQU $731F	; Free ram ??
+FREEBUFF:				RB	16	;EQU $732F	; work ram
 
 DEFER_WRITES:			EQU $73C6		; System flag
+MUX_SPRITES:			EQU $73C7		; System flag: enable sprite rotation ?
+RAND_NUM: 				EQU $73C8		; Used by RAND_GEN, it has to be !=0
 
-mode:				 EQU $73FD	; maybe unused used by OS 
+mode:				 	EQU $73FD		; Unused (?) used by OS 
 ; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
 ; B1==0 -> ISR served 	B1==1 -> ISR pending
 ; B3-B6 spare
@@ -230,7 +227,7 @@ FNAME "mrdo_arcade.rom"
 
 	ORG $8000
 
-	DW COLECO_TITLE_ON		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
 	DW SPRITE_NAME_TABLE
 	DW SPRITE_ORDER_TABLE
 	DW WORK_BUFFER
@@ -246,9 +243,9 @@ FNAME "mrdo_arcade.rom"
 	DS 20,0
 	RET 
 	JP		nmi_handler
-
-	DB "MR. DO!",1EH,1FH
-	DB "/PRESENTS UNIVERSAL'S/1983"
+GAME_NAME:
+;	DB "MR. DO!",1EH,1FH
+;	DB "/PRESENTS UNIVERSAL'S/1983"
 
 NMI:
 	PUSH	AF
@@ -730,7 +727,7 @@ RET
 BYTE_82D3:
 	DB 254,001,253,002,251,004,247,008,239,016
 BYTE_82DD:
-	DB 000
+	DB 0
 
 SUB_82DE:
 	LD		HL, $7272
@@ -748,7 +745,7 @@ LOC_82F4:
 	JR		C, LOC_82FB
 	LD		A, 9
 LOC_82FB:
-	LD		HL, BYTE_8333
+	LD		HL, BONUS_OBJ_LIST
 	LD		C, A
 	LD		B, 0
 	ADD		HL, BC
@@ -780,8 +777,9 @@ LOC_8329:
 	CALL	SUB_B629
 RET
 
-BYTE_8333:
-    db 10, 11, 12, 13, 10, 11, 12, 13, 10, 11
+; BONUS ITEM LIST
+BONUS_OBJ_LIST:
+    db   6, 10, 11, 12, 13, 16, 17, 18, 19, 20
 
 START:
 	LD		HL, $7000			; clean user ram
@@ -792,9 +790,11 @@ START:
 	LD		HL,mode
 	LD		(HL), 0
 	
-	LD		A, 1
-	LD		(DEFER_WRITES+1), A
-	LD		A, 0
+	LD		A, 1				; ???
+	LD		(MUX_SPRITES), A
+	LD		HL,$1f01
+	LD		(RAND_NUM), HL		; NEEDED IF WE SKIP THE COLECO SCREEN
+	LD		A, 0				; ??? 
 	LD		(DEFER_WRITES), A
 	CALL	INITIALIZE_THE_SOUND
 	LD		A, 14H
@@ -861,10 +861,7 @@ LOOP_83B1:						; MrDo is dead, let apples fall if any
 	LD		DE, 5
 	ADD		IX, DE
 	DJNZ	LOOP_83B1			; ?? probably only one apple falling at time...
-	JR		LOC_83C5
-LOC_83C0:
-	CALL	DEAL_WITH_APPLE_FALLING
-	JR		LOC_83ABX
+
 LOC_83C5:
 	AND A						; if Z you have an extra MrDo ?
 	JR		NZ, LOC_83CB
@@ -874,6 +871,9 @@ LOC_83CB:
 	CP		3
 	JR		Z, LOC_8372
 	JR		LOC_8375
+LOC_83C0:
+	CALL	DEAL_WITH_APPLE_FALLING
+	JR		LOC_83ABX
 
 MrDoDeathSequence:
 	PUSH 	AF
@@ -964,9 +964,9 @@ LOAD_GRAPHICS:
 	LD		IY, 40H
 	LD		A, 1
 	CALL	PUT_VRAM
-	LD		HL, BALL_SPRITE_PAT
+	LD		HL, BALL_EXPLOSION_PAT
 	LD		DE, 0C0H
-	LD		IY, 18H
+	LD		IY, 6*4
 	LD		A, 1
 	CALL	PUT_VRAM
 
@@ -998,7 +998,12 @@ LOAD_GRAPHICS:
 	LD		HL,tileset_color
 	CALL 	unpack
 
-; load fonts	
+	CALL 	LOADFONTS
+	
+	CALL 	MYENASCR	
+RET
+
+LOADFONTS:		; LOAD  ARCADE FONTS
 	LD 		DE,PT + 8*0d7h					; start fonts here
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
@@ -1009,9 +1014,13 @@ LOAD_GRAPHICS:
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
 
+;	LD		HL, $2000+6*32*8
+;	LD		DE, 32*8*2
+;	LD		A,$F0
+;	CALL	FILL_VRAM
 
-	LD		B,64
-	LD 		DE,CT+6*32*8
+	LD		B,41
+	LD 		DE,CT+0d7h*8
 .1:	PUSH 	BC
 	LD		HL,FONTCOLOR
 	LD		BC,8
@@ -1025,12 +1034,12 @@ LOAD_GRAPHICS:
 	EX 		DE,HL
 	POP 	BC
 	DJNZ	.1
-	
-	CALL 	MYENASCR	
 RET
 
+	
+
 FONTCOLOR:
-	DB $41,$41,$71,$e1,$f1,$71,$41,$41
+	DB $B1,$B1,$F1,$F1,$F1,$F1,$B1,$B1
 
 
 SUB_84F8:	 ; Disables NMI, sets up the game
@@ -1367,7 +1376,7 @@ SEND_LIVES_TO_VRAM:
 	JR		Z, LOC_87B9
 	PUSH	BC
 	PUSH	DE
-	LD		HL, MR_DO_UPPER
+	LD		HL, MR_DO_ICON
 	LD		IY, 1
 	LD		A, 2
 	CALL	PUT_VRAM
@@ -1376,7 +1385,7 @@ SEND_LIVES_TO_VRAM:
 	LD		DE, 20H
 	ADD		HL, DE
 	EX		DE, HL
-	LD		HL, MR_DO_LOWER
+	LD		HL, MR_DO_ICON+1
 	LD		IY, 1
 	LD		A, 2
 	CALL	PUT_VRAM
@@ -1411,13 +1420,11 @@ LOC_87DF:
 RET
 
 EXTRA_01_TXT:
-	DB 050,051,052,053,054
+	DB  53, 54, 55, 56, 57
 EXTRA_02_TXT:
-	DB 072,073,074,075,076
-MR_DO_UPPER:
-	DB 120
-MR_DO_LOWER:
-	DB 121
+	DB  48, 49, 50, 51, 52
+MR_DO_ICON:
+	DB  75,107
 
 SUB_87F4:	; Start the level
 	LD		IY, MRDO_DATA
@@ -2259,8 +2266,8 @@ LOC_8E32:
 	SET		5, B
 LOC_8E3B:
 	LD		(IY+0), B
-	LD		A, 10H
-	LD		(IY+4), A
+
+	LD		(IY+4), $10
 	LD		D, 1
 LOC_8E45:
 	LD		A, D
@@ -2501,7 +2508,11 @@ UNK_8F98:
 	DW LOC_8F68
 
 SUB_8FB0:
-	CALL	SUB_8FC4
+	LD		A, (IY+0)
+	INC		A
+	LD		(IY+0), A
+	AND		3
+	CP		3
 	JR		NZ, LOC_8FC2
 	LD		A, (IY+0)
 	AND		0F8H
@@ -2513,13 +2524,6 @@ LOC_8FC2:
 	AND		A
 RET
 
-SUB_8FC4:
-	LD		A, (IY+0)
-	INC		A
-	LD		(IY+0), A
-	AND		3
-	CP		3
-RET
 
 DEAL_WITH_BALL:
 	LD		IY, BALLDATA
@@ -3239,14 +3243,7 @@ LOC_9538:
 	JR		NZ, LOC_9558
 	XOR		A
 	RET
-LOC_9558:
-	PUSH	AF
-	CP		3
-	JR		NC, LOC_9566
-	LD		A, (IY+3)
-	AND		0FH
-	JR		NZ, LOC_956F
-	JR		LOC_9575
+
 LOC_9566:
 	LD		A, (IY+4)
 	AND		0FH
@@ -3256,6 +3253,13 @@ LOC_956F:
 	POP		AF
 	LD		A, (IY+1)
 	RET
+LOC_9558:
+	PUSH	AF
+	CP		3
+	JR		NC, LOC_9566
+	LD		A, (IY+3)
+	AND		0FH
+	JR		NZ, LOC_956F
 LOC_9575:
 	POP		AF
 RET
@@ -3302,15 +3306,6 @@ SUB_95A1:  ; Mr. Do Sprite intersection logic
 LOC_95C8:
 	CP		2
 	JR		NC, LOC_9617
-	JR		LOC_95D5
-LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
-	LD		D, A
-	SCF 				; CF==1 Mr. Do collision offset to fix stuck in apple bug
-	CALL	SUB_B12D 	; Returns A=0 if no collision, A=1 if collision
-	AND		A
-	JR		Z, LOC_95D5
-	POP		BC			; here A==1
-	RET					; Treat as a "wall" collision
 LOC_95D5:
 	POP		BC
 	LD		(IY+3), B
@@ -3351,8 +3346,16 @@ LOC_9617:
 	POP		BC
 LOC_961C:
 	LD		A, 1
-RET
-
+	RET
+LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
+	LD		D, A
+	SCF 				; CF==1 Mr. Do collision offset to fix stuck in apple bug
+	CALL	SUB_B12D 	; Returns A=0 if no collision, A=1 if collision
+	AND		A
+	JR		Z, LOC_95D5
+	POP		BC			; here A==1
+RET					; Treat as a "wall" collision
+	
 SUB_961F:  ; Mr. Do's sprite collision logic with the screen bounds
 	LD		(IY+1), A
 	LD		B, (IY+3)
@@ -3638,7 +3641,7 @@ LOC_983F:
 	XOR		A
 RET
 
-SUB_9842:						; TEST MRDO COLLISION AGAINS ENEMIES
+SUB_9842:						; TEST MRDO COLLISION AGAINST ENEMIES
 	LD		A, ($7272)
 	BIT		4, A
 	JR		Z, LOC_98A2
@@ -3687,7 +3690,14 @@ LOC_98A2:
 	JP		LOC_D40B
 LOC_98A5:
 	CALL	SUB_98CE
-	CALL	SUB_9A12
+	LD		A, ($728C)
+	LD		C, A
+	LD		B, 0
+	LD		HL, BYTE_9A24
+	ADD		HL, BC
+	LD		C, (HL)
+	LD		IY, ENEMY_DATA_ARRAY
+	ADD		IY, BC
 	LD		L, 0
 	LD		A, (IY+4)
 	BIT		7, A
@@ -3726,9 +3736,15 @@ SUB_98CE:
 	LD		HL, 1
 	JR		LOC_9915
 LOC_98F6:
-	CALL	SUB_9962
-;	LD		A, 5
-;	LD		(IY+5), A
+	LD		(IY+0), 28H
+	LD		(IY+4), 81H
+	XOR		A
+	LD		HL, 6
+	CALL	REQUEST_SIGNAL
+	LD		(IY+3), A
+	LD		BC, 6078H
+	LD		(IY+2), B
+	LD		(IY+1), C
 	LD		(IY+5), 5
 	CALL	SUB_9980
 	JR		Z, LOC_991E
@@ -3787,22 +3803,6 @@ LOC_995C:
 LOC_995E:
 	POP		IY
 	AND		A
-RET
-
-SUB_9962:
-							;	LD		A, 28H
-							;	LD		(IY+0), A
-	LD		(IY+0), 28H
-							;	LD		A, 81H
-							;	LD		(IY+4), A
-	LD		(IY+4), 81H
-	XOR		A
-	LD		HL, 6
-	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
-	LD		BC, 6078H
-	LD		(IY+2), B
-	LD		(IY+1), C
 RET
 
 SUB_9980:
@@ -3882,16 +3882,6 @@ LOC_9A07:
 	LD		($728B), A
 RET
 
-SUB_9A12:
-	LD		A, ($728C)
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_9A24
-	ADD		HL, BC
-	LD		C, (HL)
-	LD		IY, ENEMY_DATA_ARRAY
-	ADD		IY, BC
-RET
 
 BYTE_9A24:
 	DB 000,006,012,018,024,030,036,042
@@ -4027,8 +4017,7 @@ LOC_9B07:
 	JR		NC, LOC_9B22
 	LD		L, 8
 LOC_9B22:
-	LD		A, B
-	DEC		A
+	DEC		B
 	JR		Z, LOC_9B28
 	INC		L
 	INC		L
@@ -6191,7 +6180,17 @@ COMPLETED_LEVEL:
 	POP		AF
 	CP		2
 	JR		NZ, LOC_A969
-	CALL	DEAL_WITH_END_OF_ROUND_TUNE
+	CALL	PLAY_END_OF_ROUND_TUNE
+	LD		HL, 103H
+	CALL	REQUEST_SIGNAL
+	PUSH	AF
+LOC_A992:
+	POP		AF
+	PUSH	AF
+	CALL	TEST_SIGNAL
+	AND		A
+	JR		Z, LOC_A992
+	POP		AF
 	JR		LOC_A96C
 LOC_A969:
 	CALL	ExtraMrDo
@@ -6205,26 +6204,52 @@ LOC_A973:
 	RET		Z
 	AND		A
 	JR		Z, LOC_A984
-	CALL	SUB_AADC
+	PUSH	AF
+	LD		HL, GAMECONTROL
+	SET		7, (HL)
+LOC_AAE2:
+	BIT		7, (HL)
+	JR		NZ, LOC_AAE2
+	LD		HL, PNT
+	LD		DE, 300H
+	XOR		A
+	CALL	FILL_VRAM
+	LD		HL, SAT
+	LD		DE, 80H
+	XOR		A
+	CALL	FILL_VRAM
+	LD		HL, SPRITE_NAME_TABLE
+	LD		B, 50H
+LOC_AAFF:
+	LD		(HL), 0
+	INC		HL
+	DJNZ	LOC_AAFF
+	POP		AF
+	CP		2
+	LD		A, 7
+	JR		Z, LOC_AB0D
+	LD		A, 8
+LOC_AB0D:
+	CALL	DEAL_WITH_PLAYFIELD
+	LD		BC, 1E2H
+	CALL	WRITE_REGISTER
+	XOR		A
+	LD		HL, 0B4H
+	CALL	REQUEST_SIGNAL
+	PUSH	AF
+LOC_AB1E:
+	POP		AF
+	PUSH	AF
+	CALL	TEST_SIGNAL
+	AND		A
+	JR		Z, LOC_AB1E
+	POP		AF
 	LD		A, 1
 	RET
 LOC_A984:
 	CALL	SUB_AB28
 RET
 
-DEAL_WITH_END_OF_ROUND_TUNE:
-	CALL	PLAY_END_OF_ROUND_TUNE
-	LD		HL, 103H
-	CALL	REQUEST_SIGNAL
-	PUSH	AF
-LOC_A992:
-	POP		AF
-	PUSH	AF
-	CALL	TEST_SIGNAL
-	AND		A
-	JR		Z, LOC_A992
-	POP		AF
-RET
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
 	LD		HL, GAMECONTROL
@@ -6538,48 +6563,6 @@ LOC_AADA:
 	XOR		A
 RET
 
-SUB_AADC:
-	PUSH	AF
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
-LOC_AAE2:
-	BIT		7, (HL)
-	JR		NZ, LOC_AAE2
-	LD		HL, PNT
-	LD		DE, 300H
-	XOR		A
-	CALL	FILL_VRAM
-	LD		HL, SAT
-	LD		DE, 80H
-	XOR		A
-	CALL	FILL_VRAM
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H
-LOC_AAFF:
-	LD		(HL), 0
-	INC		HL
-	DJNZ	LOC_AAFF
-	POP		AF
-	CP		2
-	LD		A, 7
-	JR		Z, LOC_AB0D
-	LD		A, 8
-LOC_AB0D:
-	CALL	DEAL_WITH_PLAYFIELD
-	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
-	XOR		A
-	LD		HL, 0B4H
-	CALL	REQUEST_SIGNAL
-	PUSH	AF
-LOC_AB1E:
-	POP		AF
-	PUSH	AF
-	CALL	TEST_SIGNAL
-	AND		A
-	JR		Z, LOC_AB1E
-	POP		AF
-RET
 
 SUB_AB28:
 	LD		HL, GAMECONTROL
@@ -7101,12 +7084,12 @@ DEAL_WITH_PLAYFIELD:			; Print strings to the playfield
 	ADD		A, A
 	LD		C, A
 	LD		B, 0
-	LD		HL, BYTE_BE21
+	LD		HL, OBJ_POSITION_LIST
 	ADD		HL, BC
 	LD		E, (HL)
 	INC		HL
 	LD		D, (HL)
-	LD		IX, PLAYFIELD_TABLE
+	LD		IX, OBJ_DESCRIPTION_LIST
 	ADD		IX, BC
 	LD		L, (IX+0)
 	LD		H, (IX+1)
@@ -7532,13 +7515,7 @@ LOC_B0D8:
 	ADD		A, 4
 	LD		(IY+2), A
 	JR		LOC_B105
-LOC_B0EE:
-	PUSH	AF
-	LD		A, (IY+2)
-	CP		B
-	JR		Z, LOC_B0F8
-	POP		AF
-	JR		LOC_B126
+
 LOC_B0F8:
 	POP		AF
 	BIT		4, A
@@ -7564,6 +7541,12 @@ LOC_B105:
 LOC_B123:
 	XOR		A
 	JR		LOC_B128
+LOC_B0EE:
+	PUSH	AF
+	LD		A, (IY+2)
+	CP		B
+	JR		Z, LOC_B0F8
+	POP		AF
 LOC_B126:
 	LD		A, 1
 LOC_B128:
@@ -7769,7 +7752,7 @@ TUNNEL_PATTERNS:
 CHERRIES_TXT:
 	DB 017,016,009,008
 PLAYFIELD_PATTERNS:
-	DB 080,081,082,082,082,082,083,083,083,080
+	DB 10,10,10,10,10,10,10,10,10,10
 
 SUB_B286:					; build level in A
 	CP		0BH
@@ -8449,10 +8432,10 @@ SUB_B7C4:
 	PUSH	HL
 	PUSH	IX
 								;	LD		A, 0C0H
-	LD		(IX+4), 0C0H		;	LD		(IX+4), A
+	LD		(IX+4), $0C0		;	LD		(IX+4), A
 								;	LD		A, 8	; unused
 								;	LD		B, A
-	LD		BC,0808H			;	LD		C, A
+	LD		BC,$0808			;	LD		C, A
 	CALL	SUB_B7EF
 	ADD		A, 5
 	LD		D, 0
@@ -8649,19 +8632,13 @@ LOC_B8FE:
 	BIT		7, (HL)
 	JR		NZ, LOC_B8FE
 
-	CALL COLOR_FLASH_EXTRA
-
-;	CALL 	FAKECOLORS; CALL	PUT_VRAM
+	LD	A,11
+	CALL SET_LEVEL_COLORS.RESTORE_COLORS
 
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 
 	POP		IY
-RET
-	
-COLOR_FLASH_EXTRA:
-	LD	A,11
-	CALL SET_LEVEL_COLORS.RESTORE_COLORS
 RET
 	
 	
@@ -8705,15 +8682,12 @@ SET_LEVEL_COLORS:
 	LD 		BC,8
 	CALL	MYINIRVM			
 
-	LD		B,5
-	LD		DE,PT+(32*2+16)*8
-	CALL 	REPCOL				; plot background 5 times
-	LD		B,5
-	LD		DE,PT+(32*2+16)*8 + 256*8
-	CALL 	REPCOL				; plot background 5 times
-	LD		B,5
-	LD		DE,PT+(32*2+16)*8 + 256*2*8
-	CALL 	REPCOL				; plot background 5 times
+	LD		DE,PT+(10)*8
+	CALL 	REP8				; plot playfield pattern
+	LD		DE,PT+(10)*8 + 256*8
+	CALL 	REP8				; plot playfield pattern
+	LD		DE,PT+(10)*8 + 256*2*8
+	CALL 	REP8				; plot playfield pattern
 
 	POP 	HL
 	PUSH	HL
@@ -8725,9 +8699,8 @@ SET_LEVEL_COLORS:
 	LD 		BC,8
 	CALL	MYINIRVM
 	
-	LD		B,5
-	LD		DE,CT+(32*2+16)*8
-	CALL 	REPCOL				; plot background 5 times
+	LD		DE,CT+(10)*8
+	CALL 	REP8				; plot playfield color
 
 	POP 	HL
 	ADD		HL,HL				; a*16
@@ -8741,17 +8714,11 @@ SET_LEVEL_COLORS:
 	CALL	MYINIRVM
 
 	LD		DE,PT+(8)*8
-	LD		HL,FREEBUFF
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(8)*8 + 256*8
-	LD		HL,FREEBUFF
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(8)*8 + 256*2*8
-	LD		HL,FREEBUFF
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 
 	POP 	HL
 	PUSH    HL 
@@ -8763,10 +8730,8 @@ SET_LEVEL_COLORS:
 	LD 		BC,16				; using FREEBUFF
 	CALL	MYINIRVM
 
-	LD		HL,FREEBUFF
 	LD		DE,CT+(8)*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 
 	POP 	HL
 	PUSH    HL 
@@ -8778,18 +8743,12 @@ SET_LEVEL_COLORS:
 	LD 		BC,16				; using FREEBUFF
 	CALL	MYINIRVM
 
-	LD		HL,FREEBUFF
 	LD		DE,PT+(16)*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
-	LD		HL,FREEBUFF
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(16)*8 + 256*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
-	LD		HL,FREEBUFF
+	CALL	REP16				; using FREEBUFF
 	LD		DE,PT+(16)*8 + 256*2*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 
 	POP 	HL
 
@@ -8800,10 +8759,8 @@ SET_LEVEL_COLORS:
 	LD 		BC,16				; using FREEBUFF
 	CALL	MYINIRVM
 
-	LD		HL,FREEBUFF
 	LD		DE,CT+(16)*8
-	LD 		BC,16				; using FREEBUFF
-	CALL 	MYLDIRVM
+	CALL	REP16				; using FREEBUFF
 	
 	POP 	AF					; level number
 	LD		E,A
@@ -8818,21 +8775,20 @@ SET_LEVEL_COLORS:
 	CALL 	MyNMI_on	
 RET
 
-staticcolors:
-	DB $21,$71,$41,$D1,$A1,$71,$A1,$31,$B1,$71,$91
+staticcolors:				; leftovers
+	DB $21,$51,$21,$A1,$21
+	DB $51,$51,$21,$31,$41,$91
 
-REPCOL:				; In B # of times, DE VRAM addr
-.1:	PUSH 	BC
+REP8:				
 	LD		HL,FREEBUFF
 	LD 		BC,8
-	PUSH	DE
 	CALL 	MYLDIRVM
-	POP		DE
-	LD		HL,8
-	ADD 	HL,DE
-	EX      DE,HL
-	POP 	BC
-	DJNZ	.1
+RET
+
+REP16:				
+	LD		HL,FREEBUFF
+	LD 		BC,16
+	CALL 	MYLDIRVM
 RET
 
 EXTRA_BEHAVIOR:
@@ -8982,91 +8938,71 @@ PHASE_10_MAP:
 	DB 006,095,175,001,000,004,063,000,000,063,001,000,007,095,175,001,000,003,063,000,000,063,001,000,008,095,175,000,000,063
 	DB 000,000,095,175,001,000,008,095,207,239,159,001,000,003,095,001,207,010,159,000,000,002,000
 
-BYTE_BE21:
-	DB 033,000,010,000,110,001,136,001,136,001,072,001,102,001,102,001,106,001,110,001,110,001,110,001,110,001,110,001,065,000,000,000,000,000,000,000,000,000,000,000
+OBJ_POSITION_LIST:
+	DW $0021,$000A,$016E,$0188,$0188,$016E,$0166,$0166,$016A,$016E,$016E,$016E,$016E,$016E,$0041,$016E,$016E,$016E,$016E,$016E
 
-PLAYFIELD_TABLE:
-	DW P1ST_PHASE_LEVEL_GEN
-	DW EXTRA_BORDER_GEN
-	DW BADGUY_OUTLINE_GEN
-	DW GET_READY_P1_GEN
-	DW GET_READY_P2_GEN
-	DW WIN_EXTRA_GEN
-	DW GAME_OVER_P1_GEN
-	DW GAME_OVER_P2_GEN
-	DW GAME_OVER_GEN
-	DW SUNDAE_GEN
-	DW WHEAT_SQUARE_GEN
-	DW GUMDROP_GEN
-	DW PIE_SLICE_GEN
-	DW BLANK_SPACE_GEN
-	DW P2ND_GEN
-;	 DB 000,000,000,000,000,000,000,000,000,000
+OBJ_DESCRIPTION_LIST:
+	DW P1ST_PHASE_LEVEL_GEN				; 1 
+	DW EXTRA_BORDER_GEN					; 2
+	DW BADGUY_OUTLINE_GEN				; 3
+	DW GET_READY_P1_GEN                 ; 4
+	DW GET_READY_P2_GEN                 ; 5
+	
+	DW PIE_SLICE_GEN               		; 6 (was WIN EXTRA MrDo)
+	
+	DW GAME_OVER_P1_GEN                 ; 7
+	DW GAME_OVER_P2_GEN                 ; 8
+	DW GAME_OVER_GEN                    ; 9
+	
+	DW WHEAT_SQUARE_GEN                 ;10
+	DW GUMDROP_GEN		                ;11
+	DW SUNDAE_GEN                      	;12
+	DW BURGER                    		;13
+	
+	DW BLANK_SPACE_GEN                  ;14
+	DW P2ND_GEN                         ;15
+	
+	DW SANDWICH                        	;16
+	DW MILK                         	;17
+	DW EGGS                         	;18
+	DW BAGEL	                       	;19
+	DW DRINK                       		;20
+
 
 P1ST_PHASE_LEVEL_GEN:
 	DB 066,067,068,254,023,241,233,255
 EXTRA_BORDER_GEN:
 	DB 058,253,009,061,063,254,021,059,254,009,064,254,021,060,253,009,062,065,255
-BADGUY_OUTLINE_GEN:
-	DB 112,114,254,030,113,115,255
 GET_READY_P1_GEN:
 	DB 232,230,245,000,243,230,226,229,250,000,241,237,226,250,230,243,000,217,255
 GET_READY_P2_GEN:
 	DB 232,230,245,000,243,230,226,229,250,000,241,237,226,250,230,243,000,218,255
-WIN_EXTRA_GEN: ; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT
-;	DB 228,240,239,232,243,226,245,246,237,226,245,234,240,239,244,000,253,001,255,254,076,250,240,246,000,248
-;	DB 234,239,000,226,239,000,230,249,245,243,226,000,238,243,253,001,254,000,229,240,000,253,001,255,255
+
 GAME_OVER_P1_GEN:
 	DB 253,020,000,254,012,000,232,226,238,230,000,240,247,230,243,000,241,237,226,250,230,243,000,217,000,254,012,253,020,000,255
 GAME_OVER_P2_GEN:
 	DB 253,020,000,254,012,000,232,226,238,230,000,240,247,230,243,000,241,237,226,250,230,243,000,218,000,254,012,253,020,000,255
 GAME_OVER_GEN:
 	DB 253,011,000,254,021,000,232,226,238,230,000,240,247,230,243,000,254,021,253,011,000,255
-SUNDAE_GEN:
-	DB 042,043,254,030,056,057,255
-WHEAT_SQUARE_GEN:
-	DB 032,033,254,030,034,035,255
-GUMDROP_GEN:
-	DB 024,025,254,030,026,027,255
-PIE_SLICE_GEN:
-	DB 044,045,254,030,036,037,255
-BLANK_SPACE_GEN:
-	DB 000,000,254,030,000,000,255
+
 P2ND_GEN:
 	DB 069,070,071,255
 
-PLAYFIELD_COLORS:
-	DW PHASE_01_COLORS
-	DW PHASE_02_COLORS
-	DW PHASE_03_COLORS
-	DW PHASE_04_COLORS
-	DW PHASE_05_COLORS
-	DW PHASE_06_COLORS
-	DW PHASE_07_COLORS
-	DW PHASE_08_COLORS
-	DW PHASE_09_COLORS
-	DW PHASE_10_COLORS
-    ; CONTROL_BYTE,BLACK CHERRY STEM+BG, MED RED CHERRY+BG,.......BG1+BG2,BG Walls + Invisible Corridor)
-PHASE_01_COLORS: ; Med Green + Light Green
-	DB $00,$12,$82,$90,$80,$F0,$F0,$A0,$A0,$80,$23,$20,$C0,$C0,$80,$E0,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$B1,$F0,$F0,$F0,$F0,$F0			; NOTE the $B1 is for the 500/1000 bonus in the tileset
-PHASE_02_COLORS: ; Dark Blue + Cyan  
-	DB $00,$17,$87,$90,$80,$F0,$F0,$A0,$A0,$80,$47,$70
-PHASE_03_COLORS: ; Magenta + Cyan
-	DB $00,$14,$84,$90,$80,$F0,$F0,$A0,$A0,$80,$D7,$70
-PHASE_04_COLORS: ; Dark Yellow + Magenta
-	DB $00,$1D,$8D,$90,$80,$F0,$F0,$A0,$A0,$80,$AD,$D0
-PHASE_05_COLORS: ; Cyan + Dark Yellow
-	DB $00,$1A,$8A,$90,$80,$F0,$F0,$A0,$A0,$80,$7A,$A0
-PHASE_06_COLORS: ; Magenta + Cyan (repeat of phase 3)
-	DB $00,$17,$87,$90,$80,$F0,$F0,$A0,$A0,$80,$D7,$70
-PHASE_07_COLORS: ; Dark Red + Dark Yellow
-	DB $00,$1A,$8A,$90,$80,$F0,$F0,$A0,$A0,$80,$6A,$A0
-PHASE_08_COLORS: ; Light Gray + Light Green
-	DB $00,$13,$83,$90,$80,$F0,$F0,$A0,$A0,$80,$E3,$30
-PHASE_09_COLORS: ; Light Gray + Dark Yellow
-	DB $00,$1A,$8A,$90,$80,$F0,$F0,$A0,$A0,$80,$EA,$A0
-PHASE_10_COLORS:
-	DB $00,$17,$87,$90,$80,$F0,$F0,$A0,$A0,$80,$74,$70
+BLANK_SPACE_GEN:	DB   0,  0,254,030,  0,  0,255
+BADGUY_OUTLINE_GEN:	DB  76, 77,254,030,108,109,255
+
+PIE_SLICE_GEN:		DB  78, 79,254,030,110,111,255 
+WHEAT_SQUARE_GEN: 	DB  80, 81,254,030,112,113,255
+GUMDROP_GEN:		DB  82, 83,254,030,114,115,255
+SUNDAE_GEN:			DB  84, 85,254,030,116,117,255
+BURGER:				DB  86, 87,254,030,118,119,255
+
+SANDWICH:			DB 150,151,254,030,182,183,255
+MILK:				DB 152,153,254,030,184,185,255
+EGGS:				DB 154,155,254,030,186,187,255
+BAGEL:				DB 156,157,254,030,188,189,255
+DRINK:				DB 158,159,254,030,190,191,255
+
 
 BADGUY_BEHAVIOR:
 	DW PHASE_01_BGB
@@ -9443,170 +9379,16 @@ EXTRA_SPRITE_PAT:
    DB 001,000,000,000,000,000,000,000
    DB 000,000,000,000,000,000,000,128
    DB 128,000,000,000,000,000,000,000
-BALL_SPRITE_PAT:
-	DB 000,000,000,000,000,000,001,002
-	DB 001,000,000,000,000,000,000,000
-	DB 000,000,000,000,000,000,000,128
-	DB 000,000,000,000,000,000,000,000
-	DB 000,000,000,000,000,001,002,004
-	DB 002,001,000,000,000,000,000,000
-	DB 000,000,000,000,000,000,128,064
-	DB 128,000,000,000,000,000,000,000
-	DB 000,000,000,000,001,004,000,008
-	DB 000,004,001,000,000,000,000,000
-	DB 000,000,000,000,000,064,000,032
-	DB 000,064,000,000,000,000,000,000
-	DB 000,000,000,001,008,000,000,016
-	DB 000,000,128,001,000,000,000,000
-	DB 000,000,000,000,032,000,000,016
-	DB 000,000,032,000,000,000,000,000
-	DB 000,000,001,016,000,000,000,032
-	DB 000,000,000,016,001,000,000,000
-	DB 000,000,000,016,000,000,000,008
-	DB 000,000,000,016,000,000,000,000
-	DB 000,001,032,000,000,000,000,064
-	DB 000,000,000,000,032,000,001,000
-	DB 000,000,008,000,000,000,000,000
-	DB 000,000,000,000,008,000,000,000
+   
+BALL_EXPLOSION_PAT:		; Ball Explosion
+	db $00,$00,$00,$00,$00,$00,$01,$02,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$02,$04,$02,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$40,$80,$00,$00,$00,$00,$00,$00,$00
+	db $00,$00,$00,$00,$01,$04,$00,$08,$00,$04,$01,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$40,$00,$20,$00,$40,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$08,$00,$00,$10,$00,$00,$08,$01,$00,$00,$00,$00,$00,$00,$00,$00,$20,$00,$00,$10,$00,$00,$20,$00,$00,$00,$00,$00
+	db $00,$00,$01,$10,$00,$00,$00,$20,$00,$00,$00,$10,$01,$00,$00,$00,$00,$00,$00,$10,$00,$00,$00,$08,$00,$00,$00,$10,$00,$00,$00,$00,$00,$01,$20,$00,$00,$00,$00,$40,$00,$00,$00,$00,$20,$00,$01,$00,$00,$00,$08,$00,$00,$00,$00,$04,$00,$00,$00,$00,$08,$00,$00,$00
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; Multicolor Compressed Tileset
 
-
-tileset_bitmap:
-	db $3e,$00,$aa,$80,$00,$03,$07,$03
-	db $0c,$0f,$40,$1f,$07,$c0,$e0,$c0
-	db $30,$f0,$03,$b8,$1f,$0c,$03,$06
-	db $03,$00,$15,$58,$d0,$00,$b0,$78
-	db $68,$6a,$30,$e0,$3f,$36,$3f,$16
-	db $18,$38,$3b,$13,$3f,$c0,$00,$80
-	db $00,$6c,$fc,$39,$33,$03,$01,$60
-	db $03,$40,$68,$fc,$fc,$90,$02,$6c
-	db $07,$30,$0c,$33,$70,$0c,$4f,$1c
-	db $64,$98,$5a,$60,$1f,$bc,$00,$01
-	db $84,$40,$0e,$0f,$1e,$07,$80,$05
-	db $48,$90,$20,$50,$b8,$07,$03,$8f
-	db $13,$3c,$1f,$83,$42,$80,$3c,$fc
-	db $f0,$55,$80,$42,$fe,$80,$f8,$80
-	db $80,$fe,$80,$07,$c6,$6c,$18,$30
-	db $6c,$c6,$c7,$0f,$10,$40,$00,$07
-	db $fc,$86,$86,$fc,$88,$48,$8e,$07
-	db $38,$14,$82,$fe,$6a,$82,$01,$2e
-	db $20,$1f,$07,$01,$02,$07,$01,$07
-	db $04,$f8,$e0,$80,$40,$e0,$0d,$07
-	db $ff,$ff,$c0,$72,$00,$15,$b7,$00
-	db $b9,$64,$0f,$03,$ae,$60,$00,$25
-	db $47,$cc,$47,$10,$41,$4c,$e7,$22
-	db $cf,$61,$01,$13,$c1,$61,$c1,$07
-	db $e0,$c0,$32,$7c,$c6,$06,$7c,$60
-	db $c0,$97,$c2,$07,$e2,$b2,$9a,$8e
-	db $86,$04,$8f,$82,$82,$91,$7a,$a1
-	db $af,$af,$f5,$00,$b5,$5c,$7d,$03
-	db $01,$cb,$b5,$8d,$03,$ff,$cc,$e2
-	db $1d,$33,$ff,$0f,$d8,$1f,$ff,$cd
-	db $db,$1f,$63,$2f,$b3,$ff,$68,$2f
-	db $1f,$70,$8f,$8c,$22,$0e,$f1,$03
-	db $00,$1c,$38,$70,$e0,$c1,$83,$07
-	db $0f,$00,$66,$f0,$9f,$f0,$66,$0f
-	db $f9,$e0,$c2,$13,$1f,$0e,$03,$f8
-	db $07,$70,$70,$ca,$23,$07,$03,$01
-	db $e3,$38,$8f,$e0,$3e,$83,$f8,$fc
-	db $1f,$f0,$00,$99,$0f,$60,$0f,$99
-	db $f0,$06,$ff,$f3,$00,$77,$00,$c2
-	db $1f,$30,$21,$22,$24,$22,$31,$b3
-	db $30,$60,$38,$3f,$3e,$0f,$f0,$18
-	db $06,$8c,$44,$44,$8c,$18,$1a,$10
-	db $e0,$f8,$ac,$3d,$1c,$00,$2e,$78
-	db $56,$75,$6d,$56,$cc,$12,$0f,$3d
-	db $37,$1c,$0e,$56,$bf,$7c,$ff,$18
-	db $fe,$07,$ef,$0f,$d7,$b7,$77,$ef
-	db $16,$87,$fe,$69,$07,$0f,$b2,$8f
-	db $0e,$66,$fe,$07,$9e,$0f,$0c,$ef
-	db $fe,$07,$dd,$3c,$0f,$a7,$57,$fe
-	db $07,$9b,$4f,$35,$af,$4f,$07,$ae
-	db $9b,$3f,$26,$c7,$f1,$fe,$69,$07
-	db $0f,$e2,$ce,$fe,$b6,$03,$1f,$8a
-	db $b1,$a2,$08,$1b,$1f,$1f,$07,$07
-	db $e0,$b0,$29,$f8,$78,$86,$00,$40
-	db $c4,$1f,$10,$14,$10,$1f,$00,$f0
-	db $98,$08,$88,$98,$f0,$40,$c0,$b2
-	db $17,$d8,$15,$0d,$1e,$3f,$07,$e6
-	db $04,$40,$b0,$78,$fc,$dd,$82,$0f
-	db $1f,$36,$09,$1f,$0f,$01,$f8,$d0
-	db $f8,$6c,$10,$f8,$fc,$c5,$3f,$1e
-	db $1e,$14,$84,$3f,$f0,$78,$3f,$f0
-	db $0e,$0e,$1d,$e0,$1f,$ff,$81,$38
-	db $74,$83,$7c,$38,$92,$07,$0f,$1f
-	db $0f,$5c,$cf,$87,$0f,$7c,$96,$0f
-	db $f9,$07,$8b,$0f,$7f,$8f,$d1,$0f
-	db $7e,$08,$07,$f1,$e2,$e0,$aa,$c8
-	db $ef,$c7,$8b,$19,$83,$83,$c7,$07
-	db $fd,$0f,$57,$4f,$0f,$06,$47,$4f
-	db $0f,$38,$ff,$8b,$1f,$30,$af,$d1
-	db $1f,$06,$77,$07,$0f,$6f,$c7,$38
-	db $53,$3f,$17,$6f,$80,$c7,$a2,$6f
-	db $81,$07,$d1,$1f,$ff,$e7,$1f,$03
-	db $57,$07,$18,$07,$08,$07,$20,$f6
-	db $e0,$18,$e0,$10,$40,$e0,$07,$0d
-	db $0f,$07,$02,$02,$60,$0f,$ed,$80
-	db $ac,$03,$04,$cc,$c3,$27,$28,$15
-	db $38,$10,$9e,$f8,$e4,$14,$a8,$62
-	db $1c,$9e,$3f,$0c,$2b,$15,$15,$3f
-	db $8d,$41,$5c,$54,$4c,$54,$fc,$80
-	db $fd,$17,$08,$17,$e0,$3e,$00,$e8
-	db $10,$e8,$e7,$3e,$00,$ff,$ff,$ff
-	db $fe
-
-tileset_color:
-	db $5e,$f1,$aa,$81,$00,$91,$91,$61
-	db $b1,$41,$00,$07,$81,$81,$61,$a1
-	db $53,$00,$09,$0f,$81,$2e,$15,$09
-	db $10,$6a,$61,$e5,$3f,$31,$8e,$36
-	db $91,$31,$ab,$32,$07,$3d,$6f,$36
-	db $aa,$07,$04,$01,$4f,$fb,$07,$57
-	db $b3,$00,$39,$33,$52,$31,$0e,$00
-	db $d1,$d1,$39,$55,$e1,$04,$02,$00
-	db $f6,$07,$ee,$8d,$00,$e1,$38,$00
-	db $c5,$6f,$db,$00,$de,$2d,$e7,$25
-	db $da,$2c,$9e,$07,$9a,$32,$b3,$07
-	db $81,$4d,$00,$56,$07,$dd,$f1,$00
-	db $21,$aa,$7e,$00,$df,$1d,$c3,$00
-	db $c3,$32,$c1,$43,$03,$75,$74,$63
-	db $01,$e7,$73,$60,$01,$ba,$ea,$b1
-	db $e1,$a0,$03,$e0,$a7,$70,$a3,$03
-	db $71,$31,$b7,$4b,$a7,$d3,$8d,$03
-	db $b3,$cb,$82,$01,$e3,$b3,$e1,$b1
-	db $03,$49,$31,$17,$b3,$ec,$51,$03
-	db $1f,$73,$a7,$b3,$01,$91,$cd,$00
-	db $dc,$c2,$0d,$81,$cf,$00,$ed,$0f
-	db $7e,$f8,$5e,$7a,$00,$b1,$bf,$f8
-	db $ff,$74,$03,$cd,$35,$0b,$87,$71
-	db $bb,$03,$00,$c3,$8f,$da,$07,$7c
-	db $0f,$97,$7b,$07,$af,$b8,$c7,$9f
-	db $ad,$07,$00,$63,$a7,$d6,$03,$2d
-	db $a1,$af,$77,$b1,$03,$7c,$00,$b7
-	db $7a,$07,$01,$d6,$bf,$3d,$07,$6a
-	db $00,$17,$c7,$71,$77,$03,$00,$c7
-	db $cf,$58,$d7,$e9,$98,$bb,$a1,$75
-	db $06,$07,$69,$62,$f4,$7b,$c5,$5c
-	db $4d,$81,$63,$05,$21,$b1,$ad,$12
-	db $06,$1d,$07,$d1,$84,$bc,$07,$d0
-	db $a1,$f6,$3e,$db,$d9,$81,$00,$83
-	db $83,$c9,$82,$83,$83,$fb,$e1,$07
-	db $87,$87,$97,$61,$02,$81,$f4,$07
-	db $c3,$81,$f0,$07,$a8,$e8,$b9,$30
-	db $e8,$a8,$ff,$73,$07,$b8,$8b,$07
-	db $a8,$a9,$02,$07,$ff,$d0,$07,$24
-	db $b9,$a8,$87,$c1,$f7,$f0,$07,$b8
-	db $b8,$b9,$b0,$02,$81,$fd,$07,$0c
-	db $34,$e9,$b8,$83,$ff,$0c,$83,$07
-	db $66,$e8,$07,$98,$17,$ff,$3e,$07
-	db $d3,$67,$0f,$81,$c2,$07,$98,$98
-	db $96,$02,$c1,$f7,$f4,$07,$e7,$2e
-	db $03,$bd,$07,$c1,$c1,$0e,$c7,$ed
-	db $ff,$3e,$86,$04,$ed,$a7,$0e,$f6
-	db $9f,$df,$7f,$07,$75,$9f,$61,$40
-	db $a3,$d5,$fb,$07,$ff,$ff,$ff,$ff
+include "C:\MSXgl-1.0.0\cvbasic_v0.7.1\MrDoHack\mrdo_screen2\telesetcolor.asm"
 
 
 
@@ -11226,21 +11008,7 @@ cvb_INTERMISSION:
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
-	LD		HL, $2000+6*32*8
-	LD		DE, 32*8*2
-	LD		A,$F0
-	CALL	FILL_VRAM
-	
-									; LOAD ARCADE FONTS
-	LD DE,$0000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$0800 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$1000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
+	CALL 	LOADFONTS
 	
 	LD DE,$0000 
 	LD HL,intermission_char
@@ -11879,20 +11647,7 @@ cvb_CONGRATULATION:
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
-	LD		HL, $2000+6*32*8
-	LD		DE, 32*2*8
-	LD		A,$F0
-	CALL	FILL_VRAM
-									; LOAD ARCADE FONTS
-	LD DE,$0000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$0800 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
-	LD DE,$1000 + 8*0d7h			; start tiles here
-	LD HL,ARCADEFONTS
-	CALL unpack
+	CALL 	LOADFONTS
 	
 	LD DE,$0000 
 	LD HL,congratulation_char
@@ -12365,9 +12120,9 @@ MYPRINT:
 	JR nz,.7
 	LD a,253	; position of "-" in the tileset
 	JR .99
-.7:	cp ","
+.7:	cp "'"
 	JR nz,.8
-	LD a,252	; position of "," in the tileset
+	LD a,252	; position of "'" in the tileset
 	JR .99
 .8:	LD a,215	; any other tile is mapped by " "	
 .99:
@@ -12788,8 +12543,7 @@ cvb_IMAGE_COLOR:
 	DB $ff,$e7,$0e,$31,$9f,$13,$df,$17
 	DB $ff,$ff,$ff,$f8
 
-	;
-	; Width = 32, height = 24
+	; Width = 22, height = 24
 	; image_pattern:
 cvb_IMAGE_PATTERN_FR1:
 	DB $00,$00,$00,$00
@@ -12858,8 +12612,6 @@ cvb_IMAGE_SPRITES:
 	DB $c2,$16,$64,$00,$c9,$35,$d2,$7f
 	DB $00,$bd,$4c,$e4,$1d,$c0,$1d,$fa
 	DB $fe,$13,$ff,$ff,$ff,$ff,$c0
-	;
-
 
 	;
 	; sprite_overlay:
@@ -13017,41 +12769,33 @@ cvb_PNT:
 	DB $30,$50,$54,$51,$52,$53,$ff,$ff
 	DB $ff,$ff,$c0
 
-;FirstSecondPLayer:
-;	DB $00,$47,$cc,$47,$41,$4c,$e7,$00
-;	DB $00,$cf,$61,$01,$c1,$61,$c1,$00
-;	DB $00,$e0,$00,$00,$00,$00,$00,$00
-;	
-;	DB $00,$7c,$c6,$06,$7c,$c0,$fe,$00
-;	DB $00,$c2,$e2,$b2,$9a,$8e,$86,$00
-;	DB $00,$fc,$86,$82,$82,$86,$fc,$00
 
 
 ARCADEFONTS:
-	DB $1f,$00,$01,$00,$7c,$c6,$82,$82
-	DB $c6,$7c,$09,$07,$10,$30,$10,$00
-	DB $38,$c1,$0f,$06,$7c,$c0,$fe,$07
-	DB $07,$fe,$06,$3c,$06,$01,$17,$1c
-	DB $34,$64,$c4,$fe,$04,$0d,$07,$fc
-	DB $80,$fc,$23,$0f,$1c,$fc,$86,$a0
-	DB $07,$1f,$0c,$18,$30,$60,$eb,$2f
-	DB $01,$a2,$17,$05,$c2,$7e,$39,$88
-	DB $07,$38,$6c,$50,$fe,$82,$aa,$2f
-	DB $25,$01,$02,$80,$07,$7e,$c0,$80
-	DB $80,$c0,$7e,$eb,$0f,$67,$84,$0f
-	DB $fe,$80,$f8,$10,$fe,$f1,$07,$80
-	DB $c5,$37,$80,$8e,$39,$55,$07,$1d
-	DB $35,$00,$8d,$3f,$10,$96,$87,$02
-	DB $00,$80,$97,$86,$8c,$98,$b0,$ec
-	DB $59,$c6,$07,$2c,$a4,$37,$14,$ee
-	DB $30,$ba,$92,$27,$c2,$e2,$0d,$b2
-	DB $9a,$8e,$86,$6e,$bf,$6d,$d8,$4f
-	DB $82,$9a,$36,$cc,$76,$0f,$38,$88
-	DB $8e,$0f,$70,$1c,$d1,$AF,$10,$dd
-	DB $00,$67,$b6,$2f,$0e,$05,$44,$6c
-	DB $38,$07,$08,$92,$ba,$ee,$44,$07
-	DB $c6,$6c,$ae,$ce,$ba,$5f,$b9,$15
-	DB $27,$fe,$d9,$de,$6f,$c3,$00,$60
-	DB $60,$40,$bc,$06,$0d,$e8,$0f,$03
-	DB $18,$18,$cb,$25,$01,$ff,$ff,$ff
-	DB $ff
+	db $1f,$00,$01,$00,$7c,$c6,$82,$82
+	db $c6,$7c,$09,$07,$10,$30,$10,$00
+	db $38,$c1,$0f,$06,$7c,$c0,$fe,$07
+	db $07,$fe,$06,$3c,$06,$01,$17,$1c
+	db $34,$64,$c4,$fe,$04,$0d,$07,$fc
+	db $80,$fc,$23,$0f,$1c,$fc,$86,$a0
+	db $07,$1f,$0c,$18,$30,$60,$eb,$2f
+	db $01,$a2,$17,$05,$c2,$7e,$39,$88
+	db $07,$38,$6c,$50,$fe,$82,$aa,$2f
+	db $25,$01,$02,$80,$07,$7e,$c0,$80
+	db $80,$c0,$7e,$eb,$0f,$67,$84,$0f
+	db $fe,$80,$f8,$10,$fe,$f1,$07,$80
+	db $c5,$37,$80,$8e,$39,$55,$07,$1d
+	db $35,$00,$8d,$3f,$10,$96,$87,$02
+	db $00,$80,$97,$86,$8c,$98,$b0,$ec
+	db $59,$c6,$07,$2c,$a4,$37,$14,$ee
+	db $30,$ba,$92,$27,$c2,$e2,$0d,$b2
+	db $9a,$8e,$86,$6e,$bf,$6d,$d8,$4f
+	db $82,$9a,$36,$cc,$76,$0f,$38,$88
+	db $8e,$0f,$70,$1c,$d1,$af,$10,$dd
+	db $00,$67,$b6,$2f,$0e,$05,$44,$6c
+	db $38,$07,$08,$92,$ba,$ee,$44,$07
+	db $c6,$6c,$ae,$ce,$ba,$5f,$b9,$15
+	db $27,$fe,$d8,$de,$6f,$30,$0d,$30
+	db $10,$20,$00,$af,$00,$0d,$18,$00
+	db $60,$f7,$18,$65,$18,$25,$01,$ff
+	db $ff,$ff,$ff,$80
