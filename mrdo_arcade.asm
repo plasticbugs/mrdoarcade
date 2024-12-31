@@ -227,7 +227,7 @@ FNAME "mrdo_arcade.rom"
 
 	ORG $8000
 
-	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+	DW COLECO_TITLE_ON		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
 	DW SPRITE_NAME_TABLE
 	DW SPRITE_ORDER_TABLE
 	DW WORK_BUFFER
@@ -9388,10 +9388,7 @@ BALL_EXPLOSION_PAT:		; Ball Explosion
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; Multicolor Compressed Tileset
 
-include "C:\MSXgl-1.0.0\cvbasic_v0.7.1\MrDoHack\mrdo_screen2\telesetcolor.asm"
-
-
-
+include "telesetcolor.asm"
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; sound
@@ -11089,7 +11086,7 @@ PRINT_LEVEL_STATS:
     ; Print and calculate scores for all three levels
     ; First level (Current - 2)
     push af                     ; Save current level
-    ld de, $1800 + 2 + 32*2   ; First line position
+    ld de, $1800 + 6 + 32*2   ; First line position
     pop af
     push af                     ; Keep a copy
     sub 2                      ; Get first level number
@@ -11100,7 +11097,7 @@ PRINT_LEVEL_STATS:
     call PRINT_SINGLE_TIME
     
     ; Second level (Current - 1)
-    ld de, $1800 + 2 + 32*4   ; Next line down
+    ld de, $1800 + 6 + 32*4   ; Next line down
     pop af
     push af
     dec a                      ; Get second level number
@@ -11111,7 +11108,7 @@ PRINT_LEVEL_STATS:
     call PRINT_SINGLE_TIME
     
     ; Third level (Current)
-    ld de, $1800 + 2 + 32*6   ; Next line down
+    ld de, $1800 + 6 + 32*6   ; Next line down
     pop af                     ; Get current level
     push af
     call PRINT_SINGLE_SCORE
@@ -11154,7 +11151,7 @@ PRINT_SINGLE_TIME:
     ld a, (hl)                ; Get minutes
     add a, "0"                ; Convert to ASCII
     ld (TEXT_BUFFER), a       ; Store single minute digit
-    ld a, " "                 ; Add space
+    ld a, "'"                 ; Add space
     ld (TEXT_BUFFER+1), a
     
     ; Now get seconds
@@ -11188,7 +11185,7 @@ PRINT_SINGLE_TIME:
     ; Print time value
     pop de                    ; Restore screen position
     ex de, hl
-    ld bc, 12                 ; Move 12 positions right
+    ld bc, 7                 ; Move 7 positions right
     add hl, bc
     ex de, hl
     ld hl, TEXT_BUFFER
