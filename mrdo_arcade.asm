@@ -1039,7 +1039,7 @@ RET
 	
 
 FONTCOLOR:
-	DB $B1,$B1,$F1,$F1,$F1,$F1,$B1,$B1
+	DB $F1,$F1,$F1,$F1,$F1,$F1,$F1,$F1
 
 
 SUB_84F8:	 ; Disables NMI, sets up the game
