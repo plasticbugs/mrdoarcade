@@ -178,9 +178,40 @@ SATBUFF2:									; MULTIPLE USE
 SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
 WORK_BUFFER:			RB  24	;EQU $72EF
 WORK_BUFFER2:			RB  24	;EQU $7307	; ??
-SAVEBUFF:				RB  16	;EQU $731F	; Free ram ??
-FREEBUFF:				RB	16	;EQU $732F	; work ram
 
+FRAME_COUNT:      		RB 1    ;EQU $0731F Shared frame counter (0-59)
+
+P1_LEVEL1_SEC:    		RB 1    ;EQU $07320 ;Player 1 level 1 seconds
+P1_LEVEL1_MIN:    		RB 1    ;EQU $07321 ;Player 1 level 1 minutes
+P1_LEVEL2_SEC:    		RB 1    ;EQU $07322 ;Player 1 level 2 seconds
+P1_LEVEL2_MIN:    		RB 1    ;EQU $07323 ;Player 1 level 2 minutes
+P1_LEVEL3_SEC:    		RB 1    ;EQU $07324 ;Player 1 level 3 seconds
+P1_LEVEL3_MIN:    		RB 1    ;EQU $07325 ;Player 1 level 3 minutes
+
+P1_PREV_SCORE:    		RB 2    ;EQU $07326	; 2 bytes - Previous total score for P1
+P1_LEVEL1_SCORE:  		RB 2    ;EQU $07328 ; 2 bytes - Level 1 score
+P1_LEVEL2_SCORE:  		RB 2    ;EQU $0732A ; 2 bytes - Level 2 score
+P1_LEVEL3_SCORE:  		RB 2    ;EQU $0732C ; 2 bytes - Level 3 score
+
+; ALLOCATED IN THE TIMER TABLE
+
+P2_LEVEL1_SEC:    		EQU $070D7 ;Player 2 level 1 seconds
+P2_LEVEL1_MIN:    		EQU $070D8 ;Player 2 level 1 minutes
+P2_LEVEL2_SEC:    		EQU $070D9 ;Player 2 level 2 seconds
+P2_LEVEL2_MIN:    		EQU $070DA ;Player 2 level 2 minutes
+P2_LEVEL3_SEC:    		EQU $070DB ;Player 2 level 3 seconds
+P2_LEVEL3_MIN:    		EQU $070DC ;Player 2 level 3 minutes
+
+P2_PREV_SCORE:    		EQU $070DD ; 2 bytes - Previous total score for P2
+P2_LEVEL1_SCORE:  		EQU $070DF ; 2 bytes - Level 1 score
+P2_LEVEL2_SCORE:  		EQU $070E1 ; 2 bytes - Level 2 score
+P2_LEVEL3_SCORE:  		EQU $070E3 ; 2 bytes - Level 3 score
+
+TEXT_BUFFER:      				; 8 bytes - Text buffer for printing: use FREEBUFF
+FREEBUFF:				RB	16	;EQU $0732C	; work ram
+
+
+FRAMEPERSEC:			EQU $0069
 DEFER_WRITES:			EQU $73C6		; System flag
 MUX_SPRITES:			EQU $73C7		; System flag: enable sprite rotation ?
 RAND_NUM: 				EQU $73C8		; Used by RAND_GEN, it has to be !=0
@@ -191,35 +222,6 @@ mode:				 	EQU $73FD		; Unused (?) used by OS
 ; B3-B6 spare
 ; B7==0 -> game mode, 	B7==1 -> intermission mode
 
-P1_LEVEL1_SEC:    EQU $7720    ; Player 1 level 1 seconds
-P1_LEVEL1_MIN:    EQU $7721    ; Player 1 level 1 minutes
-P1_LEVEL2_SEC:    EQU $7722    ; Player 1 level 2 seconds
-P1_LEVEL2_MIN:    EQU $7723    ; Player 1 level 2 minutes
-P1_LEVEL3_SEC:    EQU $7724    ; Player 1 level 3 seconds
-P1_LEVEL3_MIN:    EQU $7725    ; Player 1 level 3 minutes
-
-P1_PREV_SCORE:    EQU $7726    ; 2 bytes - Previous total score for P1
-P1_LEVEL1_SCORE:  EQU $7728    ; 2 bytes - Level 1 score
-P1_LEVEL2_SCORE:  EQU $772A    ; 2 bytes - Level 2 score
-P1_LEVEL3_SCORE:  EQU $772C    ; 2 bytes - Level 3 score
-
-TEXT_BUFFER:      EQU $7418    ; 8 bytes - Text buffer for printing
-
-P2_LEVEL1_SEC:    EQU $74D6    ; Player 2 level 1 seconds
-P2_LEVEL1_MIN:    EQU $74D7    ; Player 2 level 1 minutes
-P2_LEVEL2_SEC:    EQU $74D8    ; Player 2 level 2 seconds
-P2_LEVEL2_MIN:    EQU $74D9    ; Player 2 level 2 minutes
-P2_LEVEL3_SEC:    EQU $74DA    ; Player 2 level 3 seconds
-P2_LEVEL3_MIN:    EQU $74DB    ; Player 2 level 3 minutes
-
-P2_PREV_SCORE:    EQU $74DC    ; 2 bytes - Previous total score for P2
-P2_LEVEL1_SCORE:  EQU $74DE    ; 2 bytes - Level 1 score
-P2_LEVEL2_SCORE:  EQU $74E0    ; 2 bytes - Level 2 score
-P2_LEVEL3_SCORE:  EQU $74E2    ; 2 bytes - Level 3 score
-
-FRAME_COUNT:      EQU $7703    ; Shared frame counter (0-59)
-
-
 
 FNAME "mrdo_arcade.rom"
 ;	CPU Z80
@@ -227,7 +229,7 @@ FNAME "mrdo_arcade.rom"
 
 	ORG $8000
 
-	DW COLECO_TITLE_ON		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
 	DW SPRITE_NAME_TABLE
 	DW SPRITE_ORDER_TABLE
 	DW WORK_BUFFER
@@ -243,6 +245,7 @@ FNAME "mrdo_arcade.rom"
 	DS 20,0
 	RET 
 	JP		nmi_handler
+	
 GAME_NAME:
 ;	DB "MR. DO!",1EH,1FH
 ;	DB "/PRESENTS UNIVERSAL'S/1983"
@@ -320,11 +323,13 @@ FINISH_NMI:
 	POP		BC
 	POP		AF
 	RETN
+	
 DEAL_WITH_TIMER:
     ; First increment shared frame counter
     LD      A, (FRAME_COUNT)
     INC     A
-    CP      60              
+	LD		HL,FRAMEPERSEC
+	CP 		(HL)
     JR      NZ, .store_frame
     
     ; We hit 60 frames, need to increment seconds
@@ -348,37 +353,24 @@ DEAL_WITH_TIMER:
 .check_level_type:
     ; First check if it's a multiple of 10
     LD      B, 10
-    PUSH    AF
     CALL    MOD_B           ; Get level mod 10
     AND     A               ; Check if remainder is 0
-    POP     BC             ; Restore original level number to B
     JR      Z, .use_first_slot   ; If multiple of 10, use first slot
     
     ; Not a multiple of 10, calculate based on remainder
-    LD      A, B            ; Get level number back
-    LD      B, 10
-    CALL    MOD_B           ; Get remainder after dividing by 10
-    DEC     A               ; Convert to 0-based for the remainder
+    DEC     A               ; Convert to 0-based for the remainder (0-8)
     LD      B, 3
     CALL    MOD_B           ; Get mod 3 (0,1,2)
+							; NB: level 10,20 ecc will use the same slot of level 1,4,7
     ADD     A, A            ; Multiply by 2 for offset
-    
     ; Add offset to IY
-    PUSH    BC
     LD      B, 0
     LD      C, A
-    PUSH    IY
-    POP     HL              
-    ADD     HL, BC          
-    PUSH    HL
-    POP     IY              
-    POP     BC
-    JR      .update_timer
+	ADD		IY,BC
 
 .use_first_slot:
     ; IY is already pointing to first slot
-    
-.update_timer:
+ 
     ; Update seconds for current level
     LD      A, (IY+0)      ; Load current seconds
     INC     A
@@ -386,11 +378,8 @@ DEAL_WITH_TIMER:
     JR      NZ, .store_seconds
     
     ; Hit 60 seconds, increment minutes
-    XOR     A              ; Reset seconds
-    LD      (IY+0), A     ; Store seconds
-    LD      A, (IY+1)     ; Load minutes
-    INC     A
-    LD      (IY+1), A     ; Store minutes
+    LD      (IY+0), 0     	; Reset seconds
+    INC     (IY+1)			; increment minutes
     RET
     
 .store_seconds:
@@ -1065,18 +1054,8 @@ SUB_851C:	; If we're here, the game just started
 	LD		HL, 0
 	LD		(SCORE_P1_RAM), HL
 	LD		(SCORE_P2_RAM), HL
-	LD    (P1_LEVEL1_MIN), HL
-	LD    (P1_LEVEL2_MIN), HL
-	LD    (P1_LEVEL3_MIN), HL
-	LD    (P1_LEVEL1_SEC), HL
-	LD    (P1_LEVEL2_SEC), HL
-	LD    (P1_LEVEL3_SEC), HL
-	LD    (P2_LEVEL1_MIN), HL
-	LD    (P2_LEVEL2_MIN), HL
-	LD    (P2_LEVEL3_MIN), HL
-	LD    (P2_LEVEL1_SEC), HL
-	LD    (P2_LEVEL2_SEC), HL
-	LD    (P2_LEVEL3_SEC), HL
+	CALL 	Reset_p1		; reset min and sec
+	CALL 	Reset_p2		; reset min and sec
 	LD		A, 1	; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1), A
 	LD		(CURRENT_LEVEL_P2), A
@@ -6356,70 +6335,46 @@ CALCULATE_LEVEL_SCORE:
     JR      Z, .calc_p1_score
     
 .calc_p2_score:
-    LD      HL, (SCORE_P2_RAM)    ; Get current total score
-    LD      DE, (P2_PREV_SCORE)   ; Get previous total score
-    LD      IY, P2_LEVEL1_SCORE   ; Base address for P2 scores ($74DE)
-    LD      A, (CURRENT_LEVEL_P2)  ; Get P2's level
+    LD      HL, (SCORE_P2_RAM)		; Get current total score
+    LD      DE, (P2_PREV_SCORE)		; Get previous total score
+    LD      IY, P2_LEVEL1_SCORE		; Base address for P2 scores ($74DE)
+    LD      A, (CURRENT_LEVEL_P2)	; Get P2's level
     JR      .calc_difference
     
 .calc_p1_score:
-    LD      HL, (SCORE_P1_RAM)    ; Get current total score
-    LD      DE, (P1_PREV_SCORE)   ; Get previous total score
-    LD      IY, P1_LEVEL1_SCORE   ; Base address for P1 scores
-    LD      A, (CURRENT_LEVEL_P1)  ; Get P1's level
+    LD      HL, (SCORE_P1_RAM)		; Get current total score
+    LD      DE, (P1_PREV_SCORE)		; Get previous total score
+    LD      IY, P1_LEVEL1_SCORE		; Base address for P1 scores
+    LD      A, (CURRENT_LEVEL_P1)	; Get P1's level
     
 .calc_difference:
     ; First check if it's level 10 or multiple of 10
-    PUSH    HL              ; Save current score
-    DEC     A               ; Convert to completed level
+
     LD      B, 10
-    CALL    MOD_B          ; Check if multiple of 10
-    AND     A               ; Check if remainder is 0
-    POP     HL              ; Restore current score
-    JR      Z, .use_first_slot    ; If multiple of 10, use first slot
+    CALL    MOD_B          			; Check if multiple of 10
+    AND     A               		; Check if remainder is 0
+    JR      Z, .use_first_slot    	; If multiple of 10, use first slot
     
     ; For all other levels, calculate based on remainder after division by 10
-    LD      A, (GAMECONTROL)
-    BIT     1, A
-    JR      Z, .get_p1_level
-    
-.get_p2_level:
-    LD      A, (CURRENT_LEVEL_P2)
-    JR      .continue_calc
-    
-.get_p1_level:
-    LD      A, (CURRENT_LEVEL_P1)
-    
-.continue_calc:
-    DEC     A               ; Convert to completed level
-    LD      B, 10
-    CALL    MOD_B          ; Get remainder after div by 10
+
+    DEC     A               		; Convert to completed level
     LD      B, 3
-    CALL    MOD_B          ; Get mod 3 (0,1,2)
-    ADD     A, A           ; Multiply by 2 for bytes offset
+    CALL    MOD_B          			; Get mod 3 (0,1,2)
+    ADD     A, A           			; Multiply by 2 for bytes offset
     
     ; Add offset to IY
-    PUSH    BC
     LD      B, 0
     LD      C, A
-    PUSH    IY
-    POP     IX              
-    ADD     IX, BC         ; IX now points to correct score slot
-    POP     BC
-    JR      .store_score
-    
+    ADD     IY, BC         			; IY now points to correct score slot
+
 .use_first_slot:
-    PUSH    IY
-    POP     IX              ; IX points to first slot
-    
-.store_score:
-    ; Calculate HL (current) - DE (previous) = level score
-    OR      A               ; Clear carry
-    SBC     HL, DE         ; HL now contains level score
+									; Calculate HL (current) - DE (previous) = level score
+    OR      A               		; Clear carry
+    SBC     HL, DE         			; HL now contains level score
     
     ; Store level score
-    LD      (IX+0), L      ; Store low byte
-    LD      (IX+1), H      ; Store high byte
+    LD      (IY+0), L      ; Store low byte
+    LD      (IY+1), H      ; Store high byte
     
     ; Update previous score for next level
     LD      A, (GAMECONTROL)
@@ -6478,18 +6433,18 @@ CALCULATE_LEVEL_SCORE:
 
 .CONTINUE_NEXT_LEVEL:
 	LD		(IX+0), 7
-	INC		(HL)     	; Increment the level number
+	INC		(HL)     		; Increment the level number
 	LD		A, (HL)
-	CALL	SUB_B286	; buld level in A
+	CALL	SUB_B286		; buld level in A
 	LD		HL, GAMESTATE
-	LD		DE, 3400H
+	LD		DE, 3400H		; VRAM address to store P1 data
 	LD		A, (GAMECONTROL)
 	BIT		1, A
 	JR		Z, LOC_AA5C
-	LD		DE, 3600H
+	LD		DE, 3600H		; VRAM address to store P2 data
 LOC_AA5C:
 	LD		BC, 0D4H
-	CALL	WRITE_VRAM
+	CALL	WRITE_VRAM		; save game data in VRAM 
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
 RET
@@ -9375,9 +9330,9 @@ EXTRA_SPRITE_PAT:
    DB 011,005,002,001,000,000,000,000
    DB 000,000,224,080,184,100,216,240
    DB 160,064,128,000,000,000,000,000
-   DB 000,000,000,000,000,003,007,007 ; Mr Do Ball
-   DB 007,007,003,000,000,000,000,000
-   DB 000,000,000,000,000,192,224,224
+   DB 000,000,000,000,000,000,001,003 ; Mr Do Ball
+   DB 003,003,001,000,000,000,000,000
+   DB 000,000,000,000,000,000,192,224
    DB 224,224,192,000,000,000,000,000
    
 BALL_EXPLOSION_PAT:		; Ball Explosion
@@ -10975,30 +10930,29 @@ INTERMISSION:
     ; Check which player's timers to reset
     LD      A, (GAMECONTROL)
     BIT     1, A               ; Test if Player 2 is active
-    JR      NZ, .reset_p2
+    JR      NZ, Reset_p2
 
-.reset_p1:
+Reset_p1:
     LD      HL, P1_LEVEL1_SEC
     XOR     A                  ; A = 0
     LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
-.clear_p1:
+.1:
     LD      (HL), A           ; Clear byte
     INC     HL                ; Move to next byte
-    DJNZ    .clear_p1
+    DJNZ    .1
     RET
 
-.reset_p2:
+Reset_p2:
     LD      HL, P2_LEVEL1_SEC
     XOR     A                  ; A = 0
     LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
-.clear_p2:
+.1:
     LD      (HL), A           ; Clear byte
     INC     HL                ; Move to next byte
-    DJNZ    .clear_p2
+    DJNZ    .1
     RET
 
 
-	RET	
 
 cvb_INTERMISSION:
 	CALL MYMODE1
@@ -11057,11 +11011,11 @@ PRINT_LEVEL_STATS:
 
     ; Print and calculate scores for all three levels
     ; First level (Current - 2)
-    push af                     ; Save current level
-    ld de, $1800 + 6 + 32*2   ; First line position
+    push af                     ; Save current level and Player (ZF==0 for P1, ZF==1 for P2)
+    ld de, $1800 + 6 + 32*2   	; First line position
     pop af
     push af                     ; Keep a copy
-    sub 2                      ; Get first level number
+    sub 2                      	; Get first level number
     call PRINT_SINGLE_SCORE
     pop af
     push af
@@ -11095,69 +11049,68 @@ PRINT_LEVEL_STATS:
 ;----------------------------------------------------------------------
 PRINT_SINGLE_TIME:
     push de
-		push af
-
+    push      af
     ; Check which player is active
     ld a, (GAMECONTROL)
     bit 1, a                   ; Test if Player 2 is active
-    ld hl, P1_LEVEL1_SEC      ; Default to Player 1 base
-    jr z, .got_base           ; If Player 1, skip ahead
-    ld hl, P2_LEVEL1_SEC      ; Otherwise use Player 2 base
+    ld hl, P1_LEVEL1_SEC      	; Default to Player 1 base
+    jr z, .got_base           	; ZF==0 for P1, ZF==1 for P2
+    ld hl, P2_LEVEL1_SEC      	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate which level's time to show
-    pop af                      ; Restore level number
+    pop      af
     dec a                       ; Convert to 0-based (level 1 = 0)
-    ld b, 3                    ; We want modulo 3
-    call MOD_B                 ; A will now be 0, 1, or 2
-    add a, a                   ; Multiply by 2 (2 bytes per time)
+    ld b, 3                    	; We want modulo 3
+    call MOD_B                 	; A will now be 0, 1, or 2
+    add a, a                   	; Multiply by 2 (2 bytes per time)
     
     ; Get seconds using offset
     ld e, a
     ld d, 0
-    add hl, de                ; HL now points to seconds for this level
-    push hl                   ; Save pointer to seconds
+    add hl, de                	; HL now points to seconds for this level
+    push hl                   	; Save pointer to seconds
     
-    ; Get minutes first (it's the next byte)
-    inc hl                    ; Point to minutes
-    ld a, (hl)                ; Get minutes
-    add a, "0"                ; Convert to ASCII
-    ld (TEXT_BUFFER), a       ; Store single minute digit
-    ld a, "'"                 ; Add space
+	; Get minutes first (it's the next byte)
+    inc hl                    	; Point to minutes
+    ld a, (hl)                	; Get minutes
+    add a, "0"                	; Convert to ASCII
+    ld (TEXT_BUFFER), a       	; Store single minute digit
+    ld a, "'"                 	; Add space
     ld (TEXT_BUFFER+1), a
     
     ; Now get seconds
-    pop hl                    ; Restore pointer to seconds
-    ld a, (hl)                ; Get seconds
+    pop hl                    	; Restore pointer to seconds
+    ld a, (hl)                	; Get seconds
     ld h, 0
-    ld l, a                   ; Put seconds in HL
+    ld l, a                   	; Put seconds in HL
     
     ; Convert seconds to decimal
-    ld c, 0                   ; Counter for tens
+    ld c, 0                   	; Counter for tens
 .tens_loop:
     ld de, 10
-    or a                      ; Clear carry
+    or a                      	; Clear carry
     sbc hl, de
     jr c, .tens_done
     inc c
     jr .tens_loop
 .tens_done:
-    add hl, de                ; Restore remainder
+    add hl, de                	; Restore remainder
     
     ; Store seconds (always show both digits)
     ld a, c
-    add a, "0"                ; Convert tens to ASCII
+    add a, "0"                	; Convert tens to ASCII
     ld (TEXT_BUFFER+2), a
     ld a, l
-    add a, "0"                ; Convert ones to ASCII
+    add a, "0"                	; Convert ones to ASCII
     ld (TEXT_BUFFER+3), a
-    ld a, $80                 ; Add terminator
+    ld a, $80                 	;	 Add terminator
     ld (TEXT_BUFFER+4), a
     
     ; Print time value
-    pop de                    ; Restore screen position
+    pop de                    	; Restore screen position
     ex de, hl
-    ld bc, 7                 ; Move 7 positions right
+    ld bc, 7                 	; Move 7 positions right
     add hl, bc
     ex de, hl
     ld hl, TEXT_BUFFER
@@ -11235,19 +11188,18 @@ PRINT_SINGLE_SCORE:
     ; Calculate which score to show based on level
     pop af                      ; Restore level number
     push de                     ; Save screen position
-		push af                     ; Save level number again
 
-
+    push    af
     ; Check which player is active
     ld a, (GAMECONTROL)
     bit 1, a                   ; Test if Player 2 is active
-    ld hl, P1_LEVEL1_SCORE    ; Default to Player 1 base
-    jr z, .got_base           ; If Player 1, skip ahead
-    ld hl, P2_LEVEL1_SCORE    ; Otherwise use Player 2 base
+    ld hl, P1_LEVEL1_SCORE    	; Default to Player 1 base
+    jr z, .got_base           	; ZF==0 for P1, ZF==1 for P2
+    ld hl, P2_LEVEL1_SCORE    	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate score address
-    pop af                      ; Restore level number
+    pop    af
     dec a                       ; Convert to 0-based (level 1 = 0)
     ld b, 3                    ; We want modulo 3
     call MOD_B                 ; A will now be 0, 1, or 2
@@ -11273,7 +11225,7 @@ PRINT_SINGLE_SCORE:
     ex de, hl                  ; Put back in DE
     ld hl, TEXT_BUFFER
     call MYPRINT
-		ret
+	ret
 
 ;----------------------------------------------------------------------
 ; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
