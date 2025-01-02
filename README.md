@@ -5,7 +5,8 @@ This work is based on the original Mr. Do game for the ColecoVision and was made
 Changes:
 - Arcade Title screen
 - Redesigned sprites (created by TIX@AtariAge)
-- Fix full screen image intermission for Extra Mr. Do
+- Full screen image intermission for Extra Mr. Do
+- Full screen "Very Good" intermission with music every 3rd, 6th and 9th rounds
 - Extra Mr. Do tune (Astro Boy theme song)
 - Main background music (the Can Can song)
 - Lose a life jingle
@@ -18,7 +19,6 @@ Changes:
 - Updated phase colors/patterns to match arcade levels
 - Ball cool down removed during alpha monster mode.
 - Move to screen 2 the game to have high res colors for the playfiled
-- Swap voice channels for Can Can song so that the song is still recognizable when only one channel plays (such as when the ball is launched or the falling apple sound cancels out channel 01)
 
 Wish list/To do list:
 - Icon marker for "how" level was completed on "Very Good" screen
