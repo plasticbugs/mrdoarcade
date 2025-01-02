@@ -194,8 +194,6 @@ P1_LEVEL1_SCORE:  		RB 2    ;EQU $07328 ; 2 bytes - Level 1 score
 P1_LEVEL2_SCORE:  		RB 2    ;EQU $0732A ; 2 bytes - Level 2 score
 P1_LEVEL3_SCORE:  		RB 2    ;EQU $0732C ; 2 bytes - Level 3 score
 
-
-
 ; ALLOCATED IN THE TIMER TABLE
 
 P2_LEVEL1_SEC:    		EQU $070D7 ;Player 2 level 1 seconds
@@ -209,8 +207,6 @@ P2_PREV_SCORE:    		EQU $070DD ; 2 bytes - Previous total score for P2
 P2_LEVEL1_SCORE:  		EQU $070DF ; 2 bytes - Level 1 score
 P2_LEVEL2_SCORE:  		EQU $070E1 ; 2 bytes - Level 2 score
 P2_LEVEL3_SCORE:  		EQU $070E3 ; 2 bytes - Level 3 score
-
-KONAMI_INDEX:			EQU $0731E
 
 TEXT_BUFFER:      				; 8 bytes - Text buffer for printing: use FREEBUFF
 FREEBUFF:				RB	16	;EQU $0732C	; work ram
@@ -10675,147 +10671,12 @@ Skill2:		db "2.ADVANCE","D" or 128
 Skill3: 	db "3.ARCADE"," " or 128	; " " needed to remove the S from "PLAYERS"
 Skill4:		db "4.PR","O" or 128
 
-; Controller buffer offsets and bit patterns
-JOY_OFFSET:     EQU 3       ; 7089 is 3 bytes from buffer start
-BTN_A_OFFSET:   EQU 2       ; 7088 is 2 bytes from buffer start
-BTN_B_OFFSET:   EQU 5       ; 708B is 5 bytes from buffer start
-
-; Bit patterns
-JOY_UP:     EQU %00000001
-JOY_RIGHT:  EQU %00000010
-JOY_DOWN:   EQU %00000100
-JOY_LEFT:   EQU %00001000
-BTN_BIT:    EQU %01000000  ; Bit 6 for both A and B buttons
-
-; Konami sequence using the actual bit patterns
-KonamiSequence:  
-    db JOY_UP, JOY_UP           ; Up, Up
-    db JOY_DOWN, JOY_DOWN       ; Down, Down
-    db JOY_LEFT, JOY_RIGHT      ; Left, Right
-    db JOY_LEFT, JOY_RIGHT      ; Left, Right
-    db BTN_BIT, BTN_BIT         ; B, A
-KonamiOffset:    
-    db JOY_OFFSET, JOY_OFFSET   ; Offsets for Up
-    db JOY_OFFSET, JOY_OFFSET   ; Offsets for Down
-    db JOY_OFFSET, JOY_OFFSET   ; Offsets for Left, Right
-    db JOY_OFFSET, JOY_OFFSET   ; Offsets for Left, Right
-    db BTN_B_OFFSET, BTN_A_OFFSET ; Offsets for B, A buttons
-
-CheckKonamiCode:
-    ; First check if we're already processing an input
-    LD      A, (KONAMI_INDEX)
-    BIT     7, A               ; Use bit 7 as "processing" flag
-    JR      NZ, .wait_release
-
-    ; Get current expected input based on index
-    AND     %00011111          ; Mask to get just the counter value
-    LD      B, A               ; Save current index
-    
-    ; Get expected input for this step
-    LD      HL, KonamiSequence
-    LD      E, B
-    LD      D, 0
-    ADD     HL, DE             ; Point to expected input
-    LD      C, (HL)            ; C = expected input pattern
-    
-    ; Get offset for current input type
-    LD      HL, KonamiOffset
-    ADD     HL, DE
-    LD      A, (HL)            ; A = offset to check
-    LD      D, A               ; Save correct offset in D
-    
-    ; Check if any input is pressed
-    ; First check joystick
-    LD      HL, CONTROLLER_BUFFER + JOY_OFFSET
-    LD      A, (HL)
-    AND     %00001111          ; Check direction bits
-    JR      NZ, .check_input   ; If joystick pressed, check if correct
-    
-    ; Check buttons
-    LD      HL, CONTROLLER_BUFFER + BTN_A_OFFSET
-    LD      A, (HL)
-    AND     BTN_BIT
-    JR      NZ, .check_input   ; If A pressed, check if correct
-    
-    LD      HL, CONTROLLER_BUFFER + BTN_B_OFFSET
-    LD      A, (HL)
-    AND     BTN_BIT
-    JR      NZ, .check_input   ; If B pressed, check if correct
-    
-    RET                        ; No input at all
-
-.check_input:
-    ; Get input from correct offset (stored in D)
-    LD      HL, CONTROLLER_BUFFER
-    LD      E, D               ; Use saved offset
-    LD      D, 0
-    ADD     HL, DE
-    LD      A, (HL)            ; Get input for expected position
-    
-    AND     C                  ; Mask to just the bit we care about
-    CP      C                  ; Should match exactly
-    JR      Z, .correct_input  ; If it matches, process it
-    
-    ; Wrong input - reset sequence
-    XOR     A
-    LD      (KONAMI_INDEX), A
-    RET
-
-.correct_input:
-    ; Set processing flag while keeping current index
-    LD      A, B               ; Get back current index
-    OR      %10000000          ; Set processing flag
-    LD      (KONAMI_INDEX), A
-    RET
-
-.wait_release:
-    ; Check if all inputs are released
-    LD      HL, CONTROLLER_BUFFER + JOY_OFFSET
-    LD      A, (HL)
-    AND     %00001111          ; Check directions
-    JR      NZ, .still_pressed
-    
-    LD      HL, CONTROLLER_BUFFER + BTN_A_OFFSET
-    LD      A, (HL)
-    AND     BTN_BIT
-    JR      NZ, .still_pressed
-    
-    LD      HL, CONTROLLER_BUFFER + BTN_B_OFFSET
-    LD      A, (HL)
-    AND     BTN_BIT
-    JR      NZ, .still_pressed
-    
-    ; All buttons released - advance counter
-    LD      A, (KONAMI_INDEX)
-    AND     %00011111          ; Get current index without flag
-    INC     A                  ; Move to next step
-    CP      10                 ; Check if sequence is complete
-    JR      NZ, .store_counter
-    
-    ; Sequence complete!
-    CALL    PLAY_DESSERT_COLLECT_SOUND
-    XOR     A                  ; Reset counter
-    
-.store_counter:
-    LD      (KONAMI_INDEX), A  ; Store without processing flag
-    RET
-
-.still_pressed:
-    ; Keep waiting with processing flag set
-    LD      A, (KONAMI_INDEX)
-    OR      %10000000          ; Make sure processing flag stays set
-    LD      (KONAMI_INDEX), A
-    RET
-
 ; Select  Number of Players and Skill
+
 GET_GAME_OPTIONS:
-	XOR		A
-	LD		(KONAMI_INDEX), A
 	CALL	ShowPlyrNum			; Show 1 or 2 Players
 .PlyrNumWait:
 	CALL	POLLER
-	CALL	CheckKonamiCode
-
 	LD		A, (KEYBOARD_P1)
 	DEC		A					; 0-1	valid range
 	CP		2
