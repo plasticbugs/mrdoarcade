@@ -32,83 +32,83 @@
 ; Color Table: 		2000h-27FFh (256*8 bytes - screen 2 mirrored)
 ; SPT: 				2800h-2FFFh (256*8 bytes)
 
-PT:		EQU	$0000
-PNT:	EQU	$1800
-CT:		EQU	$2000
-SAT:	EQU	$1B00
-SPT:	EQU	$2800
+PT:						EQU	$0000
+PNT:					EQU	$1800
+CT:						EQU	$2000
+SAT:					EQU	$1B00
+SPT:					EQU	$2800
 
 
 ; BIOS DEFINITIONS **************************
-ASCII_TABLE:		EQU $006A
-NUMBER_TABLE:		EQU $006C
-PLAY_SONGS:			EQU $1F61
+ASCII_TABLE:			EQU $006A
+NUMBER_TABLE:			EQU $006C
+PLAY_SONGS:				EQU $1F61
 
-FILL_VRAM:			EQU $1F82
-INIT_TABLE:			EQU $1FB8
-PUT_VRAM:			EQU $1FBE
-INIT_SPR_NM_TBL:	EQU $1FC1
-WR_SPR_NM_TBL:		EQU $1FC4
-INIT_TIMER:			EQU $1FC7
-FREE_SIGNAL:		EQU $1FCA
-REQUEST_SIGNAL:		EQU $1FCD
-TEST_SIGNAL:		EQU $1FD0
-TIME_MGR:			EQU $1FD3
-TURN_OFF_SOUND:		EQU $1FD6
-WRITE_REGISTER:		EQU $1FD9
-READ_REGISTER:		EQU $1FDC
-WRITE_VRAM:			EQU $1FDF
-READ_VRAM:			EQU $1FE2
-POLLER:				EQU $1FEB
-SOUND_INIT:			EQU $1FEE
-PLAY_IT:			EQU $1FF1
-SOUND_MAN:			EQU $1FF4
-RAND_GEN:			EQU $1FFD
+FILL_VRAM:				EQU $1F82
+INIT_TABLE:				EQU $1FB8
+PUT_VRAM:				EQU $1FBE
+INIT_SPR_NM_TBL:		EQU $1FC1
+WR_SPR_NM_TBL:			EQU $1FC4
+INIT_TIMER:				EQU $1FC7
+FREE_SIGNAL:			EQU $1FCA
+REQUEST_SIGNAL:			EQU $1FCD
+TEST_SIGNAL:			EQU $1FD0
+TIME_MGR:				EQU $1FD3
+TURN_OFF_SOUND:			EQU $1FD6
+WRITE_REGISTER:			EQU $1FD9
+READ_REGISTER:			EQU $1FDC
+WRITE_VRAM:				EQU $1FDF
+READ_VRAM:				EQU $1FE2
+POLLER:					EQU $1FEB
+SOUND_INIT:				EQU $1FEE
+PLAY_IT:				EQU $1FF1
+SOUND_MAN:				EQU $1FF4
+RAND_GEN:				EQU $1FFD
 
 ; VDP
-DATA_PORT: EQU $BE
-CTRL_PORT: EQU $BF
+DATA_PORT: 				EQU $BE
+CTRL_PORT: 				EQU $BF
 
 
-COLECO_TITLE_ON:	EQU $55AA
-COLECO_TITLE_OFF:	EQU $AA55
+COLECO_TITLE_ON:		EQU $55AA
+COLECO_TITLE_OFF:		EQU $AA55
 
 
 ; SOUND DEFINITIONS *************************
-OPENING_TUNE_SND_0A:   EQU $01
-BACKGROUND_TUNE_0A:	   EQU $02
-OPENING_TUNE_SND_0B:   EQU $03
-BACKGROUND_TUNE_0B:	   EQU $04
-GRAB_CHERRIES_SND:	   EQU $05
-BOUNCING_BALL_SND_0A:  EQU $06
-BOUNCING_BALL_SND_0B:  EQU $07
-BALL_STUCK_SND:		   EQU $08
-BALL_RETURN_SND:	   EQU $09
-APPLE_FALLING_SND:	   EQU $0A
-APPLE_BREAK_SND_0A:	   EQU $0B
-APPLE_BREAK_SND_0B:	   EQU $0C
-NO_EXTRA_TUNE_0A:	   EQU $0D
-NO_EXTRA_TUNE_0B:	   EQU $0E
-NO_EXTRA_TUNE_0C:	   EQU $0F
-DIAMOND_SND:		   EQU $10
-EXTRA_WALKING_TUNE_0A: EQU $11
-EXTRA_WALKING_TUNE_0B: EQU $12
-GAME_OVER_TUNE_0A:	   EQU $13
-GAME_OVER_TUNE_0B:	   EQU $14
-WIN_EXTRA_DO_TUNE_0A:  EQU $15
-WIN_EXTRA_DO_TUNE_0B:  EQU $16
-END_OF_ROUND_TUNE_0A:  EQU $17
-END_OF_ROUND_TUNE_0B:  EQU $18
-LOSE_LIFE_TUNE_0A:	   EQU $19
-LOSE_LIFE_TUNE_0B:	   EQU $1A
-BLUE_CHOMPER_SND_0A:   EQU $1B
-BLUE_CHOMPER_SND_0B:   EQU $1C
-VERY_GOOD_TUNE_0A:	   EQU $1D
-VERY_GOOD_TUNE_0B:	   EQU $1E
-VERY_GOOD_TUNE_0C:	   EQU $1F
-SFX_COIN_INSERT_SND:   EQU $20
-NO_EXTRA_TUNE_0D:	     EQU $21
-NO_EXTRA_TUNE_0E:	     EQU $22
+OPENING_TUNE_SND_0A:   	EQU $01
+BACKGROUND_TUNE_0A:	   	EQU $02
+OPENING_TUNE_SND_0B:   	EQU $03
+BACKGROUND_TUNE_0B:	   	EQU $04
+GRAB_CHERRIES_SND:	   	EQU $05
+BOUNCING_BALL_SND_0A:  	EQU $06
+BOUNCING_BALL_SND_0B:  	EQU $07
+BALL_STUCK_SND:		   	EQU $08
+BALL_RETURN_SND:	   	EQU $09
+APPLE_FALLING_SND:	   	EQU $0A
+APPLE_BREAK_SND_0A:	   	EQU $0B
+APPLE_BREAK_SND_0B:	   	EQU $0C
+NO_EXTRA_TUNE_0A:	   	EQU $0D
+NO_EXTRA_TUNE_0B:	   	EQU $0E
+NO_EXTRA_TUNE_0C:	   	EQU $0F
+DIAMOND_SND:		   	EQU $10
+EXTRA_WALKING_TUNE_0A: 	EQU $11
+EXTRA_WALKING_TUNE_0B: 	EQU $12
+GAME_OVER_TUNE_0A:	   	EQU $13
+GAME_OVER_TUNE_0B:	   	EQU $14
+WIN_EXTRA_DO_TUNE_0A:  	EQU $15
+WIN_EXTRA_DO_TUNE_0B:  	EQU $16
+END_OF_ROUND_TUNE_0A:  	EQU $17
+END_OF_ROUND_TUNE_0B:  	EQU $18
+LOSE_LIFE_TUNE_0A:	   	EQU $19
+LOSE_LIFE_TUNE_0B:	   	EQU $1A
+BLUE_CHOMPER_SND_0A:   	EQU $1B
+BLUE_CHOMPER_SND_0B:   	EQU $1C
+VERY_GOOD_TUNE_0A:	   	EQU $1D
+VERY_GOOD_TUNE_0B:	   	EQU $1E
+VERY_GOOD_TUNE_0C:	   	EQU $1F
+SFX_COIN_INSERT_SND:   	EQU $20
+NO_EXTRA_TUNE_0D:		EQU $21
+NO_EXTRA_TUNE_0E:		EQU $22
 
 ; RAM DEFINITIONS ***************************
 	ORG $7000,$73FF
@@ -173,12 +173,15 @@ GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
 CHOMPDATA:				RB  18	;EQU $72C7  3x6 = 18 bytes (3 chompers)
 BALLDATA:				RB	 6	;EQU $72D9
-SATBUFF1:									; MULTIPLE USE
+SCRATCH1:
+SATBUFF1:									; MULTIPLE USE - scratch ram
 SPTBUFF1:				RB   8	;EQU $72DF	; ?? SPT buffer
-SATBUFF2:									; MULTIPLE USE
+SCRATCH2:
+SATBUFF2:									; MULTIPLE USE - scratch ram
 SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
-WORK_BUFFER:			RB  24	;EQU $72EF
-WORK_BUFFER2:			RB  24	;EQU $7307	; ??
+
+WORK_BUFFER:			RB  24	;EQU $72EF	; used in the NMI by sprite rotation
+WORK_BUFFER2:			RB  24	;EQU $7307	; used in the NMI by sprite rotation
 
 FRAME_COUNT:      		RB 1    ;EQU $0731F Shared frame counter (0-59)
 
@@ -269,24 +272,24 @@ NMI:
 	CALL	READ_REGISTER
 	LD		HL, WORK_BUFFER
 	LD		DE, WORK_BUFFER2
-	LD		BC, 18H
+	LD		BC, 24				; save WORK_BUFFER to WORK_BUFFER2
 	LDIR
 	LD		HL, GAMECONTROL
 	BIT		5, (HL)
 	JR		Z, LOC_807E
 	BIT		4, (HL)
 	JR		Z, LOC_809F
-	LD		A, 14H
+	LD		A, 20				; 20 sprites written to VRAM
 	CALL	WR_SPR_NM_TBL
-	CALL	SUB_8107
+	CALL	SPRITE_ROTATION
 	JR		LOC_809F
 LOC_807E:
 	LD		A, (GAMECONTROL)
 	BIT		3, A
 	JR		NZ, LOC_808D
-	LD		A, 14H
+	LD		A, 20				; 20 sprites written to VRAM
 	CALL	WR_SPR_NM_TBL
-	CALL	SUB_8107
+	CALL	SPRITE_ROTATION
 LOC_808D:
 	CALL	SUB_80D1
 	CALL	SUB_8229			; UPDATE MR DO SPRITE
@@ -299,7 +302,7 @@ LOC_809F:
 	CALL	SUB_C952			; PLAY MUSIC
 	LD		HL, WORK_BUFFER2	; related to sprite rotation
 	LD		DE, WORK_BUFFER
-	LD		BC, 18H
+	LD		BC, 24				; restore WORK_BUFFER from WORK_BUFFER2
 	LDIR
 	LD		HL, GAMECONTROL
 	BIT		7, (HL)
@@ -434,19 +437,19 @@ LOC_80FF:
 	DJNZ	LOC_80D7
 RET
 
-SUB_8107:					; sprite rotation system: Very cumbersome and applied only to enemies
+SPRITE_ROTATION:					; sprite rotation system: Very cumbersome and applied only to enemies
 	LD		HL, BYTE_8215
 	LD		DE, WORK_BUFFER
-	LD		BC, 14H			; only 20 sprites on screen = 7 enemies + 3 chompers + 5 apples + 1 letter + 1 ball + 2 MrDo + 1 diamond
+	LD		BC, 20					; only 20 sprites on screen = 7 enemies + 3 chompers + 5 apples + 1 letter + 1 ball + 2 MrDo + 1 diamond
 	LDIR
 	LD		A, 3
 	LD		($72E7), A
-	LD		A, 13H
+	LD		A, 19
 	LD		($72E8), A
-	LD		HL, $72F2
-	LD		IY, $70F5
-	LD		B, 11H			; number of actual sprites rotated. Sprites from 0 to 3 are fixed (MrDo and letter)
-LOC_8125:					; PROBABLY INTRODUCING IN THE ROTATION MRDO's SPRITES WOULD IMPROVE THE FINAL RESULT
+	LD		HL, WORK_BUFFER + 3
+	LD		IY, SPRITE_NAME_TABLE + 3*4
+	LD		B, 17					; number of actual sprites rotated. Sprites from 0 to 3 are fixed (MrDo and letter)
+LOC_8125:					
 	LD		A, (HL)
 	AND		A
 	JP		NZ, LOC_81DC
@@ -472,7 +475,7 @@ LOC_813C:
 	JR		C, LOC_81A1
 	JR		NZ, LOC_816F
 	LD		D, 4
-	LD		A, ($70ED)
+	LD		A, (SPRITE_NAME_TABLE+4)
 	SUB		C
 	JR		NC, LOC_8160
 	CPL
@@ -487,7 +490,7 @@ LOC_8160:
 	JR		LOC_81A1
 LOC_816F:
 	LD		D, 8
-	LD		A, ($70ED)
+	LD		A, (SPRITE_NAME_TABLE+4)
 	SUB		C
 	JR		NC, LOC_8179
 	CPL
@@ -802,7 +805,11 @@ LOC_8372:
 	; DEBUGGER
 	; CALL 	EXTRASCREEN		; TEST EXTRA MRDO SCREEN
 	; CALL 	INTERMISSION	; TEST INTERMISSION
-	; CALL 	CONGRATULATION	; CONGRATULATION
+	; CALL 	CONGRATULATION	; TEST CONGRATULATION
+;	CALL	INIT_VRAM
+;	LD		A,1
+;	CALL 	SET_LEVEL_COLORS.RESTORE_COLORS	
+;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 	
 	; Initialize the game
 
@@ -960,7 +967,7 @@ LOAD_GRAPHICS:
 	LD		A, 1
 	CALL	PUT_VRAM
 
-	CALL 	MYDISSCR				; LOAD ARCADE FONTS
+	CALL 	MYDISSCR				
 
 ; screen 2 hack
 
@@ -971,7 +978,8 @@ LOAD_GRAPHICS:
 	CALL MYWRTVDP			; color mirrored at 2000h
 	LD bc,$0304				; $0304 for non mirrored patterns ar 0000h, $0004 for mirrored patterns
 	CALL MYWRTVDP			
-
+	CALL MyNMI_on
+	
 ; load graphics	
 										;  IS UNPACK SAFE ONLY IN INTREMISSION MODE ?
 	LD 		DE,PT
@@ -989,8 +997,10 @@ LOAD_GRAPHICS:
 	CALL 	unpack
 
 	CALL 	LOADFONTS
-	
 	CALL 	MYENASCR	
+	
+	LD		BC, 1E2H		 		; Original game state register
+	CALL	WRITE_REGISTER	
 RET
 
 LOADFONTS:		; LOAD  ARCADE FONTS
@@ -1004,33 +1014,14 @@ LOADFONTS:		; LOAD  ARCADE FONTS
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
 
-;	LD		HL, $2000+6*32*8
-;	LD		DE, 32*8*2
-;	LD		A,$F0
-;	CALL	FILL_VRAM
+	LD		HL, CT+0d7h*8
+	LD		BC, 41*8
+	LD		A,$F1
+	CALL 	cvb_MYCLS.0
 
-	LD		B,41
-	LD 		DE,CT+0d7h*8
-.1:	PUSH 	BC
-	LD		HL,FONTCOLOR
-	LD		BC,8
-	PUSH	DE
-	CALL MyNMI_off	
-	CALL  	MYLDIRVM
-	CALL MyNMI_on	
-	POP 	DE
-	LD		HL,8
-	ADD 	HL,DE
-	EX 		DE,HL
-	POP 	BC
-	DJNZ	.1
 RET
 
 	
-
-FONTCOLOR:
-	DB $F1,$F1,$F1,$F1,$F1,$F1,$F1,$F1
-
 
 SUB_84F8:	 ; Disables NMI, sets up the game
 	PUSH	AF
@@ -1055,9 +1046,9 @@ SUB_851C:	; If we're here, the game just started
 	LD		HL, 0
 	LD		(SCORE_P1_RAM), HL
 	LD		(SCORE_P2_RAM), HL
-	CALL 	Reset_p1		; reset min and sec
-	CALL 	Reset_p2		; reset min and sec
-	LD		A, 1	; Set the starting level to 1
+	CALL 	Reset_p1		; reset min and sec for the two players
+	CALL 	Reset_p2		
+	LD		A, 1			; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1), A
 	LD		(CURRENT_LEVEL_P2), A
 	XOR		A
@@ -6413,7 +6404,7 @@ CALCULATE_LEVEL_SCORE:
 	JR NZ,.TEST_INTERMISSION
     PUSH    IX				; Save Player data pointer 
     PUSH    HL				; Save Level Pointer
-		CALL 	WONDERFUL
+	CALL 	WONDERFUL
     POP     HL
     POP     IX 
 	JR .CONTINUE_NEXT_LEVEL
@@ -9585,7 +9576,6 @@ SOUND_TABLE:
 	DW NO_EXTRA_TUNE_P5
 	DW SOUND_BANK_06_RAM
 
-
 GRAB_CHERRIES_SOUND:
 	DB 193,214,048,002,051,149,193,214,048,002,051,149,193,214,048,002,051,149,234,193,190,048
 	DB 002,051,161,193,190,048,002,051,161,193,190,048,002,051,161,234,193,170,048,002,051,171
@@ -10128,7 +10118,7 @@ NEW_WIN_EXTRA_DO_TUNE_P1:
 	;short c
 	DB 064,106,096,007,099 ;10
 
-	;very long e
+	; very long e
 	DB 064,084,096,030,106 ;30 + 10 pad
 	;++++++++++++++++++++++++++++++++
 
@@ -10727,10 +10717,7 @@ GET_GAME_OPTIONS:
 StrINSERTCOIN: 	db "INSERT COIN"," " or 128
 
 cvb_ANIMATEDLOGO:
-	LD	HL,mode
-	SET	7,(HL)							; switch to intermission  mode
-
-	CALL MYMODE2
+	CALL MYMODE2					; switch to intermission  mode
 	CALL MYDISSCR
 	CALL cvb_MYCLS
 	
@@ -10836,7 +10823,7 @@ NXTFRM:
 	; MAKE SURE TO BE IN INTERMISSION MODE BEFORE CALLING
 
 cvb_EXTRASCREEN:
-	CALL MYMODE1
+	CALL MYMODE1					; switch to intermission  mode
 	CALL MYDISSCR
 	CALL cvb_MYCLS
 
@@ -10904,18 +10891,74 @@ cvb_EXTRASCREEN_FRM2:
 	CALL MYWRTVRM
 	JP MyNMI_on
 
+WONDERFULTXT0:	DB "                ",10+128
+WONDERFULTXT1:	DB "   WONDERFUL !! ",10+128
+
+DummySAT:		DB 208
+
 	;% place here the other intermission each 10xN levels
 WONDERFUL:
-	CALL 	CONGRATULATION	 ; %% placeholder 
-	RET
+	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	; Show the intermission screen 
+	;
+
+	CALL MYMODE1					; switch to intermission  mode
+	CALL MYDISSCR
+
+	LD	BC,1
+	LD 	DE,SAT
+	LD 	HL,DummySAT
+	CALL MyNMI_off
+	CALL MYLDIRVM
+
+	LD		HL, $1800
+	LD		DE, 3*256
+	LD		A,10
+	CALL	FILL_VRAM
+
+    ld de, 	PNT + 7 + 32*(11)
+    ld hl, 	WONDERFULTXT0
+    call 	MYPRINT
+    ld de, 	PNT + 7 + 32*(12)
+    ld hl, 	WONDERFULTXT1
+    call 	MYPRINT
+    ld de, 	PNT + 7 + 32*(13)
+    ld hl, 	WONDERFULTXT0
+    call 	MYPRINT
+	CALL 	MyNMI_on	
+
+	CALL	MYENASCR
+
+	CALL	INITIALIZE_THE_SOUND
+	CALL	PLAY_WIN_EXTRA_DO_TUNE
+
+	LD		HL, 280H				; music duration
+	XOR		A
+	CALL	REQUEST_SIGNAL
+	PUSH	AF						; wait for music to finish
+.1:	POP		AF
+	PUSH	AF
+	CALL	TEST_SIGNAL
+	AND		A
+	JR		Z, .1
+	POP		AF
+
+	LD	HL,mode
+	RES	7,(HL)						; switch to game mode
+
+	LD		HL, GAMECONTROL
+	SET		7, (HL)
+.3:	BIT		7, (HL)
+	JR		NZ, .3
+
+	LD		BC, 1C2H		 		; Original game state register (No NMI)
+	CALL	WRITE_REGISTER
+RET
 	
 INTERMISSION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	; Show the intermission screen 
 	;
-	LD	HL,mode
-	SET	7,(HL)						; switch to intermission  mode
-
 	CALL	cvb_INTERMISSION
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_VERY_GOOD_TUNE
@@ -10939,6 +10982,12 @@ INTERMISSION:
 
 	CALL 	MYDISSCR
 
+	LD		HL,mode
+	RES		7,(HL)						; switch to game mode
+
+	LD		BC, 1C2H		 		; restore original game state register (No NMI)
+	CALL	WRITE_REGISTER
+
 	LD		HL, SPRITE_NAME_TABLE
 	LD		B, 50H				; remove 20 sprites
 .2:
@@ -10951,14 +11000,12 @@ INTERMISSION:
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
-	LD	HL,mode
-	RES	7,(HL)						; switch to game mode
 
 	CALL	INIT_VRAM
+	
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
-.3:
-	BIT		7, (HL)
+.3:	BIT		7, (HL)
 	JR		NZ, .3
 
     ; Check which player's timers to reset
@@ -10968,16 +11015,10 @@ INTERMISSION:
 
 Reset_p1:
     LD      HL, P1_LEVEL1_SEC
-    XOR     A                  ; A = 0
-    LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
-.1:
-    LD      (HL), A           ; Clear byte
-    INC     HL                ; Move to next byte
-    DJNZ    .1
-    RET
-
+	JR		Reset_p2.0
 Reset_p2:
     LD      HL, P2_LEVEL1_SEC
+.0:
     XOR     A                  ; A = 0
     LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
 .1:
@@ -10989,7 +11030,7 @@ Reset_p2:
 
 
 cvb_INTERMISSION:
-	CALL MYMODE1
+	CALL MYMODE1				; switch to intermission  mode
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
@@ -11045,20 +11086,18 @@ PRINT_LEVEL_STATS:
 
     ; Print and calculate scores for all three levels
     ; First level (Current - 2)
-    push af                     ; Save current level and Player (ZF==0 for P1, ZF==1 for P2)
     ld de, $1800 + 6 + 32*2   	; First line position
-    pop af
-    push af                     ; Keep a copy
+    push af                     ; Save current level and Player (ZF==0 for P1, ZF==1 for P2)
     sub 2                      	; Get first level number
     call PRINT_SINGLE_SCORE
     pop af
     push af
     sub 2                      ; Get first level number again
     call PRINT_SINGLE_TIME
+    pop af
     
     ; Second level (Current - 1)
     ld de, $1800 + 6 + 32*4   ; Next line down
-    pop af
     push af
     dec a                      ; Get second level number
     call PRINT_SINGLE_SCORE
@@ -11066,10 +11105,10 @@ PRINT_LEVEL_STATS:
     push af
     dec a                      ; Get second level number again
     call PRINT_SINGLE_TIME
+    pop af                     ; Get current level
     
     ; Third level (Current)
     ld de, $1800 + 6 + 32*6   ; Next line down
-    pop af                     ; Get current level
     push af
     call PRINT_SINGLE_SCORE
     pop af                     ; Get current level again
@@ -11099,8 +11138,7 @@ PRINT_SINGLE_TIME:
     call MOD_B                 	; A will now be 0, 1, or 2
     add a, a                   	; Multiply by 2 (2 bytes per time)
     
-    ; Get seconds using offset
-    ld e, a
+    ld e, a						; Get seconds using offset
     ld d, 0
     add hl, de                	; HL now points to seconds for this level
     push hl                   	; Save pointer to seconds
@@ -11353,13 +11391,13 @@ CONVERT_TO_DECIMAL:
     add a, "0"
     ld (TEXT_BUFFER+3), a
 
-    ; Add literal "0"
-    ld a, "0"
+    ; Add literal "0" with terminator
+    ld a, "0" + $80
     ld (TEXT_BUFFER+4), a
 
-    ; Add terminator
-    ld a, $80
-    ld (TEXT_BUFFER+5), a
+;    ; Add terminator
+;    ld a, $80
+;    ld (TEXT_BUFFER+5), a
     ret
 
 ;----------------------------------------------------------------------
@@ -11598,7 +11636,7 @@ CONGRATULATION:
 	RET	
 
 cvb_CONGRATULATION:
-	CALL MYMODE1
+	CALL MYMODE1				; switch to intermission  mode
 	CALL MYDISSCR					
 	CALL cvb_MYCLS
 
@@ -11937,14 +11975,16 @@ MyNMI_on:
 
 
 cvb_MYCLS:
-	LD bc,$0300
+	LD BC,$0300
+	LD HL,$1800 
 	xor a
-	CALL MyNMI_off
+.0:	CALL MyNMI_off
 	PUSH AF
-	XOR	A
+	LD  A,L
 	OUT (CTRL_PORT),A
-	LD A,$18+$40
-	OUT (CTRL_PORT),A		; 	addr $1800
+	LD A,H
+	OR	$40
+	OUT (CTRL_PORT),A		
 	POP AF
 	dec bc		; T-states (normal / M1)
 .1:	out (DATA_PORT),a	; 11 12
@@ -12021,7 +12061,8 @@ vdp_chg_mode:
 	LD bc,$0506	; $2800 for sprites patterns.
 	CALL MYWRTVDP
 	LD bc,$0107
-	JP MYWRTVDP
+	CALL MYWRTVDP
+	JP MyNMI_on
 
 MYDISSCR:
 	CALL MyNMI_off
