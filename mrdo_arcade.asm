@@ -10641,9 +10641,6 @@ Skill2:		db "2.ADVANCE","D" or 128
 Skill3: 	db "3.ARCADE"," " or 128	; " " needed to remove the S from "PLAYERS"
 Skill4:		db "4.PR","O" or 128
 
-
-
-; Select  Number of Players and Skill
 ; Controller buffer offsets and bit patterns
 JOY_OFFSET:     EQU 3       ; 7089 is 3 bytes from buffer start
 BTN_A_OFFSET:   EQU 2       ; 7088 is 2 bytes from buffer start
@@ -10691,19 +10688,36 @@ CheckKonamiCode:
     LD      HL, KonamiOffset
     ADD     HL, DE
     LD      A, (HL)            ; A = offset to check
-    
-    ; Check actual input
-    LD      HL, CONTROLLER_BUFFER
-    LD      E, A
-    LD      D, 0
-    ADD     HL, DE
-    LD      A, (HL)            ; Get actual input
+    LD      D, A               ; Save correct offset in D
     
     ; Check if any input is pressed
-    AND     %01111111          ; Mask relevant bits
-    JR      Z, .no_input       ; If no input, just return
+    ; First check joystick
+    LD      HL, CONTROLLER_BUFFER + JOY_OFFSET
+    LD      A, (HL)
+    AND     %00001111          ; Check direction bits
+    JR      NZ, .check_input   ; If joystick pressed, check if correct
     
-    ; We have input - check if it's correct
+    ; Check buttons
+    LD      HL, CONTROLLER_BUFFER + BTN_A_OFFSET
+    LD      A, (HL)
+    AND     BTN_BIT
+    JR      NZ, .check_input   ; If A pressed, check if correct
+    
+    LD      HL, CONTROLLER_BUFFER + BTN_B_OFFSET
+    LD      A, (HL)
+    AND     BTN_BIT
+    JR      NZ, .check_input   ; If B pressed, check if correct
+    
+    RET                        ; No input at all
+
+.check_input:
+    ; Get input from correct offset (stored in D)
+    LD      HL, CONTROLLER_BUFFER
+    LD      E, D               ; Use saved offset
+    LD      D, 0
+    ADD     HL, DE
+    LD      A, (HL)            ; Get input for expected position
+    
     AND     C                  ; Mask to just the bit we care about
     CP      C                  ; Should match exactly
     JR      Z, .correct_input  ; If it matches, process it
@@ -10711,9 +10725,6 @@ CheckKonamiCode:
     ; Wrong input - reset sequence
     XOR     A
     LD      (KONAMI_INDEX), A
-    RET
-
-.no_input:
     RET
 
 .correct_input:
@@ -10762,7 +10773,7 @@ CheckKonamiCode:
     LD      (KONAMI_INDEX), A
     RET
 
-
+; Select  Number of Players and Skill
 GET_GAME_OPTIONS:
 	XOR		A
 	LD		(KONAMI_INDEX), A
@@ -10770,7 +10781,6 @@ GET_GAME_OPTIONS:
 .PlyrNumWait:
 	CALL	POLLER
 	CALL	CheckKonamiCode
-
 
 	LD		A, (KEYBOARD_P1)
 	DEC		A					; 0-1	valid range
