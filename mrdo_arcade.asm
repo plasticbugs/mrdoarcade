@@ -345,45 +345,27 @@ FINISH_NMI:
 	POP		AF
 	RETN
 
-
-;DEAL_WITH_TIMER:
-;	LD	A,(FRAME_COUNT)
-;	LD	HL,FRAMEPERSEC
-;	CP (HL)
-;	LD (FRAME_COUNT),A
-;	RET	NZ
-;	XOR A
-;	LD (FRAME_COUNT),A
-;	LD	A,(L_SEC)
-;	INC A
-;	CP 60
-;	LD (L_SEC),A
-;	RET	NZ
-;	XOR A
-;	LD (L_SEC),A
-;	LD	HL,L_MIN
-;	INC (HL)
-;	RET
 	
 DEAL_WITH_TIMER:
     ; First increment shared frame counter
     LD      A, (FRAME_COUNT)
     INC     A
+    LD      (FRAME_COUNT), A
 	LD		HL,FRAMEPERSEC
 	CP 		(HL)
-    JR      NZ, .store_frame
+    RET      NZ
     
     ; We hit 60 frames, need to increment seconds
     XOR     A              
     LD      (FRAME_COUNT), A
-	
 	LD 		HL,(ADDCURRTIMER)
 
     ; Update seconds for current level
     LD      A, (HL)      ; Load current seconds
     INC     A
+    LD      (HL), A     ; Store seconds
     CP      60
-    JR      NZ, .store_seconds
+    RET      NZ
     
     ; Hit 60 seconds, increment minutes
     LD      (HL), 0     	; Reset seconds
@@ -391,16 +373,6 @@ DEAL_WITH_TIMER:
     INC     (HL)			; increment minutes
     RET
     
-.store_seconds:
-    LD      (HL), A     ; Store seconds
-    RET
-    
-.store_frame:
-    LD      (FRAME_COUNT), A
-    RET
-
-
-
 SUB_80D1:
 	LD		HL, $7259
 	LD		BC, 1401H			; B = 20 sprites
@@ -807,22 +779,24 @@ START:
 	LD		(HL), A
 
 LOC_8372:
-	; DEBUGGER
-	; CALL 	EXTRASCREEN		; TEST EXTRA MRDO SCREEN
-	; CALL 	INTERMISSION	; TEST INTERMISSION
-	; CALL 	CONGRATULATION	; TEST CONGRATULATION
-;	CALL	INIT_VRAM
-;	LD		A,1
-;	CALL 	SET_LEVEL_COLORS.RESTORE_COLORS	
-;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 	
 	; Initialize the game
 
 	CALL	cvb_ANIMATEDLOGO
 	CALL	INIT_VRAM
+
 	XOR		A
 LOC_8375:									; GAME MAIN LOOP
 	CALL	SUB_84F8
+	
+	; DEBUGGER! COMMENT
+;	CALL	ExtraMrDo		; TEST EXTRA MRDO SCREEN
+;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
+;	call	INTERMISSION
+;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
+;	CALL	CONGRATULATION
+;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
+	
 LOC_8378:
 	CALL	SUB_8828
 	CALL	DEAL_WITH_APPLE_FALLING
@@ -1064,9 +1038,9 @@ SUB_851C:	; If we're here, the game just started
 	LD		($727B), A
 	LD		A, (SKILLLEVEL)
 	CP		2
-	LD		A, 3		; Set the number of lives to 3
+	LD		A, 3		; Set the number of lives to 3 for skill 1 and 2
 	JR		NC, LOC_853F
-	LD		A, 5		; Set the number of lives to 5
+	LD		A, 5		; Set the number of lives to 5 for skill 3 and 4
 LOC_853F:
 	LD		(LIVES_LEFT_P1_RAM), A
 	LD		(LIVES_LEFT_P2_RAM), A
@@ -6303,6 +6277,7 @@ LOC_A9C0:
 	RES	7,(HL)						; switch to game mode
 
 	CALL	INIT_VRAM
+	CALL	RESTORE_PLAYFIELD_COLORS
 	
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
@@ -10917,14 +10892,14 @@ WONDERFUL:
 	; Show the intermission screen 
 	;
 
-	CALL MYMODE1					; switch to intermission  mode
-	CALL MYDISSCR
-
 	LD	BC,1
 	LD 	DE,SAT
 	LD 	HL,DummySAT
 	CALL MyNMI_off
 	CALL MYLDIRVM
+
+	CALL MYMODE1					; switch to intermission  mode
+	CALL MYDISSCR
 
 	LD		HL, $1800
 	LD		DE, 3*256
@@ -11015,8 +10990,8 @@ INTERMISSION:
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
-
 	CALL	INIT_VRAM
+	CALL	RESTORE_PLAYFIELD_COLORS	
 	
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
@@ -11087,7 +11062,14 @@ RET
 
 cvb_INTERMISSION:
 	CALL MYMODE1				; switch to intermission  mode
-	CALL MYDISSCR					
+	CALL MYDISSCR	
+
+	LD	BC,1
+	LD 	DE,SAT
+	LD 	HL,DummySAT
+	CALL MyNMI_off
+	CALL MYLDIRVM
+	
 	CALL cvb_MYCLS
 
 	CALL 	LOADFONTS
@@ -11112,10 +11094,16 @@ cvb_INTERMISSION:
 
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
+
+	LD BC,5*256+6
+	LD DE,$1800+26+19*32
+	LD HL,ItemsPNT
+	LD a,c
+	CALL CPYBLK_MxN
 		
 	CALL MYENASCR
 
-	RET
+RET
 
 
 ;----------------------------------------------------------------------
@@ -11465,7 +11453,7 @@ SCENE_TEXT:  dc "SCENE "
              db $80
 
 cvb_INTERMISSION_FRM1:
-	LD BC,41
+	LD BC,4*10+2*4+1
 	LD DE,$1B00
 	LD HL,cvb_SP1
 	CALL MyNMI_off
@@ -11476,10 +11464,11 @@ cvb_INTERMISSION_FRM1:
 	LD DE,$1800+10+13*32
 	LD HL,cvb_FR1
 	LD a,14
-	JP CPYBLK_MxN
+	CALL CPYBLK_MxN
+	RET
 	
 cvb_INTERMISSION_FRM2:
-	LD BC,41
+	LD BC,4*10+2*4+1
 	LD DE,$1B00
 	LD HL,cvb_SP2
 	CALL MyNMI_off
@@ -11490,86 +11479,113 @@ cvb_INTERMISSION_FRM2:
 	LD DE,$1800+10+13*32
 	LD HL,cvb_FR2
 	LD a,14
-	JP CPYBLK_MxN
+	CALL CPYBLK_MxN
+	RET
 
-
-; 61 tiles - compressed
+ItemsPNT:
+	DB $3c,$3d,$00,$00,$3e,$3f
+	DB $40,$41,$00,$00,$42,$43
+	DB $00,$00,$00,$00,$00,$00
+	DB $44,$45,$00,$00,$46,$47
+	DB $48,$49,$00,$00,$4a,$4b
+	
+	
+; 76 tiles - compressed
 intermission_char:
 
-	DB $3f,$00,$03,$00,$03,$30,$78,$78	;	DB $3f,$00,$03,$00,$03,$30,$78,$78
-	DB $30,$00,$07,$ff,$06,$66,$60,$7f	;	DB $30,$00,$07,$ff,$06,$66,$60,$7f
-	DB $06,$00,$ef,$00,$c0,$c0,$c2,$18	;	DB $06,$00,$ef,$00,$c0,$c0,$c2,$18
-	DB $ff,$ff,$68,$1f,$1b,$80,$3c,$c0	;	DB $ff,$ff,$68,$1f,$1b,$80,$3c,$c0
-	DB $80,$24,$00,$f9,$ef,$06,$0f,$f9	;	DB $80,$24,$00,$f9,$ef,$06,$0f,$f9
-	DB $f9,$03,$e0,$04,$f0,$7f,$f8,$f0	;	DB $f9,$03,$e0,$04,$f0,$7f,$f8,$f0
-	DB $e0,$00,$a0,$20,$80,$20,$04,$70	;	DB $e0,$00,$a0,$20,$80,$20,$04,$70
-	DB $30,$18,$38,$70,$38,$1d,$07,$0f	;	DB $30,$18,$38,$70,$38,$1d,$07,$0f
-	DB $1f,$74,$3f,$41,$00,$19,$00,$04	;	DB $1f,$74,$3f,$41,$00,$19,$00,$04
-	DB $0e,$3c,$60,$bf,$3f,$7f,$98,$70	;	DB $0e,$3c,$60,$bf,$3f,$7f,$98,$70
-	DB $26,$3d,$e0,$f8,$fc,$71,$fc,$1f	;	DB $26,$3d,$e0,$f8,$fc,$71,$fc,$1f
-	DB $01,$03,$04,$21,$03,$f7,$cf,$1f	;	DB $01,$03,$04,$21,$03,$f7,$cf,$1f
-	DB $17,$7f,$1c,$ff,$fc,$ff,$00,$3e	;	DB $17,$7f,$1c,$ff,$fc,$ff,$00,$1e
-	DB $62,$f0,$5b,$e0,$4d,$00,$f0,$f8	;	DB $62,$e0,$5b,$e0,$4d,$00,$f0,$f8
-	DB $0c,$0e,$0f,$0f,$07,$03,$82,$23	;	DB $0c,$0e,$0f,$0f,$07,$03,$82,$23
-	DB $f8,$78,$38,$9f,$7a,$08,$7f,$07	;	DB $f8,$78,$38,$9f,$7a,$08,$7f,$07
-	DB $7f,$c0,$26,$0c,$20,$00,$71,$21	;	DB $7f,$c0,$26,$0c,$20,$00,$71,$21
-	DB $30,$e0,$e3,$c3,$02,$c6,$3b,$f7	;	DB $30,$e0,$e3,$c3,$02,$c6,$3b,$f7
-	DB $10,$33,$8d,$00,$03,$ff,$80,$00	;	DB $10,$33,$8d,$00,$03,$ff,$80,$00
-	DB $c7,$03,$03,$01,$01,$ff,$9c,$02	;	DB $c7,$03,$03,$01,$01,$ff,$9c,$02
-	DB $fe,$3f,$60,$03,$ff,$e0,$1f,$c1	;	DB $fe,$3f,$60,$03,$ff,$e0,$1f,$c1
-	DB $83,$02,$0a,$1d,$f1,$01,$00,$2a	;	DB $83,$02,$19,$1d,$f1,$1a,$28,$2a
-	DB $58,$f9,$50,$54,$ff,$01,$7e,$ff	;	DB $f9,$50,$43,$f0,$ff,$01,$7e,$ff
-	DB $cf,$cf,$78,$7c,$7c,$4b,$7c,$00	;	DB $cf,$cf,$78,$7c,$7c,$4b,$7c,$00
-	DB $f8,$16,$88,$9d,$00,$40,$e0,$04	;	DB $f8,$29,$88,$9d,$00,$40,$e0,$04
-	DB $40,$0c,$0c,$ff,$c0,$00,$70,$11	;	DB $40,$0c,$0c,$ff,$c0,$00,$70,$11
-	DB $1c,$fc,$60,$26,$60,$cf,$5a,$29	;	DB $1c,$fc,$60,$26,$60,$cf,$16,$c6
-	DB $74,$16,$b4,$60,$3c,$1e,$1f,$5e	;	DB $74,$85,$b4,$60,$8f,$1e,$1f,$14
-	DB $64,$ef,$47,$ae,$64,$51,$28,$80	;	DB $5e,$ef,$2f,$00,$03,$c8,$51,$28
-	DB $12,$80,$fe,$fe,$40,$e1,$55,$b1	;	DB $80,$80,$25,$fe,$fe,$40,$e1,$55
-	DB $5d,$41,$f9,$18,$b3,$56,$87,$02	;	DB $60,$5d,$41,$f9,$ff,$3e,$c0,$56
-	DB $cf,$1c,$3f,$bf,$bf,$1f,$b1,$02	;	DB $87,$cf,$1c,$3f,$10,$bf,$bf,$1f
-	DB $81,$e0,$c0,$f0,$dd,$15,$fe,$27	;	DB $b1,$81,$50,$e0,$67,$dd,$fe,$a2
-	DB $6e,$20,$be,$08,$3e,$1f,$07,$01	;	DB $27,$c3,$be,$41,$08,$3e,$1f,$07
-	DB $ac,$45,$16,$00,$68,$e0,$b3,$81	;	DB $01,$58,$45,$16,$00,$e0,$d1,$b3
-	DB $f0,$fc,$1f,$f3,$f1,$07,$10,$a9	;	DB $02,$f0,$fc,$1f,$f3,$f1,$07,$a9
-	DB $09,$cf,$c7,$c7,$30,$c3,$40,$64	;	DB $20,$09,$cf,$c7,$c7,$c3,$60,$40
-	DB $be,$bc,$31,$18,$10,$5f,$fe,$37	;	DB $64,$be,$bc,$18,$62,$10,$5f,$fe
-	DB $be,$78,$57,$21,$55,$56,$09,$7f	;	DB $be,$6e,$78,$21,$ae,$55,$56,$7f
-	DB $38,$7c,$fe,$1c,$0f,$55,$0a,$66	;	DB $12,$38,$7c,$fe,$1c,$0f,$0a,$aa
-	DB $6c,$51,$03,$00,$fd,$fc,$6c,$60	;	DB $66,$6c,$51,$00,$06,$fd,$fc,$6c
-	DB $60,$30,$17,$b6,$31,$7f,$e0,$ee	;	DB $60,$60,$60,$17,$b6,$7f,$63,$e0
-	DB $d6,$7f,$3b,$3c,$7c,$7f,$c1,$ce	;	DB $ee,$ac,$7f,$3c,$77,$7c,$7f,$83
-	DB $1e,$92,$7a,$7e,$f6,$7c,$28,$7f	;	DB $ce,$1e,$24,$7a,$7e,$f6,$7c,$7f
-	DB $78,$83,$18,$18,$d6,$4f,$52,$fe	;	DB $51,$78,$83,$18,$18,$ac,$4f,$fe
-	DB $15,$c3,$1f,$8a,$8a,$54,$09,$67	;	DB $a5,$15,$c3,$1f,$14,$8a,$54,$09
-	DB $8c,$24,$ff,$ff,$ff,$fe			;	DB $8c,$cf,$24,$ff,$ff,$ff,$fc
+	DB $3f,$00,$03,$00,$03,$30,$78,$78
+	DB $30,$00,$07,$ff,$06,$66,$60,$7f
+	DB $06,$00,$ef,$00,$c0,$c0,$c2,$18
+	DB $ff,$ff,$68,$1f,$1b,$80,$3c,$c0
+	DB $80,$24,$00,$f9,$ef,$06,$0f,$f9
+	DB $f9,$03,$e0,$04,$f0,$7f,$f8,$f0
+	DB $e0,$00,$a0,$20,$80,$20,$04,$70
+	DB $30,$18,$38,$70,$38,$1d,$07,$0f
+	DB $1f,$74,$3f,$41,$00,$19,$00,$04
+	DB $0e,$3c,$60,$bf,$3f,$7f,$98,$70
+	DB $26,$3d,$e0,$f8,$fc,$71,$fc,$1f
+	DB $01,$03,$04,$21,$03,$f7,$cf,$1f
+	DB $17,$7f,$1c,$ff,$fc,$ff,$00,$3e
+	DB $62,$f0,$5b,$e0,$4d,$00,$f0,$f8
+	DB $0c,$0e,$0f,$0f,$07,$03,$82,$23
+	DB $f8,$78,$38,$9f,$7a,$08,$7f,$07
+	DB $7f,$c0,$26,$0c,$20,$00,$71,$21
+	DB $30,$e0,$e3,$c3,$02,$c6,$3b,$f7
+	DB $10,$33,$8d,$00,$03,$ff,$80,$00
+	DB $c7,$03,$03,$01,$01,$ff,$9c,$02
+	DB $fe,$3f,$60,$03,$ff,$e0,$1f,$c1
+	DB $83,$02,$0a,$1d,$f1,$01,$00,$2a
+	DB $58,$f9,$50,$54,$ff,$01,$7e,$ff
+	DB $cf,$cf,$78,$7c,$7c,$4b,$7c,$00
+	DB $f8,$16,$88,$9d,$00,$40,$e0,$04
+	DB $40,$0c,$0c,$ff,$c0,$00,$70,$11
+	DB $1c,$fc,$60,$26,$60,$cf,$5a,$29
+	DB $74,$16,$b4,$60,$3c,$1e,$1f,$5e
+	DB $64,$ef,$47,$ae,$64,$51,$28,$80
+	DB $12,$80,$fe,$fe,$40,$e1,$55,$b0
+	DB $5d,$41,$f9,$ff,$21,$3c,$7c,$56
+	DB $87,$cf,$1c,$d0,$2c,$b1,$81,$10
+	DB $e0,$c0,$f0,$dd,$fe,$a9,$27,$6e
+	DB $be,$05,$08,$3e,$1f,$07,$01,$45
+	DB $63,$16,$00,$e0,$44,$b3,$f0,$fc
+	DB $08,$1f,$f3,$f1,$07,$a9,$81,$09
+	DB $cf,$c7,$c7,$c3,$40,$81,$64,$be
+	DB $bc,$18,$10,$89,$5f,$fe,$be,$ba
+	DB $78,$21,$55,$b8,$56,$7f,$38,$7c
+	DB $4a,$fe,$1c,$0f,$0a,$66,$a8,$6c
+	DB $51,$00,$fd,$fc,$19,$6c,$60,$60
+	DB $17,$81,$b6,$7f,$e0,$8f,$ee,$de
+	DB $7f,$0c,$c6,$1e,$72,$91,$76,$f6
+	DB $74,$7f,$78,$26,$fb,$18,$18,$b2
+	DB $47,$ff,$18,$94,$bb,$1f,$82,$40
+	DB $86,$02,$fc,$8c,$ce,$24,$13,$ec
+	DB $46,$03,$00,$10,$28,$48,$88,$10
+	DB $00,$06,$19,$00,$3f,$70,$66,$43
+	DB $40,$00,$60,$98,$01,$fc,$0e,$36
+	DB $62,$c2,$0e,$02,$39,$2c,$0e,$7f
+	DB $08,$3d,$a8,$c4,$01,$41,$43,$66
+	DB $30,$0f,$7c,$00,$07,$82,$62,$36
+	DB $0c,$f8,$60,$30,$42,$1c,$09,$1f
+	DB $30,$e1,$00,$60,$30,$cb,$1f,$c1
+	DB $c3,$0f,$80,$22,$0e,$15,$3b,$4c
+	DB $37,$c0,$07,$e0,$50,$b8,$64,$01
+	DB $d8,$08,$1d,$3f,$7e,$3f,$3e,$22
+	DB $0c,$20,$8d,$10,$41,$f8,$07,$1e
+	DB $0b,$05,$02,$c3,$6c,$f0,$a0,$40
+	DB $4f,$b3,$ff,$ff,$ff,$ff
 
 intermission_color:
-	DB $3f,$f1,$03,$00,$81,$c8,$c8,$c1;	DB $3f,$f1,$03,$00,$81,$c8,$c8,$c1
-	DB $c1,$96,$07,$f8,$00,$55,$03,$07;	DB $c1,$96,$07,$f8,$00,$55,$03,$07
-	DB $00,$07,$6c,$14,$1b,$81,$78,$c1;	DB $00,$07,$6c,$14,$1b,$81,$78,$c1
-	DB $25,$fc,$b8,$1c,$28,$fc,$fc,$b6;	DB $25,$fc,$b8,$1c,$28,$fc,$fc,$b6
-	DB $2c,$00,$6d,$81,$1f,$f3,$06,$81;	DB $2c,$00,$6d,$81,$1f,$f3,$06,$81
-	DB $61,$06,$b8,$f8,$21,$2b,$00,$82;	DB $61,$06,$b8,$f8,$21,$2b,$00,$82
-	DB $00,$07,$cf,$16,$a7,$1f,$48,$c8;	DB $00,$07,$cf,$16,$a7,$1f,$48,$c8
-	DB $7c,$00,$3d,$fc,$be,$14,$09,$78;	DB $7c,$00,$3d,$fc,$be,$14,$09,$78
-	DB $fc,$60,$fc,$aa,$02,$00,$25,$60;	DB $fc,$60,$fc,$aa,$02,$00,$25,$60
-	DB $ce,$09,$8a,$3c,$9d,$3e,$00,$7d;	DB $ce,$09,$8a,$3c,$9d,$3e,$00,$7d
-	DB $f8,$07,$d9,$00,$05,$f3,$08,$81;	DB $f8,$07,$d9,$00,$05,$f3,$08,$81
-	DB $33,$54,$16,$2e,$35,$39,$00,$eb;	DB $33,$54,$16,$b4,$58,$60,$eb,$4b
-	DB $4b,$46,$eb,$68,$00,$e7,$3f,$fc;	DB $46,$eb,$68,$00,$e7,$3f,$fc,$99
-	DB $99,$37,$19,$a6,$5a,$7b,$4f,$6c;	DB $37,$19,$a6,$5a,$7b,$4f,$6c,$60
-	DB $60,$00,$82,$eb,$56,$28,$6e,$67;	DB $00,$82,$d3,$56,$36,$1c,$05,$ee
-	DB $10,$ce,$48,$bd,$2e,$51,$53,$AF;	DB $58,$42,$ce,$5c,$53,$c7,$5f,$fc
-	DB $5f,$67,$3e,$00,$98,$78,$d3,$ad;	DB $9f,$00,$3c,$98,$d3,$56,$0c,$00
-	DB $0c,$00,$1d,$b8,$1e,$97,$58,$c9;	DB $8e,$b8,$8f,$97,$64,$58,$07,$84
-	DB $07,$84,$c6,$8a,$09,$c7,$8c,$4f;	DB $e3,$8a,$63,$09,$8c,$a7,$09,$8c
-	DB $09,$19,$06,$21,$25,$a7,$17,$6c;	DB $06,$21,$25,$d3,$17,$b6,$55,$f7
-	DB $55,$f7,$6c,$80,$e7,$46,$da,$52;	DB $36,$80,$73,$46,$ed,$52,$43,$97
-	DB $86,$97,$5e,$5b,$17,$1f,$98,$df;	DB $2f,$5b,$17,$0f,$98,$ef,$7f,$b6
-	DB $7f,$6c,$27,$e5,$6d,$2f,$b5,$47;	DB $27,$e5,$36,$2f,$da,$47,$22,$d3
-	DB $22,$a7,$17,$9f,$4f,$ff,$ff,$ff;	DB $17,$cf,$4f,$ff,$ff,$ff,$fc
-	DB $f8;
+	DB $3f,$f1,$03,$00,$81,$c8,$c8,$c1
+	DB $c1,$96,$07,$f8,$00,$55,$03,$07
+	DB $00,$07,$6c,$14,$1b,$81,$78,$c1
+	DB $25,$fc,$b8,$1c,$28,$fc,$fc,$b6
+	DB $2c,$00,$6d,$81,$1f,$f3,$06,$81
+	DB $61,$06,$b8,$f8,$21,$2b,$00,$82
+	DB $00,$07,$cf,$16,$a7,$1f,$48,$c8
+	DB $7c,$00,$3d,$fc,$be,$14,$09,$78
+	DB $fc,$60,$fc,$aa,$02,$00,$25,$60
+	DB $ce,$09,$8a,$3c,$9d,$3e,$00,$7d
+	DB $f8,$07,$d9,$00,$05,$f3,$08,$81
+	DB $33,$54,$16,$2e,$35,$39,$00,$eb
+	DB $4b,$46,$eb,$68,$00,$e7,$3f,$fc
+	DB $99,$37,$19,$a6,$5a,$7b,$4f,$6c
+	DB $60,$00,$82,$eb,$56,$28,$6e,$67
+	DB $10,$ce,$48,$bd,$2e,$51,$53,$af
+	DB $5f,$67,$3e,$00,$98,$78,$d3,$ad
+	DB $0c,$00,$1d,$b8,$1e,$97,$58,$c9
+	DB $07,$84,$c6,$8a,$09,$c7,$8c,$4f
+	DB $09,$19,$06,$21,$25,$a7,$17,$6c
+	DB $55,$f7,$6c,$80,$e7,$46,$da,$52
+	DB $86,$97,$5f,$5b,$17,$1e,$bf,$7d
+	DB $00,$1f,$b1,$dd,$b6,$27,$98,$0f
+	DB $86,$6b,$8e,$47,$21,$03,$73,$21
+	DB $71,$a1,$6f,$00,$89,$07,$81,$f9
+	DB $37,$61,$de,$67,$79,$07,$1d,$f3
+	DB $1e,$a1,$9e,$a2,$00,$dc,$07,$99
+	DB $00,$b1,$01,$23,$00,$71,$01,$b1
+	DB $71,$47,$9c,$cf,$82,$ab,$07,$38
+	DB $14,$c7,$06,$71,$7f,$07,$ff,$ff
+	DB $ff,$e0
 
 intermission_sprites:
 	DB $26,$c8,$86,$00,$b0,$00,$f8,$f0
@@ -11585,16 +11601,19 @@ intermission_sprites:
 	DB $f8,$08,$e0,$00,$2b,$98,$08,$66
 	DB $1a,$f2,$2c,$3d,$f5,$9c,$00,$80
 	DB $03,$77,$8d,$ab,$d0,$1c,$78,$f8
-	DB $c1,$04,$3c,$7c,$fc,$a8,$10,$01
-	DB $73,$01,$04,$02,$db,$25,$8f,$ff
-	DB $70,$00,$83,$00,$7f,$c3,$6a,$12
-	DB $ab,$30,$bf,$c2,$0c,$39,$00,$17
-	DB $b0,$a7,$03,$77,$0f,$91,$2d,$7b
-	DB $00,$13,$4a,$3b,$da,$8c,$0b,$d4
-	DB $42,$63,$ce,$03,$de,$b7,$7b,$f9
-	DB $bf,$72,$c0,$73,$40,$00,$AF,$05
-	DB $56,$c7,$1a,$1c,$fc,$bf,$ff,$ff
-	DB $ff,$ff,$e0
+	DB $c1,$04,$3c,$7c,$fc,$ec,$15,$01
+	DB $7b,$02,$71,$0f,$ff,$ee,$0f,$00
+	DB $83,$00,$c3,$ed,$12,$55,$66,$bf
+	DB $c2,$07,$0c,$00,$17,$34,$b0,$03
+	DB $77,$0f,$f2,$2d,$7b,$29,$00,$13
+	DB $3b,$da,$5a,$8c,$0b,$8c,$42,$ce
+	DB $03,$76,$de,$7b,$ff,$2e,$bf,$c0
+	DB $73,$55,$40,$00,$05,$56,$e8,$18
+	DB $1f,$b7,$0f,$d1,$bf,$f7,$3e,$7c
+	DB $f6,$bf,$9d,$f1,$e3,$85,$1a,$00
+	DB $e1,$c1,$0f,$07,$03,$c3,$c3,$1f
+	DB $ab,$ff,$ff,$ff,$f8
+
 	
 cvb_SP1:	
 	DB 64+41,80,0,1
@@ -11607,6 +11626,9 @@ cvb_SP1:
 	DB 64+56,161,28,8
 	DB 64+58,112,32,1
 	DB 64+60,80,36,1
+ItemsSAT0:	
+	DB 145,208,80,1
+	DB 168,208,84,1
 	DB 208
 cvb_FR1:
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -11625,13 +11647,18 @@ cvb_SP2:
 	DB 126,95,64,15
 	DB 124,166,68,12
 	DB 122,112,72,1
+	DB 122,176,76,8
+ItemsSAT1:	
+	DB 145,208,80,1
+	DB 168,208,84,1
 	DB 208
+	
 cvb_FR2:	
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00	
 	DB $05,$06,$07,$08,$09,$0a,$0b,$0c,$00,$00,$0d,$0e,$0f,$10
 	DB $11,$12,$13,$14,$15,$16,$17,$18,$00,$00,$19,$1a,$1b,$1c
-	DB $34,$1e,$1f,$20,$21,$22,$23,$24,$00,$00,$35,$36,$37,$38
-	DB $39,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$3a,$3b,$3c,$00
+	DB $34,$1e,$1f,$20,$21,$22,$23,$24,$00,$00,$35,$26,$36,$37
+	DB $38,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$39,$3a,$3b,$00
 
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -11640,10 +11667,7 @@ CONGRATULATION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	; Show the congratulation screen 
 	;
-	LD	HL,mode
-	SET	7,(HL)						; switch to intermission  mode
-
-	CALL	cvb_CONGRATULATION
+	CALL	cvb_CONGRATULATION		; switch to intermission  mode
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_VERY_GOOD_TUNE
 
@@ -11670,8 +11694,7 @@ CONGRATULATION:
 
 	LD		HL, SPRITE_NAME_TABLE
 	LD		B, 50H				; remove 20 sprites
-.2:
-	LD		(HL), 0
+.2:	LD		(HL), 0
 	INC		HL
 	DJNZ	.2
 
@@ -11684,6 +11707,8 @@ CONGRATULATION:
 	RES	7,(HL)						; switch to game mode
 
 	CALL	INIT_VRAM
+	CALL	RESTORE_PLAYFIELD_COLORS	
+	
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
 .3:
