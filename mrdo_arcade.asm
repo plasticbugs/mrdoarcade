@@ -197,6 +197,11 @@ P1_LEVEL1_SCORE:  		RB 2    ;EQU $07328 ; 2 bytes - Level 1 score
 P1_LEVEL2_SCORE:  		RB 2    ;EQU $0732A ; 2 bytes - Level 2 score
 P1_LEVEL3_SCORE:  		RB 2    ;EQU $0732C ; 2 bytes - Level 3 score
 
+
+L_SEC:					EQU	P1_LEVEL1_SEC
+L_MIN:					EQU	P1_LEVEL1_MIN
+
+
 ; ALLOCATED IN THE TIMER TABLE
 
 P2_LEVEL1_SEC:    		EQU $070D7 ;Player 2 level 1 seconds
@@ -210,6 +215,18 @@ P2_PREV_SCORE:    		EQU $070DD ; 2 bytes - Previous total score for P2
 P2_LEVEL1_SCORE:  		EQU $070DF ; 2 bytes - Level 1 score
 P2_LEVEL2_SCORE:  		EQU $070E1 ; 2 bytes - Level 2 score
 P2_LEVEL3_SCORE:  		EQU $070E3 ; 2 bytes - Level 3 score
+
+ADDCURRTIMER:			EQU $070E5	; 2 bytes used to remove overhead in the NMI
+
+; Allocated in the TIMER BUFFER: NB ther are reset at game start by INIT_TIMER
+SAFEROOM0:				EQU $07018	; apparentely used RAM in the timer buffer
+SAFEROOM1:				EQU $07019	; apparentely used RAM in the timer buffer
+SAFEROOM2:				EQU $0701A	; apparentely used RAM in the timer buffer
+SAFEROOM3:				EQU $0701B	; apparentely used RAM in the timer buffer
+SAFEROOM4:				EQU $0701C	; apparentely used RAM in the timer buffer
+SAFEROOM5:				EQU $0701D	; apparentely used RAM in the timer buffer
+SAFEROOM6:				EQU $0701E	; apparentely used RAM in the timer buffer
+SAFEROOM7:				EQU $0701F	; apparentely used RAM in the timer buffer
 
 TEXT_BUFFER:      				; 8 bytes - Text buffer for printing: use FREEBUFF
 FREEBUFF:				RB	16	;EQU $0732C	; work ram
@@ -327,6 +344,26 @@ FINISH_NMI:
 	POP		BC
 	POP		AF
 	RETN
+
+
+;DEAL_WITH_TIMER:
+;	LD	A,(FRAME_COUNT)
+;	LD	HL,FRAMEPERSEC
+;	CP (HL)
+;	LD (FRAME_COUNT),A
+;	RET	NZ
+;	XOR A
+;	LD (FRAME_COUNT),A
+;	LD	A,(L_SEC)
+;	INC A
+;	CP 60
+;	LD (L_SEC),A
+;	RET	NZ
+;	XOR A
+;	LD (L_SEC),A
+;	LD	HL,L_MIN
+;	INC (HL)
+;	RET
 	
 DEAL_WITH_TIMER:
     ; First increment shared frame counter
@@ -339,55 +376,23 @@ DEAL_WITH_TIMER:
     ; We hit 60 frames, need to increment seconds
     XOR     A              
     LD      (FRAME_COUNT), A
-    
-    ; Check which player is active
-    LD      A, (GAMECONTROL)
-    BIT     1, A           
-    JR      Z, .setup_p1_timer
-    
-.setup_p2_timer:
-    LD      A, (CURRENT_LEVEL_P2)
-    LD      IY, P2_LEVEL1_SEC   
-    JR      .check_level_type
+	
+	LD 		HL,(ADDCURRTIMER)
 
-.setup_p1_timer:
-    LD      A, (CURRENT_LEVEL_P1)
-    LD      IY, P1_LEVEL1_SEC   
-
-.check_level_type:
-    ; First check if it's a multiple of 10
-    LD      B, 10
-    CALL    MOD_B           ; Get level mod 10
-    AND     A               ; Check if remainder is 0
-    JR      Z, .use_first_slot   ; If multiple of 10, use first slot
-    
-    ; Not a multiple of 10, calculate based on remainder
-    DEC     A               ; Convert to 0-based for the remainder (0-8)
-    LD      B, 3
-    CALL    MOD_B           ; Get mod 3 (0,1,2)
-							; NB: level 10,20 ecc will use the same slot of level 1,4,7
-    ADD     A, A            ; Multiply by 2 for offset
-    ; Add offset to IY
-    LD      B, 0
-    LD      C, A
-	ADD		IY,BC
-
-.use_first_slot:
-    ; IY is already pointing to first slot
- 
     ; Update seconds for current level
-    LD      A, (IY+0)      ; Load current seconds
+    LD      A, (HL)      ; Load current seconds
     INC     A
     CP      60
     JR      NZ, .store_seconds
     
     ; Hit 60 seconds, increment minutes
-    LD      (IY+0), 0     	; Reset seconds
-    INC     (IY+1)			; increment minutes
+    LD      (HL), 0     	; Reset seconds
+	INC 	HL
+    INC     (HL)			; increment minutes
     RET
     
 .store_seconds:
-    LD      (IY+0), A     ; Store seconds
+    LD      (HL), A     ; Store seconds
     RET
     
 .store_frame:
@@ -1048,6 +1053,9 @@ SUB_851C:	; If we're here, the game just started
 	LD		(SCORE_P2_RAM), HL
 	CALL 	Reset_p1		; reset min and sec for the two players
 	CALL 	Reset_p2		
+	
+	CALL 	CURRTIMERINIT
+	
 	LD		A, 1			; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1), A
 	LD		(CURRENT_LEVEL_P2), A
@@ -1062,6 +1070,7 @@ SUB_851C:	; If we're here, the game just started
 LOC_853F:
 	LD		(LIVES_LEFT_P1_RAM), A
 	LD		(LIVES_LEFT_P2_RAM), A
+	
 	LD		A, (GAMECONTROL)
 	AND		1
 	LD		(GAMECONTROL), A
@@ -6166,7 +6175,7 @@ LOC_A992:
 LOC_A969:
 	CALL	ExtraMrDo
 LOC_A96C:
-	CALL	SUB_AA25
+	CALL	GO_NEXT_LEVEL
 	LD		A, 2
 	RET
 LOC_A973:
@@ -6313,14 +6322,15 @@ WAIT8:
 RET
 
 
-SUB_AA25: ; Level complete, load next level
+GO_NEXT_LEVEL: ; Level complete, load next level
 	LD		HL, GAMECONTROL
 	SET		7, (HL)
 LOC_AA2A:
 	BIT		7, (HL)
 	JR		NZ, LOC_AA2A
 
-CALCULATE_LEVEL_SCORE:    
+; CALCULATE_LEVEL_SCORE
+	
     ; Check which player
     LD      A, (GAMECONTROL)
     BIT     1, A
@@ -6368,6 +6378,7 @@ CALCULATE_LEVEL_SCORE:
     LD      (IY+0), L      ; Store low byte
     LD      (IY+1), H      ; Store high byte
     
+	
     ; Update previous score for next level
     LD      A, (GAMECONTROL)
     BIT     1, A
@@ -6424,10 +6435,14 @@ CALCULATE_LEVEL_SCORE:
     POP     IX 
 
 .CONTINUE_NEXT_LEVEL:
+
 	LD		(IX+0), 7
 	INC		(HL)     		; Increment the level number
 	LD		A, (HL)
 	CALL	SUB_B286		; buld level in A
+
+	CALL 	CURRTIMERINIT	;	update pointer to timer
+
 	LD		HL, GAMESTATE
 	LD		DE, 3400H		; VRAM address to store P1 data
 	LD		A, (GAMECONTROL)
@@ -11008,6 +11023,8 @@ INTERMISSION:
 .3:	BIT		7, (HL)
 	JR		NZ, .3
 
+	CALL 	CURRTIMERINIT
+
     ; Check which player's timers to reset
     LD      A, (GAMECONTROL)
     BIT     1, A               ; Test if Player 2 is active
@@ -11027,7 +11044,46 @@ Reset_p2:
     DJNZ    .1
     RET
 
+CURRTIMERINIT:
+	; set the pointer to the current timer
+	
+    ; Check which player is active
+    LD      A, (GAMECONTROL)
+    BIT     1, A           
+    JR      Z, .setup_p1_timer
+    
+.setup_p2_timer:
+    LD      A, (CURRENT_LEVEL_P2)
+    LD      HL, P2_LEVEL1_SEC   
+    JR      .check_level_type
 
+.setup_p1_timer:
+    LD      A, (CURRENT_LEVEL_P1)
+    LD      HL, P1_LEVEL1_SEC   
+
+.check_level_type:
+    ; First check if it's a multiple of 10
+    LD      B, 10
+    CALL    MOD_B           ; Get level mod 10
+    AND     A               ; Check if remainder is 0
+    JR      Z, .use_first_slot   ; If multiple of 10, use first slot
+    
+    ; Not a multiple of 10, calculate based on remainder
+    DEC     A               ; Convert to 0-based for the remainder (0-8)
+    LD      B, 3
+    CALL    MOD_B           ; Get mod 3 (0,1,2)
+							; NB: level 10,20 ecc will use the same slot of level 1,4,7
+    ADD     A, A            ; Multiply by 2 for offset
+    ; Add offset to HL
+    LD      B, 0
+    LD      C, A
+	ADD		HL,BC
+
+.use_first_slot:
+    ; HL is already pointing to first slot
+
+	LD (ADDCURRTIMER),HL
+RET
 
 cvb_INTERMISSION:
 	CALL MYMODE1				; switch to intermission  mode
