@@ -1739,11 +1739,7 @@ LOC_8A80:
 	AND		7
 	CP		5
 	JR		NC, APPLE_FELL_ON_SOMETHING
-;	LD		A, 80H
-;	LD		(IY+0), A
 	LD		(IY+0), 80H
-;	LD		A, 10H
-;	LD		(IY+4), A
 	LD		(IY+4), 10H
 	XOR		A
 	JR		LOC_8AD7
@@ -3427,13 +3423,13 @@ SUB_96E4:
 	LD		(HL), A
 	LD		A, 0AH
 	LD		($728C), A
-;	LD		HL, (SCORE_P1_RAM)		; unused
+
 	LD		A, (GAMECONTROL)
 	LD		C, A
 	LD		A, (CURRENT_LEVEL_P1)
 	BIT		1, C
 	JR		Z, LOC_971B
-;	LD		HL, (SCORE_P2_RAM)		; unused
+
 	LD		A, (CURRENT_LEVEL_P2)
 LOC_971B:
 	LD		HL, 0
@@ -3444,11 +3440,6 @@ LOC_9721:
 	JP		P, LOC_9721
 	EX		DE, HL
 	CALL	SUB_B601
-;	PUSH	IY
-;	NOP
-;	NOP
-;	NOP
-;	POP		IY
 RET
 
 SUB_9732:
@@ -6268,7 +6259,7 @@ LOC_A9C0:
 	INC		HL
 	DJNZ	LOC_A9C0
 
-	LD		HL, 0000H			; do not delete playar data in VRAM
+	LD		HL, 0000H			; do not delete player data in VRAM
 	LD		DE, 3000H			
 	xor		a					; fill with space
 	CALL	FILL_VRAM
@@ -8713,8 +8704,8 @@ SET_LEVEL_COLORS:
 RET
 
 staticcolors:				; leftovers
-	DB $21,$51,$21,$A1,$21
-	DB $51,$51,$21,$31,$41,$91
+	DB $C1,$41,$51,$C1,$21
+	DB $41,$31,$41,$C1,$51,$91
 
 REP8:				
 	LD		HL,FREEBUFF
