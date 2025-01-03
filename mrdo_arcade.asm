@@ -219,14 +219,14 @@ P2_LEVEL3_SCORE:  		EQU $070E3 ; 2 bytes - Level 3 score
 ADDCURRTIMER:			EQU $070E5	; 2 bytes used to remove overhead in the NMI
 
 ; Allocated in the TIMER BUFFER: NB ther are reset at game start by INIT_TIMER
-SAFEROOM0:				EQU $07018	; apparentely used RAM in the timer buffer
-SAFEROOM1:				EQU $07019	; apparentely used RAM in the timer buffer
-SAFEROOM2:				EQU $0701A	; apparentely used RAM in the timer buffer
-SAFEROOM3:				EQU $0701B	; apparentely used RAM in the timer buffer
-SAFEROOM4:				EQU $0701C	; apparentely used RAM in the timer buffer
-SAFEROOM5:				EQU $0701D	; apparentely used RAM in the timer buffer
-SAFEROOM6:				EQU $0701E	; apparentely used RAM in the timer buffer
-SAFEROOM7:				EQU $0701F	; apparentely used RAM in the timer buffer
+SAFEROOM0:				EQU $07018	; apparentely unused RAM in the timer buffer
+SAFEROOM1:				EQU $07019	; apparentely unused RAM in the timer buffer
+SAFEROOM2:				EQU $0701A	; apparentely unused RAM in the timer buffer
+SAFEROOM3:				EQU $0701B	; apparentely unused RAM in the timer buffer
+SAFEROOM4:				EQU $0701C	; apparentely unused RAM in the timer buffer
+SAFEROOM5:				EQU $0701D	; apparentely unused RAM in the timer buffer
+SAFEROOM6:				EQU $0701E	; apparentely unused RAM in the timer buffer
+SAFEROOM7:				EQU $0701F	; apparentely unused RAM in the timer buffer
 
 TEXT_BUFFER:      				; 8 bytes - Text buffer for printing: use FREEBUFF
 FREEBUFF:				RB	16	;EQU $0732C	; work ram
