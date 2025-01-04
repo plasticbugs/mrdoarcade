@@ -902,7 +902,7 @@ INIT_VRAM:
 	CALL	WRITE_REGISTER
 
 	LD		HL, CT		; avoid glitches during screen transition
-	LD		DE, 256*3
+	LD		DE, 256*8
 	XOR		A			; CLEAR CT
 	CALL	FILL_VRAM
 
@@ -936,18 +936,19 @@ LOAD_GRAPHICS:
 	POP		AF
 	DEC		A
 	JP		P, LOAD_GRAPHICS
+	
 	LD		HL, EXTRA_SPRITE_PAT
 	LD		DE, 60H
 ;	LD		IY, 40H
-	LD		IY, 80		; OS7 BUG should have been 72
+	LD		IY, 80+6*4		; OS7 BUG should have been 72
 	LD		A, 1
 	CALL	PUT_VRAM
 
-	LD		HL, BALL_EXPLOSION_PAT
-	LD		DE, 144
-	LD		IY, 6*4
-	LD		A, 1
-	CALL	PUT_VRAM
+;	LD		HL, BALL_EXPLOSION_PAT
+;	LD		DE, 144
+;	LD		IY, 6*4
+;	LD		A, 1
+;	CALL	PUT_VRAM
 
 	CALL 	MYDISSCR				
 
@@ -11440,18 +11441,14 @@ CONVERT_TO_DECIMAL:
     ld a, "0" + $80
     ld (TEXT_BUFFER+4), a
 
-;    ; Add terminator
-;    ld a, $80
-;    ld (TEXT_BUFFER+5), a
     ret
 
 ;----------------------------------------------------------------------
 ; Data
 ;----------------------------------------------------------------------
-VERYGOOD:    dc "VERY GOOD !!"
-             db $80
+VERYGOOD:    dc "VERY GOOD !!"			; using DC the last character has bit 7 set
 SCENE_TEXT:  dc "SCENE "
-             db $80
+
 
 cvb_INTERMISSION_FRM1:
 	LD BC,4*10+2*4+1
@@ -11483,6 +11480,7 @@ cvb_INTERMISSION_FRM2:
 	CALL CPYBLK_MxN
 	RET
 
+; USE THESE TILES FOR ITEMS
 ItemsPNT:
 	DB $3c,$3d,$00,$00,$3e,$3f
 	DB $40,$41,$00,$00,$42,$43
@@ -11627,7 +11625,7 @@ cvb_SP1:
 	DB 64+56,161,28,8
 	DB 64+58,112,32,1
 	DB 64+60,80,36,1
-ItemsSAT0:	
+ItemsSAT0:					; USE THESE SPRITES FOR ITEMS
 	DB 145,208,80,1
 	DB 168,208,84,1
 	DB 208
@@ -11649,7 +11647,7 @@ cvb_SP2:
 	DB 124,166,68,12
 	DB 122,112,72,1
 	DB 122,176,76,8
-ItemsSAT1:	
+ItemsSAT1:					; USE THESE SPRITES FOR ITEMS
 	DB 145,208,80,1
 	DB 168,208,84,1
 	DB 208
