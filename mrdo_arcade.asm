@@ -1029,6 +1029,8 @@ SUB_851C:	; If we're here, the game just started
 	LD		HL, 0
 	LD		(SCORE_P1_RAM), HL
 	LD		(SCORE_P2_RAM), HL
+	LD		(P1_PREV_SCORE), HL
+	LD		(P2_PREV_SCORE), HL
 	CALL 	Reset_p1		; reset min and sec for the two players
 	CALL 	Reset_p2		
 	
