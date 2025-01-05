@@ -11309,27 +11309,34 @@ PRINT_LEVEL_STATS:
 GET_SLOT_OFFSET:
     push bc                 ; Save BC
     
-    ; Check for level 10
+    ; First check if it's exactly level 10, 20, 30, etc
     ld b, 10
     push af                ; Save original level
     call MOD_B            ; A = level % 10
     or a                  ; Check if remainder is 0
     pop bc                ; Get original level in B
-    jr nz, .normal_calc
+    jr nz, .normalize
     
-    ; It's level 10
-    xor a
+    ; It's level 10/20/30
+    xor a                 ; Use first slot
     ld e, a
     ld d, a
     pop bc
     ret
 
-.normal_calc:
-    ld a, b               ; Restore original level
-    dec a                 ; Convert to 0-based
+.normalize:
+    ; Subtract 10s until negative
+    ld a, b               ; Get original level back
+.sub_loop:
+    sub 10
+    jr nc, .sub_loop      ; Keep subtracting if still positive
+    add a, 10            ; Add back last 10
+    
+    ; Now A is 1-9, do MOD_3
+		dec a                ; Convert to 0-8
     ld b, 3
-    call MOD_B           ; Get mod 3
-    add a, a             ; Multiply by 2
+    call MOD_B           ; Get mod 3 (0,1,2)
+    add a, a            ; Multiply by 2 for offset
     ld e, a
     ld d, 0
     pop bc
