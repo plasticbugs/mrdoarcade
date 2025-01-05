@@ -11352,10 +11352,10 @@ PRINT_SINGLE_TIME:
     
     ; Check which player is active
     ld a, (GAMECONTROL)
-    bit 1, a                 
-    ld hl, P1_LEVEL1_SEC    
-    jr z, .got_base         
-    ld hl, P2_LEVEL1_SEC    
+    bit 1, a                   ; Test if Player 2 is active
+    ld hl, P1_LEVEL1_SEC      	; Default to Player 1 base
+    jr z, .got_base           	; ZF==0 for P1, ZF==1 for P2
+    ld hl, P2_LEVEL1_SEC      	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate which level's time to show
@@ -11402,7 +11402,7 @@ PRINT_SINGLE_TIME:
      ; Print time value
     pop de                    ; Restore screen position
     ex de, hl
-    ld bc, 7                 
+    ld bc, 7                  ; Move 7 positions right
     add hl, bc
     ex de, hl
     ld hl, TEXT_BUFFER
