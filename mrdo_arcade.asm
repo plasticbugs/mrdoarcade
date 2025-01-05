@@ -332,8 +332,8 @@ DEAL_WITH_TIMER:
     ; First increment shared frame counter
     LD      A, (FRAME_COUNT)
     INC     A
-	LD		HL,FRAMEPERSEC
-	CP 		(HL)
+		LD		HL,FRAMEPERSEC
+		CP 		(HL)
     JR      NZ, .store_frame
     
     ; We hit 60 frames, need to increment seconds
@@ -809,7 +809,7 @@ LOC_8372:
 ;	CALL	INIT_VRAM
 ;	LD		A,1
 ;	CALL 	SET_LEVEL_COLORS.RESTORE_COLORS	
-;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
+	; CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 	
 	; Initialize the game
 
@@ -4696,6 +4696,9 @@ UNK_9FB3:
 	DW LOC_9F9C
 
 SUB_9FC8:
+  ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
+	XOR		A
+	RET
 	PUSH	IY
 	LD		B, (IY+2)
 	LD		A, (MRDO_DATA.Y)
@@ -6395,7 +6398,7 @@ CALCULATE_LEVEL_SCORE:
 
 	; Current level (either p1 or p2) is loaded into HL
 	LD      A, (HL)     ; Load level number
-	LD      B, 10        
+	LD      B, 10
 	CALL MOD_B	; Get modulo B
 	
 	; test if we completed level 10xN
@@ -10893,6 +10896,10 @@ cvb_EXTRASCREEN_FRM2:
 
 WONDERFULTXT0:	DB "                ",10+128
 WONDERFULTXT1:	DB "   WONDERFUL !! ",10+128
+TOTAL_TEXT:     dc "TOTAL "
+                db $80
+; AVERAGE_TEXT:   dc "AVERAGE "
+;                 db $80
 
 DummySAT:		DB 208
 
@@ -10911,28 +10918,28 @@ WONDERFUL:
 	CALL MyNMI_off
 	CALL MYLDIRVM
 
+  ; Fill top half with blank tiles
 	LD		HL, $1800
-	LD		DE, 3*256
-	LD		A,10
+	LD		DE, 384
+  XOR   A
 	CALL	FILL_VRAM
 
-    ld de, 	PNT + 7 + 32*(11)
-    ld hl, 	WONDERFULTXT0
-    call 	MYPRINT
-    ld de, 	PNT + 7 + 32*(12)
-    ld hl, 	WONDERFULTXT1
-    call 	MYPRINT
-    ld de, 	PNT + 7 + 32*(13)
-    ld hl, 	WONDERFULTXT0
-    call 	MYPRINT
-	CALL 	MyNMI_on	
+	    ; Fill bottom half with brick pattern
+    LD      HL, $1800 + 384  ; Start halfway down screen
+    LD      DE, 384          ; Fill remaining 12 rows
+    LD      A, 10            ; Original brick pattern
+    CALL    FILL_VRAM
+
+    CALL    PRINT_WONDERFUL_STATS
+    CALL    MyNMI_on    
+
 
 	CALL	MYENASCR
 
 	CALL	INITIALIZE_THE_SOUND
-	CALL	PLAY_WIN_EXTRA_DO_TUNE
+	CALL	PLAY_VERY_GOOD_TUNE
 
-	LD		HL, 280H				; music duration
+	LD		HL, 200H				; music duration
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF						; wait for music to finish
@@ -10951,10 +10958,141 @@ WONDERFUL:
 .3:	BIT		7, (HL)
 	JR		NZ, .3
 
+	CALL	RESET_LEVEL_TIMERS
+
 	LD		BC, 1C2H		 		; Original game state register (No NMI)
 	CALL	WRITE_REGISTER
 RET
-	
+
+PRINT_WONDERFUL_STATS:
+    ; Check which player is active
+    ld a, (GAMECONTROL)
+    bit 1, a                   
+    jr nz, .use_p2
+
+    ; Player 1 is active
+    ld a, (CURRENT_LEVEL_P1)
+    ld bc, (SCORE_P1_RAM)      ; Use BC instead of HL for initial load
+    jr .continue
+.use_p2:
+    ld a, (CURRENT_LEVEL_P2)
+    ld bc, (SCORE_P2_RAM)
+.continue:
+    ; Save score and level
+    push bc                     ; Save score
+    
+    ; Print and calculate scores for only the current level
+    ld de, $1800 + 6 + 32*2   
+    push af                     
+    call PRINT_SINGLE_SCORE
+    pop af
+    call PRINT_SINGLE_TIME
+
+    ; Get score back and preserve it
+    pop bc                      ; Get original score back
+    push bc                     ; Save it again
+    
+    ; Convert score for display (needs HL)
+    push af                     ; Save A
+    ld h, b                     ; Move score to HL for conversion
+    ld l, c
+    call CONVERT_TO_DECIMAL
+    pop af                      ; Restore A
+
+    ; Print total score
+    ld de, $1800 + 6 + 32*4
+    push de
+    ld hl, TOTAL_TEXT
+    call MYPRINT
+    pop de
+
+    ex de, hl
+    ld bc, 10
+    add hl, bc
+    ex de, hl
+    ld hl, TEXT_BUFFER
+    call MYPRINT
+;  ; Print "AVERAGE" text
+;     ld de, $1800 + 6 + 32*6
+;     push de
+;     ld hl, AVERAGE_TEXT
+;     call MYPRINT
+;     pop de
+
+;     ; Calculate average based on level
+;     pop bc                  ; Get score back
+;     push bc                 ; Keep a copy
+;     pop af                  ; Get level back (10, 20, 30, etc.)
+;     push af                 ; Keep a copy
+    
+;     ld h, b                 ; Move score to HL
+;     ld l, c
+
+;     ; First divide level by 10 to get divisor
+;     srl a                   ; Divide level by 10
+;     srl a
+;     srl a                   ; A now has 1 for level 10, 2 for 20, etc.
+;     ld b, a                 ; B = divisor (1, 2, 3, etc.)
+    
+;     ; Shift HL right by 3 to remove one decimal digit
+;     srl h
+;     rr l
+;     srl h
+;     rr l
+;     srl h
+;     rr l
+
+;     ; Now do the division
+;     ld de, 0               ; Initialize quotient
+; .divide_loop:
+;     ld a, l               ; Compare HL with B
+;     cp b
+;     ld a, h
+;     sbc a, 0
+;     jr c, .done           ; If HL < B, division done
+
+;     ; Subtract B from HL
+;     ld a, l
+;     sub b
+;     ld l, a
+;     ld a, h
+;     sbc a, 0
+;     ld h, a
+
+;     inc de                ; DE = DE + 1
+;     jr .divide_loop
+
+; .done:
+;     ; DE now holds the quotient
+;     ex de, hl             ; Put result in HL for CONVERT_TO_DECIMAL
+
+;     ; Convert to decimal and display
+;     call CONVERT_TO_DECIMAL
+
+;     ; Print average value
+;     ex de, hl
+;     ld bc, 10            ; Move right 10 positions
+;     add hl, bc
+;     ex de, hl
+;     ld hl, TEXT_BUFFER
+;     call MYPRINT
+
+    ; Print WONDERFUL text
+    ld de, PNT + 7 + 32*(16)
+    ld hl, WONDERFULTXT0
+    call MYPRINT
+    ld de, PNT + 7 + 32*(17)
+    ld hl, WONDERFULTXT1
+    call MYPRINT
+    ld de, PNT + 7 + 32*(18)
+    ld hl, WONDERFULTXT0
+    call MYPRINT
+	  
+    pop bc                      ; Clean up the stack
+    ret
+
+
+
 INTERMISSION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	; Show the intermission screen 
@@ -11008,6 +11146,7 @@ INTERMISSION:
 .3:	BIT		7, (HL)
 	JR		NZ, .3
 
+RESET_LEVEL_TIMERS:
     ; Check which player's timers to reset
     LD      A, (GAMECONTROL)
     BIT     1, A               ; Test if Player 2 is active
@@ -11117,31 +11256,61 @@ PRINT_LEVEL_STATS:
     ret
 
 ;----------------------------------------------------------------------
+; GET_SLOT_OFFSET: Calculates the correct slot offset for level data
+; Input: A = level number
+; Output: A = offset (0, 2, or 4), DE = offset as 16-bit value
+; Preserves: BC, HL
+;----------------------------------------------------------------------
+GET_SLOT_OFFSET:
+    push bc                 ; Save BC
+    
+    ; Check for level 10
+    ld b, 10
+    push af                ; Save original level
+    call MOD_B            ; A = level % 10
+    or a                  ; Check if remainder is 0
+    pop bc                ; Get original level in B
+    jr nz, .normal_calc
+    
+    ; It's level 10
+    xor a
+    ld e, a
+    ld d, a
+    pop bc
+    ret
+
+.normal_calc:
+    ld a, b               ; Restore original level
+    dec a                 ; Convert to 0-based
+    ld b, 3
+    call MOD_B           ; Get mod 3
+    add a, a             ; Multiply by 2
+    ld e, a
+    ld d, 0
+    pop bc
+    ret
+
+;----------------------------------------------------------------------
 ; PRINT_SINGLE_TIME: Prints one level's completion time
 ; Input: A = level number, DE = screen position
 ;----------------------------------------------------------------------
 PRINT_SINGLE_TIME:
-    push de
-    push      af
+    push de                  ; Save screen position
+    push af                  ; Save level number
+    
     ; Check which player is active
     ld a, (GAMECONTROL)
-    bit 1, a                   ; Test if Player 2 is active
-    ld hl, P1_LEVEL1_SEC      	; Default to Player 1 base
-    jr z, .got_base           	; ZF==0 for P1, ZF==1 for P2
-    ld hl, P2_LEVEL1_SEC      	; Otherwise use Player 2 base
+    bit 1, a                 
+    ld hl, P1_LEVEL1_SEC    
+    jr z, .got_base         
+    ld hl, P2_LEVEL1_SEC    
 .got_base:
 
     ; Calculate which level's time to show
-    pop      af
-    dec a                       ; Convert to 0-based (level 1 = 0)
-    ld b, 3                    	; We want modulo 3
-    call MOD_B                 	; A will now be 0, 1, or 2
-    add a, a                   	; Multiply by 2 (2 bytes per time)
-    
-    ld e, a						; Get seconds using offset
-    ld d, 0
-    add hl, de                	; HL now points to seconds for this level
-    push hl                   	; Save pointer to seconds
+    pop af                   ; Get level number back
+    call GET_SLOT_OFFSET     ; Get the correct offset
+    add hl, de             ; HL now points to seconds          
+    push hl                
     
 	; Get minutes first (it's the next byte)
     inc hl                    	; Point to minutes
@@ -11178,16 +11347,15 @@ PRINT_SINGLE_TIME:
     ld (TEXT_BUFFER+3), a
     ld a, $80                 	;	 Add terminator
     ld (TEXT_BUFFER+4), a
-    
-    ; Print time value
-    pop de                    	; Restore screen position
+     ; Print time value
+    pop de                    ; Restore screen position
     ex de, hl
-    ld bc, 7                 	; Move 7 positions right
+    ld bc, 7                 
     add hl, bc
     ex de, hl
     ld hl, TEXT_BUFFER
     call MYPRINT
-    
+
     ret
 
 ;----------------------------------------------------------------------
@@ -11271,13 +11439,8 @@ PRINT_SINGLE_SCORE:
 .got_base:
 
     ; Calculate score address
-    pop    af
-    dec a                       ; Convert to 0-based (level 1 = 0)
-    ld b, 3                    ; We want modulo 3
-    call MOD_B                 ; A will now be 0, 1, or 2
-    add a, a                    ; Multiply by 2 (2 bytes per score)
-    ld e, a
-    ld d, 0
+    pop     af                ; Get level number back
+    call GET_SLOT_OFFSET     ; Get the correct offset
     add hl, de                 ; HL now points to correct score
 
     ; Load score
@@ -11303,7 +11466,30 @@ PRINT_SINGLE_SCORE:
 ; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
 ;----------------------------------------------------------------------
 CONVERT_TO_DECIMAL:
-    ; First get thousands
+    ; First get ten thousands
+    ld c, 0                    ; Counter for ten thousands
+.ten_thousands_loop:
+    ld de, 10000
+    or a                       ; Clear carry
+    sbc hl, de
+    jr c, .ten_thousands_done
+    inc c
+    jr .ten_thousands_loop
+.ten_thousands_done:
+    add hl, de                 ; Restore remainder
+    
+    ; Store ten thousands digit
+    ld a, c
+    or a                       ; Test if zero
+    jr nz, .not_zero1         ; If not zero, show digit
+    ld a, " "                 ; If zero, show space
+    jr .store1
+.not_zero1:
+    add a, "0"                ; Convert to ASCII
+.store1:
+    ld (TEXT_BUFFER), a
+
+    ; Now get thousands
     ld c, 0                    ; Counter for thousands
 .thousands_loop:
     ld de, 1000
@@ -11317,14 +11503,19 @@ CONVERT_TO_DECIMAL:
     
     ; Store thousands digit
     ld a, c
-    or a                       ; Test if zero
-    jr nz, .not_zero1         ; If not zero, show digit
-    ld a, " "                 ; If zero, show space
-    jr .store1
-.not_zero1:
-    add a, "0"                ; Convert to ASCII
-.store1:
-    ld (TEXT_BUFFER), a
+    ld b, a                   ; Save digit value
+    ld a, (TEXT_BUFFER)       ; Check if we had ten thousands
+    cp " "                    ; Was it a space?
+    ld a, b                   ; Restore digit value
+    jr nz, .not_zero2        ; If we had ten thousands, always show this digit
+    or a                      ; Test if zero
+    jr nz, .not_zero2        ; If not zero, show digit
+    ld a, " "                ; If zero, show space
+    jr .store2
+.not_zero2:
+    add a, "0"               ; Convert to ASCII
+.store2:
+    ld (TEXT_BUFFER+1), a
 
     ; Now get hundreds
     ld c, 0                    ; Counter for hundreds
@@ -11341,18 +11532,18 @@ CONVERT_TO_DECIMAL:
     ; Store hundreds digit
     ld a, c
     ld b, a                   ; Save digit value
-    ld a, (TEXT_BUFFER)       ; Check if we had thousands
+    ld a, (TEXT_BUFFER+1)       ; Check if we had thousands
     cp " "                    ; Was it a space?
     ld a, b                   ; Restore digit value
-    jr nz, .not_zero2        ; If we had thousands, always show this digit
+    jr nz, .not_zero3        ; If we had thousands, always show this digit
     or a                      ; Test if zero
-    jr nz, .not_zero2        ; If not zero, show digit
+    jr nz, .not_zero3        ; If not zero, show digit
     ld a, " "                ; If zero, show space
     jr .store2
-.not_zero2:
+.not_zero3:
     add a, "0"               ; Convert to ASCII
-.store2:
-    ld (TEXT_BUFFER+1), a
+.store3:
+    ld (TEXT_BUFFER+2), a
 
     ; Now get tens
     ld c, 0                    ; Counter for tens
@@ -11369,35 +11560,32 @@ CONVERT_TO_DECIMAL:
     ; Store tens digit
     ld a, c
     ld b, a                   ; Save digit value
-    ld a, (TEXT_BUFFER+1)     ; Check if we had hundreds
+    ld a, (TEXT_BUFFER+2)     ; Check if we had hundreds
     cp " "                    ; Was it a space?
     ld a, b                   ; Restore digit value
-    jr nz, .not_zero3        ; If we had hundreds, always show this digit
+    jr nz, .not_zero4        ; If we had hundreds, always show this digit
     ld a, (TEXT_BUFFER)      ; Check thousands again
     cp " "                    ; Was it a space?
     ld a, b                   ; Restore digit value
-    jr nz, .not_zero3        ; If we had thousands, always show this digit
+    jr nz, .not_zero4        ; If we had thousands, always show this digit
     or a                      ; Test if zero
-    jr nz, .not_zero3        ; If not zero, show digit
+    jr nz, .not_zero4        ; If not zero, show digit
     ld a, " "                ; If zero, show space
     jr .store3
-.not_zero3:
+.not_zero4:
     add a, "0"               ; Convert to ASCII
-.store3:
-    ld (TEXT_BUFFER+2), a
+.store4:
+    ld (TEXT_BUFFER+3), a
 
     ; Ones are what's left in HL (always show)
     ld a, l
     add a, "0"
-    ld (TEXT_BUFFER+3), a
+    ld (TEXT_BUFFER+4), a
 
     ; Add literal "0" with terminator
     ld a, "0" + $80
-    ld (TEXT_BUFFER+4), a
+    ld (TEXT_BUFFER+5), a
 
-;    ; Add terminator
-;    ld a, $80
-;    ld (TEXT_BUFFER+5), a
     ret
 
 ;----------------------------------------------------------------------
