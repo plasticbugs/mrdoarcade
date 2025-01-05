@@ -8741,7 +8741,7 @@ SET_LEVEL_COLORS:
 RET
 
 staticcolors:				; leftovers
-	DB $C1,$41,$51,$C1,$21
+	DB $C1,$41,$31,$A1,$31
 	DB $41,$31,$41,$C1,$51,$91
 
 REP8:				
