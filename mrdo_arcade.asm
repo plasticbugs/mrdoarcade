@@ -130,7 +130,8 @@ CONTROLLER_BUFFER:		RB	 6	;EQU $7086
 KEYBOARD_P1:			RB	 1	;EQU $708C
 						RB	 4	;EQU $708D ?? some kind of struct used in SUB_94A9
 KEYBOARD_P2:			RB	 1	;EQU $7091
-						RB	12	;EQU $7092 ??
+						RB	 4	;EQU $7092
+						RB	 8	;EQU $7096
 TIMER_TABLE:			RB	75	;EQU $709E
 SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT
 
@@ -586,9 +587,9 @@ SUB_8229:
 	; 3 PUSH right01
 	; 4 PUSH right02
 	; 
-	ADD		A, 1BH				; MrDo Position offeset = 27+1 in SPRITE_GENERATOR
+	ADD		A, 27				; MrDo Position offeset = 27+1 in SPRITE_GENERATOR
 	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
-	CALL	DEAL_WITH_SPRITES	; rotate the current frame of the player
+	CALL	DEAL_WITH_SPRITES	; Rotate the current frame of the player
 
 	LD		D, 0
 LOC_8241:
@@ -755,20 +756,17 @@ BONUS_OBJ_LIST:
 START:
 	LD		HL, $7000			; clean user ram
 	LD		DE, $7000+1
-	LD		BC, $3B0-1			; all zeros till to the stack head
+	LD		BC, $3FE-1			; all zeros till to the end of the ram - needed as we skip the coleco screen
 	LD		(HL), 0
 	LDIR
-	LD		HL,mode
-	LD		(HL), 0
-	
 	LD		A, 1				; ???
 	LD		(MUX_SPRITES), A
 	LD		HL,$1f01
-	LD		(RAND_NUM), HL		; NEEDED IF WE SKIP THE COLECO SCREEN
+	LD		(RAND_NUM), HL		; needed as we skip the coleco screen
 	LD		A, 0				; ??? 
 	LD		(DEFER_WRITES), A
 	CALL	INITIALIZE_THE_SOUND
-	LD		A, 14H
+	LD		A, 20				; show only 20 sprites in total
 	CALL	INIT_SPR_NM_TBL
 	LD		HL, TIMER_TABLE
 	LD		DE, TIMER_DATA_BLOCK
@@ -3907,6 +3905,7 @@ LOC_9AB1:
 	POP		IX
 	AND		A
 RET
+
 
 BYTE_9AB5:
 	DB 176,112,224,208
@@ -8314,11 +8313,11 @@ OFF_B691: ; Sprite color data
 BYTE_B6C3:
 	DB 000,000,184,015	  ; Ball Sprite pattern 184 uses White
 
-BYTE_B6C7:
+BYTE_B6C7:					; MrDo 
 ;	DB 44*4,6,148,015	  ; Patterns 176,148 use White
 	DB  176,6,132,015	  ; Patterns 176,148 use White
 
-BYTE_B6CB:
+BYTE_B6CB:					; ?? unused ???
 	DB 180,15,160,003	  ; Patterns 180,160 use Light Green
 
 BYTE_B6CF:			; EXTRA SPRITES!!
@@ -8341,7 +8340,7 @@ BYTE_B757:
 ;	DB 000,000,136,008,140,008,144,008,152,015	  ; Apple Sprite colors (Medium Red), ending in White
 	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple Sprite colors (Medium Red), ending in White
 
-BYTE_B761:		; Chompers
+BYTE_B761:		; Chomper animation
 ;	DB 000,000,224,005,228,005,232,005,236,005,148,005	  ; Series using Light Blue
 	DB 000,000,224,005,228,005,232,005,236,005,132,005	  ; Series using Light Blue
 
