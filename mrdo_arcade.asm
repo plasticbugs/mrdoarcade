@@ -593,18 +593,17 @@ SUB_8229:
 
 	LD		D, 0
 LOC_8241:
-	LD 		HL,(MRDO_DATA.Y)			; HL = MrDo's X,Y
+	LD 		HL,(MRDO_DATA.Y)			; L = MrDo's Y, H = MrDo's X
 	DEC L
-	LD		B,L
-	LD		C,H
+	LD		B,L							; B = Y-1
+	LD		C,H							; C = X
 	LD		A, 81H
-	CALL	SUB_B629			; put sprite A at BC = Y-1	,X with step D
+	CALL	PUTSPRITE			; put sprite A at B = Y-1,C=X with step D
 	
 								; HACK TO ADD A SECOND COLOR LAYER
 	LD		HL, SPRITE_NAME_TABLE+8
 	LD 		A,(ix+2)		
-;	CP 		148			; smashed player HARDCODED (!!)
-	CP 		132			; smashed player HARDCODED (!!)
+	CP 		132			; smashed player HARDCODED (!! was 148)
 	JP 		NZ,.patch	; patch only if the player is not smashed
 	LD 		(HL),209	; hide the second layer if player is smashed
 	RET
@@ -746,7 +745,7 @@ LOC_8329:
 	XOR		1				
 	LD		(HL), A
 	LD		A, 8DH
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 RET
 
 ; BONUS ITEM LIST
@@ -1366,7 +1365,7 @@ LOOP_87C6:
 	LD		B, (IY+1)
 	LD		C, (IY+2)
 	LD		D, 1
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	POP		AF
 	POP		IX
 	POP		BC
@@ -1627,7 +1626,7 @@ LOC_89C1:
 LOC_89C8:
 	LD		A, ($722A)
 	ADD		A, 0CH
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 RET
 
 SUB_89D1:
@@ -1940,7 +1939,7 @@ LOC_8C28:
 	LD		C, A
 	LD		D, 0BH
 	LD		A, 3
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	XOR		A
 LOC_8C38:
 	AND		A
@@ -1982,7 +1981,7 @@ LOC_8C7A:
 	ADD		A, 5
 	LD		D, 25H
 	PUSH	IX
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	POP		IX
 LOC_8C8D:
 	LD		DE, 6
@@ -2038,7 +2037,7 @@ LOC_8CEA:
 	ADD		A, 11H
 	LD		D, 5
 	PUSH	IX
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	POP		IX
 LOC_8CF5:
 	LD		DE, 6
@@ -2966,7 +2965,7 @@ SUB_936F:
 	LD		BC, 808H
 	LD		D, 0
 	LD		A, 3
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	LD		DE, 32H
 	CALL	SUB_B601
 	CALL	SUB_B76D
@@ -2994,7 +2993,7 @@ SUB_93B6:
 	LD		C, (IY+2)
 	LD		D, 1
 	LD		A, 4
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	LD		HL, 1
 	XOR		A
 	CALL	REQUEST_SIGNAL
@@ -3017,7 +3016,7 @@ SUB_93CE:  ; Ball intersecting with sprite
 LOC_93ED:
 	LD		D, A
 	LD		A, 4
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	INC		(IY+5)
 	LD		A, (IY+5)
 	CP		6
@@ -3051,7 +3050,7 @@ LOC_9421:  ; Ball intersects with sprite
 	LD		BC, 808H
 	LD		D, 0
 	LD		A, 4
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	RET
 LOC_9444:
 	RES		3, (IY+0)
@@ -3535,7 +3534,7 @@ LOC_97A9:
 	LD		B, A
 	LD		D, 1
 	LD		A, 4
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 LOC_97C8:
 	LD		HL, 1EH
 	BIT		3, (IY+0)
@@ -3989,7 +3988,7 @@ LOC_9B36:
 	ADD		A, 5
 	LD		B, (IY+2)
 	LD		C, (IY+1)
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	POP		IY
 	POP		IX
 RET
@@ -5923,7 +5922,7 @@ LOC_A7CB:
 	LD		A, ($72BE)
 	LD		C, A
 	LD		A, 3
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 RET
 
 BYTE_A7DC:
@@ -6089,7 +6088,7 @@ LOC_A90D:
 	LD		C, (IY+1)
 	LD		A, ($72C5)
 	ADD		A, 11H
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 RET
 
 SUB_A921:
@@ -6763,12 +6762,12 @@ DEAL_WITH_SPRITES:
 	LD		h,0
 	LD		e,a
 	LD		d,h
-	add		HL,HL
-	add		HL,HL
-	add		HL,de					; 5 bytes per entry 
-	ex		de,HL
+	ADD		HL,HL
+	ADD		HL,HL
+	ADD		HL,DE					; 5 bytes per entry 
+	EX		DE,HL
 	LD		IX, SPRITE_GENERATOR
-	add		ix,de					; +28*5 for MrDo
+	ADD		IX,DE					; +28*5 for MrDo
 	
 	; expect in IY the number of 8x8 tiles to process
 	
@@ -6781,7 +6780,7 @@ DEAL_WITH_SPRITES:
 	JP		NZ,ROTATION
 NOROTATION:
 	LD		A, 1				; write the SPT
-	CALL	PUT_VRAM
+	CALL	PUT_VRAM			; IY = #of chars, DE = SPT pos, HL = ROM addr
 	RET
 ROTATION:
 
@@ -7370,7 +7369,7 @@ LOC_B035:
 	LD		A, 11H
 	SUB		E
 	LD		D, 1
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	POP		IX
 	POP		HL
 	POP		DE
@@ -8225,91 +8224,80 @@ LOC_B614:
 	LD		($727C), A
 RET
 
-SUB_B629:							; put sprite A with step D at  BC = Y,X
-	LD		IX, SATBUFF1			; SAT buffer in RAM (8 bytes)
-	BIT		7, A
-	JR		Z, LOC_B637
-	LD		IX, SATBUFF2				; SAT buffer in RAM (8 bytes)
-	AND		7FH
-LOC_B637:
-	PUSH	AF
-	PUSH	DE
-	ADD		A, A
-	LD		E, A
-	LD		D, 0
-	LD		HL, OFF_B691			; color table (pointer)
-	ADD		HL, DE
-	LD		E, (HL)
-	INC		HL
-	LD		D, (HL)
-	EX		DE, HL
-	POP		DE
-	LD		A, D
-	ADD		A, A
-	LD		E, A
-	LD		D, 0
-	ADD		HL, DE
-	LD		A, B
-	SUB		8
-	JR		NC, LOC_B655
-	LD		E, 1
-	ADD		A, 8
-LOC_B655:
-	LD		(IX+0), A
-	LD		A, C
-	SUB		8
-	LD		(IX+1), A
-	LD		A, (HL)
-	LD		(IX+2), A
-	INC		HL
-	LD		A, (HL)
-	BIT		0, E
-	JR		Z, LOC_B66A
-	SET		7, A
-LOC_B66A:
-	LD		(IX+3), A
-	LD		A, (GAMECONTROL)
-	SET		3, A
-	LD		(GAMECONTROL), A
-	POP		AF
-	ADD		A, A
-	ADD		A, A
-	LD		E, A
-	LD		D, 0
-	LD		HL, SPRITE_NAME_TABLE
-	ADD		HL, DE
-	EX		DE, HL
-	PUSH	IX
-	POP		HL
-	LD		BC, 4
-	LDIR
-	LD		A, (GAMECONTROL)
-	RES		3, A
-	LD		(GAMECONTROL), A
-RET
 
-OFF_B691: ; Sprite color data
-	DW BYTE_B6C3
-	DW BYTE_B6C7
-	DW BYTE_B6CB
-	DW BYTE_B6CF
-	DW BYTE_B6FB
-	DW BYTE_B70B
-	DW BYTE_B70B
-	DW BYTE_B70B
-	DW BYTE_B70B
-	DW BYTE_B70B
-	DW BYTE_B70B
-	DW BYTE_B70B
-	DW BYTE_B757
-	DW BYTE_B757
-	DW BYTE_B757
-	DW BYTE_B757
-	DW BYTE_B757
-	DW BYTE_B761
-	DW BYTE_B761
-	DW BYTE_B761
-	DB 000,000,000,000,000,000,000,000,000,000
+PUTSPRITE:
+		PUSH	DE			; SAVE FRAME NUMBER
+
+		AND		7FH			; SAT position
+		ADD		A,A
+
+		LD		E,A
+		LD		D,0
+		LD		HL, OFF_B691			; frame and color table (pointer)
+		ADD		HL, DE
+
+		ADD		A,A
+		LD		E,A
+		LD		D,0
+		LD		IX, SPRITE_NAME_TABLE
+		ADD		IX, DE
+
+		LD		E, (HL)
+		INC		HL
+		LD		D, (HL)
+		EX		DE, HL				; HL -> frame list
+		
+		POP		AF
+		ADD		A,A
+		LD		E,A
+		LD		D,0
+		ADD		HL, DE				; HL -> current frame
+
+		LD		A, (GAMECONTROL)
+		SET		3, A
+		LD		(GAMECONTROL), A
+		
+		LD		A,B
+		SUB		8
+		LD		(IX+0), A				; Y
+		LD		A,C
+		SUB		8
+		LD		(IX+1), A				; X
+		LD		A,(HL)
+		LD		(IX+2), A				; FRAME
+		INC		HL
+		LD		A,(HL)
+		LD		(IX+3), A				; COLOR
+
+		LD		A, (GAMECONTROL)
+		RES		3, A
+		LD		(GAMECONTROL), A
+RET
+		
+
+
+OFF_B691: 			; Sprite frame and color data
+	DW BYTE_B6C3	; ball
+	DW BYTE_B6C7	; mr do
+	DW BYTE_B6CB	; unused
+	DW BYTE_B6CF	; Extra letter
+	DW BYTE_B6FB	; ball explosion
+	DW BYTE_B70B	; bad guy/digger
+	DW BYTE_B70B	; bad guy/digger
+	DW BYTE_B70B	; bad guy/digger
+	DW BYTE_B70B	; bad guy/digger
+	DW BYTE_B70B	; bad guy/digger
+	DW BYTE_B70B	; bad guy/digger
+	DW BYTE_B70B	; bad guy/digger
+	DW BYTE_B757	; apple
+	DW BYTE_B757	; apple
+	DW BYTE_B757	; apple
+	DW BYTE_B757	; apple
+	DW BYTE_B757	; apple
+	DW BYTE_B761	; chomper
+	DW BYTE_B761	; chomper
+	DW BYTE_B761	; chomper
+;	DB 000,000,000,000,000,000,000,000,000,000
 BYTE_B6C3:
 	DB 000,000,184,015	  ; Ball Sprite pattern 184 uses White
 
@@ -8403,7 +8391,7 @@ SUB_B7C4:
 	CALL	SUB_B7EF
 	ADD		A, 5
 	LD		D, 0
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	LD		HL, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
 	AND		3
@@ -8485,7 +8473,7 @@ LOC_B856:
 	LD		BC, 808H
 	LD		A, D
 	LD		D, 0
-	CALL	SUB_B629
+	CALL	PUTSPRITE
 	LD		IX, CHOMPDATA
 	LD		B, 3
 LOC_B865:
