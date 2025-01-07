@@ -597,7 +597,7 @@ LOC_8241:
 	DEC L
 	LD		B,L							; B = Y-1
 	LD		C,H							; C = X
-	LD		A, 81H
+	LD		A, 1
 	CALL	PUTSPRITE			; put sprite A at B = Y-1,C=X with step D
 	
 								; HACK TO ADD A SECOND COLOR LAYER
@@ -614,7 +614,7 @@ LOC_8241:
 	LD 		A,(ix+1)
 	LD		(HL),A
 	INC HL
-	LD		(HL),45*4
+	LD		(HL),45*4			; hardcoded !!
 	INC HL
 	LD		(HL),15
 RET
@@ -744,7 +744,7 @@ LOC_8329:
 	LD		A, (HL)			
 	XOR		1				
 	LD		(HL), A
-	LD		A, 8DH
+	LD		A, 13 + 128		;  smashed apple
 	CALL	PUTSPRITE
 RET
 
@@ -1364,7 +1364,7 @@ LOOP_87C6:
 	PUSH	AF
 	LD		B, (IY+1)
 	LD		C, (IY+2)
-	LD		D, 1
+	LD		D, 1			; integer apple
 	CALL	PUTSPRITE
 	POP		AF
 	POP		IX
@@ -1624,8 +1624,8 @@ LOC_89C1:
 	JR		NZ, LOC_89C8
 	LD		BC, 808H
 LOC_89C8:
-	LD		A, ($722A)
-	ADD		A, 0CH
+	LD		A, ($722A)			; which apple to show
+	ADD		A, 12
 	CALL	PUTSPRITE
 RET
 
@@ -1938,7 +1938,7 @@ LOC_8C28:
 	LD		A, ($72BE)
 	LD		C, A
 	LD		D, 0BH
-	LD		A, 3
+	LD		A, 3			; smashed letter
 	CALL	PUTSPRITE
 	XOR		A
 LOC_8C38:
@@ -1979,7 +1979,7 @@ LOC_8C7A:
 	LD		C, E
 	CALL	SUB_B7EF
 	ADD		A, 5
-	LD		D, 25H
+	LD		D, 37		; digger
 	PUSH	IX
 	CALL	PUTSPRITE
 	POP		IX
@@ -2034,8 +2034,8 @@ LOC_8CE4:
 	SBC		HL, DE
 	JR		NZ, LOC_8CE4
 LOC_8CEA:
-	ADD		A, 11H
-	LD		D, 5
+	ADD		A, 17			; chomper
+	LD		D, 5			; smashed
 	PUSH	IX
 	CALL	PUTSPRITE
 	POP		IX
@@ -2964,7 +2964,7 @@ SUB_936F:
 	RET		Z
 	LD		BC, 808H
 	LD		D, 0
-	LD		A, 3
+	LD		A, 3				; remove extra letter 
 	CALL	PUTSPRITE
 	LD		DE, 32H
 	CALL	SUB_B601
@@ -2992,7 +2992,7 @@ SUB_93B6:
 	LD		B, (IY+1)
 	LD		C, (IY+2)
 	LD		D, 1
-	LD		A, 4
+	LD		A, 4			; start ball explosion
 	CALL	PUTSPRITE
 	LD		HL, 1
 	XOR		A
@@ -3015,7 +3015,7 @@ SUB_93CE:  ; Ball intersecting with sprite
 	LD		C, (IX+4)
 LOC_93ED:
 	LD		D, A
-	LD		A, 4
+	LD		A, 4			; continue ball explosion
 	CALL	PUTSPRITE
 	INC		(IY+5)
 	LD		A, (IY+5)
@@ -3049,7 +3049,7 @@ LOC_9421:  ; Ball intersects with sprite
 	LD		(IY+3), A
 	LD		BC, 808H
 	LD		D, 0
-	LD		A, 4
+	LD		A, 4			; remove ball explosion
 	CALL	PUTSPRITE
 	RET
 LOC_9444:
@@ -3094,7 +3094,7 @@ LOC_9489:
 	POP		AF
 LOC_9491:
 	CALL	SUB_9732	; MrDo movements
-	CALL	SUB_9807
+	CALL	CHECK_DIAMOND_COLLECTION  		; Diamond collection check A=0 if no diamond, A=$42 if diamond
 	AND		A
 	RET		NZ
 LOC_949A:
@@ -3533,7 +3533,7 @@ LOC_97A9:
 	SUB		(HL)
 	LD		B, A
 	LD		D, 1
-	LD		A, 4
+	LD		A, 4		; ball explosion
 	CALL	PUTSPRITE
 LOC_97C8:
 	LD		HL, 1EH
@@ -3556,37 +3556,43 @@ RET
 BYTE_97EF:
 	DB 002,006,014,006,006,014,006,002,010,014,010,002,012,008,004,008,008,004,008,012,008,004,008,012
 
-SUB_9807:
-	LD		A, (DIAMOND_RAM)
-	BIT		7, A
-	JR		Z, LOC_983F
-	LD		IX, APPLEDATA
-	LD		B, (IX+1)
-	LD		C, (IX+2)
-	LD		A, (IY+3)
-	SUB		B
-	JR		NC, LOC_9820
-	CPL
-	INC		A
+CHECK_DIAMOND_COLLECTION: ; Check if Mr. Do has collected a diamond
+    LD      A, (DIAMOND_RAM)  ; Load diamond status
+    BIT     7, A              ; Check if bit 7 is set (diamond active?)
+    JR      Z, LOC_983F       ; If not set, return 0 (no diamond)
+
+    ; Check X distance between Mr. Do and diamond
+    LD      IX, APPLEDATA     ; Diamond position stored in apple data
+    LD      B, (IX+1)         ; Get diamond X position
+    LD      C, (IX+2)         ; Get diamond Y position
+    LD      A, (IY+3)         ; Get Mr. Do's X position
+    SUB     B                 ; Calculate X distance
+    JR      NC, LOC_9820      ; If positive, skip next 2 lines
+    CPL                       ; If negative, make positive by
+    INC     A                 ; two's complement
 LOC_9820:
-	CP		6
-	JR		NC, LOC_983F
-	LD		A, (IY+4)
-	SUB		C
-	JR		NC, LOC_982C
-	CPL
-	INC		A
+    CP      6                 ; Is X distance >= 6?
+    JR      NC, LOC_983F      ; If yes, too far, return 0
+
+    ; Check Y distance between Mr. Do and diamond
+    LD      A, (IY+4)         ; Get Mr. Do's Y position
+    SUB     C                 ; Calculate Y distance
+    JR      NC, LOC_982C      ; If positive, skip next 2 lines
+    CPL                       ; If negative, make positive by
+    INC     A                 ; two's complement
 LOC_982C:
-	CP		6
-	JR		NC, LOC_983F
-	LD		DE, 3E8H
-	CALL	SUB_B601
-	LD		HL, DIAMOND_RAM
-	RES		7, (HL)
-	LD		A, 2
-	RET
-LOC_983F:
-	XOR		A
+    CP      6                 ; Is Y distance >= 6?
+    JR      NC, LOC_983F      ; If yes, too far, return 0
+
+    ; Diamond collected! Award points
+    LD      DE, 3E8H          ; Load 1000 (3E8 hex) for 10,000 points
+    CALL    SUB_B601          ; Add points to score
+    LD      HL, DIAMOND_RAM   
+    RES     7, (HL)           ; Clear bit 7 (deactivate diamond)
+    LD      A, $82              ; Return $82 (diamond collected)
+    RET
+LOC_983F:                     ; No diamond collection
+    XOR     A                 ; Return 0
 RET
 
 SUB_9842:						; TEST MRDO COLLISION AGAINST ENEMIES
@@ -3987,7 +3993,7 @@ LOC_9B36:
 	LD		A, ($728C)
 	ADD		A, 5
 	LD		B, (IY+2)
-	LD		C, (IY+1)
+	LD		C, (IY+1)		; show bad guy
 	CALL	PUTSPRITE
 	POP		IY
 	POP		IX
@@ -5921,7 +5927,7 @@ LOC_A7CB:
 	LD		B, A
 	LD		A, ($72BE)
 	LD		C, A
-	LD		A, 3
+	LD		A, 3			; extra letter
 	CALL	PUTSPRITE
 RET
 
@@ -6087,7 +6093,7 @@ LOC_A90D:
 	LD		B, (IY+2)
 	LD		C, (IY+1)
 	LD		A, ($72C5)
-	ADD		A, 11H
+	ADD		A, 17			; animate chomper
 	CALL	PUTSPRITE
 RET
 
@@ -6130,7 +6136,9 @@ COMPLETED_LEVEL:
 	JR		Z, .wait
 	POP		AF
 	POP		AF
-	CP		2
+	CP      $82   				; I chose this value so I know a diamond was collected
+	JR		Z, DIAMOND_COLLECTED
+	CP		2					; extra MrDo
 	JR		NZ, LOC_A969
 	CALL	PLAY_END_OF_ROUND_TUNE
 	LD		HL, 103H
@@ -6146,6 +6154,10 @@ LOC_A992:
 	JR		LOC_A96C
 LOC_A969:
 	CALL	ExtraMrDo
+	JR		LOC_A96C
+DIAMOND_COLLECTED:
+	CALL	CONGRATULATION
+	LD		A, 2
 LOC_A96C:
 	CALL	GO_NEXT_LEVEL
 	LD		A, 2
@@ -7366,9 +7378,9 @@ LOC_B035:
 	PUSH	IX
 	LD		C, A
 	LD		B, (IX+1)
-	LD		A, 11H
+	LD		A, 17
 	SUB		E
-	LD		D, 1
+	LD		D, 1			; animate chomper
 	CALL	PUTSPRITE
 	POP		IX
 	POP		HL
@@ -8277,26 +8289,26 @@ RET
 
 
 OFF_B691: 			; Sprite frame and color data
-	DW BYTE_B6C3	; ball
-	DW BYTE_B6C7	; mr do
-	DW BYTE_B6CB	; unused
-	DW BYTE_B6CF	; Extra letter
-	DW BYTE_B6FB	; ball explosion
-	DW BYTE_B70B	; bad guy/digger
-	DW BYTE_B70B	; bad guy/digger
-	DW BYTE_B70B	; bad guy/digger
-	DW BYTE_B70B	; bad guy/digger
-	DW BYTE_B70B	; bad guy/digger
-	DW BYTE_B70B	; bad guy/digger
-	DW BYTE_B70B	; bad guy/digger
-	DW BYTE_B757	; apple
-	DW BYTE_B757	; apple
-	DW BYTE_B757	; apple
-	DW BYTE_B757	; apple
-	DW BYTE_B757	; apple
-	DW BYTE_B761	; chomper
-	DW BYTE_B761	; chomper
-	DW BYTE_B761	; chomper
+	DW BYTE_B6C3	; 0 ball
+	DW BYTE_B6C7	; 1 mr do
+	DW BYTE_B6CB	; 2 unused
+	DW BYTE_B6CF	; 3 Extra letter
+	DW BYTE_B6FB	; 4 ball explosion
+	DW BYTE_B70B	; 5 bad guy/digger
+	DW BYTE_B70B	; 6 bad guy/digger
+	DW BYTE_B70B	; 7 bad guy/digger
+	DW BYTE_B70B	; 8 bad guy/digger
+	DW BYTE_B70B	; 9 bad guy/digger
+	DW BYTE_B70B	;10 bad guy/digger
+	DW BYTE_B70B	;11 bad guy/digger
+	DW BYTE_B757	;12 apple
+	DW BYTE_B757	;13 apple
+	DW BYTE_B757	;14 apple
+	DW BYTE_B757	;15 apple
+	DW BYTE_B757	;16 apple
+	DW BYTE_B761	;17 chomper
+	DW BYTE_B761	;18 chomper
+	DW BYTE_B761	;19 chomper
 ;	DB 000,000,000,000,000,000,000,000,000,000
 BYTE_B6C3:
 	DB 000,000,184,015	  ; Ball Sprite pattern 184 uses White
@@ -8383,14 +8395,13 @@ BYTE_B7BC:
 SUB_B7C4:
 	PUSH	HL
 	PUSH	IX
-								;	LD		A, 0C0H
-	LD		(IX+4), $0C0		;	LD		(IX+4), A
-								;	LD		A, 8	; unused
-								;	LD		B, A
-	LD		BC,$0808			;	LD		C, A
+								
+	LD		(IX+4), $0C0		
+								
+	LD		BC,$0808			
 	CALL	SUB_B7EF
 	ADD		A, 5
-	LD		D, 0
+	LD		D, 0				; remove bad guy
 	CALL	PUTSPRITE
 	LD		HL, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
@@ -8471,7 +8482,7 @@ LOC_B850:
 	JR		NZ, LOC_B850
 LOC_B856:
 	LD		BC, 808H
-	LD		A, D
+	LD		A, D			; remove chomper
 	LD		D, 0
 	CALL	PUTSPRITE
 	LD		IX, CHOMPDATA
@@ -8729,7 +8740,7 @@ RET
 
 staticcolors:				; leftovers
 	DB $C1,$41,$31,$A1,$31
-	DB $41,$31,$41,$C1,$51,$91
+	DB $51,$31,$51,$C1,$51,$91
 
 REP8:				
 	LD		HL,FREEBUFF
@@ -9340,7 +9351,7 @@ BALL_EXPLOSION_PAT:		; Ball Explosion
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; Multicolor Compressed Tileset
 
-include "telesetcolor.asm"
+include "tilesetscr2.asm"
 
 ;%%%%%%%%%%%%%%%%%%%%%%%%
 ; sound
@@ -11840,7 +11851,10 @@ CONGRATULATION:
 .3:
 	BIT		7, (HL)
 	JR		NZ, .3
-	RET	
+
+	LD		BC, 1E2H		 ; Original game state register
+	CALL	WRITE_REGISTER
+RET	
 
 cvb_CONGRATULATION:
 	CALL MYMODE1				; switch to intermission  mode
