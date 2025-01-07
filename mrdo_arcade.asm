@@ -3589,7 +3589,7 @@ LOC_982C:
     CALL    SUB_B601          ; Add points to score
     LD      HL, DIAMOND_RAM   
     RES     7, (HL)           ; Clear bit 7 (deactivate diamond)
-    LD      A, 42              ; Return 56 (diamond collected)
+    LD      A, 42              ; Return 42 (diamond collected)
     RET
 LOC_983F:                     ; No diamond collection
     XOR     A                 ; Return 0
