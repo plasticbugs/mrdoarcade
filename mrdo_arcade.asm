@@ -3094,7 +3094,7 @@ LOC_9489:
 	POP		AF
 LOC_9491:
 	CALL	SUB_9732	; MrDo movements
-	CALL	SUB_9807
+	CALL	CHECK_DIAMOND_COLLECTION  ; Diamond collection check A=0 if no diamond, A=2 if diamond
 	AND		A
 	RET		NZ
 LOC_949A:
@@ -3556,38 +3556,44 @@ RET
 BYTE_97EF:
 	DB 002,006,014,006,006,014,006,002,010,014,010,002,012,008,004,008,008,004,008,012,008,004,008,012
 
-SUB_9807:
-	LD		A, (DIAMOND_RAM)
-	BIT		7, A
-	JR		Z, LOC_983F
-	LD		IX, APPLEDATA
-	LD		B, (IX+1)
-	LD		C, (IX+2)
-	LD		A, (IY+3)
-	SUB		B
-	JR		NC, LOC_9820
-	CPL
-	INC		A
+CHECK_DIAMOND_COLLECTION: ; Check if Mr. Do has collected a diamond
+    LD      A, (DIAMOND_RAM)  ; Load diamond status
+    BIT     7, A              ; Check if bit 7 is set (diamond active?)
+    JR      Z, LOC_983F       ; If not set, return 0 (no diamond)
+
+    ; Check X distance between Mr. Do and diamond
+    LD      IX, APPLEDATA     ; Diamond position stored in apple data
+    LD      B, (IX+1)         ; Get diamond X position
+    LD      C, (IX+2)         ; Get diamond Y position
+    LD      A, (IY+3)         ; Get Mr. Do's X position
+    SUB     B                 ; Calculate X distance
+    JR      NC, LOC_9820      ; If positive, skip next 2 lines
+    CPL                       ; If negative, make positive by
+    INC     A                 ; two's complement
 LOC_9820:
-	CP		6
-	JR		NC, LOC_983F
-	LD		A, (IY+4)
-	SUB		C
-	JR		NC, LOC_982C
-	CPL
-	INC		A
+    CP      6                 ; Is X distance >= 6?
+    JR      NC, LOC_983F      ; If yes, too far, return 0
+
+    ; Check Y distance between Mr. Do and diamond
+    LD      A, (IY+4)         ; Get Mr. Do's Y position
+    SUB     C                 ; Calculate Y distance
+    JR      NC, LOC_982C      ; If positive, skip next 2 lines
+    CPL                       ; If negative, make positive by
+    INC     A                 ; two's complement
 LOC_982C:
-	CP		6
-	JR		NC, LOC_983F
-	LD		DE, 3E8H
-	CALL	SUB_B601
-	LD		HL, DIAMOND_RAM
-	RES		7, (HL)
-	LD		A, 2
-	RET
-LOC_983F:
-	XOR		A
-RET
+    CP      6                 ; Is Y distance >= 6?
+    JR      NC, LOC_983F      ; If yes, too far, return 0
+
+    ; Diamond collected! Award points
+    LD      DE, 3E8H          ; Load 1000 (3E8 hex) for 10,000 points
+    CALL    SUB_B601          ; Add points to score
+    LD      HL, DIAMOND_RAM   
+    RES     7, (HL)           ; Clear bit 7 (deactivate diamond)
+    LD      A, 42              ; Return 56 (diamond collected)
+    RET
+LOC_983F:                     ; No diamond collection
+    XOR     A                 ; Return 0
+    RET
 
 SUB_9842:						; TEST MRDO COLLISION AGAINST ENEMIES
 	LD		A, ($7272)
@@ -6130,6 +6136,8 @@ COMPLETED_LEVEL:
 	JR		Z, .wait
 	POP		AF
 	POP		AF
+	CP    42   ; I chose this value so I know a diamond was collected
+	JR		Z, DIAMOND_COLLECTED
 	CP		2
 	JR		NZ, LOC_A969
 	CALL	PLAY_END_OF_ROUND_TUNE
@@ -6146,6 +6154,10 @@ LOC_A992:
 	JR		LOC_A96C
 LOC_A969:
 	CALL	ExtraMrDo
+	JR		LOC_A96C
+DIAMOND_COLLECTED:
+	CALL	CONGRATULATION
+	LD		A, 2
 LOC_A96C:
 	CALL	GO_NEXT_LEVEL
 	LD		A, 2
