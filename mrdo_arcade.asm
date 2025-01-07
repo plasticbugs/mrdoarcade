@@ -130,7 +130,9 @@ CONTROLLER_BUFFER:		RB	 6	;EQU $7086
 KEYBOARD_P1:			RB	 1	;EQU $708C
 						RB	 4	;EQU $708D ?? some kind of struct used in SUB_94A9
 KEYBOARD_P2:			RB	 1	;EQU $7091
-						RB	 4	;EQU $7092
+P1_LEVEL_FINISH_STAT: 	RB	 1	;EQU $7092
+P2_LEVEL_FINISH_STAT: 	RB	 1	;EQU $7093
+						RB	 2	;EQU $7094
 						RB	 8	;EQU $7096
 TIMER_TABLE:			RB	75	;EQU $709E
 SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT
@@ -801,13 +803,13 @@ LOC_8378:
 	CP		1
 	JR		Z, LOC_83AB
 	AND		A
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL  ; Last enemy killed by an apple
 	CALL	DEAL_WITH_BALL
 	AND		A
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; Last enemy killed by a ball
 	CALL	LEADS_TO_CHERRY_STUFF
 	AND		A
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; All the cherries collected (or diamond collected)
 	CALL	SUB_A7F4
 	AND		A
 	JR		NZ, LOC_83AB
@@ -815,12 +817,12 @@ LOC_8378:
 	CP		1
 	JR		Z, LOC_83AB		; if Z MrDo collided an enemy
 	AND		A
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
 	CALL	SUB_A53E
 	AND		A
 	JR		Z, LOC_8378
 	CP		1
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
 LOC_83AB:
 
 	; animate here the MrDo death
@@ -836,11 +838,11 @@ LOOP_83B1:						; MrDo is dead, let apples fall if any
 	ADD		IX, DE
 	DJNZ	LOOP_83B1			; ?? probably only one apple falling at time...
 
-LOC_83C5:
+LOC_83C5: ; Mr. Do finished the round
 	AND A						; if Z you have an extra MrDo ?
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL
 	LD		A, 1
-LOC_83CB:
+ADVANCE_TO_NEXT_LEVEL:
 	CALL	GOT_DIAMOND			; this is dealing with more than Diamonds
 	CP		3
 	JR		Z, LOC_8372
@@ -3094,7 +3096,7 @@ LOC_9489:
 	POP		AF
 LOC_9491:
 	CALL	SUB_9732	; MrDo movements
-	CALL	SUB_9807
+	CALL	CHECK_DIAMOND_COLLECTION  ; Diamond collection check A=0 if no diamond, A=2 if diamond
 	AND		A
 	RET		NZ
 LOC_949A:
@@ -3556,38 +3558,45 @@ RET
 BYTE_97EF:
 	DB 002,006,014,006,006,014,006,002,010,014,010,002,012,008,004,008,008,004,008,012,008,004,008,012
 
-SUB_9807:
-	LD		A, (DIAMOND_RAM)
-	BIT		7, A
-	JR		Z, LOC_983F
-	LD		IX, APPLEDATA
-	LD		B, (IX+1)
-	LD		C, (IX+2)
-	LD		A, (IY+3)
-	SUB		B
-	JR		NC, LOC_9820
-	CPL
-	INC		A
+CHECK_DIAMOND_COLLECTION: ; Check if Mr. Do has collected a diamond
+    LD      A, (DIAMOND_RAM)  ; Load diamond status
+    BIT     7, A              ; Check if bit 7 is set (diamond active?)
+    JR      Z, LOC_983F       ; If not set, return 0 (no diamond)
+
+    ; Check X distance between Mr. Do and diamond
+    LD      IX, APPLEDATA     ; Diamond position stored in apple data
+    LD      B, (IX+1)         ; Get diamond X position
+    LD      C, (IX+2)         ; Get diamond Y position
+    LD      A, (IY+3)         ; Get Mr. Do's X position
+    SUB     B                 ; Calculate X distance
+    JR      NC, LOC_9820      ; If positive, skip next 2 lines
+    CPL                       ; If negative, make positive by
+    INC     A                 ; two's complement
 LOC_9820:
-	CP		6
-	JR		NC, LOC_983F
-	LD		A, (IY+4)
-	SUB		C
-	JR		NC, LOC_982C
-	CPL
-	INC		A
+    CP      6                 ; Is X distance >= 6?
+    JR      NC, LOC_983F      ; If yes, too far, return 0
+
+    ; Check Y distance between Mr. Do and diamond
+    LD      A, (IY+4)         ; Get Mr. Do's Y position
+    SUB     C                 ; Calculate Y distance
+    JR      NC, LOC_982C      ; If positive, skip next 2 lines
+    CPL                       ; If negative, make positive by
+    INC     A                 ; two's complement
 LOC_982C:
-	CP		6
-	JR		NC, LOC_983F
-	LD		DE, 3E8H
-	CALL	SUB_B601
-	LD		HL, DIAMOND_RAM
-	RES		7, (HL)
-	LD		A, 2
-	RET
-LOC_983F:
-	XOR		A
-RET
+    CP      6                 ; Is Y distance >= 6?
+    JR      NC, LOC_983F      ; If yes, too far, return 0
+
+    ; Diamond collected! Award points
+    LD      DE, 3E8H          ; Load 1000 (3E8 hex) for 10,000 points
+    CALL    SUB_B601          ; Add points to score
+    LD      HL, DIAMOND_RAM   
+    RES     7, (HL)           ; Clear bit 7 (deactivate diamond)
+    LD      A, 56              ; Return 56 (diamond collected)
+    RET
+
+LOC_983F:                     ; No diamond collection
+    XOR     A                 ; Return 0
+    RET
 
 SUB_9842:						; TEST MRDO COLLISION AGAINST ENEMIES
 	LD		A, ($7272)
@@ -4675,8 +4684,8 @@ UNK_9FB3:
 
 SUB_9FC8:
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	; XOR		A    ; (Uncomment for invincibility)
-	; RET        ; (Uncomment for invincibility)
+	XOR		A    ; (Uncomment for invincibility)
+	RET        ; (Uncomment for invincibility)
 	PUSH	IY
 	LD		B, (IY+2)
 	LD		A, (MRDO_DATA.Y)
@@ -6130,6 +6139,8 @@ COMPLETED_LEVEL:
 	JR		Z, .wait
 	POP		AF
 	POP		AF
+	CP    56
+	JR		Z, DIAMOND_COLLECTED
 	CP		2
 	JR		NZ, LOC_A969
 	CALL	PLAY_END_OF_ROUND_TUNE
@@ -6146,6 +6157,10 @@ LOC_A992:
 	JR		LOC_A96C
 LOC_A969:
 	CALL	ExtraMrDo
+	JR		LOC_A96C
+DIAMOND_COLLECTED:
+	CALL	CONGRATULATION
+	LD		A, 2
 LOC_A96C:
 	CALL	GO_NEXT_LEVEL
 	LD		A, 2
@@ -6202,6 +6217,13 @@ LOC_A984:
 	CALL	SUB_AB28
 RET
 
+; Level in A, how completed in C
+GET_LEVEL_COMPLETION_DATA:
+	CALL  GET_SLOT_OFFSET
+	SRL   A  ; divide by 2 to get 0-indexed level value (0, 1 or 2)
+	OR    C  ; combine upper nibble info with level value
+RET
+
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
 	LD		HL, GAMECONTROL
@@ -6209,19 +6231,28 @@ ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
 LOC_A9A1:
 	BIT		7, (HL)
 	JR		NZ, LOC_A9A1
-
 	XOR		A
 	LD		($72BC), A
 	LD		($72BB), A
+	LD    C, %00110000           ; 3 in upper nibble for EXTRA MR DO
 	LD		HL, GAMECONTROL
 	BIT		1, (HL)
 	JR		NZ, DEAL_WITH_EXTRA_MR_DO
 	LD		($72B8), A
 	LD		HL, LIVES_LEFT_P1_RAM
+; Get current level and update
+	LD		A, (CURRENT_LEVEL_P1)
+	CALL  GET_LEVEL_COMPLETION_DATA
+	LD    (P1_LEVEL_FINISH_STAT), A
+	XOR A
 	JR		LOC_A9EC
 DEAL_WITH_EXTRA_MR_DO:
 	LD		($72B9), A
 	LD		HL, LIVES_LEFT_P2_RAM
+	LD		A, (CURRENT_LEVEL_P2)
+	CALL  GET_LEVEL_COMPLETION_DATA
+	LD    (P2_LEVEL_FINISH_STAT), A
+	XOR   A
 LOC_A9EC:
 	LD		A, (HL)
 	CP		6				; max number of lives
