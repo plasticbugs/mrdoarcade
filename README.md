@@ -23,3 +23,4 @@ Changes:
 Wish list/To do list:
 - Icon marker for "how" level was completed on "Very Good" screen
 - Wonderful screen every 10th level that shows average score per level and average time to complete each level along with score and time data for the previous level.
+- Add animations for vertical movements of chompers 
