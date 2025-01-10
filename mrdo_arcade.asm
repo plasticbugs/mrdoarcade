@@ -141,13 +141,14 @@ BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 GAMESTATE:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 						RB   2	;EQU $722A
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
-						RB  25	;EQU $7245
-						RB  16	;EQU $725E ; ??
+						RB  20	;EQU $7245 ; enemy interaction data
+						RB  20	;EQU $7259 ; enemy interaction data
+SPRITEROTFLAG:			RB	 1	;EQU $726D
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players B5-> Pause/Game
 GAMETIMER:				RB	 1	;EQU $726F  ??
 						RB	 1	; ??
 SKILLLEVEL:				RB	 1	;EQU $7271 ; Skill Level 1-4
-						RB	 1	; ??
+						RB	 1	;EQU $7272
 DIAMOND_RAM:			RB	 1	;EQU $7273
 CURRENT_LEVEL_P1:		RB	 1	;EQU $7274
 CURRENT_LEVEL_P2:		RB	 1	;EQU $7275
@@ -168,17 +169,16 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1  ;EQU $7288 ;+7
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
-						RB   4	;EQU $72BE	??
+						RB   4	;EQU $72BF	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
 						RB	 2	;??
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
 CHOMPDATA:				RB  18	;EQU $72C7  3x6 = 18 bytes (3 chompers)
 BALLDATA:				RB	 6	;EQU $72D9
-SCRATCH1:
-SATBUFF1:									; MULTIPLE USE - scratch ram
-SPTBUFF1:				RB   8	;EQU $72DF	; ?? SPT buffer
-SCRATCH2:
-SATBUFF2:									; MULTIPLE USE - scratch ram
+
+FREERAM:				RB   8	;EQU $72DF	; FREE!!!
+
+SCRATCH:						;Scratch ram in SPRITE_ROTATION
 SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
 
 WORK_BUFFER:			RB  24	;EQU $72EF	; used in the NMI by sprite rotation
@@ -286,42 +286,26 @@ NMI:
 	PUSH	IX
 	PUSH	IY
 	LD		BC, 1C2H
-	CALL	WRITE_REGISTER
+	CALL	WRITE_REGISTER			; disable ISR generation
+	
 	CALL	READ_REGISTER
-	LD		HL, WORK_BUFFER
-	LD		DE, WORK_BUFFER2
-	LD		BC, 24				; save WORK_BUFFER to WORK_BUFFER2
-	LDIR
-	LD		HL, GAMECONTROL
-	BIT		5, (HL)
-	JR		Z, LOC_807E
-	BIT		4, (HL)
-	JR		Z, LOC_809F
-	LD		A, 20				; 20 sprites written to VRAM
-	CALL	WR_SPR_NM_TBL
-	CALL	SPRITE_ROTATION
-	JR		LOC_809F
-LOC_807E:
+	
 	LD		A, (GAMECONTROL)
 	BIT		3, A
-	JR		NZ, LOC_808D
-	LD		A, 20				; 20 sprites written to VRAM
-	CALL	WR_SPR_NM_TBL
-	CALL	SPRITE_ROTATION
-LOC_808D:
-	CALL	SUB_80D1
-	CALL	SUB_8229			; UPDATE MR DO SPRITE
-	CALL	SUB_8251
-	CALL	DISPLAY_EXTRA_01
-	CALL	SUB_82DE
+
+	CALL	Z,NEW_SPRITE_ROTATION		; call only if sprites are not disabled
+
+	CALL	SUB_80D1					; enemy interaction with the play field
+	CALL	MRDO_SPT_UPDATE				; UPDATE MR DO SPRITE
+	CALL	SUB_8251					; update play field
+	CALL	DISPLAY_EXTRA_01			; update Extra Letters
+	CALL	SETBONUS					; Set bonus items and diamonds
 	CALL	TIME_MGR
-LOC_809F:
 	CALL	POLLER
 	CALL	SUB_C952			; PLAY MUSIC
-	LD		HL, WORK_BUFFER2	; related to sprite rotation
-	LD		DE, WORK_BUFFER
-	LD		BC, 24				; restore WORK_BUFFER from WORK_BUFFER2
-	LDIR
+	
+	CALL	DEAL_WITH_TIMER
+
 	LD		HL, GAMECONTROL
 	BIT		7, (HL)
 	JR		Z, LOC_80BB
@@ -329,8 +313,7 @@ LOC_809F:
 	JR		FINISH_NMI
 LOC_80BB:
 	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
-	CALL	DEAL_WITH_TIMER
+	CALL	WRITE_REGISTER			; enable ISR generation
 FINISH_NMI:
 	POP		IY
 	POP		IX
@@ -345,6 +328,83 @@ FINISH_NMI:
 	POP		BC
 	POP		AF
 	RETN
+
+NEW_SPRITE_ROTATION:
+	LD	A,SAT and 255		; Send LSB of address
+	OUT	(CTRL_PORT),A
+	
+	LD	A, $40  + (SAT / 256)
+	OUT	(CTRL_PORT),A		; Send MSB of address
+
+	LD	IXL,20
+	LD	DE,SPRITE_ORDER_TABLE	;   RAM sprite index table		
+	LD	B,0
+.2:		
+	LD	HL,SPRITE_NAME_TABLE
+	LD	A,(DE)				
+	INC	DE
+	ADD	A,A
+	ADD	A,A
+	LD	C,A
+	ADD HL,BC
+							; B = count for 4 bytes of data
+	LD	BC,4*256+DATA_PORT	; C = output port
+.1:	OUTI					; Output a byte of data
+	JR	NZ,.1			; Loop until 4 bytes copied
+	DEC	IXL
+	JR	NZ,.2		; Loop until all sprites copied
+	
+	LD	A,208
+	OUT (DATA_PORT),A
+
+SATROTATION:
+
+	LD	A,(SPRITEROTFLAG)
+	ADD	A,4
+	CP	20
+	JR	C,.nores
+	XOR	A
+.nores:	
+	LD	(SPRITEROTFLAG),A
+	LD	C,A
+	LD	B,0
+	LD	HL,SEQUENCE
+	ADD	HL,BC
+	LD	DE,SPRITE_ORDER_TABLE
+	LD	BC,20
+	LDIR
+	RET
+
+SEQUENCE:
+	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+	
+
+;SATFLIPPING:
+;	LD	A,(SPRITEROTFLAG)
+;	XOR	1
+;	LD	(SPRITEROTFLAG),A
+;	
+;	JR	Z,.direct
+;	
+;.reverse:
+;	LD	HL,REVERSE
+;	LD	DE,SPRITE_ORDER_TABLE
+;	LD	BC,20
+;	LDIR
+;	RET
+;
+;.direct:
+;	LD	HL,DIRECT
+;	LD	DE,SPRITE_ORDER_TABLE
+;	LD	BC,20
+;	LDIR
+;	RET
+;
+;DIRECT:	
+;	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+;REVERSE:
+;	DB 19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
 
 	
 DEAL_WITH_TIMER:
@@ -415,165 +475,165 @@ LOC_80FF:
 	DJNZ	LOC_80D7
 RET
 
-SPRITE_ROTATION:					; sprite rotation system: Very cumbersome and applied only to enemies
-	LD		HL, BYTE_8215
-	LD		DE, WORK_BUFFER
-	LD		BC, 20					; only 20 sprites on screen = 7 enemies + 3 chompers + 5 apples + 1 letter + 1 ball + 2 MrDo + 1 diamond
-	LDIR
-	LD		A, 3
-	LD		($72E7), A
-	LD		A, 19
-	LD		($72E8), A
-	LD		HL, WORK_BUFFER + 3
-	LD		IY, SPRITE_NAME_TABLE + 3*4
-	LD		B, 17					; number of actual sprites rotated. Sprites from 0 to 3 are fixed (MrDo and letter)
-LOC_8125:					
-	LD		A, (HL)
-	AND		A
-	JP		NZ, LOC_81DC
-	LD		A, (IY+0)
-	CP		10H
-	JR		NC, LOC_813C
-	LD		A, ($72E7)
-	LD		(HL), A
-	INC		A
-	LD		($72E7), A
-	JP		LOC_81DC
-LOC_813C:
-	PUSH	BC
-	PUSH	HL
-	PUSH	IY
-	LD		DE, 0
-	LD		C, (IY+0)
-	LD		A, ($726D)
-	RES		6, A
-	LD		($726D), A
-	AND		3
-	CP		1
-	JR		C, LOC_81A1
-	JR		NZ, LOC_816F
-	LD		D, 4
-	LD		A, (SPRITE_NAME_TABLE+4)
-	SUB		C
-	JR		NC, LOC_8160
-	CPL
-	INC		A
-LOC_8160:
-	CP		10H
-	JR		NC, LOC_81A1
-	LD		A, ($726D)
-	SET		6, A
-	LD		($726D), A
-	DEC		D
-	JR		LOC_81A1
-LOC_816F:
-	LD		D, 8
-	LD		A, (SPRITE_NAME_TABLE+4)
-	SUB		C
-	JR		NC, LOC_8179
-	CPL
-	INC		A
-LOC_8179:
-	CP		10H
-	JR		NC, LOC_81A1
-	LD		A, ($726D)
-	SET		6, A
-	LD		($726D), A
-	LD		D, 6
-	JR		LOC_81A1
-LOC_8189:
-	DEC		B
-	JR		Z, LOC_81C0
-	INC		HL
-	INC		IY
-	INC		IY
-	INC		IY
-	INC		IY
-	LD		A, (IY+0)
-	SUB		C
-	JR		NC, LOC_819D
-	CPL
-	INC		A
-LOC_819D:
-	CP		10H
-	JR		NC, LOC_8189
-LOC_81A1:
-	INC		E
-	LD		A, (HL)
-	AND		A
-	JR		NZ, LOC_8189
-	LD		A, E
-	CP		D
-	JR		C, LOC_81B6
-	JR		Z, LOC_81B6
-	LD		A, ($72E7)
-	LD		(HL), A
-	INC		A
-	LD		($72E7), A
-	JR		LOC_8189
-LOC_81B6:
-	LD		A, ($72E8)
-	LD		(HL), A
-	DEC		A
-	LD		($72E8), A
-	JR		LOC_8189
-LOC_81C0:
-	LD		A, E
-	CP		9
-	JR		NC, LOC_81D0
-	CP		7
-	JR		C, LOC_81D8
-	LD		A, ($726D)
-	BIT		6, A
-	JR		Z, LOC_81D8
-LOC_81D0:
-	LD		A, ($726D)
-	SET		7, A
-	LD		($726D), A
-LOC_81D8:
-	POP		IY
-	POP		HL
-	POP		BC
-LOC_81DC:
-	INC		HL
-	INC		IY
-	INC		IY
-	INC		IY
-	INC		IY
-	DEC		B
-	JP		NZ, LOC_8125
-	LD		HL, $726D
-	LD		A, (HL)
-	INC		A
-	AND		3
-	CP		2
-	JR		C, LOC_81FB
-	JR		NZ, LOC_81FA
-	BIT		7, (HL)
-	JR		NZ, LOC_81FB
-LOC_81FA:
-	XOR		A
-LOC_81FB:
-	LD		($726D), A
-	LD		DE, SPRITE_ORDER_TABLE
-	LD		B, 14H
-	LD		IY, WORK_BUFFER
-	XOR		A
-	LD 		C,A
-LOOP_8208:
-	LD		H, A
-	LD		L, (IY+0)
-	ADD		HL, DE
-	LD		(HL), C
-	INC		C
-	INC		IY
-	DJNZ	LOOP_8208
-RET
+;SPRITE_ROTATION:					; sprite rotation system: Very cumbersome and applied only to enemies
+;	LD		HL, BYTE_8215
+;	LD		DE, WORK_BUFFER
+;	LD		BC, 20					; only 20 sprites on screen = 7 enemies + 3 chompers + 5 apples + 1 letter + 1 ball + 2 MrDo + 1 diamond
+;	LDIR
+;	LD		A, 3
+;	LD		(SCRATCH), A
+;	LD		A, 19
+;	LD		(SCRATCH+1), A
+;	LD		HL, WORK_BUFFER + 3
+;	LD		IY, SPRITE_NAME_TABLE + 3*4
+;	LD		B, 17					; number of actual sprites rotated. Sprites from 0 to 3 are fixed (MrDo and letter)
+;LOC_8125:					
+;	LD		A, (HL)
+;	AND		A
+;	JP		NZ, LOC_81DC
+;	LD		A, (IY+0)
+;	CP		10H
+;	JR		NC, LOC_813C
+;	LD		A, (SCRATCH)
+;	LD		(HL), A
+;	INC		A
+;	LD		(SCRATCH), A
+;	JP		LOC_81DC
+;LOC_813C:
+;	PUSH	BC
+;	PUSH	HL
+;	PUSH	IY
+;	LD		DE, 0
+;	LD		C, (IY+0)
+;	LD		A, (SPRITEROTFLAG)
+;	RES		6, A
+;	LD		(SPRITEROTFLAG), A
+;	AND		3
+;	CP		1
+;	JR		C, LOC_81A1
+;	JR		NZ, LOC_816F
+;	LD		D, 4
+;	LD		A, (SPRITE_NAME_TABLE+4)
+;	SUB		C
+;	JR		NC, LOC_8160
+;	CPL
+;	INC		A
+;LOC_8160:
+;	CP		10H
+;	JR		NC, LOC_81A1
+;	LD		A, (SPRITEROTFLAG)
+;	SET		6, A
+;	LD		(SPRITEROTFLAG), A
+;	DEC		D
+;	JR		LOC_81A1
+;LOC_816F:
+;	LD		D, 8
+;	LD		A, (SPRITE_NAME_TABLE+4)
+;	SUB		C
+;	JR		NC, LOC_8179
+;	CPL
+;	INC		A
+;LOC_8179:
+;	CP		10H
+;	JR		NC, LOC_81A1
+;	LD		A, (SPRITEROTFLAG)
+;	SET		6, A
+;	LD		(SPRITEROTFLAG), A
+;	LD		D, 6
+;	JR		LOC_81A1
+;LOC_8189:
+;	DEC		B
+;	JR		Z, LOC_81C0
+;	INC		HL
+;	INC		IY
+;	INC		IY
+;	INC		IY
+;	INC		IY
+;	LD		A, (IY+0)
+;	SUB		C
+;	JR		NC, LOC_819D
+;	CPL
+;	INC		A
+;LOC_819D:
+;	CP		10H
+;	JR		NC, LOC_8189
+;LOC_81A1:
+;	INC		E
+;	LD		A, (HL)
+;	AND		A
+;	JR		NZ, LOC_8189
+;	LD		A, E
+;	CP		D
+;	JR		C, LOC_81B6
+;	JR		Z, LOC_81B6
+;	LD		A, (SCRATCH)
+;	LD		(HL), A
+;	INC		A
+;	LD		(SCRATCH), A
+;	JR		LOC_8189
+;LOC_81B6:
+;	LD		A, (SCRATCH+1)
+;	LD		(HL), A
+;	DEC		A
+;	LD		(SCRATCH+1), A
+;	JR		LOC_8189
+;LOC_81C0:
+;	LD		A, E
+;	CP		9
+;	JR		NC, LOC_81D0
+;	CP		7
+;	JR		C, LOC_81D8
+;	LD		A, (SPRITEROTFLAG)
+;	BIT		6, A
+;	JR		Z, LOC_81D8
+;LOC_81D0:
+;	LD		A, (SPRITEROTFLAG)
+;	SET		7, A
+;	LD		(SPRITEROTFLAG), A
+;LOC_81D8:
+;	POP		IY
+;	POP		HL
+;	POP		BC
+;LOC_81DC:
+;	INC		HL
+;	INC		IY
+;	INC		IY
+;	INC		IY
+;	INC		IY
+;	DEC		B
+;	JP		NZ, LOC_8125
+;	LD		HL, SPRITEROTFLAG
+;	LD		A, (HL)
+;	INC		A
+;	AND		3
+;	CP		2
+;	JR		C, LOC_81FB
+;	JR		NZ, LOC_81FA
+;	BIT		7, (HL)
+;	JR		NZ, LOC_81FB
+;LOC_81FA:
+;	XOR		A
+;LOC_81FB:
+;	LD		(HL), A
+;	LD		DE, SPRITE_ORDER_TABLE
+;	LD		B, 20
+;	LD		IY, WORK_BUFFER
+;	XOR		A
+;	LD 		C,A
+;LOOP_8208:
+;	LD		H, A
+;	LD		L, (IY+0)
+;	ADD		HL, DE
+;	LD		(HL), C
+;	INC		C
+;	INC		IY
+;	DJNZ	LOOP_8208
+;RET
+;
+;BYTE_8215:
+;    db 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
-BYTE_8215:
-    db 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-
-SUB_8229:
+MRDO_SPT_UPDATE:
 	LD		HL, MRDO_DATA			; Mr. Do's sprite data
 	BIT		7, (HL)
 	RET		Z
@@ -587,7 +647,7 @@ SUB_8229:
 	; 3 PUSH right01
 	; 4 PUSH right02
 	; 
-	ADD		A, 27				; MrDo Position offeset = 27+1 in SPRITE_GENERATOR
+	ADD		A, 23				; MrDo Position offeset = 23+1 in SPRITE_GENERATOR
 	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
 	CALL	DEAL_WITH_SPRITES	; Rotate the current frame of the player
 
@@ -601,37 +661,32 @@ LOC_8241:
 	CALL	PUTSPRITE			; put sprite A at B = Y-1,C=X with step D
 	
 								; HACK TO ADD A SECOND COLOR LAYER
-	LD		HL, SPRITE_NAME_TABLE+8
-	LD 		A,(ix+2)		
-	CP 		132			; smashed player HARDCODED (!! was 148)
-	JP 		NZ,.patch	; patch only if the player is not smashed
-	LD 		(HL),209	; hide the second layer if player is smashed
+	LD 		A,(IX+2)		
+	CP 		132					; smashed player HARDCODED (!! was 148)
+	JP 		NZ,.patch			; patch only if the player is not smashed
+	LD 		(IX+4),209			; hide the second layer if player is smashed
 	RET
 .patch:
-	LD 		A,(ix+0)
-	LD		(HL),a
-	INC HL
-	LD 		A,(ix+1)
-	LD		(HL),A
-	INC HL
-	LD		(HL),45*4			; hardcoded !!
-	INC HL
-	LD		(HL),15
+	LD 		A,(IX+0)
+	LD		(IX+4),A
+	LD 		A,(IX+1)
+	LD		(IX+5),A
+	LD		(IX+6),45*4			; hardcoded !!
+	LD		(IX+7),15
 RET
 
-SUB_8251:
+SUB_8251:						; update play field
 	LD		HL, $727C
 	BIT		7, (HL)
 	JR		Z, LOC_825D
 	RES		7, (HL)
 	XOR		A
-	JR		LOC_8265
+	JP		PATTERNS_TO_VRAM
 LOC_825D:
 	BIT		6, (HL)
 	RET		Z
 	RES		6, (HL)
 	LD		A, 1
-LOC_8265:
 	CALL	PATTERNS_TO_VRAM
 RET
 
@@ -700,7 +755,7 @@ BYTE_82D3:
 BYTE_82DD:
 	DB 0
 
-SUB_82DE:
+SETBONUS:
 	LD		HL, $7272
 	BIT		0, (HL)
 	JR		Z, LOC_8305
@@ -744,7 +799,7 @@ LOC_8329:
 	LD		A, (HL)			
 	XOR		1				
 	LD		(HL), A
-	LD		A, 13 + 128		;  smashed apple
+	LD		A, 13 				;  Diamond!
 	CALL	PUTSPRITE
 RET
 
@@ -762,7 +817,7 @@ START:
 	LD		(MUX_SPRITES), A
 	LD		HL,$1f01
 	LD		(RAND_NUM), HL		; needed as we skip the coleco screen
-	LD		A, 0				; ??? 
+	XOR		A					; ??? 
 	LD		(DEFER_WRITES), A
 	CALL	INITIALIZE_THE_SOUND
 	LD		A, 20				; show only 20 sprites in total
@@ -790,13 +845,13 @@ LOC_8375:									; GAME MAIN LOOP
 	; DEBUGGER! COMMENT
 ;	CALL	ExtraMrDo		; TEST EXTRA MRDO SCREEN
 ;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
-;	call	INTERMISSION
+;	CALL	INTERMISSION
 ;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 ;	CALL	CONGRATULATION
 ;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 	
 LOC_8378:
-	CALL	SUB_8828
+	CALL	CHECK_FOR_PAUSE
 	CALL	DEAL_WITH_APPLE_FALLING
 	CP		1
 	JR		Z, LOC_83AB
@@ -851,7 +906,7 @@ LOC_83C0:
 
 MrDoDeathSequence:
 	PUSH 	AF
-	LD		bc,4*256+28+48		; C is the pointer to the current frame
+	LD		bc,4*256+24+48		; C is the pointer to the current frame
 .nextframe:
 	PUSH	bc
 	LD		HL, 20				; 20 x 4 = 80 /60 = 1.33 sec
@@ -890,6 +945,15 @@ MrDoDeathSequence:
 	POP 	AF
 RET
 
+REMOVESPRITES:
+	LD		HL, SPRITE_NAME_TABLE
+	LD		B, 50H
+.1:
+	LD		(HL), 209
+	INC		HL
+	DJNZ	.1
+RET
+
 INIT_VRAM:
 	LD		BC, 0
 	CALL	WRITE_REGISTER
@@ -925,7 +989,7 @@ INIT_VRAM:
 	CALL	FILL_VRAM
 	
 
-	LD		A, 1BH				; Load enemies in the SPT
+	LD		A, 23				; Load enemies in the SPT (all but chompers)
 LOAD_GRAPHICS:
 	PUSH	AF
 	LD		IY, 4				; number of 8x8 tiles to process 
@@ -934,34 +998,31 @@ LOAD_GRAPHICS:
 	DEC		A
 	JP		P, LOAD_GRAPHICS
 	
-	LD		HL, EXTRA_SPRITE_PAT
+	LD		HL, EXTRA_SPRITE_PAT	; EXTRA+Apples+Diamond+Balls
 	LD		DE, 60H
-;	LD		IY, 40H
-	LD		IY, 80+6*4		; OS7 BUG should have been 72
+	LD		IY, 80+6*4				; OS7 BUG should have been 72+6*4
 	LD		A, 1
 	CALL	PUT_VRAM
-
-;	LD		HL, BALL_EXPLOSION_PAT
-;	LD		DE, 144
-;	LD		IY, 6*4
-;	LD		A, 1
-;	CALL	PUT_VRAM
+	
+	LD		IX, CHOMPER_GEN		; Load chompers in the SPT
+	LD		B,12
+.1:	PUSH	BC
+	PUSH	IX
+	LD		IY,4
+	CALL	DEAL_WITH_SPRITES.tst
+	POP 	IX
+	LD		DE,5
+	ADD		IX,DE
+	POP 	BC
+	DJNZ	.1
 
 	CALL 	MYDISSCR				
-
 ; screen 2 hack
 
-	CALL MyNMI_off
-	LD bc,$0200				; move to screen 2
-	CALL MYWRTVDP
-	LD bc,$9F03
-	CALL MYWRTVDP			; color mirrored at 2000h
-	LD bc,$0304				; $0304 for non mirrored patterns ar 0000h, $0004 for mirrored patterns
-	CALL MYWRTVDP			
-	CALL MyNMI_on
-	
-; load graphics	
-										;  IS UNPACK SAFE ONLY IN INTREMISSION MODE ?
+	CALL 	MYMODE1			; intermission mode
+
+; load tile graphics	
+
 	LD 		DE,PT
 	LD 		HL,tileset_bitmap
 	CALL 	unpack
@@ -978,6 +1039,10 @@ LOAD_GRAPHICS:
 
 	CALL 	LOADFONTS
 	CALL 	MYENASCR	
+	
+	LD HL,mode
+	RES 7,(HL)			; game mode
+
 	
 	LD		BC, 1E2H		 		; Original game state register
 	CALL	WRITE_REGISTER	
@@ -998,7 +1063,6 @@ LOADFONTS:		; LOAD  ARCADE FONTS
 	LD		BC, 41*8
 	LD		A,$F1
 	CALL 	cvb_MYCLS.0
-
 RET
 
 	
@@ -1187,12 +1251,7 @@ CLEAR_SCREEN_AND_SPRITES_01:
 	LD		DE, 80H
 	xor	a
 	CALL	FILL_VRAM
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H
-LOOP_8691:
-	LD		(HL), 0
-	INC		HL
-	DJNZ	LOOP_8691
+	CALL	REMOVESPRITES
 	LD		A, (GAMECONTROL)
 	BIT		1, A
 	LD		A, 4
@@ -1229,12 +1288,7 @@ CLEAR_SCREEN_AND_SPRITES_02:
 	LD		DE, 80H
 	XOR 	A
 	CALL	FILL_VRAM
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H
-LOOP_86E0:
-	LD		(HL), 0
-	INC		HL
-	DJNZ	LOOP_86E0
+	CALL	REMOVESPRITES
 	LD		A, 0A0H
 LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
 	PUSH	AF
@@ -1260,7 +1314,7 @@ LOC_8709:
 	JR		Z, LOC_8716
 	LD		A, (CURRENT_LEVEL_P2)
 LOC_8716:
-	LD		HL, $72E7
+	LD		HL, SCRATCH
 	LD		D, 0D8H
 	LD		IY, 1
 	CP		0AH
@@ -1405,88 +1459,100 @@ SUB_87F4:	; Start the level
 					;	POP	AF	; WTF??? Potential critical bug
 RET
 
-SUB_8828:
+CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	LD		A, (GAMECONTROL)
 	BIT		1, A
 	LD		A, (KEYBOARD_P1)
-	JR		Z, CHECK_FOR_PAUSE
+	JR		Z, .ply1
 	LD		A, (KEYBOARD_P2)
-CHECK_FOR_PAUSE:
+.ply1:
 	CP		0AH
 	RET		NZ
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
-ENTER_PAUSE:
-	BIT		7, (HL)
-	JR		NZ, ENTER_PAUSE
-	SET		5, (HL)
+	
+	CALL 	waitoneframe
+	
+	SET		3, (HL)					; stop sprite update
+	
 	XOR		A
 	LD		HL, SAT					; remove sprites
 	LD		DE, 80H
 	CALL	FILL_VRAM
+	
 	LD		A, 2
 	LD		HL, 3800H
 	CALL	INIT_TABLE				; enable alternative PNT at 3800H
+
 	LD		HL, STATESTART			; save to VRAM the sound state
 	LD		DE, 3B00H
 	LD		BC, 5DH					; 93 bytes of sound state saved at 3B00h in VRAM
 	CALL	WRITE_VRAM
+
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
+
 	CALL	PLAY_END_OF_ROUND_TUNE
-	LD		B, 2
-LOOP_886E:
-	LD		HL, 0
-LOC_8871:
-	DEC		HL
-	LD		A, L
-	OR		H
-	JR		NZ, LOC_8871
-	DJNZ	LOOP_886E
-LOOP_TILL_UN_PAUSE:
+
+	call 	DELAY
+	
+.wait_star:
 	LD		A, (GAMECONTROL)
 	BIT		1, A
 	LD		A, (KEYBOARD_P1)
-	JR		Z, CHECK_TO_LEAVE_PAUSE
+	JR		Z, .plr1
 	LD		A, (KEYBOARD_P2)
-CHECK_TO_LEAVE_PAUSE:
+.plr1:
 	CP		0AH
-	JR		NZ, LOOP_TILL_UN_PAUSE
+	JR		NZ, .wait_star
+	
 	CALL	INITIALIZE_THE_SOUND
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
-LOC_8891:
-	BIT		7, (HL)
-	JR		NZ, LOC_8891
-	SET		4, (HL)
+	
+	CALL 	waitoneframe
+
+	; SET		4, (HL)
+
 	LD		A, 2
 	LD		HL, PNT
-	CALL	INIT_TABLE
+	CALL	INIT_TABLE			; enable PNT
+
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
-	LD		B, 4
-LOC_88A7:
-	LD		HL, 0
-LOC_88AA:
-	DEC		HL
-	LD		A, L
-	OR		H
-	JR		NZ, LOC_88AA
-	DJNZ	LOC_88A7
+
 	LD		HL, GAMECONTROL
-	SET		7, (HL)
-LOC_88B6:
-	BIT		7, (HL)
-	JR		NZ, LOC_88B6
-	LD		A, (HL)
-	AND		0CFH
-	LD		(HL), A
+	RES		3, (HL)				; enable sprites
+	
+	CALL 	DELAY
+	
+	CALL 	waitoneframe
+	
+	; RES		4, (HL)
+
 	LD		HL, STATESTART		; restore from VRAM the sound state
 	LD		DE, 3B00H
 	LD		BC, 5DH
 	CALL	READ_VRAM
+	
 	LD		BC, 1E2H
 	CALL	WRITE_REGISTER
+RET
+
+DELAY:
+	LD		B, 2
+.wait_ext:
+	LD		HL, 0
+.wait:
+	DEC		HL
+	LD		A, L
+	OR		H
+	JR		NZ, .wait
+	DJNZ	.wait_ext
+ret
+
+waitoneframe:
+	LD		HL, GAMECONTROL
+	SET		7, (HL)
+.wait_isr:
+	BIT		7, (HL)
+	JR		NZ, .wait_isr
 RET
 
 DEAL_WITH_APPLE_FALLING:
@@ -1622,7 +1688,7 @@ LOC_89C1:
 	LD		A, D
 	AND		A
 	JR		NZ, LOC_89C8
-	LD		BC, 808H
+	LD		BC, $D908
 LOC_89C8:
 	LD		A, ($722A)			; which apple to show
 	ADD		A, 12
@@ -2962,7 +3028,7 @@ SUB_936F:
 	CALL	SUB_B5DD
 	AND		A
 	RET		Z
-	LD		BC, 808H
+	LD		BC, $D908
 	LD		D, 0
 	LD		A, 3				; remove extra letter 
 	CALL	PUTSPRITE
@@ -3047,7 +3113,7 @@ LOC_9421:  ; Ball intersects with sprite
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	LD		(IY+3), A
-	LD		BC, 808H
+	LD		BC, $D908
 	LD		D, 0
 	LD		A, 4			; remove ball explosion
 	CALL	PUTSPRITE
@@ -3094,7 +3160,7 @@ LOC_9489:
 	POP		AF
 LOC_9491:
 	CALL	SUB_9732	; MrDo movements
-	CALL	CHECK_DIAMOND_COLLECTION  		; Diamond collection check A=0 if no diamond, A=$42 if diamond
+	CALL	CHECK_DIAMOND_COLLECTION  		; Diamond collection check A=0 if no diamond, A=$82 if diamond
 	AND		A
 	RET		NZ
 LOC_949A:
@@ -6182,12 +6248,7 @@ LOC_AAE2:
 	LD		DE, 80H
 	XOR		A
 	CALL	FILL_VRAM
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H
-LOC_AAFF:
-	LD		(HL), 0
-	INC		HL
-	DJNZ	LOC_AAFF
+	CALL	REMOVESPRITES
 	POP		AF
 	CP		2
 	LD		A, 7
@@ -6270,13 +6331,7 @@ LOC_A9F2:
 	POP		AF
 
 	CALL 	MYDISSCR
-
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H				; remove 20 sprites
-LOC_A9C0:
-	LD		(HL), 0
-	INC		HL
-	DJNZ	LOC_A9C0
+	CALL	REMOVESPRITES
 
 	LD		HL, 0000H			; do not delete player data in VRAM
 	LD		DE, 3000H			
@@ -6540,12 +6595,7 @@ LOC_AB2D:
 	LD		DE, 80H
 	XOR		A
 	CALL	FILL_VRAM
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H
-LOC_AB40:
-	LD		(HL), 0
-	INC		HL
-	DJNZ	LOC_AB40
+	CALL	REMOVESPRITES
 	LD		A, 9
 	CALL	DEAL_WITH_PLAYFIELD				; game over text
 	LD		BC, 1E2H
@@ -6780,7 +6830,7 @@ DEAL_WITH_SPRITES:
 	EX		DE,HL
 	LD		IX, SPRITE_GENERATOR
 	ADD		IX,DE					; +28*5 for MrDo
-	
+.tst:	
 	; expect in IY the number of 8x8 tiles to process
 	
 	LD		A, (IX+0)			; flag
@@ -6804,19 +6854,19 @@ ROTATION:
 
 	DEC		A					; 1 mirror frame left
 	JP		Z,MIRRORLEFT
-	DEC		A					; 2 rotate face down 
-	JP		Z,ROTATEDWN
-	DEC		A					; 3 rotate face up
-	JP		Z,ROTATEUP
-	DEC		A					; 4 rotate face down-mirror
-	JP		Z,ROTATEDWNMIRROR
-								; rotate face up-mirror
-ROTATEUPMIRROR:
+	DEC		A					; 2 rotate face up 
+	JP		Z,ROTATE_UP
+	DEC		A					; 3 rotate face down
+	JP		Z,ROTATE_DWN
+	DEC		A					; 4 rotate face UP-mirror
+	JP		Z,ROTATE_UPMIRROR
+								; 5 rotate face DOWN-mirror
+ROTATE_DWNMIRROR:
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
 	LD		IY, SPTBUFF2
-	CALL	SUB_AE0C			; rotate face up-mirror
+	CALL	SUB_AE0C			; rotate face DOWN-mirror
 	exx
 	LD		a,(DE)
 	inc 	de
@@ -6857,7 +6907,7 @@ MIRRORLEFT:
 	DJNZ	.nextpattern
 RET
 
-ROTATEDWN:						
+ROTATE_UP:						
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
@@ -6880,12 +6930,12 @@ ROTATEDWN:
 	DJNZ	.nextpattern
 RET
 
-ROTATEUP:						
+ROTATE_DWN:						
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
 	LD		IY, SPTBUFF2
-	CALL	SUB_ADCA			; rotate face up
+	CALL	SUB_ADCA			; rotate face down
 	exx
 	LD		a,(DE)
 	inc 	de
@@ -6903,12 +6953,12 @@ ROTATEUP:
 	DJNZ	.nextpattern
 RET
 
-ROTATEDWNMIRROR:						
+ROTATE_UPMIRROR:						
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
 	LD		IY, SPTBUFF2
-	CALL	SUB_ADE9			; rotate face down-mirror
+	CALL	SUB_ADE9			; rotate face up-mirror
 	exx
 	LD		a,(DE)
 	inc 	de
@@ -7020,7 +7070,7 @@ LOC_ADFB:
 	POP		HL
 RET
 
-SUB_AE0C:							; rotate face down-mirror
+SUB_AE0C:							; rotate face DOWN-mirror
 	LD		BC, 7
 	ADD		HL, BC
 	LD		D, 80H
@@ -7031,8 +7081,8 @@ LOC_AE15:
 	PUSH	HL
 	LD		B, 8
 LOC_AE19:
-	LD		A, (HL)
-	AND		D
+	LD		A,D
+	AND		(HL)						; use A instead of D (?)
 	JR		Z, LOC_AE1E
 	SCF
 LOC_AE1E:
@@ -8179,7 +8229,7 @@ PATTERNS_TO_VRAM:
 	LD		E, (HL)
 	INC		HL
 	LD		D, (HL)
-	LD		HL, $72E7
+	LD		HL, SCRATCH
 	CALL	LOC_AE88
 	LD		A, 0D8H
 	LD		($72EC), A
@@ -8188,7 +8238,7 @@ PATTERNS_TO_VRAM:
 	LD		E, (HL)
 	INC		HL
 	LD		D, (HL)
-	LD		HL, $72E7
+	LD		HL, SCRATCH
 	LD		IY, 6
 	CALL	PUT_VRAM
 RET
@@ -8238,34 +8288,34 @@ RET
 
 
 PUTSPRITE:
-		PUSH	DE			; SAVE FRAME NUMBER
+		PUSH	DE			; Save FRAME NUMBER in D
 
 		AND		7FH			; SAT position
 		ADD		A,A
 
 		LD		E,A
 		LD		D,0
-		LD		HL, OFF_B691			; frame and color table (pointer)
+		LD		HL, SPR_OBJ_ATTRB			; frame and color table (pointer)
 		ADD		HL, DE
 
 		ADD		A,A
 		LD		E,A
-		LD		D,0
+;		LD		D,0
 		LD		IX, SPRITE_NAME_TABLE
 		ADD		IX, DE
 
-		LD		E, (HL)
+		LD		A, (HL)
 		INC		HL
-		LD		D, (HL)
-		EX		DE, HL				; HL -> frame list
+		LD		H, (HL)
+		LD		L,A				; HL -> frame list
 		
-		POP		AF
+		POP		AF				; restore frame number in A
 		ADD		A,A
 		LD		E,A
 		LD		D,0
 		ADD		HL, DE				; HL -> current frame
 
-		LD		A, (GAMECONTROL)
+		LD		A, (GAMECONTROL)		; stop sprite update
 		SET		3, A
 		LD		(GAMECONTROL), A
 		
@@ -8281,17 +8331,17 @@ PUTSPRITE:
 		LD		A,(HL)
 		LD		(IX+3), A				; COLOR
 
-		LD		A, (GAMECONTROL)
+		LD		A, (GAMECONTROL)		; enable sprite update
 		RES		3, A
 		LD		(GAMECONTROL), A
 RET
 		
 
 
-OFF_B691: 			; Sprite frame and color data
+SPR_OBJ_ATTRB: 			; Sprite frame and color data
 	DW BYTE_B6C3	; 0 ball
 	DW BYTE_B6C7	; 1 mr do
-	DW BYTE_B6CB	; 2 unused
+	DW 0	; free
 	DW BYTE_B6CF	; 3 Extra letter
 	DW BYTE_B6FB	; 4 ball explosion
 	DW BYTE_B70B	; 5 bad guy/digger
@@ -8309,40 +8359,30 @@ OFF_B691: 			; Sprite frame and color data
 	DW BYTE_B761	;17 chomper
 	DW BYTE_B761	;18 chomper
 	DW BYTE_B761	;19 chomper
-;	DB 000,000,000,000,000,000,000,000,000,000
+
 BYTE_B6C3:
 	DB 000,000,184,015	  ; Ball Sprite pattern 184 uses White
 
 BYTE_B6C7:					; MrDo 
-;	DB 44*4,6,148,015	  ; Patterns 176,148 use White
 	DB  176,6,132,015	  ; Patterns 176,148 use White
 
-BYTE_B6CB:					; ?? unused ???
-	DB 180,15,160,003	  ; Patterns 180,160 use Light Green
-
 BYTE_B6CF:			; EXTRA SPRITES!!
-;	DB 000,000,096,011,100,011,104,011,108,011,112,011,116,011,120,011,124,011,128,011,132,011	; Series using Light Yellow
-;	DB 148,011,096,008,100,008,104,008,108,008,112,008,116,008,120,008,124,008,128,008,132,008	; Series using Medium Red
 	DB 000,000,096,011,116,011,116,011,100,011,104,011,116,011,116,011,108,011,112,011,116,011	; Series using Light Yellow
 	DB 132,011,096,008,116,008,116,008,100,008,104,008,116,008,116,008,108,008,112,008,116,008	; Series using Medium Red
 
 BYTE_B6FB:
-;	DB 000,000,156,015,192,015,196,015,200,015,204,015,208,015,212,015	  ; Ball sprite using White
 	DB 000,000,140,015,144,015,148,015,152,015,156,015,160,015,164,015	  ; Ball sprite using White
 
 BYTE_B70B:
 	DB 000,000,000,008,004,008,008,008,012,008,016,008,020,008,024,008,028,008,032,008,036,008,040,008,044,008	  ; Badguy sprite color (Red)
 	DB 000,007,004,007,008,007,012,007,016,007,020,007,024,007,028,007,032,007,036,007,040,007,044,007,048,015	  ; Series using Cyan, ending in White
-;	DB 052,005,056,005,060,005,064,005,068,005,072,005,076,005,080,005,084,005,088,005,092,005,148,013	  ; Digger sprite color (Light Blue), last one defines enemy splat color
 	DB 052,005,056,005,060,005,064,005,068,005,072,005,076,005,080,005,084,005,088,005,092,005,132,013	  ; Digger sprite color (Light Blue), last one defines enemy splat color
 
 BYTE_B757:
-;	DB 000,000,136,008,140,008,144,008,152,015	  ; Apple Sprite colors (Medium Red), ending in White
-	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple Sprite colors (Medium Red), ending in White
+	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple sprite colors (Medium Red), ending with White diamond
 
 BYTE_B761:		; Chomper animation
-;	DB 000,000,224,005,228,005,232,005,236,005,148,005	  ; Series using Light Blue
-	DB 000,000,224,005,228,005,232,005,236,005,132,005	  ; Series using Light Blue
+	DB 000,000,192,005,196,005,202,005,206,005,132,005	  ; Series using Light Blue
 
 SUB_B76D:
 	LD		A, 40H
@@ -8398,10 +8438,10 @@ SUB_B7C4:
 								
 	LD		(IX+4), $0C0		
 								
-	LD		BC,$0808			
 	CALL	SUB_B7EF
 	ADD		A, 5
 	LD		D, 0				; remove bad guy
+	LD		BC,$D908
 	CALL	PUTSPRITE
 	LD		HL, ENEMY_NUM_P1
 	LD		A, (GAMECONTROL)
@@ -8423,9 +8463,8 @@ SUB_B7EF:
 	PUSH	HL
 	PUSH	IX
 	POP		HL
-						;	LD		DE, ENEMY_DATA_ARRAY
-	LD		DE, -ENEMY_DATA_ARRAY	;	AND		A
-	ADD		HL,DE		;	SBC		HL, DE
+	LD		DE, -ENEMY_DATA_ARRAY	
+	ADD		HL,DE			
 	LD		A, L
 	LD		H, 0
 	AND		A
@@ -8481,7 +8520,7 @@ LOC_B850:
 	SBC		HL, BC
 	JR		NZ, LOC_B850
 LOC_B856:
-	LD		BC, 808H
+	LD		BC, $D908
 	LD		A, D			; remove chomper
 	LD		D, 0
 	CALL	PUTSPRITE
@@ -9050,16 +9089,9 @@ SPRITE_GENERATOR:
 	DW BYTE_C27C,DIGGER_RIGHT_01_PAT
 	DB 005							;23
 	DW BYTE_C280,DIGGER_RIGHT_02_PAT
-	DB 000							;24
-	DW 224,CHOMPER_RIGHT_CLOSED_PAT
-	DB 000							;25
-	DW 228,CHOMPER_RIGHT_OPEN_PAT
-	DB 001							;26
-	DW BYTE_C298,CHOMPER_RIGHT_CLOSED_PAT
-	DB 001							;27
-	DW BYTE_C29C,CHOMPER_RIGHT_OPEN_PAT
 
-; MrDo 4 frames
+
+; MrDo 4 frames						; from 24 now (was 28)
 
 	DB 0							; 0	right	0	; MrDo sprites start from here
 	DW 44*4,MR_DO_WALK_RIGHT_00_PAT
@@ -9187,39 +9219,29 @@ BYTE_C294:		DB 178,176,179,177,45*4+2,45*4+0,45*4+3,45*4+1
 
 
 MR_DO_WALK_RIGHT_00_PAT:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$03,$01,$20,$00,$1e,$00,$00,$00,$00,$00,$00,$00,$f0,$00,$00,$00,$e0,$c0,$00,$00,$c0,$f0,$00,$00,$0f,$1f,$3e,$3e,$3b,$3c,$1f,$0e,$1c,$1e,$1f,$1f,$01,$00,$00,$00,$80,$c0,$a0,$a0,$00,$60,$c0,$80,$00,$00,$c0,$c0,$00,$00
  DB $00,$03,$05,$0f,$1d,$36,$00,$00,$2c,$3b,$07,$1d,$17,$01,$00,$00,$00,$c0,$a0,$e0,$00,$00,$00,$00,$40,$e0,$d8,$78,$c0,$60,$c0,$00,$00,$00,$02,$00,$02,$08,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$e0,$b0,$b0,$e0,$80,$00,$24,$84,$00,$80,$3c,$00
 MR_DO_WALK_RIGHT_01_PAT: 
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$04,$06,$06,$06,$04,$03,$03,$00,$00,$00,$00,$00,$00,$00,$f0,$00,$00,$00,$00,$00,$00,$00,$c0,$00,$00,$0f,$1f,$3f,$3f,$3e,$3b,$1c,$0b,$19,$19,$19,$1b,$0c,$00,$00,$00,$80,$c0,$e0,$e0,$a0,$00,$40,$80,$c0,$c0,$c0,$c0,$80,$00
  DB $00,$07,$0b,$1f,$35,$0e,$00,$00,$00,$03,$0f,$1d,$1f,$09,$03,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$40,$e0,$b8,$e8,$60,$c0,$80,$00,$00,$00,$04,$40,$0a,$00,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$80,$00,$44,$14,$80,$00,$78,$00
 MR_DO_WALK_RIGHT_02_PAT:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$04,$1e,$3c,$00,$00,$19,$1e,$00,$00,$00,$00,$00,$00,$f0,$00,$00,$00,$00,$20,$00,$00,$e0,$00,$00,$00,$0f,$1f,$3e,$3e,$3b,$3c,$1f,$0b,$01,$03,$1f,$1f,$04,$00,$00,$00,$80,$c0,$a0,$a0,$00,$60,$c0,$80,$c0,$c0,$c0,$c0,$00,$00
  DB $00,$03,$0d,$3f,$15,$0e,$00,$00,$06,$0f,$2e,$3b,$07,$07,$00,$00,$00,$c0,$60,$e0,$00,$00,$00,$00,$78,$e8,$a0,$f0,$40,$00,$00,$00,$00,$00,$42,$00,$0a,$00,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$80,$00,$e0,$b0,$b0,$e0,$84,$14,$40,$00,$bc,$00,$c0,$00
 
 MR_DO_PUSH_RIGHT_00_PAT:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$1e,$00,$00,$00,$00,$00,$00,$00,$00,$78,$00,$01,$3f,$7f,$00,$00,$c0,$f0,$00,$00,$07,$8f,$1f,$1e,$1f,$1d,$0e,$07,$0f,$1f,$1f,$1f,$01,$00,$00,$00,$c0,$e4,$f0,$02,$50,$80,$20,$c0,$c0,$80,$c0,$c0,$00,$00
  DB $00,$01,$02,$07,$0e,$1b,$00,$00,$00,$03,$05,$1f,$16,$01,$00,$00,$00,$e0,$d0,$f0,$80,$00,$00,$00,$20,$f0,$ec,$bc,$c0,$e0,$c0,$00,$00,$00,$01,$00,$01,$04,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$00,$70,$58,$d8,$70,$c0,$01,$13,$43,$00,$00,$3c,$00
 MR_DO_PUSH_RIGHT_01_PAT:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$03,$03,$00,$00,$00,$00,$00,$00,$00,$78,$00,$01,$3f,$7f,$00,$00,$00,$c0,$00,$00,$07,$0f,$1f,$1f,$1f,$1d,$0e,$07,$0f,$1f,$1f,$1f,$0c,$00,$00,$00,$c0,$e0,$f0,$50,$50,$80,$20,$c0,$c0,$80,$c0,$c0,$80,$00
  DB $00,$01,$02,$07,$0d,$03,$00,$00,$07,$0f,$0a,$0f,$05,$03,$00,$00,$00,$f0,$d8,$f8,$40,$80,$00,$00,$00,$e0,$fc,$bc,$c0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$20,$00,$b8,$2c,$6c,$38,$60,$01,$03,$43,$00,$00,$e0,$00
 MR_DO_PUSH_RIGHT_02_PAT:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$19,$1e,$00,$00,$00,$00,$00,$00,$00,$00,$3c,$01,$3f,$7f,$00,$00,$e0,$00,$00,$00,$23,$07,$0f,$0f,$0f,$0f,$07,$0c,$0f,$1f,$1f,$1f,$04,$00,$00,$00,$e4,$f1,$f8,$20,$88,$a8,$c0,$20,$c0,$80,$c0,$c0,$00,$00
  DB $00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0d,$17,$3c,$00,$00,$00,$e0,$58,$fc,$a0,$c0,$00,$00,$80,$f0,$fc,$5c,$e0,$c0,$00,$00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3e,$00,$00,$00,$a0,$00,$5c,$16,$36,$1c,$30,$01,$03,$a3,$00,$3c,$00,$00
 
 MR_DO_DEATH_F0:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$22,$66,$c6,$00,$00,$00,$00,$00,$00,$00,$00,$00,$1f,$1f,$19,$0e,$03,$19,$1c,$00,$00,$00,$00,$00,$00,$00,$00,$00,$f8,$f8,$98,$70,$c0,$98,$38
  DB $00,$38,$68,$f8,$58,$e0,$8a,$1f,$1a,$07,$0a,$1f,$1a,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$fe,$a8,$f0,$b0,$e8,$78,$28,$30,$00,$00,$00,$10,$01,$a3,$01,$04,$a0,$21,$00,$05,$00,$04,$78,$00,$00,$00,$f0,$f0,$f8,$6c,$68,$f1,$01,$50,$00,$40,$10,$00,$10,$0f,$00
 MR_DO_DEATH_F1:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$22,$66,$c6,$00,$00,$00,$00,$00,$0f,$1f,$3f,$3f,$3f,$3f,$39,$1e,$03,$19,$1c,$00,$00,$00,$00,$00,$f0,$f8,$fc,$fc,$fc,$fc,$9c,$78,$c0,$98,$38
  DB $00,$00,$03,$0d,$3f,$7a,$6f,$34,$08,$08,$18,$2c,$38,$00,$00,$00,$00,$00,$60,$b0,$f8,$a8,$fc,$0c,$06,$06,$04,$00,$00,$e0,$40,$00,$00,$00,$00,$02,$00,$85,$90,$81,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$e0,$e0,$f0,$da,$d2,$e2,$02,$80,$00
 MR_DO_DEATH_F2:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$22,$66,$c6,$07,$1f,$3f,$7f,$ff,$ff,$ff,$ff,$ff,$7f,$3d,$1a,$0f,$03,$19,$1c,$e0,$f8,$fc,$fe,$ff,$ff,$ff,$ff,$ff,$fe,$bc,$58,$f0,$c0,$98,$38
  DB $00,$00,$06,$05,$07,$0a,$0f,$0d,$0f,$08,$00,$00,$50,$78,$00,$00,$00,$00,$00,$1c,$34,$dc,$f8,$50,$f0,$10,$00,$00,$0e,$1a,$00,$00,$00,$0f,$38,$02,$00,$05,$00,$02,$00,$03,$03,$07,$ad,$85,$03,$00,$00,$00,$06,$03,$0b,$21,$01,$a1,$00,$c0,$c0,$e0,$b1,$a5,$c0,$00
 MR_DO_DEATH_F3:
-; DB $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$00,$00,$44,$66,$63,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$80,$00,$00,$22,$66,$c6,$08,$4c,$70,$24,$86,$c0,$24,$0e,$05,$0d,$0c,$07,$02,$03,$19,$1c,$10,$32,$0e,$24,$61,$03,$24,$70,$a0,$b0,$30,$e0,$40,$c0,$98,$38
  DB $00,$00,$00,$00,$00,$00,$06,$0a,$5f,$78,$00,$00,$50,$78,$00,$00,$00,$00,$00,$00,$00,$00,$60,$b0,$f6,$1c,$00,$00,$0e,$1a,$00,$00,$00,$03,$04,$03,$00,$00,$80,$85,$a0,$83,$03,$07,$ad,$85,$03,$00,$00,$c0,$20,$c0,$00,$00,$01,$41,$09,$c1,$c0,$e0,$b1,$a5,$c0,$00
 
-
+; bad guy
 BYTE_C234:		DB 010,011,008,009
 BYTE_C238:		DB 014,015,012,013
 BYTE_C23C:		DB 017,019,016,018
@@ -9230,6 +9252,8 @@ BYTE_C24C:		DB 035,033,034,032
 BYTE_C250:		DB 039,037,038,036
 BYTE_C254:		DB 042,040,043,041
 BYTE_C258:		DB 046,044,047,045
+
+; digger
 BYTE_C25C:		DB 058,059,056,057
 BYTE_C260:		DB 062,063,060,061
 BYTE_C264:		DB 065,067,064,066
@@ -9241,9 +9265,46 @@ BYTE_C278:		DB 087,085,086,084
 BYTE_C27C:		DB 090,088,091,089
 BYTE_C280:		DB 094,092,095,093
 
-BYTE_C298:		DB 234,235,232,233
-BYTE_C29C:		DB 238,239,236,237
 
+CHOMPER_GEN:
+	DB 000							
+	DW 192,CHOMPER_RIGHT_CLOSED_PAT
+	DB 000							
+	DW 196,CHOMPER_RIGHT_OPEN_PAT
+	DB 001							
+	DW CHMPL0,CHOMPER_RIGHT_CLOSED_PAT
+	DB 001							
+	DW CHMPL1,CHOMPER_RIGHT_OPEN_PAT
+
+	DB 002							
+	DW CHMPU0A,CHOMPER_RIGHT_CLOSED_PAT
+	DB 002							
+	DW CHMPU1A,CHOMPER_RIGHT_OPEN_PAT
+	DB 003							
+	DW CHMPD0A,CHOMPER_RIGHT_CLOSED_PAT
+	DB 003							
+	DW CHMPD1A,CHOMPER_RIGHT_OPEN_PAT
+
+	DB 004							
+	DW CHMPU0B,CHOMPER_RIGHT_CLOSED_PAT
+	DB 004							
+	DW CHMPU1B,CHOMPER_RIGHT_OPEN_PAT
+	DB 005							
+	DW CHMPD0B,CHOMPER_RIGHT_CLOSED_PAT
+	DB 005							
+	DW CHMPD1B,CHOMPER_RIGHT_OPEN_PAT
+
+
+CHMPL0:		DB 192+10,192+11,192+08,192+09
+CHMPL1:		DB 192+14,192+15,192+12,192+13
+CHMPU0A:	DB 192+17,192+19,192+16,192+18
+CHMPU1A:	DB 192+21,192+23,192+20,192+22
+CHMPD0A:	DB 192+24,192+26,192+25,192+27
+CHMPD1A:	DB 192+28,192+30,192+29,192+31
+CHMPU0B:	DB 192+35,192+33,192+34,192+32
+CHMPU1B:	DB 192+39,192+37,192+38,192+36
+CHMPD0B:	DB 192+42,192+40,192+43,192+41
+CHMPD1B:	DB 192+46,192+44,192+47,192+45
 
 
 
@@ -9282,14 +9343,6 @@ EXTRA_SPRITE_PAT:
    DB 068,039,048,015,006,060,000,000
    DB 120,156,156,006,242,002,194,002
    DB 002,244,012,240,126,000,000,000
-;   DB 000,030,057,032,064,064,064,064 ; Right foot down
-;   DB 064,096,048,031,126,000,000,000
-;   DB 000,120,156,004,002,002,002,002
-;   DB 002,006,012,248,096,060,000,000
-;   DB 000,030,057,032,064,064,064,064 ; Right foot down
-;   DB 064,096,048,031,126,000,000,000
-;   DB 000,120,156,004,002,002,002,002
-;   DB 002,006,012,248,096,060,000,000
    DB 030,057,057,096,070,067,064,065 ; X Left foot down
    DB 067,038,048,015,006,060,000,000
    DB 120,156,156,006,050,098,194,130
@@ -9298,14 +9351,6 @@ EXTRA_SPRITE_PAT:
    DB 064,032,048,015,006,060,000,000
    DB 120,156,156,006,242,130,130,130
    DB 130,132,012,240,126,000,000,000
- ;  DB 000,030,057,032,064,064,064,064 ; Right foot down
- ;  DB 064,096,048,031,126,000,000,000
- ;  DB 000,120,156,004,002,002,002,002
- ;  DB 002,006,012,248,096,060,000,000
- ;  DB 000,030,057,032,064,064,064,064 ; Right foot down
- ;  DB 064,096,048,031,126,000,000,000
- ;  DB 000,120,156,004,002,002,002,002
- ;  DB 002,006,012,248,096,060,000,000
    DB 030,057,057,096,071,068,068,071 ; R Left foot down
    DB 068,036,048,015,006,060,000,000
    DB 120,156,156,006,226,050,050,226
@@ -10602,7 +10647,7 @@ nmi_handler:
 
 					; Intermission Mode
 	POP 	HL				
-	IN A,(CTRL_PORT)
+	IN 		A,(CTRL_PORT)
 	POP 	AF
 	
 	PUSH	AF
@@ -10618,7 +10663,7 @@ nmi_handler:
 	PUSH	IX
 	PUSH	IY
 	CALL	TIME_MGR		; udate timers
-;	CALL	POLLER			; update controllers
+	CALL	POLLER			; update controllers
 	CALL	SUB_C952		; PLAY MUSIC
 	POP		IY
 	POP		IX
@@ -10632,7 +10677,7 @@ nmi_handler:
 	POP		DE
 	POP		BC
 	POP		AF
-	retn
+	RETN
 
 .2:	POP HL					; Game Mode
 	POP AF
@@ -11134,12 +11179,7 @@ INTERMISSION:
 	LD		BC, 1C2H		 		; restore original game state register (No NMI)
 	CALL	WRITE_REGISTER
 
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H				; remove 20 sprites
-.2:
-	LD		(HL), 0
-	INC		HL
-	DJNZ	.2
+	CALL	REMOVESPRITES
 
 	LD		HL, 0000H			; do not delete player data in VRAM
 	LD		DE, 3000H		
@@ -11253,8 +11293,8 @@ cvb_INTERMISSION:
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-	LD BC,5*256+6
-	LD DE,$1800+26+19*32
+	LD BC,6*256+5
+	LD DE,$1800+27+18*32
 	LD HL,ItemsPNT
 	LD a,c
 	CALL CPYBLK_MxN
@@ -11620,16 +11660,16 @@ cvb_INTERMISSION_FRM2:
 
 ; USE THESE TILES FOR ITEMS
 ItemsPNT:
-	DB $3c,$3d,$00,$00,$3e,$3f
-	DB $40,$41,$00,$00,$42,$43
-	DB $00,$00,$00,$00,$00,$00
-	DB $44,$45,$00,$00,$46,$47
-	DB $48,$49,$00,$00,$4a,$4b
+	DB $3c,$3d,$00,$00,$3e
+	DB $3f,$40,$00,$41,$42
+	DB $43,$44,$00,$45,$46
 	
+	DB $47,$48,$00,$49,$4a
+	DB $4b,$4c,$00,$4d,$4e
+	DB $4f,$00,$00,$50,$51
 	
-; 76 tiles - compressed
+	; Start tile = 0. Total_tiles = 82
 intermission_char:
-
 	DB $3f,$00,$03,$00,$03,$30,$78,$78
 	DB $30,$00,$07,$ff,$06,$66,$60,$7f
 	DB $06,$00,$ef,$00,$c0,$c0,$c2,$18
@@ -11675,21 +11715,22 @@ intermission_char:
 	DB $7f,$0c,$c6,$1e,$72,$91,$76,$f6
 	DB $74,$7f,$78,$26,$fb,$18,$18,$b2
 	DB $47,$ff,$18,$94,$bb,$1f,$82,$40
-	DB $86,$02,$fc,$8c,$ce,$24,$13,$ec
-	DB $46,$03,$00,$10,$28,$48,$88,$10
-	DB $00,$06,$19,$00,$3f,$70,$66,$43
-	DB $40,$00,$60,$98,$01,$fc,$0e,$36
-	DB $62,$c2,$0e,$02,$39,$2c,$0e,$7f
-	DB $08,$3d,$a8,$c4,$01,$41,$43,$66
-	DB $30,$0f,$7c,$00,$07,$82,$62,$36
-	DB $0c,$f8,$60,$30,$42,$1c,$09,$1f
-	DB $30,$e1,$00,$60,$30,$cb,$1f,$c1
-	DB $c3,$0f,$80,$22,$0e,$15,$3b,$4c
-	DB $37,$c0,$07,$e0,$50,$b8,$64,$01
-	DB $d8,$08,$1d,$3f,$7e,$3f,$3e,$22
-	DB $0c,$20,$8d,$10,$41,$f8,$07,$1e
-	DB $0b,$05,$02,$c3,$6c,$f0,$a0,$40
-	DB $4f,$b3,$ff,$ff,$ff,$ff
+	DB $86,$02,$fc,$8c,$ce,$24,$13,$0e
+	DB $1e,$39,$39,$60,$07,$0f,$78,$9c
+	DB $9c,$06,$20,$ed,$10,$46,$43,$40
+	DB $00,$41,$43,$26,$30,$0f,$32,$62
+	DB $c2,$07,$82,$62,$34,$0c,$f0,$10
+	DB $6a,$0e,$02,$38,$28,$48,$88,$12
+	DB $10,$38,$08,$b4,$06,$6c,$3c,$28
+	DB $7e,$f1,$30,$0e,$e3,$07,$38,$cf
+	DB $07,$c6,$16,$e0,$c6,$06,$1f,$30
+	DB $c0,$07,$f0,$1f,$15,$3b,$4c,$00
+	DB $37,$1e,$0b,$05,$02,$50,$b8,$64
+	DB $02,$d8,$f0,$a0,$40,$80,$e1,$00
+	DB $06,$30,$08,$1d,$3f,$7e,$24,$87
+	DB $0f,$20,$b9,$5e,$6c,$1e,$38,$3f
+	DB $3e,$36,$40,$f8,$07,$ff,$ff,$ff
+	DB $ff,$c0
 
 intermission_color:
 	DB $3f,$f1,$03,$00,$81,$c8,$c8,$c1
@@ -11715,14 +11756,14 @@ intermission_color:
 	DB $55,$f7,$6c,$80,$e7,$46,$da,$52
 	DB $86,$97,$5f,$5b,$17,$1e,$bf,$7d
 	DB $00,$1f,$b1,$dd,$b6,$27,$98,$0f
-	DB $86,$6b,$8e,$47,$21,$03,$73,$21
-	DB $71,$a1,$6f,$00,$89,$07,$81,$f9
-	DB $37,$61,$de,$67,$79,$07,$1d,$f3
-	DB $1e,$a1,$9e,$a2,$00,$dc,$07,$99
-	DB $00,$b1,$01,$23,$00,$71,$01,$b1
-	DB $71,$47,$9c,$cf,$82,$ab,$07,$38
-	DB $14,$c7,$06,$71,$7f,$07,$ff,$ff
-	DB $ff,$e0
+	DB $86,$7f,$33,$47,$a1,$00,$7b,$07
+	DB $0f,$00,$21,$a1,$ce,$00,$13,$34
+	DB $81,$f9,$94,$34,$07,$fb,$29,$e7
+	DB $30,$61,$e7,$07,$e3,$00,$71,$c6
+	DB $07,$f8,$a2,$07,$b1,$01,$94,$3c
+	DB $71,$03,$02,$71,$af,$06,$03,$1f
+	DB $ce,$9d,$cf,$63,$df,$f3,$07,$ff
+	DB $ff,$ff,$ff
 
 intermission_sprites:
 	DB $26,$c8,$86,$00,$b0,$00,$f8,$f0
@@ -11764,8 +11805,8 @@ cvb_SP1:
 	DB 64+58,112,32,1
 	DB 64+60,80,36,1
 ItemsSAT0:					; USE THESE SPRITES FOR ITEMS
-	DB 145,208,80,1
-	DB 168,208,84,1
+	DB 141,240,80,1
+	DB 164,240,84,1
 	DB 208
 cvb_FR1:
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
@@ -11786,8 +11827,8 @@ cvb_SP2:
 	DB 122,112,72,1
 	DB 122,176,76,8
 ItemsSAT1:					; USE THESE SPRITES FOR ITEMS
-	DB 145,208,80,1
-	DB 168,208,84,1
+	DB 141,240,80,1
+	DB 164,240,84,1
 	DB 208
 	
 cvb_FR2:	
@@ -11828,13 +11869,8 @@ CONGRATULATION:
 	POP		AF
 
 	CALL 	MYDISSCR
-
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H				; remove 20 sprites
-.2:	LD		(HL), 0
-	INC		HL
-	DJNZ	.2
-
+	CALL	REMOVESPRITES
+	
 	LD		HL, 0000H
 	LD		DE, 3000H			; do not delete the game data
 	xor		a					; fill with space
