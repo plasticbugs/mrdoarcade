@@ -6311,7 +6311,7 @@ LOC_A984:
 	CALL	SUB_AB28
 RET
 
-; Input: C = completion type (%00000000 for cherries, %00000001 for monsters, etc)
+; Input: C = completion type (1 for cherries, 2 for monsters, 3 diamond, 4 for Extra MrDo)
 ; Uses: GAMECONTROL to determine active player
 ;       CURRENT_LEVEL_P1/P2 to get current level
 ; Output: Stores completion type to correct player's slot
