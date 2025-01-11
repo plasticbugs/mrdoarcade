@@ -11406,9 +11406,9 @@ PRINT_LEVEL_STATS:
     sub 2                      ; Get first level number again
     call PRINT_SINGLE_TIME
     pop af
-		push af
-		sub 2
-		call PRINT_ICON
+    push af
+    sub 2
+    call PRINT_ICON
     pop af
 	
     ; Second level (Current - 1)
@@ -11422,9 +11422,9 @@ PRINT_LEVEL_STATS:
     call PRINT_SINGLE_TIME
     pop af                     ; Get current level
 
-		push af
-		dec a
-		call PRINT_ICON
+    push af
+    dec a
+    call PRINT_ICON
     pop af
 
     ; Third level (Current)
@@ -11434,9 +11434,9 @@ PRINT_LEVEL_STATS:
     pop af
     push af
     call PRINT_SINGLE_TIME
-		pop af
-		push af
-		call PRINT_ICON
+    pop af
+    push af
+    call PRINT_ICON
     pop af
 
     ret
@@ -11624,7 +11624,7 @@ PRINT_SINGLE_SCORE:
 
     add a, "0"                	; Convert to ASCII
     ld (TEXT_BUFFER), a
-    ld a, l						; Store ones digit
+    ld a, l    				; Store ones digit
     add a, "0" + $80			; add terminator
     ld (TEXT_BUFFER+1), a
 
