@@ -11368,23 +11368,6 @@ cvb_INTERMISSION:
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-
-
-; 	ICON_OFFSETS:
-;     DB 0    ; Cherry offset
-;     DB 4    ; Monster offset
-;     DB 12   ; Diamond offset
-;     DB 16   ; Extra offset
-
-; ; Then use it like:
-;     LD      A, 2   ; 0-3
-;     LD      HL, ICON_OFFSETS
-;     ADD     HL, A
-;     LD      B, (HL)               ; Get offset
-;     LD      HL, ItemsPNT
-;     ADD     HL, BC                ; Point to correct icon
-; 	LD a,6
-		
 	CALL MYENASCR
 
 RET
