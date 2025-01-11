@@ -141,14 +141,14 @@ BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 GAMESTATE:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 						RB   2	;EQU $722A
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
-						RB  25	;EQU $7245
-						RB  15	;EQU $725E ; ??
+						RB  20	;EQU $7245 ; enemy interaction data
+						RB  20	;EQU $7259 ; enemy interaction data
 SPRITEROTFLAG:			RB	 1	;EQU $726D
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players B5-> Pause/Game
 GAMETIMER:				RB	 1	;EQU $726F  ??
 						RB	 1	; ??
 SKILLLEVEL:				RB	 1	;EQU $7271 ; Skill Level 1-4
-						RB	 1	; ??
+						RB	 1	;EQU $7272
 DIAMOND_RAM:			RB	 1	;EQU $7273
 CURRENT_LEVEL_P1:		RB	 1	;EQU $7274
 CURRENT_LEVEL_P2:		RB	 1	;EQU $7275
@@ -169,7 +169,7 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1  ;EQU $7288 ;+7
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
-						RB   4	;EQU $72BE	??
+						RB   4	;EQU $72BF	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
 						RB	 2	;??
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
@@ -286,45 +286,26 @@ NMI:
 	PUSH	IX
 	PUSH	IY
 	LD		BC, 1C2H
-	CALL	WRITE_REGISTER
+	CALL	WRITE_REGISTER			; disable ISR generation
+	
 	CALL	READ_REGISTER
-;	LD		HL, WORK_BUFFER
-;	LD		DE, WORK_BUFFER2
-;	LD		BC, 24				; save WORK_BUFFER to WORK_BUFFER2
-;	LDIR
-
-;	LD		HL, GAMECONTROL
-;	BIT		5, (HL)				; PAUSE MODE - no sprites
-;	JR		Z, LOC_807E
-;	BIT		4, (HL)
-;	JR		Z, LOC_809F
-;	LD		A, 20				; 20 sprites written to VRAM
-;	CALL	WR_SPR_NM_TBL
-;	CALL	SPRITE_ROTATION
-;	JR		LOC_809F
-;LOC_807E:
+	
 	LD		A, (GAMECONTROL)
 	BIT		3, A
-	JR		NZ, LOC_808D		; test if sprites are enabled
-	
-	; LD		A, 20				; 20 sprites written to VRAM
-	; CALL	WR_SPR_NM_TBL
-	; CALL	SPRITE_ROTATION
-	CALL	NEW_SPRITE_ROTATION
-LOC_808D:
-	CALL	SUB_80D1
-	CALL	SUB_8229			; UPDATE MR DO SPRITE
-	CALL	SUB_8251
-	CALL	DISPLAY_EXTRA_01
-	CALL	SUB_82DE
+
+	CALL	Z,NEW_SPRITE_ROTATION		; call only if sprites are not disabled
+
+	CALL	SUB_80D1					; enemy interaction with the play field
+	CALL	MRDO_SPT_UPDATE				; UPDATE MR DO SPRITE
+	CALL	SUB_8251					; update play field
+	CALL	DISPLAY_EXTRA_01			; update Extra Letters
+	CALL	SETBONUS					; Set bonus items and diamonds
 	CALL	TIME_MGR
-;LOC_809F:
 	CALL	POLLER
 	CALL	SUB_C952			; PLAY MUSIC
-;	LD		HL, WORK_BUFFER2	; related to sprite rotation
-;	LD		DE, WORK_BUFFER
-;	LD		BC, 24				; restore WORK_BUFFER from WORK_BUFFER2
-;	LDIR
+	
+	CALL	DEAL_WITH_TIMER
+
 	LD		HL, GAMECONTROL
 	BIT		7, (HL)
 	JR		Z, LOC_80BB
@@ -332,8 +313,7 @@ LOC_808D:
 	JR		FINISH_NMI
 LOC_80BB:
 	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
-	CALL	DEAL_WITH_TIMER
+	CALL	WRITE_REGISTER			; enable ISR generation
 FINISH_NMI:
 	POP		IY
 	POP		IX
@@ -349,7 +329,83 @@ FINISH_NMI:
 	POP		AF
 	RETN
 
-INCLUDE "NEW_SPRITE_ROTATION.ASM"
+NEW_SPRITE_ROTATION:
+	LD	A,SAT and 255		; Send LSB of address
+	OUT	(CTRL_PORT),A
+	
+	LD	A, $40  + (SAT / 256)
+	OUT	(CTRL_PORT),A		; Send MSB of address
+
+	LD	IXL,20
+	LD	DE,SPRITE_ORDER_TABLE	;   RAM sprite index table		
+	LD	B,0
+.2:		
+	LD	HL,SPRITE_NAME_TABLE
+	LD	A,(DE)				
+	INC	DE
+	ADD	A,A
+	ADD	A,A
+	LD	C,A
+	ADD HL,BC
+							; B = count for 4 bytes of data
+	LD	BC,4*256+DATA_PORT	; C = output port
+.1:	OUTI					; Output a byte of data
+	JR	NZ,.1			; Loop until 4 bytes copied
+	DEC	IXL
+	JR	NZ,.2		; Loop until all sprites copied
+	
+	LD	A,208
+	OUT (DATA_PORT),A
+
+SATROTATION:
+
+	LD	A,(SPRITEROTFLAG)
+	ADD	A,4
+	CP	20
+	JR	C,.nores
+	XOR	A
+.nores:	
+	LD	(SPRITEROTFLAG),A
+	LD	C,A
+	LD	B,0
+	LD	HL,SEQUENCE
+	ADD	HL,BC
+	LD	DE,SPRITE_ORDER_TABLE
+	LD	BC,20
+	LDIR
+	RET
+
+SEQUENCE:
+	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+	
+
+;SATFLIPPING:
+;	LD	A,(SPRITEROTFLAG)
+;	XOR	1
+;	LD	(SPRITEROTFLAG),A
+;	
+;	JR	Z,.direct
+;	
+;.reverse:
+;	LD	HL,REVERSE
+;	LD	DE,SPRITE_ORDER_TABLE
+;	LD	BC,20
+;	LDIR
+;	RET
+;
+;.direct:
+;	LD	HL,DIRECT
+;	LD	DE,SPRITE_ORDER_TABLE
+;	LD	BC,20
+;	LDIR
+;	RET
+;
+;DIRECT:	
+;	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+;REVERSE:
+;	DB 19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
+
 	
 DEAL_WITH_TIMER:
     ; First increment shared frame counter
@@ -577,7 +633,7 @@ RET
 ;BYTE_8215:
 ;    db 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
-SUB_8229:
+MRDO_SPT_UPDATE:
 	LD		HL, MRDO_DATA			; Mr. Do's sprite data
 	BIT		7, (HL)
 	RET		Z
@@ -619,19 +675,18 @@ LOC_8241:
 	LD		(IX+7),15
 RET
 
-SUB_8251:
+SUB_8251:						; update play field
 	LD		HL, $727C
 	BIT		7, (HL)
 	JR		Z, LOC_825D
 	RES		7, (HL)
 	XOR		A
-	JR		LOC_8265
+	JP		PATTERNS_TO_VRAM
 LOC_825D:
 	BIT		6, (HL)
 	RET		Z
 	RES		6, (HL)
 	LD		A, 1
-LOC_8265:
 	CALL	PATTERNS_TO_VRAM
 RET
 
@@ -700,7 +755,7 @@ BYTE_82D3:
 BYTE_82DD:
 	DB 0
 
-SUB_82DE:
+SETBONUS:
 	LD		HL, $7272
 	BIT		0, (HL)
 	JR		Z, LOC_8305
@@ -744,7 +799,7 @@ LOC_8329:
 	LD		A, (HL)			
 	XOR		1				
 	LD		(HL), A
-	LD		A, 13 + 128		;  smashed apple
+	LD		A, 13 				;  Diamond!
 	CALL	PUTSPRITE
 RET
 
@@ -762,7 +817,7 @@ START:
 	LD		(MUX_SPRITES), A
 	LD		HL,$1f01
 	LD		(RAND_NUM), HL		; needed as we skip the coleco screen
-	LD		A, 0				; ??? 
+	XOR		A					; ??? 
 	LD		(DEFER_WRITES), A
 	CALL	INITIALIZE_THE_SOUND
 	LD		A, 20				; show only 20 sprites in total
@@ -945,7 +1000,7 @@ LOAD_GRAPHICS:
 	
 	LD		HL, EXTRA_SPRITE_PAT	; EXTRA+Apples+Diamond+Balls
 	LD		DE, 60H
-	LD		IY, 80+6*4		; OS7 BUG should have been 72+6*4
+	LD		IY, 80+6*4				; OS7 BUG should have been 72+6*4
 	LD		A, 1
 	CALL	PUT_VRAM
 	
@@ -1008,7 +1063,6 @@ LOADFONTS:		; LOAD  ARCADE FONTS
 	LD		BC, 41*8
 	LD		A,$F1
 	CALL 	cvb_MYCLS.0
-
 RET
 
 	
@@ -8287,7 +8341,7 @@ RET
 SPR_OBJ_ATTRB: 			; Sprite frame and color data
 	DW BYTE_B6C3	; 0 ball
 	DW BYTE_B6C7	; 1 mr do
-	DW 0	;BYTE_B6CB	; 2 unused
+	DW 0	; free
 	DW BYTE_B6CF	; 3 Extra letter
 	DW BYTE_B6FB	; 4 ball explosion
 	DW BYTE_B70B	; 5 bad guy/digger
@@ -8305,39 +8359,29 @@ SPR_OBJ_ATTRB: 			; Sprite frame and color data
 	DW BYTE_B761	;17 chomper
 	DW BYTE_B761	;18 chomper
 	DW BYTE_B761	;19 chomper
-;	DB 000,000,000,000,000,000,000,000,000,000
+
 BYTE_B6C3:
 	DB 000,000,184,015	  ; Ball Sprite pattern 184 uses White
 
 BYTE_B6C7:					; MrDo 
-;	DB 44*4,6,148,015	  ; Patterns 176,148 use White
 	DB  176,6,132,015	  ; Patterns 176,148 use White
 
-;BYTE_B6CB:					; ?? unused ???
-;	DB 180,15,160,003	  ; Patterns 180,160 use Light Green
-
 BYTE_B6CF:			; EXTRA SPRITES!!
-;	DB 000,000,096,011,100,011,104,011,108,011,112,011,116,011,120,011,124,011,128,011,132,011	; Series using Light Yellow
-;	DB 148,011,096,008,100,008,104,008,108,008,112,008,116,008,120,008,124,008,128,008,132,008	; Series using Medium Red
 	DB 000,000,096,011,116,011,116,011,100,011,104,011,116,011,116,011,108,011,112,011,116,011	; Series using Light Yellow
 	DB 132,011,096,008,116,008,116,008,100,008,104,008,116,008,116,008,108,008,112,008,116,008	; Series using Medium Red
 
 BYTE_B6FB:
-;	DB 000,000,156,015,192,015,196,015,200,015,204,015,208,015,212,015	  ; Ball sprite using White
 	DB 000,000,140,015,144,015,148,015,152,015,156,015,160,015,164,015	  ; Ball sprite using White
 
 BYTE_B70B:
 	DB 000,000,000,008,004,008,008,008,012,008,016,008,020,008,024,008,028,008,032,008,036,008,040,008,044,008	  ; Badguy sprite color (Red)
 	DB 000,007,004,007,008,007,012,007,016,007,020,007,024,007,028,007,032,007,036,007,040,007,044,007,048,015	  ; Series using Cyan, ending in White
-;	DB 052,005,056,005,060,005,064,005,068,005,072,005,076,005,080,005,084,005,088,005,092,005,148,013	  ; Digger sprite color (Light Blue), last one defines enemy splat color
 	DB 052,005,056,005,060,005,064,005,068,005,072,005,076,005,080,005,084,005,088,005,092,005,132,013	  ; Digger sprite color (Light Blue), last one defines enemy splat color
 
 BYTE_B757:
-;	DB 000,000,136,008,140,008,144,008,152,015	  ; Apple Sprite colors (Medium Red), ending in White
-	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple Sprite colors (Medium Red), ending in White
+	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple sprite colors (Medium Red), ending with White diamond
 
 BYTE_B761:		; Chomper animation
-;	DB 000,000,224,005,228,005,232,005,236,005,148,005	  ; Series using Light Blue
 	DB 000,000,192,005,196,005,202,005,206,005,132,005	  ; Series using Light Blue
 
 SUB_B76D:
@@ -10603,7 +10647,7 @@ nmi_handler:
 
 					; Intermission Mode
 	POP 	HL				
-	IN A,(CTRL_PORT)
+	IN 		A,(CTRL_PORT)
 	POP 	AF
 	
 	PUSH	AF
@@ -10633,7 +10677,7 @@ nmi_handler:
 	POP		DE
 	POP		BC
 	POP		AF
-	retn
+	RETN
 
 .2:	POP HL					; Game Mode
 	POP AF
