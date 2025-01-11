@@ -130,10 +130,9 @@ CONTROLLER_BUFFER:		RB	 6	;EQU $7086
 KEYBOARD_P1:			RB	 1	;EQU $708C
 						RB	 4	;EQU $708D ?? some kind of struct used in SUB_94A9
 KEYBOARD_P2:			RB	 1	;EQU $7091
-P1_LEVEL_FINISH_STAT: 	RB	 1	;EQU $7092
-P2_LEVEL_FINISH_STAT: 	RB	 1	;EQU $7093
-						RB	 2	;EQU $7094
-						RB	 8	;EQU $7096
+P1_LEVEL_FINISH_BASE: 	RB	 3	;EQU $7092
+P2_LEVEL_FINISH_BASE: 	RB	 3	;EQU $7095
+						RB	 6	;EQU $7098
 TIMER_TABLE:			RB	75	;EQU $709E
 SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT
 
@@ -801,15 +800,46 @@ LOC_8378:
 	CALL	SUB_8828
 	CALL	DEAL_WITH_APPLE_FALLING
 	CP		1
-	JR		Z, LOC_83AB
+	JP		Z, LOC_83AB
 	AND		A
-	JR		NZ, ADVANCE_TO_NEXT_LEVEL  ; Last enemy killed by an apple
+	JR		Z, .continue1  ; If NZ, Last enemy killed by an apple (don't jump)
+	PUSH	AF   ; Save completion status
+	LD    C, 2     ; MONSTERS
+	CALL  STORE_COMPLETION_TYPE
+	POP AF
+	JP		ADVANCE_TO_NEXT_LEVEL
+
+.continue1:
 	CALL	DEAL_WITH_BALL
 	AND		A
-	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; Last enemy killed by a ball
+	JR		Z, .continue2 ; If NZ,Last enemy killed by a ball (don't jump)
+	; Enemies killed by a ball, store the stat
+	PUSH    AF
+	LD    C, 2   ; MONSTERS
+	CALL  STORE_COMPLETION_TYPE
+	POP     AF
+	JP      ADVANCE_TO_NEXT_LEVEL
+.continue2:
 	CALL	LEADS_TO_CHERRY_STUFF
 	AND		A
-	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; All the cherries collected (or diamond collected)
+	JR		Z, .continue3 ; if NZ, all the cherries collected (or diamond collected)
+
+	; Either cherries or diamond collected, store the stats
+	CP      $82
+	JR      Z, .diamonds   ; C = 1 for cherries
+	PUSH    AF
+	LD		C, 1
+	CALL  	STORE_COMPLETION_TYPE
+	POP     AF
+	JP      ADVANCE_TO_NEXT_LEVEL
+.diamonds:
+	PUSH    AF
+	LD	   	C, 3     ; Diamond completion type
+	CALL  	STORE_COMPLETION_TYPE
+	POP     AF
+	JP      ADVANCE_TO_NEXT_LEVEL
+
+.continue3:
 	CALL	SUB_A7F4
 	AND		A
 	JR		NZ, LOC_83AB
@@ -817,10 +847,10 @@ LOC_8378:
 	CP		1
 	JR		Z, LOC_83AB		; if Z MrDo collided an enemy
 	AND		A
-	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
+	JP		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
 	CALL	SUB_A53E
 	AND		A
-	JR		Z, LOC_8378
+	JP		Z, LOC_8378
 	CP		1
 	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
 LOC_83AB:
@@ -845,8 +875,8 @@ LOC_83C5: ; Mr. Do finished the round
 ADVANCE_TO_NEXT_LEVEL:
 	CALL	GOT_DIAMOND			; this is dealing with more than Diamonds
 	CP		3
-	JR		Z, LOC_8372
-	JR		LOC_8375
+	JP		Z, LOC_8372
+	JP		LOC_8375
 LOC_83C0:
 	CALL	DEAL_WITH_APPLE_FALLING
 	JR		LOC_83ABX
@@ -3587,7 +3617,7 @@ LOC_982C:
     JR      NC, LOC_983F      ; If yes, too far, return 0
 
     ; Diamond collected! Award points
-    LD      DE, 3E8H          ; Load 1000 (3E8 hex) for 10,000 points
+    LD      DE, 320H          ; Load 800 (320 hex) for 8,000 points (previously was 10,000)
     CALL    SUB_B601          ; Add points to score
     LD      HL, DIAMOND_RAM   
     RES     7, (HL)           ; Clear bit 7 (deactivate diamond)
@@ -6138,7 +6168,7 @@ COMPLETED_LEVEL:
 	JR		Z, .wait
 	POP		AF
 	POP		AF
-	CP      $82   				; I chose this value so I know a diamond was collected
+	CP    $82   				; I chose this value so I know a diamond was collected
 	JR		Z, DIAMOND_COLLECTED
 	CP		2					; extra MrDo
 	JR		NZ, LOC_A969
@@ -6155,6 +6185,10 @@ LOC_A992:
 	POP		AF
 	JR		LOC_A96C
 LOC_A969:
+	PUSH    AF
+	LD    C, 4
+	CALL	STORE_COMPLETION_TYPE
+	POP     AF
 	CALL	ExtraMrDo
 	JR		LOC_A96C
 DIAMOND_COLLECTED:
@@ -6216,12 +6250,43 @@ LOC_A984:
 	CALL	SUB_AB28
 RET
 
-; Level in A, how completed in C
-GET_LEVEL_COMPLETION_DATA:
-	CALL  GET_SLOT_OFFSET
-	SRL   A  ; divide by 2 to get 0-indexed level value (0, 1 or 2)
-	OR    C  ; combine upper nibble info with level value
-RET
+; Input: C = completion type (%00000000 for cherries, %00000001 for monsters, etc)
+; Uses: GAMECONTROL to determine active player
+;       CURRENT_LEVEL_P1/P2 to get current level
+; Output: Stores completion type to correct player's slot
+; Preserves: BC, HL
+STORE_COMPLETION_TYPE:    
+    PUSH    BC              ; Save completion type
+    
+    ; Get current level based on active player
+    LD      A, (GAMECONTROL)
+    PUSH    AF             ; Save GAMECONTROL value
+    BIT     1, A           ; Test if Player 2 is active
+    JR      NZ, .p2
+    
+    ; Player 1
+    LD      A, (CURRENT_LEVEL_P1)
+    JR      .got_level
+.p2:
+    LD      A, (CURRENT_LEVEL_P2)
+    
+.got_level:
+    CALL    GET_SLOT_OFFSET  ; Get offset in A and DE
+		SRL     E               ; Divide offset by 2
+    
+    ; Get correct base address
+    POP     AF             ; Restore GAMECONTROL value
+    LD      HL, P1_LEVEL_FINISH_BASE
+    BIT     1, A           ; Now test player with preserved value
+    JR      Z, .got_base
+    LD      HL, P2_LEVEL_FINISH_BASE
+.got_base:
+    ADD     HL, DE         ; Add offset to base
+    
+    POP     BC             ; Get completion type back
+    LD      A, C           ; Move completion type to A
+    LD      (HL), A       ; Store completion type in correct slot
+    RET
 
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
@@ -6233,24 +6298,16 @@ LOC_A9A1:
 	XOR		A
 	LD		($72BC), A
 	LD		($72BB), A
-	LD    C, %00110000           ; 3 in upper nibble for EXTRA MR DO
 	LD		HL, GAMECONTROL
 	BIT		1, (HL)
 	JR		NZ, DEAL_WITH_EXTRA_MR_DO
 	LD		($72B8), A
 	LD		HL, LIVES_LEFT_P1_RAM
-; Get current level and update
-	LD		A, (CURRENT_LEVEL_P1)
-	CALL  GET_LEVEL_COMPLETION_DATA
-	LD    (P1_LEVEL_FINISH_STAT), A
 	XOR A
 	JR		LOC_A9EC
 DEAL_WITH_EXTRA_MR_DO:
 	LD		($72B9), A
 	LD		HL, LIVES_LEFT_P2_RAM
-	LD		A, (CURRENT_LEVEL_P2)
-	CALL  GET_LEVEL_COMPLETION_DATA
-	LD    (P2_LEVEL_FINISH_STAT), A
 	XOR   A
 LOC_A9EC:
 	LD		A, (HL)
@@ -6425,7 +6482,7 @@ LOC_AA2A:
 	
 .TEST_INTERMISSION:
 	; here A is in 0-9
-	LD      B, 3
+	LD      B, 1
 	CALL MOD_B	; Get modulo B
 
 	; now A contains just 0,1,2
@@ -11276,6 +11333,21 @@ cvb_INTERMISSION:
 	LD HL,ItemsPNT
 	LD a,c
 	CALL CPYBLK_MxN
+
+; 	ICON_OFFSETS:
+;     DB 0    ; Cherry offset
+;     DB 4    ; Monster offset
+;     DB 12   ; Diamond offset
+;     DB 16   ; Extra offset
+
+; ; Then use it like:
+;     LD      A, 2   ; 0-3
+;     LD      HL, ICON_OFFSETS
+;     ADD     HL, A
+;     LD      B, (HL)               ; Get offset
+;     LD      HL, ItemsPNT
+;     ADD     HL, BC                ; Point to correct icon
+; 	LD a,6
 		
 	CALL MYENASCR
 
@@ -11636,7 +11708,24 @@ cvb_INTERMISSION_FRM2:
 	CALL CPYBLK_MxN
 	RET
 
-; USE THESE TILES FOR ITEMS
+CHERRIES_ICON:
+    DB $3c,$3d     ; Top row of cherry icon
+    DB $40,$41     ; Bottom row of cherry icon
+
+EXTRA_ICON:
+    DB $3e,$3f     ; Top row of monster icon
+    DB $42,$43     ; Bottom row of monster icon
+
+MONSTER_ICON:
+    DB $44,$45     ; Top row of monster icon
+    DB $48,$49     ; Bottom row of monster icon
+
+DIAMOND_ICON:
+    DB $46,$47     ; Top row of diamond icon
+    DB $4a,$4b     ; Bottom row of diamond icon
+
+
+; ; USE THESE TILES FOR ITEMS
 ItemsPNT:
 	DB $3c,$3d,$00,$00,$3e,$3f
 	DB $40,$41,$00,$00,$42,$43
