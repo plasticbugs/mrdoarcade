@@ -11368,9 +11368,9 @@ cvb_INTERMISSION:
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-	LD BC,6*256+5
+	LD BC,3*256+2
 	LD DE,$1800+27+18*32
-	LD HL,ItemsPNT
+	LD HL,EXTRA_ICON
 	LD a,c
 	CALL CPYBLK_MxN
 
@@ -11399,7 +11399,7 @@ RET
 ;----------------------------------------------------------------------
 PRINT_LEVEL_STATS:
     ; Print "VERY GOOD !!"
-    ld de, $1800 + 12 + 32*10
+    ld de, $1800 + 12 + 32*12
     ld hl, VERYGOOD
     call MYPRINT
 
@@ -11427,9 +11427,12 @@ PRINT_LEVEL_STATS:
     sub 2                      ; Get first level number again
     call PRINT_SINGLE_TIME
     pop af
-    
+		; push af
+		; call PRINT_ICON
+    ; pop af
+	
     ; Second level (Current - 1)
-    ld de, $1800 + 6 + 32*4   ; Next line down
+    ld de, $1800 + 6 + 32*5   ; Next line down
     push af
     dec a                      ; Get second level number
     call PRINT_SINGLE_SCORE
@@ -11440,7 +11443,7 @@ PRINT_LEVEL_STATS:
     pop af                     ; Get current level
     
     ; Third level (Current)
-    ld de, $1800 + 6 + 32*6   ; Next line down
+    ld de, $1800 + 6 + 32*8   ; Next line down
     push af
     call PRINT_SINGLE_SCORE
     pop af                     ; Get current level again
@@ -11727,7 +11730,7 @@ cvb_INTERMISSION_FRM1:
 	CALL MyNMI_on
 
 	LD BC,5*256+14
-	LD DE,$1800+10+13*32
+	LD DE,$1800+10+17*32
 	LD HL,cvb_FR1
 	LD a,14
 	CALL CPYBLK_MxN
@@ -11742,27 +11745,31 @@ cvb_INTERMISSION_FRM2:
 	CALL MyNMI_on
 
 	LD BC,5*256+14
-	LD DE,$1800+10+13*32
+	LD DE,$1800+10+17*32
 	LD HL,cvb_FR2
 	LD a,14
 	CALL CPYBLK_MxN
 	RET
 
-CHERRIES_ICON:
-    DB $3c,$3d     ; Top row of cherry icon
-    DB $40,$41     ; Bottom row of cherry icon
-
 EXTRA_ICON:
-    DB $3e,$3f     ; Top row of monster icon
-    DB $42,$43     ; Bottom row of monster icon
+    DB $3c,$3d     ; Top row of extra icon
+    DB $3f,$40     ; Middle row of extra icon
+    DB $43,$44     ; Bottom row of extra icon
+
+CHERRY_ICON:
+    DB $00,$3e     ; Top row of cherry icon
+    DB $41,$42     ; Middle row of cherry icon
+    DB $45,$46     ; Bottom row of cherry icon
 
 MONSTER_ICON:
-    DB $44,$45     ; Top row of monster icon
-    DB $48,$49     ; Bottom row of monster icon
+    DB $49,$4a     ; Top row of monster icon
+    DB $4d,$4e     ; Middle row of monster icon
+    DB $50,$51     ; Bottom row of monster icon
 
 DIAMOND_ICON:
-    DB $46,$47     ; Top row of diamond icon
-    DB $4a,$4b     ; Bottom row of diamond icon
+    DB $47,$48     ; Top row of diamond icon
+    DB $4b,$4c     ; Middle row of diamond icon
+    DB $4f,$00     ; Bottom row of diamond icon
 
 
 ; ; USE THESE TILES FOR ITEMS
@@ -11901,16 +11908,16 @@ intermission_sprites:
 
 	
 cvb_SP1:	
-	DB 64+41,80,0,1
-	DB 64+41,97,4,15
-	DB 64+46,92,8,8
-	DB 64+48,160,12,1
-	DB 64+57,88,16,8
-	DB 64+42,88,20,12
-	DB 64+62,95,24,15
-	DB 64+56,161,28,8
-	DB 64+58,112,32,1
-	DB 64+60,80,36,1
+	DB 64+41+32,80,0,1
+	DB 64+41+32,97,4,15
+	DB 64+46+32,92,8,8
+	DB 64+48+32,160,12,1
+	DB 64+57+32,88,16,8
+	DB 64+42+32,88,20,12
+	DB 64+62+32,95,24,15
+	DB 64+56+32,161,28,8
+	DB 64+58+32,112,32,1
+	DB 64+60+32,80,36,1
 ItemsSAT0:					; USE THESE SPRITES FOR ITEMS
 	DB 141,240,80,1
 	DB 164,240,84,1
@@ -11923,16 +11930,16 @@ cvb_FR1:
 	DB $29,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$30,$31,$32,$33
 
 cvb_SP2:
-	DB 105,80,40,1
-	DB 105,97,44,15
-	DB 110,92,48,8
-	DB 112,160,52,1
-	DB 121,85,56,8
-	DB 119,81,60,12
-	DB 126,95,64,15
-	DB 124,166,68,12
-	DB 122,112,72,1
-	DB 122,176,76,8
+	DB 105+32,80,40,1
+	DB 105+32,97,44,15
+	DB 110+32,92,48,8
+	DB 112+32,160,52,1
+	DB 121+32,85,56,8
+	DB 119+32,81,60,12
+	DB 126+32,95,64,15
+	DB 124+32,166,68,12
+	DB 122+32,112,72,1
+	DB 122+32,176,76,8
 ItemsSAT1:					; USE THESE SPRITES FOR ITEMS
 	DB 141,240,80,1
 	DB 164,240,84,1
