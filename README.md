@@ -19,6 +19,7 @@ Changes:
 - Updated phase colors/patterns to match arcade levels
 - Ball cool down removed during alpha monster mode.
 - Move to screen 2 the game to have high res colors for the playfiled
+- improve SAT management to reduce the flickering (5th sprite issue) and reduce the ram usage 
 
 Wish list/To do list:
 - Icon marker for "how" level was completed on "Very Good" screen
