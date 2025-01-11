@@ -292,8 +292,10 @@ NMI:
 	
 	LD		A, (GAMECONTROL)
 	BIT		3, A
-
+	PUSH	AF
 	CALL	Z,NEW_SPRITE_ROTATION		; call only if sprites are not disabled
+	POP		AF
+	CALL	Z,DEAL_WITH_TIMER			; level timiers active only if not in pause mode
 
 	CALL	SUB_80D1					; enemy interaction with the play field
 	CALL	MRDO_SPT_UPDATE				; UPDATE MR DO SPRITE
@@ -303,8 +305,6 @@ NMI:
 	CALL	TIME_MGR
 	CALL	POLLER
 	CALL	SUB_C952			; PLAY MUSIC
-	
-	CALL	DEAL_WITH_TIMER
 
 	LD		HL, GAMECONTROL
 	BIT		7, (HL)
@@ -475,163 +475,6 @@ LOC_80FF:
 	DJNZ	LOC_80D7
 RET
 
-;SPRITE_ROTATION:					; sprite rotation system: Very cumbersome and applied only to enemies
-;	LD		HL, BYTE_8215
-;	LD		DE, WORK_BUFFER
-;	LD		BC, 20					; only 20 sprites on screen = 7 enemies + 3 chompers + 5 apples + 1 letter + 1 ball + 2 MrDo + 1 diamond
-;	LDIR
-;	LD		A, 3
-;	LD		(SCRATCH), A
-;	LD		A, 19
-;	LD		(SCRATCH+1), A
-;	LD		HL, WORK_BUFFER + 3
-;	LD		IY, SPRITE_NAME_TABLE + 3*4
-;	LD		B, 17					; number of actual sprites rotated. Sprites from 0 to 3 are fixed (MrDo and letter)
-;LOC_8125:					
-;	LD		A, (HL)
-;	AND		A
-;	JP		NZ, LOC_81DC
-;	LD		A, (IY+0)
-;	CP		10H
-;	JR		NC, LOC_813C
-;	LD		A, (SCRATCH)
-;	LD		(HL), A
-;	INC		A
-;	LD		(SCRATCH), A
-;	JP		LOC_81DC
-;LOC_813C:
-;	PUSH	BC
-;	PUSH	HL
-;	PUSH	IY
-;	LD		DE, 0
-;	LD		C, (IY+0)
-;	LD		A, (SPRITEROTFLAG)
-;	RES		6, A
-;	LD		(SPRITEROTFLAG), A
-;	AND		3
-;	CP		1
-;	JR		C, LOC_81A1
-;	JR		NZ, LOC_816F
-;	LD		D, 4
-;	LD		A, (SPRITE_NAME_TABLE+4)
-;	SUB		C
-;	JR		NC, LOC_8160
-;	CPL
-;	INC		A
-;LOC_8160:
-;	CP		10H
-;	JR		NC, LOC_81A1
-;	LD		A, (SPRITEROTFLAG)
-;	SET		6, A
-;	LD		(SPRITEROTFLAG), A
-;	DEC		D
-;	JR		LOC_81A1
-;LOC_816F:
-;	LD		D, 8
-;	LD		A, (SPRITE_NAME_TABLE+4)
-;	SUB		C
-;	JR		NC, LOC_8179
-;	CPL
-;	INC		A
-;LOC_8179:
-;	CP		10H
-;	JR		NC, LOC_81A1
-;	LD		A, (SPRITEROTFLAG)
-;	SET		6, A
-;	LD		(SPRITEROTFLAG), A
-;	LD		D, 6
-;	JR		LOC_81A1
-;LOC_8189:
-;	DEC		B
-;	JR		Z, LOC_81C0
-;	INC		HL
-;	INC		IY
-;	INC		IY
-;	INC		IY
-;	INC		IY
-;	LD		A, (IY+0)
-;	SUB		C
-;	JR		NC, LOC_819D
-;	CPL
-;	INC		A
-;LOC_819D:
-;	CP		10H
-;	JR		NC, LOC_8189
-;LOC_81A1:
-;	INC		E
-;	LD		A, (HL)
-;	AND		A
-;	JR		NZ, LOC_8189
-;	LD		A, E
-;	CP		D
-;	JR		C, LOC_81B6
-;	JR		Z, LOC_81B6
-;	LD		A, (SCRATCH)
-;	LD		(HL), A
-;	INC		A
-;	LD		(SCRATCH), A
-;	JR		LOC_8189
-;LOC_81B6:
-;	LD		A, (SCRATCH+1)
-;	LD		(HL), A
-;	DEC		A
-;	LD		(SCRATCH+1), A
-;	JR		LOC_8189
-;LOC_81C0:
-;	LD		A, E
-;	CP		9
-;	JR		NC, LOC_81D0
-;	CP		7
-;	JR		C, LOC_81D8
-;	LD		A, (SPRITEROTFLAG)
-;	BIT		6, A
-;	JR		Z, LOC_81D8
-;LOC_81D0:
-;	LD		A, (SPRITEROTFLAG)
-;	SET		7, A
-;	LD		(SPRITEROTFLAG), A
-;LOC_81D8:
-;	POP		IY
-;	POP		HL
-;	POP		BC
-;LOC_81DC:
-;	INC		HL
-;	INC		IY
-;	INC		IY
-;	INC		IY
-;	INC		IY
-;	DEC		B
-;	JP		NZ, LOC_8125
-;	LD		HL, SPRITEROTFLAG
-;	LD		A, (HL)
-;	INC		A
-;	AND		3
-;	CP		2
-;	JR		C, LOC_81FB
-;	JR		NZ, LOC_81FA
-;	BIT		7, (HL)
-;	JR		NZ, LOC_81FB
-;LOC_81FA:
-;	XOR		A
-;LOC_81FB:
-;	LD		(HL), A
-;	LD		DE, SPRITE_ORDER_TABLE
-;	LD		B, 20
-;	LD		IY, WORK_BUFFER
-;	XOR		A
-;	LD 		C,A
-;LOOP_8208:
-;	LD		H, A
-;	LD		L, (IY+0)
-;	ADD		HL, DE
-;	LD		(HL), C
-;	INC		C
-;	INC		IY
-;	DJNZ	LOOP_8208
-;RET
-;
-;BYTE_8215:
-;    db 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 MRDO_SPT_UPDATE:
 	LD		HL, MRDO_DATA			; Mr. Do's sprite data
