@@ -130,8 +130,9 @@ CONTROLLER_BUFFER:		RB	 6	;EQU $7086
 KEYBOARD_P1:			RB	 1	;EQU $708C
 						RB	 4	;EQU $708D ?? some kind of struct used in SUB_94A9
 KEYBOARD_P2:			RB	 1	;EQU $7091
-						RB	 4	;EQU $7092
-						RB	 8	;EQU $7096
+P1_LEVEL_FINISH_BASE: 	RB	 3	;EQU $7092
+P2_LEVEL_FINISH_BASE: 	RB	 3	;EQU $7095
+						RB	 6	;EQU $7098
 TIMER_TABLE:			RB	75	;EQU $709E
 SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT
 
@@ -697,15 +698,46 @@ LOC_8378:
 	CALL	CHECK_FOR_PAUSE
 	CALL	DEAL_WITH_APPLE_FALLING
 	CP		1
-	JR		Z, LOC_83AB
+	JP		Z, LOC_83AB
 	AND		A
-	JR		NZ, LOC_83CB
+	JR		Z, .continue1  ; If NZ, Last enemy killed by an apple (don't jump)
+	PUSH	AF   ; Save completion status
+	LD    C, 2     ; MONSTERS
+	CALL  STORE_COMPLETION_TYPE
+	POP AF
+	JP		ADVANCE_TO_NEXT_LEVEL
+
+.continue1:
 	CALL	DEAL_WITH_BALL
 	AND		A
-	JR		NZ, LOC_83CB
+	JR		Z, .continue2 ; If NZ,Last enemy killed by a ball (don't jump)
+	; Enemies killed by a ball, store the stat
+	PUSH    AF
+	LD    C, 2   ; MONSTERS
+	CALL  STORE_COMPLETION_TYPE
+	POP     AF
+	JP      ADVANCE_TO_NEXT_LEVEL
+.continue2:
 	CALL	LEADS_TO_CHERRY_STUFF
 	AND		A
-	JR		NZ, LOC_83CB
+	JR		Z, .continue3 ; if NZ, all the cherries collected (or diamond collected)
+
+	; Either cherries or diamond collected, store the stats
+	CP      $82
+	JR      Z, .diamonds   ; C = 1 for cherries
+	PUSH    AF
+	LD		C, 1
+	CALL  	STORE_COMPLETION_TYPE
+	POP     AF
+	JP      ADVANCE_TO_NEXT_LEVEL
+.diamonds:
+	PUSH    AF
+	LD	   	C, 3     ; Diamond completion type
+	CALL  	STORE_COMPLETION_TYPE
+	POP     AF
+	JP      ADVANCE_TO_NEXT_LEVEL
+
+.continue3:
 	CALL	SUB_A7F4
 	AND		A
 	JR		NZ, LOC_83AB
@@ -713,12 +745,12 @@ LOC_8378:
 	CP		1
 	JR		Z, LOC_83AB		; if Z MrDo collided an enemy
 	AND		A
-	JR		NZ, LOC_83CB
+	JP		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
 	CALL	SUB_A53E
 	AND		A
-	JR		Z, LOC_8378
+	JP		Z, LOC_8378
 	CP		1
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
 LOC_83AB:
 
 	; animate here the MrDo death
@@ -734,15 +766,15 @@ LOOP_83B1:						; MrDo is dead, let apples fall if any
 	ADD		IX, DE
 	DJNZ	LOOP_83B1			; ?? probably only one apple falling at time...
 
-LOC_83C5:
+LOC_83C5: ; Mr. Do finished the round
 	AND A						; if Z you have an extra MrDo ?
-	JR		NZ, LOC_83CB
+	JR		NZ, ADVANCE_TO_NEXT_LEVEL
 	LD		A, 1
-LOC_83CB:
+ADVANCE_TO_NEXT_LEVEL:
 	CALL	GOT_DIAMOND			; this is dealing with more than Diamonds
 	CP		3
-	JR		Z, LOC_8372
-	JR		LOC_8375
+	JP		Z, LOC_8372
+	JP		LOC_8375
 LOC_83C0:
 	CALL	DEAL_WITH_APPLE_FALLING
 	JR		LOC_83ABX
@@ -3494,7 +3526,7 @@ LOC_982C:
     JR      NC, LOC_983F      ; If yes, too far, return 0
 
     ; Diamond collected! Award points
-    LD      DE, 3E8H          ; Load 1000 (3E8 hex) for 10,000 points
+    LD      DE, 320H          ; Load 800 (320 hex) for 8,000 points (previously was 10,000)
     CALL    SUB_B601          ; Add points to score
     LD      HL, DIAMOND_RAM   
     RES     7, (HL)           ; Clear bit 7 (deactivate diamond)
@@ -6045,7 +6077,7 @@ COMPLETED_LEVEL:
 	JR		Z, .wait
 	POP		AF
 	POP		AF
-	CP      $82   				; I chose this value so I know a diamond was collected
+	CP    $82   				; I chose this value so I know a diamond was collected
 	JR		Z, DIAMOND_COLLECTED
 	CP		2					; extra MrDo
 	JR		NZ, LOC_A969
@@ -6062,6 +6094,10 @@ LOC_A992:
 	POP		AF
 	JR		LOC_A96C
 LOC_A969:
+	PUSH    AF
+	LD    C, 4
+	CALL	STORE_COMPLETION_TYPE
+	POP     AF
 	CALL	ExtraMrDo
 	JR		LOC_A96C
 DIAMOND_COLLECTED:
@@ -6118,6 +6154,44 @@ LOC_A984:
 	CALL	SUB_AB28
 RET
 
+; Input: C = completion type (1 for cherries, 2 for monsters, 3 diamond, 4 for Extra MrDo)
+; Uses: GAMECONTROL to determine active player
+;       CURRENT_LEVEL_P1/P2 to get current level
+; Output: Stores completion type to correct player's slot
+; Preserves: BC, HL
+STORE_COMPLETION_TYPE:    
+    PUSH    BC              ; Save completion type
+    
+    ; Get current level based on active player
+    LD      A, (GAMECONTROL)
+    PUSH    AF             ; Save GAMECONTROL value
+    BIT     1, A           ; Test if Player 2 is active
+    JR      NZ, .p2
+    
+    ; Player 1
+    LD      A, (CURRENT_LEVEL_P1)
+    JR      .got_level
+.p2:
+    LD      A, (CURRENT_LEVEL_P2)
+    
+.got_level:
+    CALL    GET_SLOT_OFFSET  ; Get offset in A and DE
+		SRL     E               ; Divide offset by 2
+    
+    ; Get correct base address
+    POP     AF             ; Restore GAMECONTROL value
+    LD      HL, P1_LEVEL_FINISH_BASE
+    BIT     1, A           ; Now test player with preserved value
+    JR      Z, .got_base
+    LD      HL, P2_LEVEL_FINISH_BASE
+.got_base:
+    ADD     HL, DE         ; Add offset to base
+    
+    POP     BC             ; Get completion type back
+    LD      A, C           ; Move completion type to A
+    LD      (HL), A       ; Store completion type in correct slot
+    RET
+
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
 	LD		HL, GAMECONTROL
@@ -6125,7 +6199,6 @@ ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
 LOC_A9A1:
 	BIT		7, (HL)
 	JR		NZ, LOC_A9A1
-
 	XOR		A
 	LD		($72BC), A
 	LD		($72BB), A
@@ -6134,10 +6207,12 @@ LOC_A9A1:
 	JR		NZ, DEAL_WITH_EXTRA_MR_DO
 	LD		($72B8), A
 	LD		HL, LIVES_LEFT_P1_RAM
+	XOR A
 	JR		LOC_A9EC
 DEAL_WITH_EXTRA_MR_DO:
 	LD		($72B9), A
 	LD		HL, LIVES_LEFT_P2_RAM
+	XOR   A
 LOC_A9EC:
 	LD		A, (HL)
 	CP		6				; max number of lives
@@ -11136,12 +11211,6 @@ cvb_INTERMISSION:
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-	LD BC,6*256+5
-	LD DE,$1800+27+18*32
-	LD HL,ItemsPNT
-	LD a,c
-	CALL CPYBLK_MxN
-		
 	CALL MYENASCR
 
 RET
@@ -11152,7 +11221,7 @@ RET
 ;----------------------------------------------------------------------
 PRINT_LEVEL_STATS:
     ; Print "VERY GOOD !!"
-    ld de, $1800 + 12 + 32*10
+    ld de, $1800 + 12 + 32*12
     ld hl, VERYGOOD
     call MYPRINT
 
@@ -11171,7 +11240,7 @@ PRINT_LEVEL_STATS:
 
     ; Print and calculate scores for all three levels
     ; First level (Current - 2)
-    ld de, $1800 + 6 + 32*2   	; First line position
+    ld de, $1800 + 3 + 32*2   	; First line position
     push af                     ; Save current level and Player (ZF==0 for P1, ZF==1 for P2)
     sub 2                      	; Get first level number
     call PRINT_SINGLE_SCORE
@@ -11180,9 +11249,13 @@ PRINT_LEVEL_STATS:
     sub 2                      ; Get first level number again
     call PRINT_SINGLE_TIME
     pop af
-    
+    push af
+    sub 2
+    call PRINT_ICON
+    pop af
+	
     ; Second level (Current - 1)
-    ld de, $1800 + 6 + 32*4   ; Next line down
+    ld de, $1800 + 3 + 32*5   ; Next line down
     push af
     dec a                      ; Get second level number
     call PRINT_SINGLE_SCORE
@@ -11191,13 +11264,23 @@ PRINT_LEVEL_STATS:
     dec a                      ; Get second level number again
     call PRINT_SINGLE_TIME
     pop af                     ; Get current level
-    
+
+    push af
+    dec a
+    call PRINT_ICON
+    pop af
+
     ; Third level (Current)
-    ld de, $1800 + 6 + 32*6   ; Next line down
+    ld de, $1800 + 3 + 32*8   ; Next line down
     push af
     call PRINT_SINGLE_SCORE
-    pop af                     ; Get current level again
+    pop af
+    push af
     call PRINT_SINGLE_TIME
+    pop af
+    push af
+    call PRINT_ICON
+    pop af
 
     ret
 
@@ -11233,6 +11316,70 @@ GET_SLOT_OFFSET:
     ld d, 0
     pop bc
 ret
+;----------------------------------------------------------------------
+; PRINT_ICON: Prints completion icon for the level
+; Input: A = level number, DE = screen position
+; Uses: GAMECONTROL to determine active player
+; Preserves: AF
+;----------------------------------------------------------------------
+PRINT_ICON:
+    PUSH    AF                  ; Save level number
+    PUSH    DE                  ; Save screen position
+
+    ; Get completion type for this level
+    LD      A, (GAMECONTROL)
+    BIT     1, A               ; Test if Player 2 is active
+    LD      HL, P1_LEVEL_FINISH_BASE
+    JR      Z, .got_base
+    LD      HL, P2_LEVEL_FINISH_BASE
+.got_base:
+    POP     DE                  ; Restore screen position
+    
+    ; Get offset for this level
+    POP     AF                  ; Get level number back
+    PUSH    DE                  ; Save screen position again
+    PUSH    AF                  ; Save level number again
+    
+    CALL    GET_SLOT_OFFSET
+    SRL     E                   ; Divide offset by 2 for single-byte slots
+    ADD     HL, DE              ; Point to completion type byte
+    
+    ; Load completion type and select correct icon
+    LD      A, (HL)             ; Get icon type (1-4)
+    DEC     A                   ; Convert 1-4 to 0-3
+    ADD     A, A                ; Multiply by 2 for table lookup
+    LD      HL, ICON_TABLE
+    LD      C, A
+    LD      B, 0
+    ADD     HL, BC
+    LD      A, (HL)             ; Get low byte of icon address
+    INC     HL
+    LD      H, (HL)             ; Get high byte of icon address
+    LD      L, A                ; HL now points to correct icon
+    
+    ; Move DE to icon position
+    POP     AF                  ; Restore level number (don't need it anymore)
+    POP     DE                  ; Restore screen position
+    PUSH    HL                  ; Save icon address
+    LD      HL, -32+5            ; Move one line up and 5 spaces to right
+    ADD     HL, DE
+    EX      DE, HL              ; Put position back in DE
+    POP     HL                  ; Restore icon address
+    
+    ; Copy the icon
+    LD      BC, 3*256+2         ; B = 3 (height), C = 2 (width)
+    LD      A, C                ; Source width is 2
+    CALL    CPYBLK_MxN
+    
+    RET
+
+; Table of icon addresses
+ICON_TABLE:
+    DW CHERRY_ICON            ; Type 1
+    DW MONSTER_ICON           ; Type 2
+    DW DIAMOND_ICON           ; Type 3
+    DW EXTRA_ICON            ; Type 4
+
 
 ;----------------------------------------------------------------------
 ; PRINT_SINGLE_TIME: Prints one level's completion time
@@ -11320,7 +11467,7 @@ PRINT_SINGLE_SCORE:
 
     add a, "0"                	; Convert to ASCII
     ld (TEXT_BUFFER), a
-    ld a, l						; Store ones digit
+    ld a, l    				; Store ones digit
     add a, "0" + $80			; add terminator
     ld (TEXT_BUFFER+1), a
 
@@ -11480,7 +11627,7 @@ cvb_INTERMISSION_FRM1:
 	CALL MyNMI_on
 
 	LD BC,5*256+14
-	LD DE,$1800+10+13*32
+	LD DE,$1800+10+17*32
 	LD HL,cvb_FR1
 	LD a,14
 	CALL CPYBLK_MxN
@@ -11495,13 +11642,34 @@ cvb_INTERMISSION_FRM2:
 	CALL MyNMI_on
 
 	LD BC,5*256+14
-	LD DE,$1800+10+13*32
+	LD DE,$1800+10+17*32
 	LD HL,cvb_FR2
 	LD a,14
 	CALL CPYBLK_MxN
 	RET
 
-; USE THESE TILES FOR ITEMS
+EXTRA_ICON:
+    DB $3c,$3d     ; Top row of extra icon
+    DB $3f,$40     ; Middle row of extra icon
+    DB $43,$44     ; Bottom row of extra icon
+
+CHERRY_ICON:
+    DB $00,$3e     ; Top row of cherry icon
+    DB $41,$42     ; Middle row of cherry icon
+    DB $45,$46     ; Bottom row of cherry icon
+
+MONSTER_ICON:
+    DB $49,$4a     ; Top row of monster icon
+    DB $4d,$4e     ; Middle row of monster icon
+    DB $50,$51     ; Bottom row of monster icon
+
+DIAMOND_ICON:
+    DB $47,$48     ; Top row of diamond icon
+    DB $4b,$4c     ; Middle row of diamond icon
+    DB $4f,$00     ; Bottom row of diamond icon
+
+
+; ; USE THESE TILES FOR ITEMS
 ItemsPNT:
 	DB $3c,$3d,$00,$00,$3e
 	DB $3f,$40,$00,$41,$42
@@ -11637,16 +11805,16 @@ intermission_sprites:
 
 	
 cvb_SP1:	
-	DB 64+41,80,0,1
-	DB 64+41,97,4,15
-	DB 64+46,92,8,8
-	DB 64+48,160,12,1
-	DB 64+57,88,16,8
-	DB 64+42,88,20,12
-	DB 64+62,95,24,15
-	DB 64+56,161,28,8
-	DB 64+58,112,32,1
-	DB 64+60,80,36,1
+	DB 64+41+32,80,0,1
+	DB 64+41+32,97,4,15
+	DB 64+46+32,92,8,8
+	DB 64+48+32,160,12,1
+	DB 64+57+32,88,16,8
+	DB 64+42+32,88,20,12
+	DB 64+62+32,95,24,15
+	DB 64+56+32,161,28,8
+	DB 64+58+32,112,32,1
+	DB 64+60+32,80,36,1
 ItemsSAT0:					; USE THESE SPRITES FOR ITEMS
 	DB 141,240,80,1
 	DB 164,240,84,1
@@ -11659,16 +11827,16 @@ cvb_FR1:
 	DB $29,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$30,$31,$32,$33
 
 cvb_SP2:
-	DB 105,80,40,1
-	DB 105,97,44,15
-	DB 110,92,48,8
-	DB 112,160,52,1
-	DB 121,85,56,8
-	DB 119,81,60,12
-	DB 126,95,64,15
-	DB 124,166,68,12
-	DB 122,112,72,1
-	DB 122,176,76,8
+	DB 105+32,80,40,1
+	DB 105+32,97,44,15
+	DB 110+32,92,48,8
+	DB 112+32,160,52,1
+	DB 121+32,85,56,8
+	DB 119+32,81,60,12
+	DB 126+32,95,64,15
+	DB 124+32,166,68,12
+	DB 122+32,112,72,1
+	DB 122+32,176,76,8
 ItemsSAT1:					; USE THESE SPRITES FOR ITEMS
 	DB 141,240,80,1
 	DB 164,240,84,1
