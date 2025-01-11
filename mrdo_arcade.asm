@@ -4779,8 +4779,8 @@ UNK_9FB3:
 
 SUB_9FC8:
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	XOR		A    ; (Uncomment for invincibility)
-	RET        ; (Uncomment for invincibility)
+	; XOR		A    ; (Uncomment for invincibility)
+	; RET        ; (Uncomment for invincibility)
 	PUSH	IY
 	LD		B, (IY+2)
 	LD		A, (MRDO_DATA.Y)
@@ -6537,7 +6537,7 @@ LOC_AA2A:
 	
 .TEST_INTERMISSION:
 	; here A is in 0-9
-	LD      B, 1
+	LD      B, 3
 	CALL MOD_B	; Get modulo B
 
 	; now A contains just 0,1,2
@@ -11368,11 +11368,7 @@ cvb_INTERMISSION:
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-	LD BC,3*256+2
-	LD DE,$1800+27+18*32
-	LD HL,EXTRA_ICON
-	LD a,c
-	CALL CPYBLK_MxN
+
 
 ; 	ICON_OFFSETS:
 ;     DB 0    ; Cherry offset
@@ -11418,7 +11414,7 @@ PRINT_LEVEL_STATS:
 
     ; Print and calculate scores for all three levels
     ; First level (Current - 2)
-    ld de, $1800 + 6 + 32*2   	; First line position
+    ld de, $1800 + 3 + 32*2   	; First line position
     push af                     ; Save current level and Player (ZF==0 for P1, ZF==1 for P2)
     sub 2                      	; Get first level number
     call PRINT_SINGLE_SCORE
@@ -11427,12 +11423,13 @@ PRINT_LEVEL_STATS:
     sub 2                      ; Get first level number again
     call PRINT_SINGLE_TIME
     pop af
-		; push af
-		; call PRINT_ICON
-    ; pop af
+		push af
+		sub 2
+		call PRINT_ICON
+    pop af
 	
     ; Second level (Current - 1)
-    ld de, $1800 + 6 + 32*5   ; Next line down
+    ld de, $1800 + 3 + 32*5   ; Next line down
     push af
     dec a                      ; Get second level number
     call PRINT_SINGLE_SCORE
@@ -11441,13 +11438,23 @@ PRINT_LEVEL_STATS:
     dec a                      ; Get second level number again
     call PRINT_SINGLE_TIME
     pop af                     ; Get current level
-    
+
+		push af
+		dec a
+		call PRINT_ICON
+    pop af
+
     ; Third level (Current)
-    ld de, $1800 + 6 + 32*8   ; Next line down
+    ld de, $1800 + 3 + 32*8   ; Next line down
     push af
     call PRINT_SINGLE_SCORE
-    pop af                     ; Get current level again
+    pop af
+    push af
     call PRINT_SINGLE_TIME
+		pop af
+		push af
+		call PRINT_ICON
+    pop af
 
     ret
 
@@ -11483,6 +11490,70 @@ GET_SLOT_OFFSET:
     ld d, 0
     pop bc
 ret
+;----------------------------------------------------------------------
+; PRINT_ICON: Prints completion icon for the level
+; Input: A = level number, DE = screen position
+; Uses: GAMECONTROL to determine active player
+; Preserves: AF
+;----------------------------------------------------------------------
+PRINT_ICON:
+    PUSH    AF                  ; Save level number
+    PUSH    DE                  ; Save screen position
+
+    ; Get completion type for this level
+    LD      A, (GAMECONTROL)
+    BIT     1, A               ; Test if Player 2 is active
+    LD      HL, P1_LEVEL_FINISH_BASE
+    JR      Z, .got_base
+    LD      HL, P2_LEVEL_FINISH_BASE
+.got_base:
+    POP     DE                  ; Restore screen position
+    
+    ; Get offset for this level
+    POP     AF                  ; Get level number back
+    PUSH    DE                  ; Save screen position again
+    PUSH    AF                  ; Save level number again
+    
+    CALL    GET_SLOT_OFFSET
+    SRL     E                   ; Divide offset by 2 for single-byte slots
+    ADD     HL, DE              ; Point to completion type byte
+    
+    ; Load completion type and select correct icon
+    LD      A, (HL)             ; Get icon type (1-4)
+    DEC     A                   ; Convert 1-4 to 0-3
+    ADD     A, A                ; Multiply by 2 for table lookup
+    LD      HL, ICON_TABLE
+    LD      C, A
+    LD      B, 0
+    ADD     HL, BC
+    LD      A, (HL)             ; Get low byte of icon address
+    INC     HL
+    LD      H, (HL)             ; Get high byte of icon address
+    LD      L, A                ; HL now points to correct icon
+    
+    ; Move DE to icon position
+    POP     AF                  ; Restore level number (don't need it anymore)
+    POP     DE                  ; Restore screen position
+    PUSH    HL                  ; Save icon address
+    LD      HL, -32+5            ; Move one line up and 5 spaces to right
+    ADD     HL, DE
+    EX      DE, HL              ; Put position back in DE
+    POP     HL                  ; Restore icon address
+    
+    ; Copy the icon
+    LD      BC, 3*256+2         ; B = 3 (height), C = 2 (width)
+    LD      A, C                ; Source width is 2
+    CALL    CPYBLK_MxN
+    
+    RET
+
+; Table of icon addresses
+ICON_TABLE:
+    DW CHERRY_ICON            ; Type 1
+    DW MONSTER_ICON           ; Type 2
+    DW DIAMOND_ICON           ; Type 3
+    DW EXTRA_ICON            ; Type 4
+
 
 ;----------------------------------------------------------------------
 ; PRINT_SINGLE_TIME: Prints one level's completion time
