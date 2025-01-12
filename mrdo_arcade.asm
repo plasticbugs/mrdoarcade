@@ -143,16 +143,17 @@ BADGUY_BHVR_CNT_RAM:	RB	 1	;EQU $7139 ; HOW MANY BYTES IN TABLE
 BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 						RB 	52	; ??
 GAMESTATE:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
-						RB   2	;EQU $722A
+CURRAPPL:				RB   1	;EQU $722A
+						RB   1	;EQU $722B
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
 						RB  20	;EQU $7245 ; enemy interaction data
 						RB  20	;EQU $7259 ; enemy interaction data
 SPRITEROTFLAG:			RB	 1	;EQU $726D
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players B5-> Pause/Game
 GAMETIMER:				RB	 1	;EQU $726F  ??
-						RB	 1	; ??
+						RB	 1	;EQU $7270  ??
 SKILLLEVEL:				RB	 1	;EQU $7271 ; Skill Level 1-4
-						RB	 1	;EQU $7272
+						RB	 1	;EQU $7272 ; SOME GAME FLAG ?
 DIAMOND_RAM:			RB	 1	;EQU $7273
 CURRENT_LEVEL_P1:		RB	 1	;EQU $7274
 CURRENT_LEVEL_P2:		RB	 1	;EQU $7275
@@ -452,7 +453,7 @@ RET
 
 ; in A the frame number in MRDOGENERATOR
 SETMRDOFRAME:
-	LD      E,A
+	LD      E,A			; A<51 as 51*5=255, we can use 8 bit math
 	ADD		A,A
 	ADD		A,A
 	ADD		A,E
@@ -473,8 +474,8 @@ MRDO_SPT_UPDATE:
 	LD		A, (MRDO_DATA.Frame)			; if >0 update the MrDo sprite (CURRENT FRAME ?)
 	AND		A
 	JR		Z, LOC_8241
- 
-	CALL SETMRDOFRAME
+	DEC     A
+	CALL 	SETMRDOFRAME
 
 	LD		D, 0
 LOC_8241:
@@ -1402,7 +1403,7 @@ RET
 DEAL_WITH_APPLE_FALLING:
 	LD		IY, APPLEDATA
 	LD		HL, BYTE_896C
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	LD		C, A
 	LD		B, 0
 	ADD		HL, BC
@@ -1473,13 +1474,13 @@ LOC_8945:
 	POP		AF
 LEADS_TO_FALLING_APPLE_04:
 	PUSH	AF
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	INC		A
 	CP		5
 	JR		C, LOC_8954
 	XOR		A
 LOC_8954:
-	LD		($722A), A
+	LD		(CURRAPPL), A
 	POP		AF
 	AND		A
 RET
@@ -1534,7 +1535,7 @@ LOC_89C1:
 	JR		NZ, LOC_89C8
 	LD		BC, $D908
 LOC_89C8:
-	LD		A, ($722A)			; which apple to show
+	LD		A, (CURRAPPL)			; which apple to show
 	ADD		A, 12
 	CALL	PUTSPRITE
 RET
@@ -1809,7 +1810,7 @@ LOC_8BCE:
 LOC_8BE4:
 	LD		(MRDO_DATA.Y), A
 	XOR		A
-	LD		(MRDO_DATA.Frame), A			; Mr Do current frame
+	LD		(MRDO_DATA.Frame), A			; Mr Do current frame 0 == death
 	LD		A, (MRDO_DATA)
 	SET		7, A
 	LD		(MRDO_DATA), A
@@ -1869,7 +1870,7 @@ LOC_8C40:
 	BIT		7, (IX+0)
 	JR		Z, LOC_8C68
 	LD		B, (IX+5)
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	CP		B
 	JR		NZ, LOC_8C8D
 	LD		A, D
@@ -1880,7 +1881,7 @@ LOC_8C68:
 	CALL	SUB_8CFE
 	JR		NZ, LOC_8C8D
 	SET		7, (IX+0)
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	LD		(IX+5), A
 	INC		(IY+4)
 LOC_8C7A:
@@ -1912,7 +1913,7 @@ LOC_8C9C:
 	BIT		7, (IX+0)
 	JR		Z, LOC_8CBE
 	LD		B, (IX+5)
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	CP		B
 	JR		NZ, LOC_8CF5
 	LD		A, D
@@ -1923,7 +1924,7 @@ LOC_8CBE:
 	CALL	SUB_8CFE
 	JR		NZ, LOC_8CF5
 	SET		7, (IX+0)
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	LD		(IX+5), A
 	INC		(IY+4)
 LOC_8CD0:
@@ -1989,7 +1990,7 @@ SUB_8D25:
 	LD		IX, APPLEDATA
 	LD		BC, 0
 LOC_8D2C:
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	CP		C
 	JR		Z, LOC_8D80
 	LD		A, (IX+0)
@@ -2057,7 +2058,7 @@ LOC_8DA1:
 	BIT		7, (IX+0)
 	JR		Z, LOC_8DC5
 	LD		B, (IX+5)
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	CP		B
 	JR		NZ, LOC_8DC5
 	CALL	SUB_B7C4	; outupt = ZF and A 
@@ -2080,7 +2081,7 @@ LOOP_8DD3:
 	BIT		7, (IX+0)
 	JR		Z, LOST_A_LIFE
 	LD		B, (IX+5)
-	LD		A, ($722A)
+	LD		A, (CURRAPPL)
 	CP		B
 	JR		NZ, LOST_A_LIFE
 	CALL	SUB_B832
@@ -3852,39 +3853,41 @@ RET
 SUB_9AE2:
 	PUSH	IX
 	PUSH	IY
-	LD		H, (IY+0)
-	LD		D, 1
-	BIT		6, H
+	LD		H, (IY+0)	; enemy status flag
+	LD		D, 1		; Bad buy (right)
+	BIT		6, H		; B6==0, Transform
 	JR		NZ, LOC_9B07
-	LD		D, 0DH
-	BIT		5, H
+	LD		D, 13		; Bad guys Transforming (right)
+	BIT		5, H		; B5==0, Digger
 	JR		NZ, LOC_9B07
+	
 	CALL	SUB_9B4F
 	LD		B, (IY+2)
 	LD		C, (IY+1)
 	CALL	SUB_AC3F
 	LD		D, A
 	CALL	SUB_B173
-	LD		D, 19H
+	
+	LD		D, 25		; Digger (right)
 LOC_9B07:
-	LD		A, (IY+4)
+	LD		A, (IY+4)				; direction
 	AND		7
-	LD		L, 0
+	LD		L, 0					; 1 == rigth	L=0
 	DEC		A
 	JR		Z, LOC_9B28
 	LD		L, 2
-	DEC		A
+	DEC		A						; 2 == left		L=2
 	JR		Z, LOC_9B28
-	LD		L, 4
-	LD		B, A
-	LD		A, (IY+1)
-	CP		80H
-	JR		NC, LOC_9B22
+
+	LD		L, 4					; FootLeft
+	BIT     7,(IY+1)				; test if x<128
+	JR 		NZ,.FootRight
 	LD		L, 8
-LOC_9B22:
-	DEC		B
-	JR		Z, LOC_9B28
-	INC		L
+.FootRight:
+	DEC 	A
+	JR		Z, LOC_9B28				; 3 == down		L=4 or 8
+
+	INC		L						; 4 == up 		L=6 or 10	
 	INC		L
 LOC_9B28:
 	LD		C, (IY+5)
@@ -3903,8 +3906,9 @@ LOC_9B36:
 	LD		A, ($728C)
 	ADD		A, 5
 	LD		B, (IY+2)
-	LD		C, (IY+1)		; show bad guy
-	CALL	PUTSPRITE
+	LD		C, (IY+1)		
+mytst:	
+	CALL	PUTSPRITE		; show bad guy
 	POP		IY
 	POP		IX
 RET
@@ -8241,9 +8245,20 @@ BYTE_B6FB:
 	DB 000,000,140,015,144,015,148,015,152,015,156,015,160,015,164,015	  ; Ball sprite using White
 
 BYTE_B70B:
-	DB 000,000,000,008,004,008,008,008,012,008,016,008,020,008,024,008,028,008,032,008,036,008,040,008,044,008	  ; Badguy sprite color (Red)
-	DB 000,007,004,007,008,007,012,007,016,007,020,007,024,007,028,007,032,007,036,007,040,007,044,007,048,015	  ; Series using Cyan, ending in White
-	DB 052,005,056,005,060,005,064,005,068,005,072,005,076,005,080,005,084,005,088,005,092,005,132,013	  ; Digger sprite color (Light Blue), last one defines enemy splat color
+	; 0 null
+	DB   0,  0  
+	; 1 - 12 Bad guys red
+	DB   0,  8,  4,  8,  8,  8, 12,  8, 16,  8, 20,  8, 24,  8, 28,  8, 32,  8, 36,  8, 40,  8, 44,  8	; Badguy sprites and colors (Red)
+	; 13 - 24 Bad guys Transforming
+	DB   0,  7,  4,  7,  8,  7, 12,  7, 16,  7, 20,  7, 24,  7, 28,  7, 32,  7, 36,  7, 40,  7, 44,  7	; Badguy Transforming sprites and colors (cyan)
+	; 25 - 36 light blue digger
+	DB  48,  5, 52,  5, 56,  5, 60,  5, 64,  5, 68,  5, 72,  5, 76,  5, 80,  5, 84,  5, 88,  5, 92,  5	; Digger sprites and colors (Light Blue)
+	; 37 enemy smashed (purple)
+	DB 132, 13	  
+	; 38 - 38 Bad guy pushing right
+	DB 240,  8,244,  8
+	; 40 - 41 Bad guy pushing left
+	DB 248,  8,252,  8
 
 BYTE_B757:
 	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple sprite colors (Medium Red), ending with White diamond
@@ -8912,7 +8927,7 @@ PHASE_10_BGB:
 
 
 
-; MrDo 4 frames						; from 24 now (was 28)
+; MrDo 4 frames						; 
 MRDOGENERATOR:
 	DB 0							; 0	right	0	; MrDo sprites start from here
 	DW 44*4,MR_DO_WALK_RIGHT_00_PAT
@@ -8925,12 +8940,12 @@ MRDOGENERATOR:
 	
 	DB 0							; 0 right 4
 	DW 44*4,MR_DO_PUSH_RIGHT_00_PAT
-	DB 0							; 1
+	DB 0							; 1   	5
 	DW 44*4,MR_DO_PUSH_RIGHT_01_PAT
-	DB 0							; 2
+	DB 0							; 2		6
 	DW 44*4,MR_DO_PUSH_RIGHT_02_PAT
-	DB 0							; 3
-	DW 44*4,MR_DO_PUSH_RIGHT_01_PAT
+	DB 0							; 3		7
+	DW 44*4,MR_DO_PUSH_RIGHT_01_PAT			
 
 	DB 1							; 0 left 8
 	DW BYTE_C284,MR_DO_WALK_RIGHT_00_PAT
@@ -8943,11 +8958,11 @@ MRDOGENERATOR:
 
 	DB 1							; 0 left 12
 	DW BYTE_C284,MR_DO_PUSH_RIGHT_00_PAT
-	DB 1							; 1 
+	DB 1							; 1 	13
 	DW BYTE_C284,MR_DO_PUSH_RIGHT_01_PAT
-	DB 1							; 2 
+	DB 1							; 2 	14
 	DW BYTE_C284,MR_DO_PUSH_RIGHT_02_PAT
-	DB 1							; 3 
+	DB 1							; 3 	15
 	DW BYTE_C284,MR_DO_PUSH_RIGHT_01_PAT
 
 	DB 2							; 0 up 	16
