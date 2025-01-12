@@ -564,8 +564,7 @@ LOC_82BF:
 	LD		HL, BYTE_82DD
 	LD		A, 2
 	LD		IY, 1
-	CALL	PUT_VRAM
-RET
+	JP	PUT_VRAM
 
 BYTE_82D3:
 	DB 254,001,253,002,251,004,247,008,239,016
@@ -617,8 +616,7 @@ LOC_8329:
 	XOR		1				
 	LD		(HL), A
 	LD		A, 13 				;  Diamond!
-	CALL	PUTSPRITE
-RET
+	JP	PUTSPRITE
 
 ; BONUS ITEM LIST
 BONUS_OBJ_LIST:
@@ -891,8 +889,7 @@ LOAD_GRAPHICS:
 
 	
 	LD		BC, 1E2H		 		; Original game state register
-	CALL	WRITE_REGISTER	
-RET
+	JP	WRITE_REGISTER	
 
 LOADFONTS:		; LOAD  ARCADE FONTS
 	LD 		DE,PT + 8*0d7h					; start fonts here
@@ -908,8 +905,7 @@ LOADFONTS:		; LOAD  ARCADE FONTS
 	LD		HL, CT+0d7h*8
 	LD		BC, 41*8
 	LD		A,$F1
-	CALL 	cvb_MYCLS.0
-RET
+	JP 	cvb_MYCLS.0
 
 	
 
@@ -929,8 +925,7 @@ LOC_84FE:
 	CP		2
 	CALL	NZ,CLEAR_SCREEN_AND_SPRITES_01
 	CALL	CLEAR_SCREEN_AND_SPRITES_02
-	CALL	SUB_87F4
-RET
+	JP	SUB_87F4
 
 SUB_851C:	; If we're here, the game just started
 	LD		HL, 0
@@ -1378,8 +1373,7 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	CALL	READ_VRAM
 	
 	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
-RET
+	JP	WRITE_REGISTER
 
 DELAY:
 	LD		B, 2
@@ -1538,8 +1532,7 @@ LOC_89C1:
 LOC_89C8:
 	LD		A, ($722A)			; which apple to show
 	ADD		A, 12
-	CALL	PUTSPRITE
-RET
+	JP	PUTSPRITE
 
 SUB_89D1:
 	PUSH	IY
@@ -1777,8 +1770,7 @@ LOC_8B94:
 LOC_8BAA:
 	LD		A, D
 	ADD		A, 10H
-	CALL	SUB_8BB1
-RET
+	JP	SUB_8BB1
 
 SUB_8BB1:
 	PUSH	BC
@@ -2962,8 +2954,7 @@ LOC_9421:  ; Ball intersects with sprite
 	LD		BC, $D908
 	LD		D, 0
 	LD		A, 4			; remove ball explosion
-	CALL	PUTSPRITE
-	RET
+	JP	PUTSPRITE
 LOC_9444:
 	RES		3, (IY+0)
 	LD		HL, MRDO_DATA
@@ -3354,8 +3345,7 @@ LOC_9721:
 	DEC		A
 	JP		P, LOC_9721
 	EX		DE, HL
-	CALL	SUB_B601
-RET
+	JP	SUB_B601
 
 SUB_9732:
 	AND		A					; if MrDo is halted reset animation
@@ -5840,8 +5830,7 @@ LOC_A7CB:
 	LD		A, ($72BE)
 	LD		C, A
 	LD		A, 3			; extra letter
-	CALL	PUTSPRITE
-RET
+	JP	PUTSPRITE
 
 BYTE_A7DC:
 	DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
@@ -5889,8 +5878,7 @@ RET
 
 
 LOC_A853:
-	CALL	SUB_A460
-	RET
+	JP	SUB_A460
 LOC_A858:
 	LD		A, (IY+2)
 	AND		0FH
@@ -6006,8 +5994,7 @@ LOC_A90D:
 	LD		C, (IY+1)
 	LD		A, ($72C5)
 	ADD		A, 17			; animate chomper
-	CALL	PUTSPRITE
-RET
+	JP	PUTSPRITE
 
 SUB_A921:
 	CALL	SUB_9BE2
@@ -6122,8 +6109,7 @@ LOC_AB1E:
 	LD		A, 1
 	RET
 LOC_A984:
-	CALL	SUB_AB28
-RET
+	JP	SUB_AB28
 
 ; Input: C = completion type (1 for cherries, 2 for monsters, 3 diamond, 4 for Extra MrDo)
 ; Uses: GAMECONTROL to determine active player
@@ -6227,8 +6213,7 @@ LOC_AA14:
 
 ;	; Original code's final register writes
 	LD		BC, 1E2H		 ; Original game state register
-	CALL	WRITE_REGISTER
-RET
+	JP	WRITE_REGISTER
 
 WAIT8:
 	LD	B,8
@@ -6368,8 +6353,7 @@ LOC_AA5C:
 	LD		BC, 0D4H
 	CALL	WRITE_VRAM		; save game data in VRAM 
 	LD		BC, 1E2H
-	CALL	WRITE_REGISTER
-RET
+	JP	WRITE_REGISTER
 
 ; Get A modulo B
 MOD_B:
@@ -6717,8 +6701,7 @@ DEAL_WITH_SPRITES:
 	JP		NZ,ROTATION
 NOROTATION:
 	LD		A, 1				; write the SPT
-	CALL	PUT_VRAM			; IY = #of chars, DE = SPT pos, HL = ROM addr
-	RET
+	JP	PUT_VRAM			; IY = #of chars, DE = SPT pos, HL = ROM addr
 ROTATION:
 
 	PUSH de
@@ -8115,8 +8098,7 @@ PATTERNS_TO_VRAM:
 	LD		D, (HL)
 	LD		HL, SCRATCH
 	LD		IY, 6
-	CALL	PUT_VRAM
-RET
+	JP	PUT_VRAM
 
 BYTE_B5D4:
 	DB 125,114,036,000,127,114,068,000,000
@@ -8649,8 +8631,7 @@ SET_LEVEL_COLORS:
 	LD		HL,CT+(2*32+24)*8
 	CALL	FILL_VRAM
 	
-	CALL 	MyNMI_on	
-RET
+	JP 	MyNMI_on	
 
 staticcolors:				; leftovers
 	DB $C1,$41,$31,$A1,$31
@@ -8659,14 +8640,12 @@ staticcolors:				; leftovers
 REP8:				
 	LD		HL,WORKBUFFER
 	LD 		BC,8
-	CALL 	MYLDIRVM
-RET
+	JP 	MYLDIRVM
 
 REP16:				
 	LD		HL,WORKBUFFER
 	LD 		BC,16
-	CALL 	MYLDIRVM
-RET
+	JP 	MYLDIRVM
 
 EXTRA_BEHAVIOR:
 	DW PHASE_01_EX
@@ -9302,8 +9281,7 @@ PLAY_BACKGROUND_TUNE:
 	LD		B, BACKGROUND_TUNE_0A ; Play first part of background tune
 	CALL	PLAY_IT
 	LD		B, BACKGROUND_TUNE_0B ; Play second part of background tune
-	CALL	PLAY_IT
-	RET
+	JP	PLAY_IT
 
 SUB_C97F:
 	LD		A, 0FFH
@@ -9722,8 +9700,7 @@ LOC_D31C:
 	LD		A, ($7272)
 	BIT		5, A
 	RET		NZ
-	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
-RET
+	JP	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 LOC_D326:
 	CALL	SUB_B8F7
 	PUSH	IY
@@ -10894,8 +10871,7 @@ WONDERFUL:
 	CALL	RESET_LEVEL_TIMERS
 
 	LD		BC, 1C2H		 		; Original game state register (No NMI)
-	CALL	WRITE_REGISTER
-RET
+	JP	WRITE_REGISTER
 
 PRINT_WONDERFUL_STATS:
     ; Check which player is active
@@ -11012,9 +10988,7 @@ PRINT_WONDERFUL_STATS:
     call MYPRINT
     ld de, PNT + 7 + 32*(18)
     ld hl, WONDERFULTXT0
-    call MYPRINT
-	  
-ret
+    jp MYPRINT
 
 
 
@@ -11169,9 +11143,7 @@ cvb_INTERMISSION:
 	CALL PRINT_LEVEL_STATS
 
 		
-	CALL MYENASCR
-
-RET
+	JP MYENASCR
 
 
 ;----------------------------------------------------------------------
@@ -11378,8 +11350,7 @@ PRINT_SINGLE_TIME:
     add hl, de
     ex de, hl
     ld hl, TEXT_BUFFER
-    call MYPRINT
-ret
+    jp MYPRINT
 
 ;----------------------------------------------------------------------
 ; PRINT_SINGLE_SCORE: Prints one level's score
@@ -11469,8 +11440,7 @@ PRINT_SINGLE_SCORE:
     add hl, de
     ex de, hl                  	; Put  in DE
     ld hl, TEXT_BUFFER
-    call MYPRINT
-ret
+    jp MYPRINT
 
 ;----------------------------------------------------------------------
 ; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
@@ -11576,8 +11546,7 @@ cvb_INTERMISSION_FRM1:
 	LD DE,$1800+10+17*32
 	LD HL,cvb_FR1
 	LD a,14
-	CALL CPYBLK_MxN
-	RET
+	JP CPYBLK_MxN
 	
 cvb_INTERMISSION_FRM2:
 	LD BC,4*10+1
@@ -11591,8 +11560,7 @@ cvb_INTERMISSION_FRM2:
 	LD DE,$1800+10+17*32
 	LD HL,cvb_FR2
 	LD a,14
-	CALL CPYBLK_MxN
-	RET
+	JP CPYBLK_MxN
 
 EXTRA_ICON:
     DB $3c,$3d     ; Top row of extra icon
@@ -11844,8 +11812,7 @@ CONGRATULATION:
 	JR		NZ, .3
 
 	LD		BC, 1E2H		 ; Original game state register
-	CALL	WRITE_REGISTER
-RET	
+	JP	WRITE_REGISTER
 
 cvb_CONGRATULATION:
 	CALL MYMODE1				; switch to intermission  mode
@@ -11896,10 +11863,8 @@ cvb_CONGRATULATION:
 	LD HL,CONGRATULATIONS
 	CALL MYPRINT
 		
-	CALL MYENASCR
+	JP MYENASCR
 
-	RET
-	
 CONGRATULATIONS: 	db "CONGRATULATIONS !","!" or 128
 	
 cvb_CONGRATULATION_FRM0:
