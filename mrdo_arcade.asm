@@ -175,7 +175,8 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
 						RB   4	;EQU $72BF	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
-						RB	 2	;??
+						RB	 1	;??
+CHOMPNUMBER:			RB	 1	;EQU $72C5  store the current chomper 0-2
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
 CHOMPDATA:				RB  18	;EQU $72C7  3x6 = 18 bytes (3 chompers)
 BALLDATA:				RB	 6	;EQU $72D9
@@ -449,6 +450,19 @@ LOC_80FF:
 	DJNZ	LOC_80D7
 RET
 
+; in A the frame number in MRDOGENERATOR
+SETMRDOFRAME:
+	LD      E,A
+	ADD		A,A
+	ADD		A,A
+	ADD		A,E
+	LD      E,A
+	LD      D,0
+	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
+	LD		IX,MRDOGENERATOR
+	ADD     IX,DE
+	CALL	UPDATE_SPT	; Rotate the current frame of the player
+RET
 
 MRDO_SPT_UPDATE:
 	LD		HL, MRDO_DATA			; Mr. Do's sprite data
@@ -459,14 +473,8 @@ MRDO_SPT_UPDATE:
 	LD		A, (MRDO_DATA.Frame)			; if >0 update the MrDo sprite (CURRENT FRAME ?)
 	AND		A
 	JR		Z, LOC_8241
-	; 1 walk right01
-	; 2 walk right02
-	; 3 PUSH right01
-	; 4 PUSH right02
-	; 
-	ADD		A, 23				; MrDo Position offeset = 23+1 in SPRITE_GENERATOR
-	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
-	CALL	DEAL_WITH_SPRITES	; Rotate the current frame of the player
+ 
+	CALL SETMRDOFRAME
 
 	LD		D, 0
 LOC_8241:
@@ -752,7 +760,7 @@ LOC_83C0:
 
 MrDoDeathSequence:
 	PUSH 	AF
-	LD		bc,4*256+24+48		; C is the pointer to the current frame
+	LD		bc,4*256+48			; C is the pointer to the current frame: Death starts from 48
 .nextframe:
 	PUSH	bc
 	LD		HL, 20				; 20 x 4 = 80 /60 = 1.33 sec
@@ -781,11 +789,10 @@ MrDoDeathSequence:
 	JR		Z, .wait
 	POP		AF
 	POP  	BC
-	LD		a,C
+	LD		A,C
 	INC		C
 	PUSH 	BC 				
-	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
-	CALL	DEAL_WITH_SPRITES	; Update the current frame of the player
+	CALL 	SETMRDOFRAME	; Update the current frame of the player
 	POP  	BC
 	djnz  .nextframe
 	POP 	AF
@@ -834,15 +841,6 @@ INIT_VRAM:
 	XOR		A			; CLEAR PT,PNT,SAT
 	CALL	FILL_VRAM
 	
-
-	LD		A, 23				; Load enemies in the SPT (all but chompers)
-LOAD_GRAPHICS:
-	PUSH	AF
-	LD		IY, 4				; number of 8x8 tiles to process 
-	CALL	DEAL_WITH_SPRITES
-	POP		AF
-	DEC		A
-	JP		P, LOAD_GRAPHICS
 	
 	LD		HL, EXTRA_SPRITE_PAT	; EXTRA+Apples+Diamond+Balls
 	LD		DE, 60H
@@ -850,12 +848,12 @@ LOAD_GRAPHICS:
 	LD		A, 1
 	CALL	PUT_VRAM
 	
-	LD		IX, CHOMPER_GEN		; Load chompers in the SPT
-	LD		B,12
+	LD		IX, ENEMY_GENERATOR		; Load chompers and bad guys pushing in the SPT
+	LD		B,24+12+4				; 24 frames for badguys/diggers + 12  for chompers + 4 bad guys pushing
 .1:	PUSH	BC
 	PUSH	IX
 	LD		IY,4
-	CALL	DEAL_WITH_SPRITES.tst
+	CALL	UPDATE_SPT
 	POP 	IX
 	LD		DE,5
 	ADD		IX,DE
@@ -3412,7 +3410,7 @@ LOC_9782:
 	ADD		A, 40 ;23H			; walk down-mirror offset
 	LD		C, A
 LOC_9786:
-	LD		(IY+5), C		; !!!!! MODIFY HERE TO HAVE 4 MrDO STEPS
+	LD		(IY+5), C			;  MrDO STEPS
 	BIT		6, (IY+0)
 	JR		Z, LOC_97C8
 	LD		A, (IY+1)
@@ -5847,7 +5845,7 @@ BYTE_A7DC:
 	DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
 
 SUB_A7F4:
-	LD		A, ($72C5)
+	LD		A, (CHOMPNUMBER)
 	AND		3
 	LD		IY, CHOMPDATA
 	LD		BC, 6
@@ -5874,7 +5872,7 @@ LOC_A82B:
 	XOR		A
 LOC_A82C:
 	PUSH	AF
-	LD		HL, $72C5
+	LD		HL, CHOMPNUMBER
 	INC		(HL)
 	LD		A, (HL)
 	AND		3
@@ -5967,44 +5965,47 @@ SUB_A8CB:
 	LD		B, (IY+2)
 	LD		C, (IY+1)
 	CALL	SUB_AC3F
-	LD		D, A
+;	LD		D, A		; already A==D in SUB_AC3F
 	CALL	SUB_B173
-	LD		D, 1
+
 	LD		A, (IY+4)
 	AND		7
-	CP		1
-	JR		Z, LOC_A905
-	CP		2
-	JR		NZ, LOC_A8EE
-	INC		D
-	INC		D
+	CP		1						; right
+	JR		Z,CHMPRIGHT
+	CP		2						; left
+	JR		Z,CHMPLEFT
+	CP		4						; down
+	JR		Z,CHMPDOWN
+	CP		3						; up
+	JR		Z,CHMPUP
+									; ANY OTHER VALUE (??)
+CHMPLEFT:
+	LD		D, 3
 	JR		LOC_A905
-LOC_A8EE:
-	LD		A, ($72C5)
-	ADD		A, A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	LD		HL, $712F
-	ADD		HL, BC
-	LD		A, (HL)
-	CP		0E0H
-	JR		Z, LOC_A905
-	CP		0E4H
-	JR		Z, LOC_A905
-	INC		D
-	INC		D
+CHMPDOWN:
+	LD		D, 8			; left side
+	BIT		7, (IY+1)		; test if X<128
+	JR		NZ,LOC_A905
+	LD		D, 12			; right side
+	JR		LOC_A905
+CHMPUP:
+	LD		D, 6			; left side
+	BIT		7, (IY+1)		; test if X<128
+	JR		NZ,LOC_A905
+	LD		D, 10			; right side
+	JR		LOC_A905
+CHMPRIGHT:	
+	LD		D, 1
 LOC_A905:
 	LD		A, (IY+5)
-	BIT		7, A
+	XOR		80H							
 	JR		Z, LOC_A90D
 	INC		D
 LOC_A90D:
-	XOR		80H
 	LD		(IY+5), A
 	LD		B, (IY+2)
 	LD		C, (IY+1)
-	LD		A, ($72C5)
+	LD		A, (CHOMPNUMBER)
 	ADD		A, 17			; animate chomper
 	CALL	PUTSPRITE
 RET
@@ -6626,7 +6627,7 @@ BYTE_AC37:
 	DB 127,191,223,239,247,251,253,254
 
 SUB_AC3F:
-	PUSH	BC
+	PUSH	BC				; B = Y, C = X
 	LD		D, 1
 	LD		A, B
 	SUB		18H
@@ -6694,19 +6695,10 @@ LOC_ACF6:
 	JR		LOC_ACD5
 RET
 
-DEAL_WITH_SPRITES:
-	LD		l,a
-	LD		h,0
-	LD		e,a
-	LD		d,h
-	ADD		HL,HL
-	ADD		HL,HL
-	ADD		HL,DE					; 5 bytes per entry 
-	EX		DE,HL
-	LD		IX, SPRITE_GENERATOR
-	ADD		IX,DE					; +28*5 for MrDo
-.tst:	
-	; expect in IY the number of 8x8 tiles to process
+; in IY the number of 8x8 tiles to process
+; in IX the entry in the sprite generator list
+
+UPDATE_SPT:	
 	
 	LD		A, (IX+0)			; flag
 	LD		E, (IX+1)			; Position in the SPT in VRAM
@@ -8257,8 +8249,12 @@ BYTE_B757:
 	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple sprite colors (Medium Red), ending with White diamond
 
 BYTE_B761:		; Chomper animation
-	DB 000,000,192,005,196,005,202,005,206,005,132,005	  ; Series using Light Blue
-
+	DB 000,000,192,005,196,005,200,005,204,005,132,005	  ; Series using Light Blue
+	DB 208,  5,212,  5		;  6, 7 upA
+	DB 216,  5,220,  5		;  8, 9 dwnA
+	DB 224,  5,228,  5		; 10,11 upB
+	DB 232,  5,236,  5		; 12,13 dwnB
+	
 SUB_B76D:
 	LD		A, 40H
 	LD		($72BD), A
@@ -8915,59 +8911,9 @@ PHASE_10_BGB:
 
 
 
-SPRITE_GENERATOR:
-	DB 000							;0
-	DW 0,BADGUY_RIGHT_WALK_01_PAT
-	DB 000							;1
-	DW 4,BADGUY_RIGHT_WALK_02_PAT
-	DB 001							;2
-	DW BYTE_C234,BADGUY_RIGHT_WALK_01_PAT
-	DB 001							;3
-	DW BYTE_C238,BADGUY_RIGHT_WALK_02_PAT
-	DB 002							;4
-	DW BYTE_C23C,BADGUY_RIGHT_WALK_01_PAT
-	DB 002							;5
-	DW BYTE_C240,BADGUY_RIGHT_WALK_02_PAT
-	DB 003							;6
-	DW BYTE_C244,BADGUY_RIGHT_WALK_01_PAT
-	DB 003							;7
-	DW BYTE_C248,BADGUY_RIGHT_WALK_02_PAT
-	DB 004							;8
-	DW BYTE_C24C,BADGUY_RIGHT_WALK_01_PAT
-	DB 004							;9
-	DW BYTE_C250,BADGUY_RIGHT_WALK_02_PAT
-	DB 005							;10
-	DW BYTE_C254,BADGUY_RIGHT_WALK_01_PAT
-	DB 005							;11
-	DW BYTE_C258,BADGUY_RIGHT_WALK_02_PAT
-	DB 000							;12
-	DW 48,DIGGER_RIGHT_01_PAT
-	DB 000							;13
-	DW 52,DIGGER_RIGHT_02_PAT
-	DB 001							;14
-	DW BYTE_C25C,DIGGER_RIGHT_01_PAT
-	DB 001							;15
-	DW BYTE_C260,DIGGER_RIGHT_02_PAT
-	DB 002							;16
-	DW BYTE_C264,DIGGER_RIGHT_01_PAT
-	DB 002							;17
-	DW BYTE_C268,DIGGER_RIGHT_02_PAT
-	DB 003							;18
-	DW BYTE_C26C,DIGGER_RIGHT_01_PAT
-	DB 003							;19
-	DW BYTE_C270,DIGGER_RIGHT_02_PAT
-	DB 004							;20
-	DW BYTE_C274,DIGGER_RIGHT_01_PAT
-	DB 004							;21
-	DW BYTE_C278,DIGGER_RIGHT_02_PAT
-	DB 005							;22
-	DW BYTE_C27C,DIGGER_RIGHT_01_PAT
-	DB 005							;23
-	DW BYTE_C280,DIGGER_RIGHT_02_PAT
-
 
 ; MrDo 4 frames						; from 24 now (was 28)
-
+MRDOGENERATOR:
 	DB 0							; 0	right	0	; MrDo sprites start from here
 	DW 44*4,MR_DO_WALK_RIGHT_00_PAT
 	DB 0							; 1
@@ -9141,6 +9087,56 @@ BYTE_C27C:		DB 090,088,091,089
 BYTE_C280:		DB 094,092,095,093
 
 
+ENEMY_GENERATOR:
+	DB 000							;0
+	DW 0,BADGUY_RIGHT_WALK_01_PAT
+	DB 000							;1
+	DW 4,BADGUY_RIGHT_WALK_02_PAT
+	DB 001							;2
+	DW BYTE_C234,BADGUY_RIGHT_WALK_01_PAT
+	DB 001							;3
+	DW BYTE_C238,BADGUY_RIGHT_WALK_02_PAT
+	DB 002							;4
+	DW BYTE_C23C,BADGUY_RIGHT_WALK_01_PAT
+	DB 002							;5
+	DW BYTE_C240,BADGUY_RIGHT_WALK_02_PAT
+	DB 003							;6
+	DW BYTE_C244,BADGUY_RIGHT_WALK_01_PAT
+	DB 003							;7
+	DW BYTE_C248,BADGUY_RIGHT_WALK_02_PAT
+	DB 004							;8
+	DW BYTE_C24C,BADGUY_RIGHT_WALK_01_PAT
+	DB 004							;9
+	DW BYTE_C250,BADGUY_RIGHT_WALK_02_PAT
+	DB 005							;10
+	DW BYTE_C254,BADGUY_RIGHT_WALK_01_PAT
+	DB 005							;11
+	DW BYTE_C258,BADGUY_RIGHT_WALK_02_PAT
+	DB 000							;12
+	DW 48,DIGGER_RIGHT_01_PAT
+	DB 000							;13
+	DW 52,DIGGER_RIGHT_02_PAT
+	DB 001							;14
+	DW BYTE_C25C,DIGGER_RIGHT_01_PAT
+	DB 001							;15
+	DW BYTE_C260,DIGGER_RIGHT_02_PAT
+	DB 002							;16
+	DW BYTE_C264,DIGGER_RIGHT_01_PAT
+	DB 002							;17
+	DW BYTE_C268,DIGGER_RIGHT_02_PAT
+	DB 003							;18
+	DW BYTE_C26C,DIGGER_RIGHT_01_PAT
+	DB 003							;19
+	DW BYTE_C270,DIGGER_RIGHT_02_PAT
+	DB 004							;20
+	DW BYTE_C274,DIGGER_RIGHT_01_PAT
+	DB 004							;21
+	DW BYTE_C278,DIGGER_RIGHT_02_PAT
+	DB 005							;22
+	DW BYTE_C27C,DIGGER_RIGHT_01_PAT
+	DB 005							;23
+	DW BYTE_C280,DIGGER_RIGHT_02_PAT
+
 CHOMPER_GEN:
 	DB 000							
 	DW 192,CHOMPER_RIGHT_CLOSED_PAT
@@ -9169,6 +9165,16 @@ CHOMPER_GEN:
 	DB 005							
 	DW CHMPD1B,CHOMPER_RIGHT_OPEN_PAT
 
+BADGUYPUSH_GEN:
+	DB 000							
+	DW 240,BadGuyPushRight_01
+	DB 000							
+	DW 244,BadGuyPushRight_02
+	DB 001							
+	DW BadGuyPushL0,BadGuyPushRight_01
+	DB 001							
+	DW BadGuyPushL1,BadGuyPushRight_02
+
 
 CHMPL0:		DB 192+10,192+11,192+08,192+09
 CHMPL1:		DB 192+14,192+15,192+12,192+13
@@ -9182,6 +9188,19 @@ CHMPD0B:	DB 192+42,192+40,192+43,192+41
 CHMPD1B:	DB 192+46,192+44,192+47,192+45
 
 
+BadGuyPushL0:	DB 250,251,248,249
+BadGuyPushL1:	DB 254,255,252,253
+
+BadGuyPushRight_01:
+	db $1f,$3f,$3e,$3e,$3f,$1f,$07,$7c
+	db $3b,$3b,$1c,$3e,$00,$00,$00,$00
+	db $f0,$38,$dc,$9c,$1c,$fc,$f9,$03
+	db $ff,$fe,$00,$e0,$40,$f8,$00,$00
+BadGuyPushRight_02:	
+	db $03,$0f,$0f,$1f,$1f,$0f,$07,$1e
+	db $3d,$3d,$7e,$10,$10,$3e,$00,$00
+	db $f8,$8c,$4c,$6c,$9c,$fc,$f9,$01
+	db $ff,$fe,$00,$f8,$00,$00,$00,$00
 
 DIGGER_RIGHT_01_PAT:
    DB 007,029,054,124,212,063,045,120
