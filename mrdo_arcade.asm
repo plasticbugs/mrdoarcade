@@ -175,7 +175,8 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
 						RB   4	;EQU $72BF	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
-						RB	 2	;??
+						RB	 1	;??
+CHOMPNUMBER:			RB	 1	;EQU $72C5  store the current chomper 0-2
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
 CHOMPDATA:				RB  18	;EQU $72C7  3x6 = 18 bytes (3 chompers)
 BALLDATA:				RB	 6	;EQU $72D9
@@ -3412,7 +3413,7 @@ LOC_9782:
 	ADD		A, 40 ;23H			; walk down-mirror offset
 	LD		C, A
 LOC_9786:
-	LD		(IY+5), C		; !!!!! MODIFY HERE TO HAVE 4 MrDO STEPS
+	LD		(IY+5), C			;  MrDO STEPS
 	BIT		6, (IY+0)
 	JR		Z, LOC_97C8
 	LD		A, (IY+1)
@@ -5847,7 +5848,7 @@ BYTE_A7DC:
 	DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
 
 SUB_A7F4:
-	LD		A, ($72C5)
+	LD		A, (CHOMPNUMBER)
 	AND		3
 	LD		IY, CHOMPDATA
 	LD		BC, 6
@@ -5874,7 +5875,7 @@ LOC_A82B:
 	XOR		A
 LOC_A82C:
 	PUSH	AF
-	LD		HL, $72C5
+	LD		HL, CHOMPNUMBER
 	INC		(HL)
 	LD		A, (HL)
 	AND		3
@@ -5967,44 +5968,47 @@ SUB_A8CB:
 	LD		B, (IY+2)
 	LD		C, (IY+1)
 	CALL	SUB_AC3F
-	LD		D, A
+;	LD		D, A		; already A==D in SUB_AC3F
 	CALL	SUB_B173
-	LD		D, 1
+
 	LD		A, (IY+4)
 	AND		7
-	CP		1
-	JR		Z, LOC_A905
-	CP		2
-	JR		NZ, LOC_A8EE
-	INC		D
-	INC		D
+	CP		1						; right
+	JR		Z,CHMPRIGHT
+	CP		2						; left
+	JR		Z,CHMPLEFT
+	CP		4						; down
+	JR		Z,CHMPDOWN
+	CP		3						; up
+	JR		Z,CHMPUP
+									; ANY OTHER VALUE (??)
+CHMPLEFT:
+	LD		D, 3
 	JR		LOC_A905
-LOC_A8EE:
-	LD		A, ($72C5)
-	ADD		A, A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	LD		HL, $712F
-	ADD		HL, BC
-	LD		A, (HL)
-	CP		0E0H
-	JR		Z, LOC_A905
-	CP		0E4H
-	JR		Z, LOC_A905
-	INC		D
-	INC		D
+CHMPDOWN:
+	LD		D, 8			; left side
+	BIT		7, (IY+1)		; test if X<128
+	JR		NZ,LOC_A905
+	LD		D, 12			; right side
+	JR		LOC_A905
+CHMPUP:
+	LD		D, 6			; left side
+	BIT		7, (IY+1)		; test if X<128
+	JR		NZ,LOC_A905
+	LD		D, 10			; right side
+	JR		LOC_A905
+CHMPRIGHT:	
+	LD		D, 1
 LOC_A905:
 	LD		A, (IY+5)
-	BIT		7, A
+	XOR		80H							
 	JR		Z, LOC_A90D
 	INC		D
 LOC_A90D:
-	XOR		80H
 	LD		(IY+5), A
 	LD		B, (IY+2)
 	LD		C, (IY+1)
-	LD		A, ($72C5)
+	LD		A, (CHOMPNUMBER)
 	ADD		A, 17			; animate chomper
 	CALL	PUTSPRITE
 RET
@@ -6626,7 +6630,7 @@ BYTE_AC37:
 	DB 127,191,223,239,247,251,253,254
 
 SUB_AC3F:
-	PUSH	BC
+	PUSH	BC				; B = Y, C = X
 	LD		D, 1
 	LD		A, B
 	SUB		18H
@@ -8257,8 +8261,12 @@ BYTE_B757:
 	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple sprite colors (Medium Red), ending with White diamond
 
 BYTE_B761:		; Chomper animation
-	DB 000,000,192,005,196,005,202,005,206,005,132,005	  ; Series using Light Blue
-
+	DB 000,000,192,005,196,005,200,005,204,005,132,005	  ; Series using Light Blue
+	DB 208,  5,212,  5		;  6, 7 upA
+	DB 216,  5,220,  5		;  8, 9 dwnA
+	DB 224,  5,228,  5		; 10,11 upB
+	DB 232,  5,236,  5		; 12,13 dwnB
+	
 SUB_B76D:
 	LD		A, 40H
 	LD		($72BD), A
