@@ -20,8 +20,9 @@ Changes:
 - Ball cool down removed during alpha monster mode.
 - Move to screen 2 the game to have high res colors for the playfiled
 - improve SAT management to reduce the flickering (5th sprite issue) and reduce the ram usage 
-
+- Add animations for vertical movements of chompers
+- 
 Wish list/To do list:
 - Icon marker for "how" level was completed on "Very Good" screen
 - Wonderful screen every 10th level that shows average score per level and average time to complete each level along with score and time data for the previous level.
-- Add animations for vertical movements of chompers 
+- Add pushing animations for bad guys
