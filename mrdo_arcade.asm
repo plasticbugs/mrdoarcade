@@ -1,4 +1,4 @@
-; BASED ON THE  ASM CODE DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS (November 10, 2023)
+; BASED ON THE  ASM CODE DISASSEMBLY OF MR. DO! BY CAPTAIN COSMOS (November 10,2023)
 ;
 ; https://archive.org/details/manualzilla-id-5667325/mode/1up?view=theater
 ; OS listing
@@ -146,7 +146,7 @@ GAMESTATE:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 
 CURRAPPL:				RB   1	;EQU $722A
 						RB   1	;EQU $722B
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
-						RB  20	;EQU $7245 ; enemy interaction data
+ENEMYINTERACT:			RB  20	;EQU $7245 ; enemy interaction data
 						RB  20	;EQU $7259 ; enemy interaction data
 SPRITEROTFLAG:			RB	 1	;EQU $726D
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players B5-> Pause/Game
@@ -175,7 +175,7 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   5	;EQU $7289	; ??
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
 						RB   4	;EQU $72BF	??
-GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode, B0 ???
+GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
 						RB	 1	;??
 CHOMPNUMBER:			RB	 1	;EQU $72C5  store the current chomper 0-2
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
@@ -242,13 +242,13 @@ SAFEROOM7:				EQU $0701F	; apparentely unused RAM in the timer buffer
 FRAMEPERSEC:			EQU $0069
 DEFER_WRITES:			EQU $73C6		; System flag
 MUX_SPRITES:			EQU $73C7		; System flag: enable sprite rotation ?
-RAND_NUM: 				EQU $73C8		; Used by RAND_GEN, it has to be !=0
+RAND_NUM: 				EQU $73C8		; Used by RAND_GEN,it has to be !=0
 
 mode:				 	EQU $73FD		; Unused (?) used by OS 
-; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
+; B0==0 -> ISR Enabled,B0==1 -> ISR disabled
 ; B1==0 -> ISR served 	B1==1 -> ISR pending
 ; B3-B6 spare
-; B7==0 -> game mode, 	B7==1 -> intermission mode
+; B7==0 -> game mode,	B7==1 -> intermission mode
 
 
 FNAME "mrdo_arcade.rom"
@@ -257,7 +257,7 @@ FNAME "mrdo_arcade.rom"
 
 	ORG $8000
 
-	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES, COLECO_TITLE_OFF TO TURN THEM OFF
+	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES,COLECO_TITLE_OFF TO TURN THEM OFF
 	DW SPRITE_NAME_TABLE
 	DW 0
 	DW 0
@@ -283,7 +283,7 @@ NMI:
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
-	EX		AF, AF'
+	EX		AF,AF'
 	EXX
 	PUSH	AF
 	PUSH	BC
@@ -291,13 +291,13 @@ NMI:
 	PUSH	HL
 	PUSH	IX
 	PUSH	IY
-	LD		BC, 1C2H
+	LD		BC,1C2H
 	CALL	WRITE_REGISTER			; disable ISR generation
 	
 	CALL	READ_REGISTER
 	
-	LD		A, (GAMECONTROL)
-	BIT		3, A
+	LD		A,(GAMECONTROL)
+	BIT		3,A
 	PUSH	AF
 	CALL	Z,NEW_SPRITE_ROTATION		; call only if sprites are not disabled
 	POP		AF
@@ -312,13 +312,13 @@ NMI:
 	CALL	POLLER
 	CALL	SUB_C952			; PLAY MUSIC
 
-	LD		HL, GAMECONTROL
-	BIT		7, (HL)
-	JR		Z, LOC_80BB
-	RES		7, (HL)
+	LD		HL,GAMECONTROL
+	BIT		7,(HL)
+	JR		Z,LOC_80BB
+	RES		7,(HL)
 	JR		FINISH_NMI
 LOC_80BB:
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER			; enable ISR generation
 FINISH_NMI:
 	POP		IY
@@ -328,7 +328,7 @@ FINISH_NMI:
 	POP		BC
 	POP		AF
 	EXX
-	EX		AF, AF'
+	EX		AF,AF'
 	POP		HL
 	POP		DE
 	POP		BC
@@ -336,44 +336,44 @@ FINISH_NMI:
 	RETN
 
 NEW_SPRITE_ROTATION:
-	LD	A,SAT and 255		; Send LSB of address
-	OUT	(CTRL_PORT),A
+	LD		A,SAT and 255		; Send LSB of address
+	OUT		(CTRL_PORT),A
 	
-	LD	A, $40  + (SAT / 256)
-	OUT	(CTRL_PORT),A		; Send MSB of address
+	LD		A,$40  + (SAT / 256)
+	OUT		(CTRL_PORT),A		; Send MSB of address
 
-	LD	A,(SPRITEROTFLAG)
-	ADD	A,4
-	CP	20
-	JR	C,.nores
-	XOR	A
+	LD		A,(SPRITEROTFLAG)
+	ADD		A,4
+	CP		20
+	JR		C,.nores
+	XOR		A
 .nores:	
-	LD	(SPRITEROTFLAG),A
-	LD	C,A
-	LD	B,0
-	LD	HL,SEQUENCE
-	ADD	HL,BC
-	EX	DE,HL
+	LD		(SPRITEROTFLAG),A
+	LD		C,A
+	LD		B,0
+	LD		HL,SEQUENCE
+	ADD		HL,BC
+	EX		DE,HL
 
-	LD	IXL,20
+	LD		IXL,20
 
-	LD	B,0
+	LD		B,0
 .2:		
-	LD	HL,SPRITE_NAME_TABLE
-	LD	A,(DE)				
-	INC	DE
-	ADD	A,A
-	ADD	A,A
-	LD	C,A
-	ADD HL,BC
-	LD	BC,4*256+DATA_PORT	; B = count for 4 bytes of data, C = output port
+	LD		HL,SPRITE_NAME_TABLE
+	LD		A,(DE)				
+	INC		DE
+	ADD		A,A
+	ADD		A,A
+	LD		C,A
+	ADD 	HL,BC
+	LD		BC,4*256+DATA_PORT	; B = count for 4 bytes of data,C = output port
 .1:	OUTI					; Output a byte of data
-	JP	NZ,.1				; Loop until 4 bytes copied
-	DEC	IXL
-	JR	NZ,.2				; Loop until all sprites copied
+	JP		NZ,.1				; Loop until 4 bytes copied
+	DEC		IXL
+	JR		NZ,.2				; Loop until all sprites copied
 	
-	LD	A,208
-	OUT (DATA_PORT),A
+	LD		A,208
+	OUT 	(DATA_PORT),A
 RET
 
 SEQUENCE:
@@ -385,105 +385,105 @@ SEQUENCE:
 	
 DEAL_WITH_TIMER:
     ; First increment shared frame counter
-    LD      A, (FRAME_COUNT)
+    LD      A,(FRAME_COUNT)
     INC     A
-    LD      (FRAME_COUNT), A
+    LD      (FRAME_COUNT),A
 	LD		HL,FRAMEPERSEC
 	CP 		(HL)
     RET      NZ
     
-    ; We hit 60 frames, need to increment seconds
+    ; We hit 60 frames,need to increment seconds
     XOR     A              
-    LD      (FRAME_COUNT), A
+    LD      (FRAME_COUNT),A
 	LD 		HL,(ADDCURRTIMER)
 
     ; Update seconds for current level
-    LD      A, (HL)      ; Load current seconds
+    LD      A,(HL)      ; Load current seconds
     INC     A
-    LD      (HL), A     ; Store seconds
+    LD      (HL),A     ; Store seconds
     CP      60
     RET      NZ
     
-    ; Hit 60 seconds, increment minutes
-    LD      (HL), 0     	; Reset seconds
+    ; Hit 60 seconds,increment minutes
+    LD      (HL),0     	; Reset seconds
 	INC 	HL
     INC     (HL)			; increment minutes
     RET
     
 SUB_80D1:
-	LD		HL, $7259
-	LD		BC, 1401H			; B = 20 sprites
+	LD		HL,$7259
+	LD		BC,1401H			; B = 20 sprites
 LOC_80D7:
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		A
-	JR		Z, LOC_80FF
-	LD		E, C
+	JR		Z,LOC_80FF
+	LD		E,C
 	PUSH	BC
 LOC_80DD:
 	PUSH	HL
 	PUSH	DE
-	LD		HL, $7259
-	LD		A, E
+	LD		HL,$7259
+	LD		A,E
 	CALL	SUB_AC0B
-	JR		Z, LOC_80F7
+	JR		Z,LOC_80F7
 	POP		DE
 	PUSH	DE
-	LD		HL, $7259
-	LD		A, E
+	LD		HL,$7259
+	LD		A,E
 	CALL	SUB_ABF6
 	POP		DE
 	PUSH	DE
-	LD		A, E
+	LD		A,E
 	CALL	DISPLAY_PLAY_FIELD_PARTS
 LOC_80F7:
 	POP		DE
 	INC		E
 	POP		HL
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		A
-	JR		NZ, LOC_80DD
+	JR		NZ,LOC_80DD
 	POP		BC
 LOC_80FF:
-	LD		A, C
-	ADD		A, 8
-	LD		C, A
+	LD		A,C
+	ADD		A,8
+	LD		C,A
 	INC		HL
 	DJNZ	LOC_80D7
 RET
 
 ; in A the frame number in MRDOGENERATOR
 SETMRDOFRAME:
-	LD      E,A			; A<51 as 51*5=255, we can use 8 bit math
+	LD      E,A			; A<51 as 51*5=255,we can use 8 bit math
 	ADD		A,A
 	ADD		A,A
 	ADD		A,E
 	LD      E,A
 	LD      D,0
-	LD		IY, 8				; number of 8x8 tiles to process (8 <=> 2 layers)
+	LD		IY,8				; number of 8x8 tiles to process (8 <=> 2 layers)
 	LD		IX,MRDOGENERATOR
 	ADD     IX,DE
 	CALL	UPDATE_SPT	; Rotate the current frame of the player
 RET
 
 MRDO_SPT_UPDATE:
-	LD		HL, MRDO_DATA			; Mr. Do's sprite data
-	BIT		7, (HL)
+	LD		HL,MRDO_DATA			; Mr. Do's sprite data
+	BIT		7,(HL)
 	RET		Z
-	RES		7, (HL)
-	LD		D, 1
-	LD		A, (MRDO_DATA.Frame)			; if >0 update the MrDo sprite (CURRENT FRAME ?)
+	RES		7,(HL)
+	LD		D,1
+	LD		A,(MRDO_DATA.Frame)			; if >0 update the MrDo sprite (CURRENT FRAME ?)
 	AND		A
-	JR		Z, LOC_8241
+	JR		Z,LOC_8241
 	DEC     A
 	CALL 	SETMRDOFRAME
 
-	LD		D, 0
+	LD		D,0
 LOC_8241:
-	LD 		HL,(MRDO_DATA.Y)			; L = MrDo's Y, H = MrDo's X
+	LD 		HL,(MRDO_DATA.Y)			; L = MrDo's Y,H = MrDo's X
 	DEC L
 	LD		B,L							; B = Y-1
 	LD		C,H							; C = X
-	LD		A, 1
+	LD		A,1
 	CALL	PUTSPRITE			; put sprite A at B = Y-1,C=X with step D
 	
 								; HACK TO ADD A SECOND COLOR LAYER
@@ -502,30 +502,30 @@ LOC_8241:
 RET
 
 SUB_8251:						; update play field
-	LD		HL, $727C
-	BIT		7, (HL)
-	JR		Z, LOC_825D
-	RES		7, (HL)
+	LD		HL,$727C
+	BIT		7,(HL)
+	JR		Z,LOC_825D
+	RES		7,(HL)
 	XOR		A
 	JP		PATTERNS_TO_VRAM
 LOC_825D:
-	BIT		6, (HL)
+	BIT		6,(HL)
 	RET		Z
-	RES		6, (HL)
-	LD		A, 1
+	RES		6,(HL)
+	LD		A,1
 	CALL	PATTERNS_TO_VRAM
 RET
 
 DISPLAY_EXTRA_01:
-	LD		A, ($72BC)
+	LD		A,($72BC)
 	AND		A
-	JR		Z, LOC_82AA
-	LD		HL, BYTE_82D3
-	LD		DE, 2BH
-	LD		BC, EXTRA_01_TXT
+	JR		Z,LOC_82AA
+	LD		HL,BYTE_82D3
+	LD		DE,2BH
+	LD		BC,EXTRA_01_TXT
 LOC_8278:
 	RRCA
-	JR		C, LOC_8282
+	JR		C,LOC_8282
 	INC		HL
 	INC		HL
 	INC		DE
@@ -533,46 +533,46 @@ LOC_8278:
 	INC		BC
 	JR		LOC_8278
 LOC_8282:
-	LD		A, ($72BC)
+	LD		A,($72BC)
 	AND		(HL)
-	LD		($72BC), A
+	LD		($72BC),A
 	INC		HL
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, ($72B8)
-	JR		Z, LOC_8297
-	LD		A, ($72B9)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,($72B8)
+	JR		Z,LOC_8297
+	LD		A,($72B9)
 LOC_8297:
 	AND		(HL)
-	LD		HL, 0
-	JR		Z, LOC_82A0
-	LD		HL, 5
+	LD		HL,0
+	JR		Z,LOC_82A0
+	LD		HL,5
 LOC_82A0:
-	ADD		HL, BC
-	LD		A, 2
-	LD		IY, 1
+	ADD		HL,BC
+	LD		A,2
+	LD		IY,1
 	CALL	PUT_VRAM
 LOC_82AA:
-	LD		A, ($72BB)
+	LD		A,($72BB)
 	AND		A
 	RET		Z
-	LD		HL, BYTE_82D3
-	LD		DE, 2BH
+	LD		HL,BYTE_82D3
+	LD		DE,2BH
 LOC_82B6:
 	RRCA
-	JR		C, LOC_82BF
+	JR		C,LOC_82BF
 	INC		HL
 	INC		HL
 	INC		DE
 	INC		DE
 	JR		LOC_82B6
 LOC_82BF:
-	LD		A, ($72BB)
+	LD		A,($72BB)
 	AND		(HL)
-	LD		($72BB), A
-	LD		HL, BYTE_82DD
-	LD		A, 2
-	LD		IY, 1
+	LD		($72BB),A
+	LD		HL,BYTE_82DD
+	LD		A,2
+	LD		IY,1
 	CALL	PUT_VRAM
 RET
 
@@ -582,80 +582,80 @@ BYTE_82DD:
 	DB 0
 
 SETBONUS:
-	LD		HL, $7272
-	BIT		0, (HL)
-	JR		Z, LOC_8305
-	RES		0, (HL)
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, LOC_82F4
-	LD		A, (CURRENT_LEVEL_P2)
+	LD		HL,$7272
+	BIT		0,(HL)
+	JR		Z,LOC_8305
+	RES		0,(HL)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(CURRENT_LEVEL_P1)
+	JR		Z,LOC_82F4
+	LD		A,(CURRENT_LEVEL_P2)
 LOC_82F4:
 	DEC		A
 	CP		0AH
-	JR		C, LOC_82FB
-	LD		A, 9
+	JR		C,LOC_82FB
+	LD		A,9
 LOC_82FB:
-	LD		HL, BONUS_OBJ_LIST
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		A, (HL)
+	LD		HL,BONUS_OBJ_LIST
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		A,(HL)
 	JR		LOC_830D
 LOC_8305:
-	BIT		1, (HL)
-	JR		Z, LOC_8310
-	RES		1, (HL)
-	LD		A, 0EH
+	BIT		1,(HL)
+	JR		Z,LOC_8310
+	RES		1,(HL)
+	LD		A,0EH
 LOC_830D:
 	CALL	DEAL_WITH_PLAYFIELD
 LOC_8310:
-	LD		HL, DIAMOND_RAM
-	BIT		7, (HL)
+	LD		HL,DIAMOND_RAM
+	BIT		7,(HL)
 	RET		Z
-	LD		IX, APPLEDATA
-	LD		B, (IX+1)
-	LD		C, (IX+2)
-	LD		D, 0
-	BIT		0, (HL)
-	JR		NZ, LOC_8329
-	LD		D, 4
+	LD		IX,APPLEDATA
+	LD		B,(IX+1)
+	LD		C,(IX+2)
+	LD		D,0
+	BIT		0,(HL)
+	JR		NZ,LOC_8329
+	LD		D,4
 LOC_8329:
-	LD		A, (HL)			
+	LD		A,(HL)			
 	XOR		1				
-	LD		(HL), A
-	LD		A, 13 				;  Diamond!
+	LD		(HL),A
+	LD		A,13 				;  Diamond!
 	CALL	PUTSPRITE
 RET
 
 ; BONUS ITEM LIST
 BONUS_OBJ_LIST:
-    db   6, 10, 11, 12, 13, 16, 17, 18, 19, 20
+    db   6,10,11,12,13,16,17,18,19,20
 
 START:
-	LD		HL, $7000			; clean user ram
-	LD		DE, $7000+1
-	LD		BC, $3FE-1			; all zeros till to the end of the ram - needed as we skip the coleco screen
-	LD		(HL), 0
+	LD		HL,$7000			; clean user ram
+	LD		DE,$7000+1
+	LD		BC,$3FE-1			; all zeros till to the end of the ram - needed as we skip the coleco screen
+	LD		(HL),0
 	LDIR
-	LD		A, 1				; ???
-	LD		(MUX_SPRITES), A
+	LD		A,1				; ???
+	LD		(MUX_SPRITES),A
 	LD		HL,$1f01
-	LD		(RAND_NUM), HL		; needed as we skip the coleco screen
+	LD		(RAND_NUM),HL		; needed as we skip the coleco screen
 	XOR		A					; ??? 
-	LD		(DEFER_WRITES), A
+	LD		(DEFER_WRITES),A
 	CALL	INITIALIZE_THE_SOUND
-	LD		A, 20				; show only 20 sprites in total
+	LD		A,20				; show only 20 sprites in total
 	CALL	INIT_SPR_NM_TBL
-	LD		HL, TIMER_TABLE
-	LD		DE, TIMER_DATA_BLOCK
+	LD		HL,TIMER_TABLE
+	LD		DE,TIMER_DATA_BLOCK
 	CALL	INIT_TIMER
-	LD		HL, CONTROLLER_BUFFER
-	LD		A, 9BH
-	LD		(HL), A
+	LD		HL,CONTROLLER_BUFFER
+	LD		A,9BH
+	LD		(HL),A
 	INC		HL
-	LD		(HL), A
+	LD		(HL),A
 
 LOC_8372:
 	
@@ -680,80 +680,80 @@ LOC_8378:
 	CALL	CHECK_FOR_PAUSE
 	CALL	DEAL_WITH_APPLE_FALLING
 	CP		1
-	JP		Z, LOC_83AB
+	JP		Z,LOC_83AB
 	AND		A
-	JR		Z, .continue1  ; If NZ, Last enemy killed by an apple (don't jump)
+	JR		Z,.continue1  ; If NZ,Last enemy killed by an apple (don't jump)
 
-	LD    C, 2     ; MONSTERS
+	LD    C,2     ; MONSTERS
 	CALL  	STORE_COMPLETION_TYPE
 	JP		ADVANCE_TO_NEXT_LEVEL
 
 .continue1:
 	CALL	DEAL_WITH_BALL
 	AND		A
-	JR		Z, .continue2 ; If NZ,Last enemy killed by a ball (don't jump)
+	JR		Z,.continue2 ; If NZ,Last enemy killed by a ball (don't jump)
 
-	; Enemies killed by a ball, store the stat
-	LD    C, 2   ; MONSTERS
+	; Enemies killed by a ball,store the stat
+	LD    C,2   ; MONSTERS
 	CALL	STORE_COMPLETION_TYPE
 	JP      ADVANCE_TO_NEXT_LEVEL
 	
 .continue2:
 	CALL	LEADS_TO_CHERRY_STUFF
 	AND		A
-	JR		Z, .continue3 ; if NZ, all the cherries collected (or diamond collected)
+	JR		Z,.continue3 ; if NZ,all the cherries collected (or diamond collected)
 
-	; Either cherries or diamond collected, store the stats
+	; Either cherries or diamond collected,store the stats
 	CP      $82
-	JR      Z, .diamonds   ; C = 1 for cherries
+	JR      Z,.diamonds   ; C = 1 for cherries
 
-	LD		C, 1
+	LD		C,1
 	CALL  	STORE_COMPLETION_TYPE
 	JP      ADVANCE_TO_NEXT_LEVEL
 	
 .diamonds:
 
-	LD	   	C, 3     ; Diamond completion type
+	LD	   	C,3     ; Diamond completion type
 	CALL  	STORE_COMPLETION_TYPE
 	JP      ADVANCE_TO_NEXT_LEVEL
 
 .continue3:
 	CALL	SUB_A7F4
 	AND		A
-	JR		NZ, LOC_83AB
+	JR		NZ,LOC_83AB
 	CALL	SUB_9842
 	CP		1
-	JR		Z, LOC_83AB		; if Z MrDo collided an enemy
+	JR		Z,LOC_83AB		; if Z MrDo collided an enemy
 	AND		A
-	JP		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
+	JP		NZ,ADVANCE_TO_NEXT_LEVEL ; ??
 	CALL	SUB_A53E
 	AND		A
-	JP		Z, LOC_8378
+	JP		Z,LOC_8378
 	CP		1
-	JR		NZ, ADVANCE_TO_NEXT_LEVEL ; ??
+	JR		NZ,ADVANCE_TO_NEXT_LEVEL ; ??
 LOC_83AB:
 
 	; animate here the MrDo death
 	CALL 	MrDoDeathSequence
 
 LOC_83ABX:
-	LD		IX, APPLEDATA		; apple data array
-	LD		B, 5				; apple number
-LOOP_83B1:						; MrDo is dead, let apples fall if any
-	BIT		3, (IX+0)
-	JR		NZ, LOC_83C0		; if this apple is falling make it fall
-	LD		DE, 5
-	ADD		IX, DE
+	LD		IX,APPLEDATA		; apple data array
+	LD		B,5					; apple number
+LOOP_83B1:						; MrDo is dead,let apples fall if any
+	BIT		3,(IX+0)
+	JR		NZ,LOC_83C0			; if this apple is falling make it fall
+	LD		DE,5
+	ADD		IX,DE
 	DJNZ	LOOP_83B1			; ?? probably only one apple falling at time...
 
 LOC_83C5: ; Mr. Do finished the round
 	AND A						; if Z you have an extra MrDo ?
-	JR		NZ, ADVANCE_TO_NEXT_LEVEL
-	LD		A, 1
+	JR		NZ,ADVANCE_TO_NEXT_LEVEL
+	LD		A,1
 ADVANCE_TO_NEXT_LEVEL:
 	CALL	GOT_DIAMOND			; this is dealing with more than Diamonds
 	CP		3
-	JP		Z, LOC_8372
+	JP		Z,LOC_8372
 	JP		LOC_8375
 LOC_83C0:
 	CALL	DEAL_WITH_APPLE_FALLING
@@ -764,30 +764,30 @@ MrDoDeathSequence:
 	LD		bc,4*256+48			; C is the pointer to the current frame: Death starts from 48
 .nextframe:
 	PUSH	bc
-	LD		HL, 20				; 20 x 4 = 80 /60 = 1.33 sec
+	LD		HL,20				; 20 x 4 = 80 /60 = 1.33 sec
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
 .wait:
 
-	LD		IX, APPLEDATA		; apple data array
-	LD		B, 5				; apple number
-.NextApple:						; MrDo is dead, let apples fall if any
-	BIT		3, (IX+0)
+	LD		IX,APPLEDATA		; apple data array
+	LD		B,5					; apple number
+.NextApple:						; MrDo is dead,let apples fall if any
+	BIT		3,(IX+0)
 	PUSH		IX
 	PUSH		BC
 	CALL		NZ,DEAL_WITH_APPLE_FALLING		; if this apple is falling make it fall
 	POP 		BC
 	POP 		IX
-	LD		DE, 5
-	ADD		IX, DE
+	LD		DE,5
+	ADD		IX,DE
 	DJNZ	.NextApple
 	
 	POP		AF
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, .wait
+	JR		Z,.wait
 	POP		AF
 	POP  	BC
 	LD		A,C
@@ -800,56 +800,56 @@ MrDoDeathSequence:
 RET
 
 REMOVESPRITES:
-	LD		HL, SPRITE_NAME_TABLE
-	LD		B, 50H
+	LD		HL,SPRITE_NAME_TABLE
+	LD		B,50H
 .1:
-	LD		(HL), 209
+	LD		(HL),209
 	INC		HL
 	DJNZ	.1
 RET
 
 INIT_VRAM:
-	LD		BC, 0
+	LD		BC,0
 	CALL	WRITE_REGISTER
-	LD		BC, 1C2H
+	LD		BC,1C2H
 	CALL	WRITE_REGISTER
-	LD		BC, 700H
+	LD		BC,700H
 	CALL	WRITE_REGISTER
 
-	LD		HL, CT		; avoid glitches during screen transition
-	LD		DE, 256*8
+	LD		HL,CT		; avoid glitches during screen transition
+	LD		DE,256*8
 	XOR		A			; CLEAR CT
 	CALL	FILL_VRAM
 
 	XOR		A			; SAT
-	LD		HL, SAT
+	LD		HL,SAT
 	CALL	INIT_TABLE
-	LD		A, 1		; SPT
-	LD		HL, SPT
+	LD		A,1		; SPT
+	LD		HL,SPT
 	CALL	INIT_TABLE
-	LD		A, 2		; PNT
-	LD		HL, PNT
+	LD		A,2		; PNT
+	LD		HL,PNT
 	CALL	INIT_TABLE
-	LD		A, 3		; PT
-	LD		HL, PT
+	LD		A,3		; PT
+	LD		HL,PT
 	CALL	INIT_TABLE
-	LD		A, 4		; CT
-	LD		HL, CT
+	LD		A,4		; CT
+	LD		HL,CT
 	CALL	INIT_TABLE
 	
-	LD		HL, 0
-	LD		DE, 2000H
+	LD		HL,0
+	LD		DE,2000H
 	XOR		A			; CLEAR PT,PNT,SAT
 	CALL	FILL_VRAM
 	
 	
-	LD		HL, EXTRA_SPRITE_PAT	; EXTRA+Apples+Diamond+Balls
-	LD		DE, 60H
-	LD		IY, 80+6*4				; OS7 BUG should have been 72+6*4
-	LD		A, 1
+	LD		HL,EXTRA_SPRITE_PAT	; EXTRA+Apples+Diamond+Balls
+	LD		DE,60H
+	LD		IY,80+6*4				; OS7 BUG should have been 72+6*4
+	LD		A,1
 	CALL	PUT_VRAM
 	
-	LD		IX, ENEMY_GENERATOR		; Load chompers and bad guys pushing in the SPT
+	LD		IX,ENEMY_GENERATOR		; Load chompers and bad guys pushing in the SPT
 	LD		B,24+12+4				; 24 frames for badguys/diggers + 12  for chompers + 4 bad guys pushing
 .1:	PUSH	BC
 	PUSH	IX
@@ -889,7 +889,7 @@ INIT_VRAM:
 	RES 7,(HL)			; game mode
 
 	
-	LD		BC, 1E2H		 		; Original game state register
+	LD		BC,1E2H		 		; Original game state register
 	CALL	WRITE_REGISTER	
 RET
 
@@ -904,21 +904,21 @@ LOADFONTS:		; LOAD  ARCADE FONTS
 	LD 		HL,ARCADEFONTS
 	CALL 	unpack
 
-	LD		HL, CT+0d7h*8
-	LD		BC, 41*8
+	LD		HL,CT+0d7h*8
+	LD		BC,41*8
 	LD		A,$F1
 	CALL 	cvb_MYCLS.0
 RET
 
 	
 
-SUB_84F8:	 ; Disables NMI, sets up the game
+SUB_84F8:	 ; Disables NMI,sets up the game
 	PUSH	AF
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_84FE:
-	BIT		7, (HL)
-	JR		NZ, LOC_84FE
+	BIT		7,(HL)
+	JR		NZ,LOC_84FE
 	POP		AF
 	PUSH	AF
 	AND		A
@@ -931,182 +931,182 @@ LOC_84FE:
 	CALL	SUB_87F4
 RET
 
-SUB_851C:	; If we're here, the game just started
-	LD		HL, 0
-	LD		(SCORE_P1_RAM), HL
-	LD		(SCORE_P2_RAM), HL
-	LD		(P1_PREV_SCORE), HL
-	LD		(P2_PREV_SCORE), HL
+SUB_851C:	; If we're here,the game just started
+	LD		HL,0
+	LD		(SCORE_P1_RAM),HL
+	LD		(SCORE_P2_RAM),HL
+	LD		(P1_PREV_SCORE),HL
+	LD		(P2_PREV_SCORE),HL
 	CALL 	Reset_p1		; reset min and sec for the two players
 	CALL 	Reset_p2		
 	
 	CALL 	CURRTIMERINIT
 	
-	LD		A, 1			; Set the starting level to 1
-	LD		(CURRENT_LEVEL_P1), A
-	LD		(CURRENT_LEVEL_P2), A
+	LD		A,1			; Set the starting level to 1
+	LD		(CURRENT_LEVEL_P1),A
+	LD		(CURRENT_LEVEL_P2),A
 	XOR		A
-	LD		($727A), A
-	LD		($727B), A
-	LD		A, (SKILLLEVEL)
+	LD		($727A),A
+	LD		($727B),A
+	LD		A,(SKILLLEVEL)
 	CP		2
-	LD		A, 3		; Set the number of lives to 3 for skill 1 and 2
-	JR		NC, LOC_853F
-	LD		A, 5		; Set the number of lives to 5 for skill 3 and 4
+	LD		A,3		; Set the number of lives to 3 for skill 1 and 2
+	JR		NC,LOC_853F
+	LD		A,5		; Set the number of lives to 5 for skill 3 and 4
 LOC_853F:
-	LD		(LIVES_LEFT_P1_RAM), A
-	LD		(LIVES_LEFT_P2_RAM), A
+	LD		(LIVES_LEFT_P1_RAM),A
+	LD		(LIVES_LEFT_P2_RAM),A
 	
-	LD		A, (GAMECONTROL)
+	LD		A,(GAMECONTROL)
 	AND		1
-	LD		(GAMECONTROL), A
-	LD		A, 1
+	LD		(GAMECONTROL),A
+	LD		A,1
 	CALL	SUB_B286		; build level 1
-	LD		HL, GAMESTATE
-	LD		DE, 3400H		; VRAM area for P1 data
-	LD		BC, 0D4H		; save in VRAM 212 bytes of game state for P1 
+	LD		HL,GAMESTATE
+	LD		DE,3400H		; VRAM area for P1 data
+	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P1 
 	CALL	WRITE_VRAM
-	LD		HL, GAMESTATE
-	LD		DE, 3600H		; VRAM area for P2 data
-	LD		BC, 0D4H		; save in VRAM 212 bytes of game state for P2 
+	LD		HL,GAMESTATE
+	LD		DE,3600H		; VRAM area for P2 data
+	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P2 
 	CALL	WRITE_VRAM
 	CALL	SUB_866B
-	LD		HL, $72B8
-	LD		B, 0BH
+	LD		HL,$72B8
+	LD		B,0BH
 	XOR		A
 LOC_8573:
-	LD		(HL), A
+	LD		(HL),A
 	INC		HL
 	DJNZ	LOC_8573
-	LD		A, 8
-	LD		($72BA), A
-	LD		A, 7				; Enemy Number
-	LD		(ENEMY_NUM_P1), A
-	LD		(ENEMY_NUM_P2), A
+	LD		A,8
+	LD		($72BA),A
+	LD		A,7				; Enemy Number
+	LD		(ENEMY_NUM_P1),A
+	LD		(ENEMY_NUM_P2),A
 RET
 
 SUB_8585:
 	XOR		A
-	LD		(BALLDATA), A
-	LD		($72DD), A
-	LD		($7272), A
-	LD		(DIAMOND_RAM), A
-	LD		HL, GAMECONTROL
-	RES		6, (HL)
-	LD		DE, 3400H
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_85A4
-	LD		DE, 3600H
+	LD		(BALLDATA),A
+	LD		($72DD),A
+	LD		($7272),A
+	LD		(DIAMOND_RAM),A
+	LD		HL,GAMECONTROL
+	RES		6,(HL)
+	LD		DE,3400H
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	JR		Z,LOC_85A4
+	LD		DE,3600H
 LOC_85A4:
-	LD		HL, GAMESTATE
-	LD		BC, 0D4H
+	LD		HL,GAMESTATE
+	LD		BC,0D4H
 	CALL	READ_VRAM
 	XOR		A
-	LD		(BADGUY_BHVR_CNT_RAM), A
-	LD		HL, BADGUY_BEHAVIOR_RAM
-	LD		B, 50H
+	LD		(BADGUY_BHVR_CNT_RAM),A
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	LD		B,50H
 LOC_85B6:
-	LD		(HL), A
+	LD		(HL),A
 	INC		HL
 	DJNZ	LOC_85B6
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, LOC_85C7
-	LD		A, (CURRENT_LEVEL_P2)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(CURRENT_LEVEL_P1)
+	JR		Z,LOC_85C7
+	LD		A,(CURRENT_LEVEL_P2)
 LOC_85C7:
 	CP		0BH
-	JR		C, DEAL_WITH_BADGUY_BEHAVIOR
+	JR		C,DEAL_WITH_BADGUY_BEHAVIOR
 	SUB		0AH
 	JR		LOC_85C7
 
 DEAL_WITH_BADGUY_BEHAVIOR:
 	DEC		A
-	ADD		A, A
-	LD		E, A
-	LD		D, 0
-	LD		IX, BADGUY_BEHAVIOR
-	ADD		IX, DE
-	LD		L, (IX+0)
-	LD		H, (IX+1)
-	LD		A, (HL)
-	LD		(BADGUY_BHVR_CNT_RAM), A
-	LD		C, (HL)
-	LD		B, 0
+	ADD		A,A
+	LD		E,A
+	LD		D,0
+	LD		IX,BADGUY_BEHAVIOR
+	ADD		IX,DE
+	LD		L,(IX+0)
+	LD		H,(IX+1)
+	LD		A,(HL)
+	LD		(BADGUY_BHVR_CNT_RAM),A
+	LD		C,(HL)
+	LD		B,0
 	INC		HL
-	LD		DE, BADGUY_BEHAVIOR_RAM
+	LD		DE,BADGUY_BEHAVIOR_RAM
 	LDIR
-	LD		HL, TIMER_TABLE
-	LD		DE, TIMER_DATA_BLOCK
+	LD		HL,TIMER_TABLE
+	LD		DE,TIMER_DATA_BLOCK
 	CALL	INIT_TIMER
 	
 	CALL	SET_LEVEL_COLORS
 	
-	LD		HL, GAMEFLAGS
-	LD		B, 16H				; 22 bytes of GAMEFLAGS ?
+	LD		HL,GAMEFLAGS
+	LD		B,16H				; 22 bytes of GAMEFLAGS ?
 	XOR		A
 LOC_862E:
-	LD		(HL), A				; Reset GAMEFLAGS ??
+	LD		(HL),A				; Reset GAMEFLAGS ??
 	INC		HL
 	DJNZ	LOC_862E
 	CALL	SUB_866B
-	LD		A, ($72C1)
+	LD		A,($72C1)
 	AND		7
-	LD		($72C1), A
-	LD		A, ($72BA)
+	LD		($72C1),A
+	LD		A,($72BA)
 	AND		3FH
-	LD		($72BA), A
-	LD		HL, ENEMY_NUM_P1
-	LD		A, (GAMECONTROL)
+	LD		($72BA),A
+	LD		HL,ENEMY_NUM_P1
+	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_8652
+	JR		NZ,LOC_8652
 	INC		HL		; point to ENEMY_NUM_P2
 LOC_8652:
-	LD		A, (HL)
+	LD		A,(HL)
 	CP		7
 	RET		NC
-	LD		IY, $72B2
+	LD		IY,$72B2
 LOC_865C:
-	LD		(IY+4), 0C0H
-	LD		DE, 0FFFAH
-	ADD		IY, DE
+	LD		(IY+4),0C0H
+	LD		DE,0FFFAH
+	ADD		IY,DE
 	INC		A
 	CP		7
-	JR		NZ, LOC_865C
+	JR		NZ,LOC_865C
 RET
 
 SUB_866B:
-	LD		HL, $728A
-	LD		B, 2EH
+	LD		HL,$728A
+	LD		B,2EH
 	XOR		A
 LOOP_8671:
-	LD		(HL), A
+	LD		(HL),A
 	INC		HL
 	DJNZ	LOOP_8671
 RET
 
 CLEAR_SCREEN_AND_SPRITES_01:
-	LD		HL, PNT
-	LD		DE, 300H
-	xor 	a
+	LD		HL,PNT
+	LD		DE,300H
+	XOR		A
 	CALL	FILL_VRAM
-	LD		HL, SAT
-	LD		DE, 80H
-	xor	a
+	LD		HL,SAT
+	LD		DE,80H
+	XOR		A
 	CALL	FILL_VRAM
 	CALL	REMOVESPRITES
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, 4
-	JR		Z, LOC_86A1
-	LD		A, 5
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,4
+	JR		Z,LOC_86A1
+	LD		A,5
 LOC_86A1:
 	CALL	DEAL_WITH_PLAYFIELD
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
-	LD		HL, 0B4H
+	LD		HL,0B4H
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
@@ -1115,99 +1115,99 @@ LOC_86B2:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_86B2
+	JR		Z,LOC_86B2
 	POP		AF
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_86C0:
-	BIT		7, (HL)
-	JR		NZ, LOC_86C0
+	BIT		7,(HL)
+	JR		NZ,LOC_86C0
 RET
 
 CLEAR_SCREEN_AND_SPRITES_02:
-	LD		HL, PNT			; vram PATTERN_NAME_TABLE
-	LD		DE, 300H
+	LD		HL,PNT			; vram PATTERN_NAME_TABLE
+	LD		DE,300H
 	XOR 	A
 	CALL	FILL_VRAM
-	LD		HL, SAT				; vram SPRITE_ATTRIBUTE_TABLE
-	LD		DE, 80H
+	LD		HL,SAT				; vram SPRITE_ATTRIBUTE_TABLE
+	LD		DE,80H
 	XOR 	A
 	CALL	FILL_VRAM
 	CALL	REMOVESPRITES
-	LD		A, 0A0H
+	LD		A,0A0H
 LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
 	PUSH	AF
 	CALL	DISPLAY_PLAY_FIELD_PARTS
 	POP		AF
 	DEC		A
-	JR		NZ, LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE
-	LD		A, 1
+	JR		NZ,LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE
+	LD		A,1
 	CALL	DEAL_WITH_PLAYFIELD
 	XOR		A
 	CALL	PATTERNS_TO_VRAM
-	LD		A, (GAMECONTROL)
-	BIT		0, A
-	JR		Z, LOC_8709
-	LD		A, 0FH
+	LD		A,(GAMECONTROL)
+	BIT		0,A
+	JR		Z,LOC_8709
+	LD		A,0FH
 	CALL	DEAL_WITH_PLAYFIELD
-	LD		A, 1
+	LD		A,1
 	CALL	PATTERNS_TO_VRAM
 LOC_8709:
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, LOC_8716
-	LD		A, (CURRENT_LEVEL_P2)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(CURRENT_LEVEL_P1)
+	JR		Z,LOC_8716
+	LD		A,(CURRENT_LEVEL_P2)
 LOC_8716:
-	LD		HL, SCRATCH
-	LD		D, 0D8H
-	LD		IY, 1
+	LD		HL,SCRATCH
+	LD		D,0D8H
+	LD		IY,1
 	CP		0AH
-	JR		NC, LOC_8728
-	ADD		A, 0D8H
-	LD		(HL), A
+	JR		NC,LOC_8728
+	ADD		A,0D8H
+	LD		(HL),A
 	JR		LOC_8739
 LOC_8728:
 	CP		0AH
-	JR		C, LOC_8731
+	JR		C,LOC_8731
 	SUB		0AH
 	INC		D
 	JR		LOC_8728
 LOC_8731:
 	INC		IY
-	LD		(HL), D
+	LD		(HL),D
 	INC		HL
-	ADD		A, 0D8H
-	LD		(HL), A
+	ADD		A,0D8H
+	LD		(HL),A
 	DEC		HL
 LOC_8739:
-	LD		DE, 3DH
-	LD		A, 2
+	LD		DE,3DH
+	LD		A,2
 	CALL	PUT_VRAM
-	LD		A, 2
+	LD		A,2
 	CALL	DEAL_WITH_PLAYFIELD
-	LD		HL, $72B8
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_8753
-	LD		HL, $72B9
+	LD		HL,$72B8
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	JR		Z,LOC_8753
+	LD		HL,$72B9
 LOC_8753:
-	LD		DE, 12BH
-	LD		BC, 0
+	LD		DE,12BH
+	LD		BC,0
 LOC_8759:
-	LD		A, (HL)
+	LD		A,(HL)
 	PUSH	HL
-	LD		HL, EXTRA_01_TXT
+	LD		HL,EXTRA_01_TXT
 	AND		D
-	JR		Z, SEND_EXTRA_TO_VRAM
-	LD		HL, EXTRA_02_TXT
+	JR		Z,SEND_EXTRA_TO_VRAM
+	LD		HL,EXTRA_02_TXT
 SEND_EXTRA_TO_VRAM:
-	ADD		HL, BC
+	ADD		HL,BC
 	PUSH	BC
 	PUSH	DE
-	LD		D, 0
-	LD		IY, 1
-	LD		A, 2
+	LD		D,0
+	LD		IY,1
+	LD		A,2
 	CALL	PUT_VRAM
 	POP		DE
 	POP		BC
@@ -1216,123 +1216,123 @@ SEND_EXTRA_TO_VRAM:
 	INC		E
 	RLC		D
 	INC		C
-	LD		A, C
+	LD		A,C
 	CP		5
-	JR		NZ, LOC_8759
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		HL, LIVES_LEFT_P1_RAM
-	JR		Z, LOC_878C
-	LD		HL, LIVES_LEFT_P2_RAM
+	JR		NZ,LOC_8759
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		HL,LIVES_LEFT_P1_RAM
+	JR		Z,LOC_878C
+	LD		HL,LIVES_LEFT_P2_RAM
 LOC_878C:
-	LD		B, (HL)
-	LD		DE, 35H
+	LD		B,(HL)
+	LD		DE,35H
 SEND_LIVES_TO_VRAM:
 	DEC		B
-	JR		Z, LOC_87B9
+	JR		Z,LOC_87B9
 	PUSH	BC
 	PUSH	DE
-	LD		HL, MR_DO_ICON
-	LD		IY, 1
-	LD		A, 2
+	LD		HL,MR_DO_ICON
+	LD		IY,1
+	LD		A,2
 	CALL	PUT_VRAM
 	POP		HL
 	PUSH	HL
-	LD		DE, 20H
-	ADD		HL, DE
-	EX		DE, HL
-	LD		HL, MR_DO_ICON+1
-	LD		IY, 1
-	LD		A, 2
+	LD		DE,20H
+	ADD		HL,DE
+	EX		DE,HL
+	LD		HL,MR_DO_ICON+1
+	LD		IY,1
+	LD		A,2
 	CALL	PUT_VRAM
 	POP		DE
 	POP		BC
 	INC		DE
 	JR		SEND_LIVES_TO_VRAM
 LOC_87B9:
-	LD		A, 3
+	LD		A,3
 	CALL	DEAL_WITH_PLAYFIELD
-	LD		B, 5
-	LD		IY, APPLEDATA
-	LD		A, 0CH
+	LD		B,5
+	LD		IY,APPLEDATA
+	LD		A,0CH
 LOOP_87C6:
-	BIT		7, (IY+0)
-	JR		Z, LOC_87DF
+	BIT		7,(IY+0)
+	JR		Z,LOC_87DF
 	PUSH	BC
 	PUSH	IX
 	PUSH	AF
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	LD		D, 1			; integer apple
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	LD		D,1			; integer apple
 	CALL	PUTSPRITE
 	POP		AF
 	POP		IX
 	POP		BC
 LOC_87DF:
-	LD		DE, 5
-	ADD		IY, DE
+	LD		DE,5
+	ADD		IY,DE
 	INC		A
 	DJNZ	LOOP_87C6
 RET
 
 EXTRA_01_TXT:
-	DB  53, 54, 55, 56, 57
+	DB  53,54,55,56,57
 EXTRA_02_TXT:
-	DB  48, 49, 50, 51, 52
+	DB  48,49,50,51,52
 MR_DO_ICON:
 	DB  75,107
 
 SUB_87F4:	; Start the level
-	LD		IY, MRDO_DATA
+	LD		IY,MRDO_DATA
 	XOR		A
-	LD		(IY+6), A		; $7287 = ??
-	LD		(IY+7), A		; $7288 = ??
-	LD		A, 1
-	LD		(IY+1), A		; $7282 = Set Mr. Do's starting direction 1=Right,2=Left,3=Up,4=Down
-	LD		(IY+5), A		; $7286 = ?? CURRENT MRDO FRAME !!!
-	LD		(IY+3), 0B0H	; $7284 = Set Mr. Do's starting Y coordinate
-	LD		(IY+4), 078H	; $7285 = Set Mr. Do's starting X coordinate
-	LD		(IY+0), 0C0H	; $7281 = flag
-	LD		BC, 1E2H
+	LD		(IY+6),A		; $7287 = ??
+	LD		(IY+7),A		; $7288 = ??
+	LD		A,1
+	LD		(IY+1),A		; $7282 = Set Mr. Do's starting direction 1=Right,2=Left,3=Up,4=Down
+	LD		(IY+5),A		; $7286 = ?? CURRENT MRDO FRAME !!!
+	LD		(IY+3),0B0H	; $7284 = Set Mr. Do's starting Y coordinate
+	LD		(IY+4),078H	; $7285 = Set Mr. Do's starting X coordinate
+	LD		(IY+0),0C0H	; $7281 = flag
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	
 	CALL	PLAY_OPENING_TUNE
-	LD		HL, 1
+	LD		HL,1
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		($7283), A		; $7283 = Mr Do's Timer ?
+	LD		($7283),A		; $7283 = Mr Do's Timer ?
 					;	POP	AF	; WTF??? Potential critical bug
 RET
 
 CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (KEYBOARD_P1)
-	JR		Z, .ply1
-	LD		A, (KEYBOARD_P2)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(KEYBOARD_P1)
+	JR		Z,.ply1
+	LD		A,(KEYBOARD_P2)
 .ply1:
 	CP		0AH
 	RET		NZ
 	
 	CALL 	waitoneframe
 	
-	SET		3, (HL)					; stop sprite update
+	SET		3,(HL)					; stop sprite update
 	
 	XOR		A
-	LD		HL, SAT					; remove sprites
-	LD		DE, 80H
+	LD		HL,SAT					; remove sprites
+	LD		DE,80H
 	CALL	FILL_VRAM
 	
-	LD		A, 2
-	LD		HL, 3800H
+	LD		A,2
+	LD		HL,3800H
 	CALL	INIT_TABLE				; enable alternative PNT at 3800H
 
-	LD		HL, STATESTART			; save to VRAM the sound state
-	LD		DE, 3B00H
-	LD		BC, 5DH					; 93 bytes of sound state saved at 3B00h in VRAM
+	LD		HL,STATESTART			; save to VRAM the sound state
+	LD		DE,3B00H
+	LD		BC,5DH					; 93 bytes of sound state saved at 3B00h in VRAM
 	CALL	WRITE_VRAM
 
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 
 	CALL	PLAY_END_OF_ROUND_TUNE
@@ -1340,119 +1340,119 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	call 	DELAY
 	
 .wait_star:
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (KEYBOARD_P1)
-	JR		Z, .plr1
-	LD		A, (KEYBOARD_P2)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(KEYBOARD_P1)
+	JR		Z,.plr1
+	LD		A,(KEYBOARD_P2)
 .plr1:
 	CP		0AH
-	JR		NZ, .wait_star
+	JR		NZ,.wait_star
 	
 	CALL	INITIALIZE_THE_SOUND
 	
 	CALL 	waitoneframe
 
-	; SET		4, (HL)
+	; SET		4,(HL)
 
-	LD		A, 2
-	LD		HL, PNT
+	LD		A,2
+	LD		HL,PNT
 	CALL	INIT_TABLE			; enable PNT
 
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 
-	LD		HL, GAMECONTROL
-	RES		3, (HL)				; enable sprites
+	LD		HL,GAMECONTROL
+	RES		3,(HL)				; enable sprites
 	
 	CALL 	DELAY
 	
 	CALL 	waitoneframe
 	
-	; RES		4, (HL)
+	; RES		4,(HL)
 
-	LD		HL, STATESTART		; restore from VRAM the sound state
-	LD		DE, 3B00H
-	LD		BC, 5DH
+	LD		HL,STATESTART		; restore from VRAM the sound state
+	LD		DE,3B00H
+	LD		BC,5DH
 	CALL	READ_VRAM
 	
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 RET
 
 DELAY:
-	LD		B, 2
+	LD		B,2
 .wait_ext:
-	LD		HL, 0
+	LD		HL,0
 .wait:
 	DEC		HL
-	LD		A, L
+	LD		A,L
 	OR		H
-	JR		NZ, .wait
+	JR		NZ,.wait
 	DJNZ	.wait_ext
 ret
 
 waitoneframe:
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 .wait_isr:
-	BIT		7, (HL)
-	JR		NZ, .wait_isr
+	BIT		7,(HL)
+	JR		NZ,.wait_isr
 RET
 
 DEAL_WITH_APPLE_FALLING:
-	LD		IY, APPLEDATA
-	LD		HL, BYTE_896C
-	LD		A, (CURRAPPL)
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		C, (HL)
-	ADD		IY, BC
+	LD		IY,APPLEDATA
+	LD		HL,BYTE_896C
+	LD		A,(CURRAPPL)
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		C,(HL)
+	ADD		IY,BC
 
 	XOR		A
-	BIT		7, (IY+0)
-	JR		Z, LEADS_TO_FALLING_APPLE_04
-	LD		A, (IY+0)
-	BIT		3, A
-	JR		NZ, LEADS_TO_FALLING_APPLE_01
+	BIT		7,(IY+0)
+	JR		Z,LEADS_TO_FALLING_APPLE_04
+	LD		A,(IY+0)
+	BIT		3,A
+	JR		NZ,LEADS_TO_FALLING_APPLE_01
 	XOR		A
 	CALL	SUB_8E10
-	JR		Z, LEADS_TO_FALLING_APPLE_04
+	JR		Z,LEADS_TO_FALLING_APPLE_04
 	JR		LOC_8941
 LEADS_TO_FALLING_APPLE_01:
-	LD		A, (IY+3)
+	LD		A,(IY+3)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LEADS_TO_FALLING_APPLE_04
-	LD		A, (IY+0)
-	BIT		6, A
-	JR		Z, LEADS_TO_FALLING_APPLE_02
+	JR		Z,LEADS_TO_FALLING_APPLE_04
+	LD		A,(IY+0)
+	BIT		6,A
+	JR		Z,LEADS_TO_FALLING_APPLE_02
 	CALL	SUB_8FB0
-	JR		NZ, LOC_8941
+	JR		NZ,LOC_8941
 LEADS_TO_FALLING_APPLE_02:
-	LD		A, (IY+0)
-	BIT		4, A
-	JR		Z, LEADS_TO_FALLING_APPLE_05
+	LD		A,(IY+0)
+	BIT		4,A
+	JR		Z,LEADS_TO_FALLING_APPLE_05
 	PUSH	IY
 	CALL	PLAY_APPLE_BREAKING_SOUND
 	POP		IY
 	JR		LEADS_TO_FALLING_APPLE_07
 LEADS_TO_FALLING_APPLE_05:
-	BIT		5, A
-	JR		NZ, LEADS_TO_FALLING_APPLE_06
+	BIT		5,A
+	JR		NZ,LEADS_TO_FALLING_APPLE_06
 LEADS_TO_FALLING_APPLE_07:
-	LD		A, (IY+4)
-	LD		B, A
+	LD		A,(IY+4)
+	LD		B,A
 	AND		0CFH
-	LD		C, A
-	LD		A, B
-	ADD		A, 10H
+	LD		C,A
+	LD		A,B
+	ADD		A,10H
 	AND		30H
 	OR		C
-	LD		(IY+4), A
+	LD		(IY+4),A
 	AND		30H
-	JR		Z, LOC_892A
+	JR		Z,LOC_892A
 	JR		LOC_8941
 LOC_892A:
 	CALL	SUB_89D1
@@ -1464,7 +1464,7 @@ LEADS_TO_FALLING_APPLE_06:
 	CALL	PLAY_APPLE_FALLING_SOUND
 	POP		IY
 	CALL	DEAL_WITH_APPLE_HITTING_SOMETHING
-	JR		Z, LOC_8945
+	JR		Z,LOC_8945
 LOC_8941:
 	CALL	SUB_8972
 	XOR		A
@@ -1474,13 +1474,13 @@ LOC_8945:
 	POP		AF
 LEADS_TO_FALLING_APPLE_04:
 	PUSH	AF
-	LD		A, (CURRAPPL)
+	LD		A,(CURRAPPL)
 	INC		A
 	CP		5
-	JR		C, LOC_8954
+	JR		C,LOC_8954
 	XOR		A
 LOC_8954:
-	LD		(CURRAPPL), A
+	LD		(CURRAPPL),A
 	POP		AF
 	AND		A
 RET
@@ -1490,39 +1490,39 @@ BYTE_896C:
 	DB 000,005,010,015,020,025
 
 SUB_8972:
-	LD		HL, 0FH
-	LD		A, (IY+0)
-	BIT		6, A
-	JR		NZ, LOC_8992
-	LD		HL, 4
-	BIT		5, A
-	JR		NZ, LOC_8992
-	LD		HL, 19H
+	LD		HL,0FH
+	LD		A,(IY+0)
+	BIT		6,A
+	JR		NZ,LOC_8992
+	LD		HL,4
+	BIT		5,A
+	JR		NZ,LOC_8992
+	LD		HL,19H
 
 LOC_8992:
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
+	LD		(IY+3),A
 RET
 
 SUB_899A:
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	RRCA
 	RRCA
 	RRCA
 	RRCA
 	AND		3
-	LD		D, A
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	LD		A, (IY+0)
-	BIT		6, A
-	JR		Z, LOC_89C1
+	LD		D,A
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	LD		A,(IY+0)
+	BIT		6,A
+	JR		Z,LOC_89C1
 	AND		7
 	CP		2
-	JR		Z, LOC_89C1
+	JR		Z,LOC_89C1
 	CP		1
-	JR		NZ, LOC_89BF
+	JR		NZ,LOC_89BF
 	DEC		C
 	DEC		C
 	JR		LOC_89C1
@@ -1530,54 +1530,54 @@ LOC_89BF:
 	INC		C
 	INC		C
 LOC_89C1:
-	LD		A, D
+	LD		A,D
 	AND		A
-	JR		NZ, LOC_89C8
-	LD		BC, $D908
+	JR		NZ,LOC_89C8
+	LD		BC,$D908
 LOC_89C8:
-	LD		A, (CURRAPPL)			; which apple to show
-	ADD		A, 12
+	LD		A,(CURRAPPL)			; which apple to show
+	ADD		A,12
 	CALL	PUTSPRITE
 RET
 
 SUB_89D1:
 	PUSH	IY
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		0FH
-	JR		Z, LOC_89E9
+	JR		Z,LOC_89E9
 	DEC		A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_89EC
-	ADD		HL, BC
-	LD		E, (HL)
+	ADD		A,A
+	LD		C,A
+	LD		B,0
+	LD		HL,BYTE_89EC
+	ADD		HL,BC
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
+	LD		D,(HL)
 	CALL	SUB_B601
 LOC_89E9:
 	POP		IY
 RET
 
 BYTE_89EC:
-    db 100, 0, 200, 0, 144, 1, 88, 2, 32, 3, 232, 3, 176, 4, 120, 5, 64, 6, 8, 7, 208, 7, 152, 8
+    db 100,0,200,0,144,1,88,2,32,3,232,3,176,4,120,5,64,6,8,7,208,7,152,8
 
 DEAL_WITH_RANDOM_DIAMOND:
 	PUSH	IY
 	CALL	SUB_8A31
 	CP		1
-	JR		NZ, LOC_8A2E
+	JR		NZ,LOC_8A2E
 	CALL	RAND_GEN
 	AND		0FH
 	CP		2
-	JR		NC, LOC_8A2E
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	LD		IX, APPLEDATA
-	LD		(IX+1), B
-	LD		(IX+2), C
-	LD		A, 80H
-	LD		(DIAMOND_RAM), A
+	JR		NC,LOC_8A2E
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	LD		IX,APPLEDATA
+	LD		(IX+1),B
+	LD		(IX+2),C
+	LD		A,80H
+	LD		(DIAMOND_RAM),A
 	CALL	PLAY_DIAMOND_SOUND
 LOC_8A2E:
 	POP		IY
@@ -1587,18 +1587,18 @@ SUB_8A31:
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
-	LD		IX, APPLEDATA
-	LD		B, 5
-	LD		C, 0
-	LD		DE, 5
+	LD		IX,APPLEDATA
+	LD		B,5
+	LD		C,0
+	LD		DE,5
 LOOP_8A40:
-	BIT		7, (IX+0)
-	JR		Z, LOC_8A47
+	BIT		7,(IX+0)
+	JR		Z,LOC_8A47
 	INC		C
 LOC_8A47:
-	ADD		IX, DE
+	ADD		IX,DE
 	DJNZ	LOOP_8A40
-	LD		A, C
+	LD		A,C
 	POP		IX
 	POP		DE
 	POP		BC
@@ -1606,176 +1606,176 @@ LOC_8A47:
 RET
 
 DEAL_WITH_APPLE_HITTING_SOMETHING:
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	LD		A, C
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	LD		A,C
 	AND		0FH
-	JR		Z, LOC_8A67
+	JR		Z,LOC_8A67
 	CP		8
-	JR		Z, LOC_8A67
-	LD		A, C
-	ADD		A, 8
+	JR		Z,LOC_8A67
+	LD		A,C
+	ADD		A,8
 	AND		0F0H
-	LD		C, A
+	LD		C,A
 LOC_8A67:
 	CALL	SUB_8AD9
-	LD		A, (IY+1)
-	ADD		A, 4
-	LD		(IY+1), A
-	LD		A, (IY+0)
+	LD		A,(IY+1)
+	ADD		A,4
+	LD		(IY+1),A
+	LD		A,(IY+0)
 	INC		A
-	LD		B, A
+	LD		B,A
 	AND		7
 	CP		6
-	JR		NC, LOC_8A80
-	LD		(IY+0), B
+	JR		NC,LOC_8A80
+	LD		(IY+0),B
 LOC_8A80:
 	CALL	SUB_8BF6
 	CALL	SUB_8C3A
 	CALL	SUB_8C96
 	CALL	SUB_8BC0
-	LD		A, (IY+1)
+	LD		A,(IY+1)
 	AND		7
-	JR		NZ, LOC_8AD7
+	JR		NZ,LOC_8AD7
 	CALL	SUB_8D25
-	JR		NZ, APPLE_FELL_ON_SOMETHING
-	LD		A, 1
+	JR		NZ,APPLE_FELL_ON_SOMETHING
+	LD		A,1
 	CALL	SUB_8E48
-	JR		NZ, LOC_8AD7
-	LD		A, (IY+4)
-	BIT		7, A
-	JR		NZ, APPLE_FELL_ON_SOMETHING
-	BIT		6, A
-	JR		NZ, APPLE_FELL_ON_SOMETHING
+	JR		NZ,LOC_8AD7
+	LD		A,(IY+4)
+	BIT		7,A
+	JR		NZ,APPLE_FELL_ON_SOMETHING
+	BIT		6,A
+	JR		NZ,APPLE_FELL_ON_SOMETHING
 	AND		0FH
-	JR		NZ, APPLE_FELL_ON_SOMETHING
-	LD		A, (IY+0)
+	JR		NZ,APPLE_FELL_ON_SOMETHING
+	LD		A,(IY+0)
 	AND		7
 	CP		5
-	JR		NC, APPLE_FELL_ON_SOMETHING
-	LD		(IY+0), 80H
-	LD		(IY+4), 10H
+	JR		NC,APPLE_FELL_ON_SOMETHING
+	LD		(IY+0),80H
+	LD		(IY+4),10H
 	XOR		A
 	JR		LOC_8AD7
 APPLE_FELL_ON_SOMETHING:
-	RES		5, (IY+0)
+	RES		5,(IY+0)
 	PUSH	IY
 	CALL	PLAY_APPLE_BREAKING_SOUND
 	POP		IY
-	LD		A, (IY+4)
-	ADD		A, 10H
-	LD		(IY+4), A
+	LD		A,(IY+4)
+	ADD		A,10H
+	LD		(IY+4),A
 LOC_8AD7:
 	AND		A
 RET
 
 SUB_8AD9:
-	LD		A, B
+	LD		A,B
 	AND		0FH
 	RET		NZ
 	CALL	SUB_AC3F
 	DEC		IX
 	DEC		D
-	LD		A, (IX+11H)
+	LD		A,(IX+11H)
 	AND		3
 	CP		3
 	RET		NZ
-	BIT		3, C
-	JR		NZ, LOC_8AF7
-	LD		A, (IX+10H)
+	BIT		3,C
+	JR		NZ,LOC_8AF7
+	LD		A,(IX+10H)
 	AND		3
 	CP		3
 	RET		NZ
 LOC_8AF7:
-	LD		A, (IX+1)
+	LD		A,(IX+1)
 	AND		0CH
 	CP		0CH
-	JR		NZ, LOC_8B09
-	LD		A, B
+	JR		NZ,LOC_8B09
+	LD		A,B
 	CP		0E8H
-	JR		NC, LOC_8B09
-	SET		5, (IX+1)
+	JR		NC,LOC_8B09
+	SET		5,(IX+1)
 LOC_8B09:
-	BIT		0, (IX+1)
-	JR		Z, LOC_8B1D
-	BIT		1, (IX+0)
-	JR		Z, LOC_8B1D
-	BIT		3, C
-	JR		NZ, LOC_8B1D
-	SET		7, (IX+1)
+	BIT		0,(IX+1)
+	JR		Z,LOC_8B1D
+	BIT		1,(IX+0)
+	JR		Z,LOC_8B1D
+	BIT		3,C
+	JR		NZ,LOC_8B1D
+	SET		7,(IX+1)
 LOC_8B1D:
-	LD		A, D
+	LD		A,D
 	INC		A
 	CALL	SUB_8BB1
-	LD		A, B
+	LD		A,B
 	CP		0B8H
-	JR		NC, LOC_8B54
-	LD		A, (IX+1)
+	JR		NC,LOC_8B54
+	LD		A,(IX+1)
 	AND		0CH
 	CP		0CH
-	JR		NZ, LOC_8B34
-	SET		4, (IX+11H)
+	JR		NZ,LOC_8B34
+	SET		4,(IX+11H)
 LOC_8B34:
-	LD		A, (IX+11H)
+	LD		A,(IX+11H)
 	AND		5
 	CP		5
-	JR		NZ, LOC_8B4E
-	LD		A, (IX+10H)
+	JR		NZ,LOC_8B4E
+	LD		A,(IX+10H)
 	AND		0AH
 	CP		0AH
-	JR		NZ, LOC_8B4E
-	BIT		3, C
-	JR		NZ, LOC_8B4E
-	SET		7, (IX+11H)
+	JR		NZ,LOC_8B4E
+	BIT		3,C
+	JR		NZ,LOC_8B4E
+	SET		7,(IX+11H)
 LOC_8B4E:
-	LD		A, D
-	ADD		A, 11H
+	LD		A,D
+	ADD		A,11H
 	CALL	SUB_8BB1
 LOC_8B54:
-	BIT		3, C
+	BIT		3,C
 	RET		NZ
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		0CH
 	CP		0CH
-	JR		NZ, LOC_8B69
-	LD		A, B
+	JR		NZ,LOC_8B69
+	LD		A,B
 	CP		0B8H
-	JR		NC, LOC_8B69
-	SET		5, (IX+0)
+	JR		NC,LOC_8B69
+	SET		5,(IX+0)
 LOC_8B69:
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		0AH
 	CP		0AH
-	JR		NZ, LOC_8B7F
-	LD		A, (IX+1)
+	JR		NZ,LOC_8B7F
+	LD		A,(IX+1)
 	AND		5
 	CP		5
-	JR		NZ, LOC_8B7F
-	SET		6, (IX+0)
+	JR		NZ,LOC_8B7F
+	SET		6,(IX+0)
 LOC_8B7F:
-	LD		A, D
+	LD		A,D
 	CALL	SUB_8BB1
-	LD		A, B
+	LD		A,B
 	CP		0B8H
 	RET		NC
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		0CH
 	CP		0CH
-	JR		NZ, LOC_8B94
-	SET		4, (IX+10H)
+	JR		NZ,LOC_8B94
+	SET		4,(IX+10H)
 LOC_8B94:
-	LD		A, (IX+10H)
+	LD		A,(IX+10H)
 	AND		0AH
 	CP		0AH
-	JR		NZ, LOC_8BAA
-	LD		A, (IX+11H)
+	JR		NZ,LOC_8BAA
+	LD		A,(IX+11H)
 	AND		5
 	CP		5
-	JR		NZ, LOC_8BAA
-	SET		6, (IX+10H)
+	JR		NZ,LOC_8BAA
+	SET		6,(IX+10H)
 LOC_8BAA:
-	LD		A, D
-	ADD		A, 10H
+	LD		A,D
+	ADD		A,10H
 	CALL	SUB_8BB1
 RET
 
@@ -1783,7 +1783,7 @@ SUB_8BB1:
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
-	LD		HL, $7259
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -1791,65 +1791,65 @@ SUB_8BB1:
 RET
 
 SUB_8BC0:	; Mr. Do interesecting with a falling apple
-	LD		A, (MRDO_DATA.Y)			; A = MrDo's Y
-	LD		D, A
-	BIT		7, (IY+4)
-	JR		Z, LOC_8BCE
-	ADD		A, 4
+	LD		A,(MRDO_DATA.Y)			; A = MrDo's Y
+	LD		D,A
+	BIT		7,(IY+4)
+	JR		Z,LOC_8BCE
+	ADD		A,4
 	JR		LOC_8BE4
 LOC_8BCE:
-	LD		A, (MRDO_DATA.X)			; A = MrDo's X
-	LD		E, A
+	LD		A,(MRDO_DATA.X)			; A = MrDo's X
+	LD		E,A
 	CALL	SUB_8CFE
-	RET		NZ			;	JR		NZ, LOC_8BF4
-	SET		7, (IY+4)
-	LD		A, (GAMECONTROL)
-	SET		6, A
-	LD		(GAMECONTROL), A
-	LD		A, D
+	RET		NZ			;	JR		NZ,LOC_8BF4
+	SET		7,(IY+4)
+	LD		A,(GAMECONTROL)
+	SET		6,A
+	LD		(GAMECONTROL),A
+	LD		A,D
 LOC_8BE4:
-	LD		(MRDO_DATA.Y), A
+	LD		(MRDO_DATA.Y),A
 	XOR		A
-	LD		(MRDO_DATA.Frame), A			; Mr Do current frame 0 == death
-	LD		A, (MRDO_DATA)
-	SET		7, A
-	LD		(MRDO_DATA), A
+	LD		(MRDO_DATA.Frame),A			; Mr Do current frame 0 == death
+	LD		A,(MRDO_DATA)
+	SET		7,A
+	LD		(MRDO_DATA),A
 	XOR		A
 ;LOC_8BF4:
 ;	AND		A
 RET
 
 SUB_8BF6:	; Falling apple
-	LD		A, ($72BA)
-	LD		B, A
-	LD		A, 1
-	BIT		7, B
-	JR		Z, LOC_8C38
-	LD		A, ($72BF)
-	LD		D, A
-	BIT		6, (IY+4)
-	JR		Z, LOC_8C0F
-	ADD		A, 4
-	LD		D, A
+	LD		A,($72BA)
+	LD		B,A
+	LD		A,1
+	BIT		7,B
+	JR		Z,LOC_8C38
+	LD		A,($72BF)
+	LD		D,A
+	BIT		6,(IY+4)
+	JR		Z,LOC_8C0F
+	ADD		A,4
+	LD		D,A
 	JR		LOC_8C28
 LOC_8C0F:
-	LD		A, ($72BE)
-	LD		E, A
+	LD		A,($72BE)
+	LD		E,A
 	CALL	SUB_8CFE
-	JR		NZ, LOC_8C38
-	LD		A, ($72BD)
-	SET		7, A
-	LD		($72BD), A
-	SET		6, (IY+4)
+	JR		NZ,LOC_8C38
+	LD		A,($72BD)
+	SET		7,A
+	LD		($72BD),A
+	SET		6,(IY+4)
 	INC		(IY+4)
-	LD		A, D
+	LD		A,D
 LOC_8C28:
-	LD		($72BF), A
-	LD		B, D
-	LD		A, ($72BE)
-	LD		C, A
-	LD		D, 0BH
-	LD		A, 3			; smashed letter
+	LD		($72BF),A
+	LD		B,D
+	LD		A,($72BE)
+	LD		C,A
+	LD		D,0BH
+	LD		A,3			; smashed letter
 	CALL	PUTSPRITE
 	XOR		A
 LOC_8C38:
@@ -1857,313 +1857,313 @@ LOC_8C38:
 RET
 
 SUB_8C3A:	; Falling apple
-	LD		B, 7
-	LD		IX, ENEMY_DATA_ARRAY
+	LD		B,7
+	LD		IX,ENEMY_DATA_ARRAY
 LOC_8C40:
 	PUSH	BC
-	BIT		7, (IX+4)
-	JR		Z, LOC_8C8D
-	BIT		6, (IX+4)
-	JR		NZ, LOC_8C8D
-	LD		D, (IX+2)
-	LD		E, (IX+1)
-	BIT		7, (IX+0)
-	JR		Z, LOC_8C68
-	LD		B, (IX+5)
-	LD		A, (CURRAPPL)
+	BIT		7,(IX+4)
+	JR		Z,LOC_8C8D
+	BIT		6,(IX+4)
+	JR		NZ,LOC_8C8D
+	LD		D,(IX+2)
+	LD		E,(IX+1)
+	BIT		7,(IX+0)
+	JR		Z,LOC_8C68
+	LD		B,(IX+5)
+	LD		A,(CURRAPPL)
 	CP		B
-	JR		NZ, LOC_8C8D
-	LD		A, D
-	ADD		A, 4
-	LD		D, A
+	JR		NZ,LOC_8C8D
+	LD		A,D
+	ADD		A,4
+	LD		D,A
 	JR		LOC_8C7A
 LOC_8C68:
 	CALL	SUB_8CFE
-	JR		NZ, LOC_8C8D
-	SET		7, (IX+0)
-	LD		A, (CURRAPPL)
-	LD		(IX+5), A
+	JR		NZ,LOC_8C8D
+	SET		7,(IX+0)
+	LD		A,(CURRAPPL)
+	LD		(IX+5),A
 	INC		(IY+4)
 LOC_8C7A:
-	LD		(IX+2), D
-	LD		B, D
-	LD		C, E
+	LD		(IX+2),D
+	LD		B,D
+	LD		C,E
 	CALL	SUB_B7EF
-	ADD		A, 5
-	LD		D, 37		; digger
+	ADD		A,5
+	LD		D,37		; digger
 	PUSH	IX
 	CALL	PUTSPRITE
 	POP		IX
 LOC_8C8D:
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	POP		BC
 	DJNZ	LOC_8C40
 RET
 
 SUB_8C96:	; Falling apple ?
-	LD		B, 3			; chomper number
-	LD		IX, CHOMPDATA		; chomper data
+	LD		B,3			; chomper number
+	LD		IX,CHOMPDATA		; chomper data
 LOC_8C9C:
 	PUSH	BC
-	BIT		7, (IX+4)
-	JR		Z, LOC_8CF5
-	LD		D, (IX+2)
-	LD		E, (IX+1)
-	BIT		7, (IX+0)
-	JR		Z, LOC_8CBE
-	LD		B, (IX+5)
-	LD		A, (CURRAPPL)
+	BIT		7,(IX+4)
+	JR		Z,LOC_8CF5
+	LD		D,(IX+2)
+	LD		E,(IX+1)
+	BIT		7,(IX+0)
+	JR		Z,LOC_8CBE
+	LD		B,(IX+5)
+	LD		A,(CURRAPPL)
 	CP		B
-	JR		NZ, LOC_8CF5
-	LD		A, D
-	ADD		A, 4
-	LD		D, A
+	JR		NZ,LOC_8CF5
+	LD		A,D
+	ADD		A,4
+	LD		D,A
 	JR		LOC_8CD0
 LOC_8CBE:
 	CALL	SUB_8CFE
-	JR		NZ, LOC_8CF5
-	SET		7, (IX+0)
-	LD		A, (CURRAPPL)
-	LD		(IX+5), A
+	JR		NZ,LOC_8CF5
+	SET		7,(IX+0)
+	LD		A,(CURRAPPL)
+	LD		(IX+5),A
 	INC		(IY+4)
 LOC_8CD0:
-	LD		(IX+2), D
-	LD		B, D
-	LD		C, E
+	LD		(IX+2),D
+	LD		B,D
+	LD		C,E
 	PUSH	IX
 	POP		HL
 	XOR		A
-	LD		DE, CHOMPDATA
+	LD		DE,CHOMPDATA
 					;	AND		A		; CF==0  already
-	SBC		HL, DE
-	JR		Z, LOC_8CEA
-	LD		DE, 6
+	SBC		HL,DE
+	JR		Z,LOC_8CEA
+	LD		DE,6
 LOC_8CE4:
 	INC		A
 	AND		A
-	SBC		HL, DE
-	JR		NZ, LOC_8CE4
+	SBC		HL,DE
+	JR		NZ,LOC_8CE4
 LOC_8CEA:
-	ADD		A, 17			; chomper
-	LD		D, 5			; smashed
+	ADD		A,17			; chomper
+	LD		D,5			; smashed
 	PUSH	IX
 	CALL	PUTSPRITE
 	POP		IX
 LOC_8CF5:
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	POP		BC
 	DJNZ	LOC_8C9C
 RET
 
 SUB_8CFE:	; Check if Mr. Do is intersecting with a falling apple
 	PUSH	BC
-	LD		C, 1
-	LD		A, (IY+1)
+	LD		C,1
+	LD		A,(IY+1)
 	SUB		D
-	JR		NC, LOC_8D09
+	JR		NC,LOC_8D09
 	CPL
 	INC		A
 LOC_8D09:
 	CP		8
-	JR		NC, LOC_8D21
-	LD		A, (IY+2)
+	JR		NC,LOC_8D21
+	LD		A,(IY+2)
 	SUB		E
-	JR		NC, LOC_8D15
+	JR		NC,LOC_8D15
 	CPL
 	INC		A
 LOC_8D15:
 	CP		9
-	JR		NC, LOC_8D21
-	LD		A, (IY+1)
-	ADD		A, 4
-	LD		D, A
-	LD		C, 0
+	JR		NC,LOC_8D21
+	LD		A,(IY+1)
+	ADD		A,4
+	LD		D,A
+	LD		C,0
 LOC_8D21:
-	LD		A, C
+	LD		A,C
 	POP		BC
 	OR		A
 RET
 
 SUB_8D25:
-	LD		IX, APPLEDATA
-	LD		BC, 0
+	LD		IX,APPLEDATA
+	LD		BC,0
 LOC_8D2C:
-	LD		A, (CURRAPPL)
+	LD		A,(CURRAPPL)
 	CP		C
-	JR		Z, LOC_8D80
-	LD		A, (IX+0)
-	BIT		7, A
-	JR		Z, LOC_8D80
-	BIT		6, A
-	JR		NZ, LOC_8D80
-	LD		A, (IY+2)
+	JR		Z,LOC_8D80
+	LD		A,(IX+0)
+	BIT		7,A
+	JR		Z,LOC_8D80
+	BIT		6,A
+	JR		NZ,LOC_8D80
+	LD		A,(IY+2)
 	SUB		(IX+2)
-	JR		NC, LOC_8D47
+	JR		NC,LOC_8D47
 	CPL
 	INC		A
 LOC_8D47:
 	CP		10H
-	JR		NC, LOC_8D80
-	LD		A, (IX+1)
+	JR		NC,LOC_8D80
+	LD		A,(IX+1)
 	SUB		(IY+1)
-	JR		C, LOC_8D80
+	JR		C,LOC_8D80
 	CP		9
-	JR		NC, LOC_8D80
-	RES		6, (IX+0)
-	RES		5, (IX+0)
-	LD		A, (IY+4)
+	JR		NC,LOC_8D80
+	RES		6,(IX+0)
+	RES		5,(IX+0)
+	LD		A,(IY+4)
 	AND		0CFH
 	OR		20H
-	LD		(IX+4), A
-	BIT		3, (IX+0)
-	JR		NZ, LOC_8D7F
-	SET		3, (IX+0)
-	LD		HL, 0FH
+	LD		(IX+4),A
+	BIT		3,(IX+0)
+	JR		NZ,LOC_8D7F
+	SET		3,(IX+0)
+	LD		HL,0FH
 	XOR		A
 	PUSH	BC
 	CALL	REQUEST_SIGNAL
 	POP		BC
-	LD		(IX+3), A
+	LD		(IX+3),A
 LOC_8D7F:
 	INC		B
 LOC_8D80:
-	LD		DE, 5
-	ADD		IX, DE
+	LD		DE,5
+	ADD		IX,DE
 	INC		C
-	LD		A, C
+	LD		A,C
 	CP		5
-	JR		C, LOC_8D2C
-	LD		A, B
+	JR		C,LOC_8D2C
+	LD		A,B
 	AND		A
 RET
 
 DEAL_WITH_LOOSING_LIFE:
-	BIT		6, (IY+4)
-	JR		Z, LOC_8D9B
+	BIT		6,(IY+4)
+	JR		Z,LOC_8D9B
 	CALL	SUB_B76D
-	LD		L, 3
-	JR		NZ, LOC_8E05
+	LD		L,3
+	JR		NZ,LOC_8E05
 LOC_8D9B:
-	LD		IX, ENEMY_DATA_ARRAY		; enemy data starts here = 6*7 bytes
-	LD		B, 7			; test each enemy 
+	LD		IX,ENEMY_DATA_ARRAY		; enemy data starts here = 6*7 bytes
+	LD		B,7			; test each enemy 
 LOC_8DA1:
 	PUSH	BC
-	LD		A, (IX+4)
-	BIT		7, A
-	JR		Z, LOC_8DC5
-	BIT		6, A
-	JR		NZ, LOC_8DC5
-	BIT		7, (IX+0)
-	JR		Z, LOC_8DC5
-	LD		B, (IX+5)
-	LD		A, (CURRAPPL)
+	LD		A,(IX+4)
+	BIT		7,A
+	JR		Z,LOC_8DC5
+	BIT		6,A
+	JR		NZ,LOC_8DC5
+	BIT		7,(IX+0)
+	JR		Z,LOC_8DC5
+	LD		B,(IX+5)
+	LD		A,(CURRAPPL)
 	CP		B
-	JR		NZ, LOC_8DC5
+	JR		NZ,LOC_8DC5
 	CALL	SUB_B7C4	; outupt = ZF and A 
 	POP		BC
-	LD		L, 2
-	JR		Z, LOC_8E05
+	LD		L,2
+	JR		Z,LOC_8E05
 	PUSH	BC
 LOC_8DC5:
-	LD		DE, 6
-	ADD		IX, DE		; next enemy
+	LD		DE,6
+	ADD		IX,DE		; next enemy
 	POP		BC
 	DJNZ	LOC_8DA1
 	
-	LD		IX, CHOMPDATA	; chompers start here ?
-	LD		B, 3		; test each chompers
+	LD		IX,CHOMPDATA	; chompers start here ?
+	LD		B,3		; test each chompers
 LOOP_8DD3:
 	PUSH	BC
-	BIT		7, (IX+4)
-	JR		Z, LOST_A_LIFE
-	BIT		7, (IX+0)
-	JR		Z, LOST_A_LIFE
-	LD		B, (IX+5)
-	LD		A, (CURRAPPL)
+	BIT		7,(IX+4)
+	JR		Z,LOST_A_LIFE
+	BIT		7,(IX+0)
+	JR		Z,LOST_A_LIFE
+	LD		B,(IX+5)
+	LD		A,(CURRAPPL)
 	CP		B
-	JR		NZ, LOST_A_LIFE
+	JR		NZ,LOST_A_LIFE
 	CALL	SUB_B832
 LOST_A_LIFE:
 	POP		BC
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	DJNZ	LOOP_8DD3
-	LD		L, 0
-	BIT		7, (IY+4)
-	JR		Z, LOC_8E05
+	LD		L,0
+	BIT		7,(IY+4)
+	JR		Z,LOC_8E05
 	PUSH	IY
 	CALL	PLAY_LOSE_LIFE_SOUND		; smashed: no DEATH SEQUENCE HERE 
 	POP		IY
-	LD		L, 1
+	LD		L,1
 LOC_8E05:
-	RES		7, (IY+0)
-	RES		3, (IY+0)
-	LD		A, L
+	RES		7,(IY+0)
+	RES		3,(IY+0)
+	LD		A,L
 	AND		A
 RET
 
 SUB_8E10:	; Falling apple logic
 	CALL	SUB_8E48
-	JR		Z, LOC_8E46
-	LD		E, A
-	LD		A, (MRDO_DATA.Y)
+	JR		Z,LOC_8E46
+	LD		E,A
+	LD		A,(MRDO_DATA.Y)
 	SUB		(IY+1)
-	JR		C, LOC_8E32
+	JR		C,LOC_8E32
 	CP		11H
-	JR		NC, LOC_8E32
-	LD		A, (MRDO_DATA.X)
+	JR		NC,LOC_8E32
+	LD		A,(MRDO_DATA.X)
 	SUB		(IY+2)
-	JR		NC, LOC_8E2C
+	JR		NC,LOC_8E2C
 	CPL
 	INC		A
 LOC_8E2C:
-	LD		D, 0
+	LD		D,0
 	CP		8
-	JR		C, LOC_8E45
+	JR		C,LOC_8E45
 LOC_8E32:
-	LD		B, 0C8H
+	LD		B,0C8H
 	DEC		E
-	JR		Z, LOC_8E3B
-	RES		6, B
-	SET		5, B
+	JR		Z,LOC_8E3B
+	RES		6,B
+	SET		5,B
 LOC_8E3B:
-	LD		(IY+0), B
+	LD		(IY+0),B
 
-	LD		(IY+4), $10
-	LD		D, 1
+	LD		(IY+4),$10
+	LD		D,1
 LOC_8E45:
-	LD		A, D
+	LD		A,D
 LOC_8E46:
 	AND		A
 RET
 
 SUB_8E48:
-	LD		D, A
-	LD		B, (IY+1)
-	LD		C, (IY+2)
+	LD		D,A
+	LD		B,(IY+1)
+	LD		C,(IY+2)
 	PUSH	DE
 	CALL	SUB_AC3F
 	POP		DE
-	LD		A, B
+	LD		A,B
 	CP		0B0H
-	JR		NC, LOC_8E76
-	LD		A, (IY+2)
+	JR		NC,LOC_8E76
+	LD		A,(IY+2)
 	RLCA
 	RLCA
 	RLCA
 	RLCA
 	AND		0F0H
-	LD		C, A
-	LD		A, (IY+1)
+	LD		C,A
+	LD		A,(IY+1)
 	AND		0FH
 	OR		C
-	LD		B, 8
-	LD		HL, UNK_8F98
+	LD		B,8
+	LD		HL,UNK_8F98
 LOOP_8E6E:
 	CP		(HL)
-	JR		Z, LOC_8E7A
+	JR		Z,LOC_8E7A
 	INC		HL
 	INC		HL
 	INC		HL
@@ -2174,9 +2174,9 @@ LOC_8E76:
 LOC_8E7A:
 	INC		HL
 	PUSH	DE
-	LD		E, (HL)
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
+	LD		D,(HL)
 	PUSH	IX
 	PUSH	DE
 	POP		IX
@@ -2184,171 +2184,171 @@ LOC_8E7A:
 	POP		DE
 	JP		(IX)
 LOC_8E88:
-	LD		BC, 10H
-	ADD		HL, BC
+	LD		BC,10H
+	ADD		HL,BC
 	XOR		A
-	BIT		0, (HL)
-	JR		Z, LOC_8E97
+	BIT		0,(HL)
+	JR		Z,LOC_8E97
 	DEC		HL
-	BIT		1, (HL)
-	JR		Z, LOC_8E97
+	BIT		1,(HL)
+	JR		Z,LOC_8E97
 	INC		A
 LOC_8E97:
 	JP		LOC_8F96
 LOC_8E9A:
-	LD		BC, 10H
-	ADD		HL, BC
+	LD		BC,10H
+	ADD		HL,BC
 	XOR		A
-	BIT		0, (HL)
-	JR		Z, LOC_8ECC
-	LD		A, D
+	BIT		0,(HL)
+	JR		Z,LOC_8ECC
+	LD		A,D
 	AND		A
-	JR		NZ, LOC_8EB4
-	BIT		1, (HL)
-	JR		Z, LOC_8ECC
+	JR		NZ,LOC_8EB4
+	BIT		1,(HL)
+	JR		Z,LOC_8ECC
 	DEC		HL
-	BIT		1, (HL)
-	JR		Z, LOC_8ECC
-	LD		A, 1
+	BIT		1,(HL)
+	JR		Z,LOC_8ECC
+	LD		A,1
 	JR		LOC_8ECC
 LOC_8EB4:
-	LD		B, 0FCH
-	BIT		1, (HL)
-	JR		Z, LOC_8EC3
-	LD		B, 4
+	LD		B,0FCH
+	BIT		1,(HL)
+	JR		Z,LOC_8EC3
+	LD		B,4
 	DEC		HL
-	BIT		1, (HL)
-	JR		Z, LOC_8EC3
-	LD		B, 0
+	BIT		1,(HL)
+	JR		Z,LOC_8EC3
+	LD		B,0
 LOC_8EC3:
-	LD		A, (IY+2)
-	ADD		A, B
-	LD		(IY+2), A
-	LD		A, 2
+	LD		A,(IY+2)
+	ADD		A,B
+	LD		(IY+2),A
+	LD		A,2
 LOC_8ECC:
 	JP		LOC_8F96
 LOC_8ECF:
-	LD		A, 2
-	BIT		5, (HL)
-	JR		NZ, LOC_8EE3
-	LD		BC, 10H
-	ADD		HL, BC
+	LD		A,2
+	BIT		5,(HL)
+	JR		NZ,LOC_8EE3
+	LD		BC,10H
+	ADD		HL,BC
 	XOR		A
-	BIT		0, (HL)
-	JR		Z, LOC_8EE3
-	BIT		1, (HL)
-	JR		Z, LOC_8EE3
+	BIT		0,(HL)
+	JR		Z,LOC_8EE3
+	BIT		1,(HL)
+	JR		Z,LOC_8EE3
 	INC		A
 LOC_8EE3:
 	JP		LOC_8F96
 LOC_8EE6:
-	LD		BC, 10H
-	ADD		HL, BC
+	LD		BC,10H
+	ADD		HL,BC
 	XOR		A
-	BIT		1, (HL)
-	JR		Z, LOC_8F18
-	LD		A, D
+	BIT		1,(HL)
+	JR		Z,LOC_8F18
+	LD		A,D
 	AND		A
-	JR		NZ, LOC_8F00
-	BIT		0, (HL)
-	JR		Z, LOC_8F18
+	JR		NZ,LOC_8F00
+	BIT		0,(HL)
+	JR		Z,LOC_8F18
 	INC		HL
-	BIT		0, (HL)
-	JR		Z, LOC_8F18
-	LD		A, 1
+	BIT		0,(HL)
+	JR		Z,LOC_8F18
+	LD		A,1
 	JR		LOC_8F18
 LOC_8F00:
-	LD		B, 4
-	BIT		0, (HL)
-	JR		Z, LOC_8F0F
-	LD		B, 0FCH
+	LD		B,4
+	BIT		0,(HL)
+	JR		Z,LOC_8F0F
+	LD		B,0FCH
 	INC		HL
-	BIT		0, (HL)
-	JR		Z, LOC_8F0F
-	LD		B, 0
+	BIT		0,(HL)
+	JR		Z,LOC_8F0F
+	LD		B,0
 LOC_8F0F:
-	LD		A, (IY+2)
-	ADD		A, B
-	LD		(IY+2), A
-	LD		A, 2
+	LD		A,(IY+2)
+	ADD		A,B
+	LD		(IY+2),A
+	LD		A,2
 LOC_8F18:
 	JP		LOC_8F96
 LOC_8F1B:
 	XOR		A
-	BIT		2, (HL)
-	JR		Z, LOC_8F27
+	BIT		2,(HL)
+	JR		Z,LOC_8F27
 	DEC		HL
-	BIT		3, (HL)
-	JR		Z, LOC_8F27
-	LD		A, 2
+	BIT		3,(HL)
+	JR		Z,LOC_8F27
+	LD		A,2
 LOC_8F27:
 	JP		LOC_8F96
 LOC_8F2A:
 	XOR		A
-	BIT		2, (HL)
-	JR		Z, LOC_8F57
-	LD		A, D
+	BIT		2,(HL)
+	JR		Z,LOC_8F57
+	LD		A,D
 	AND		A
-	JR		NZ, LOC_8F40
-	BIT		3, (HL)
-	JR		Z, LOC_8F57
+	JR		NZ,LOC_8F40
+	BIT		3,(HL)
+	JR		Z,LOC_8F57
 	DEC		HL
-	BIT		3, (HL)
-	JR		Z, LOC_8F57
-	LD		A, 2
+	BIT		3,(HL)
+	JR		Z,LOC_8F57
+	LD		A,2
 	JR		LOC_8F57
 LOC_8F40:
-	LD		B, 0FCH
-	BIT		3, (HL)
-	JR		Z, LOC_8F4E
-	LD		B, 4
-	BIT		3, (HL)
-	JR		Z, LOC_8F4E
-	LD		B, 0
+	LD		B,0FCH
+	BIT		3,(HL)
+	JR		Z,LOC_8F4E
+	LD		B,4
+	BIT		3,(HL)
+	JR		Z,LOC_8F4E
+	LD		B,0
 LOC_8F4E:
-	LD		A, (IY+2)
-	ADD		A, B
-	LD		(IY+2), A
-	LD		A, 2
+	LD		A,(IY+2)
+	ADD		A,B
+	LD		(IY+2),A
+	LD		A,2
 LOC_8F57:
 	JP		LOC_8F96
 LOC_8F5A:
 	XOR		A
-	BIT		2, (HL)
-	JR		Z, LOC_8F65
-	BIT		3, (HL)
-	JR		Z, LOC_8F65
-	LD		A, 2
+	BIT		2,(HL)
+	JR		Z,LOC_8F65
+	BIT		3,(HL)
+	JR		Z,LOC_8F65
+	LD		A,2
 LOC_8F65:
 	JP		LOC_8F96
 LOC_8F68:
 	XOR		A
-	BIT		3, (HL)
-	JR		Z, LOC_8F96
-	LD		A, D
+	BIT		3,(HL)
+	JR		Z,LOC_8F96
+	LD		A,D
 	AND		A
-	JR		NZ, LOC_8F7E
-	BIT		2, (HL)
-	JR		Z, LOC_8F96
+	JR		NZ,LOC_8F7E
+	BIT		2,(HL)
+	JR		Z,LOC_8F96
 	INC		HL
-	BIT		2, (HL)
-	JR		Z, LOC_8F96
-	LD		A, 2
+	BIT		2,(HL)
+	JR		Z,LOC_8F96
+	LD		A,2
 	JR		LOC_8F96
 LOC_8F7E:
-	LD		B, 4
-	BIT		2, (HL)
-	JR		Z, LOC_8F8D
-	LD		B, 0FCH
+	LD		B,4
+	BIT		2,(HL)
+	JR		Z,LOC_8F8D
+	LD		B,0FCH
 	INC		HL
-	BIT		2, (HL)
-	JR		Z, LOC_8F8D
-	LD		B, 0
+	BIT		2,(HL)
+	JR		Z,LOC_8F8D
+	LD		B,0
 LOC_8F8D:
-	LD		A, (IY+2)
-	ADD		A, B
-	LD		(IY+2), A
-	LD		A, 2
+	LD		A,(IY+2)
+	ADD		A,B
+	LD		(IY+2),A
+	LD		A,2
 LOC_8F96:
 	AND		A
 RET
@@ -2372,17 +2372,17 @@ UNK_8F98:
 	DW LOC_8F68
 
 SUB_8FB0:
-	LD		A, (IY+0)
+	LD		A,(IY+0)
 	INC		A
-	LD		(IY+0), A
+	LD		(IY+0),A
 	AND		3
 	CP		3
-	JR		NZ, LOC_8FC2
-	LD		A, (IY+0)
+	JR		NZ,LOC_8FC2
+	LD		A,(IY+0)
 	AND		0F8H
-	RES		6, A
-	SET		5, A
-	LD		(IY+0), A
+	RES		6,A
+	SET		5,A
+	LD		(IY+0),A
 	XOR		A
 LOC_8FC2:
 	AND		A
@@ -2390,19 +2390,19 @@ RET
 
 
 DEAL_WITH_BALL:
-	LD		IY, BALLDATA
-	LD		A, (IY+0)
-	BIT		7, (IY+0)
-	JR		Z, LOC_8FF1
+	LD		IY,BALLDATA
+	LD		A,(IY+0)
+	BIT		7,(IY+0)
+	JR		Z,LOC_8FF1
 	AND		7FH
 	OR		40H
-	LD		(IY+0), A
+	LD		(IY+0),A
 	
 	LD 		A,(GAMEFLAGS)
 	AND		$80
 	JR		Z,.normal_mode
 	
-	LD (IY+4), 0		; Fast cooldown in chomper mode
+	LD (IY+4),0		; Fast cooldown in chomper mode
 	
 .normal_mode:	
 	INC		(IY+4)		; In chomper mode SET to 1 the ball cooldown counter
@@ -2412,59 +2412,59 @@ DEAL_WITH_BALL:
 	JR		LOC_9005
 LOC_8FF1:
 	AND		78H
-	JR		Z, LOC_9071
-	LD		A, (IY+3)
+	JR		Z,LOC_9071
+	LD		A,(IY+3)
 	CALL	TEST_SIGNAL
 	AND		A
-	RET 	Z			;JR		Z, LOC_9071
-	LD		A, (IY+0)
-	BIT		6, A
-	JR		Z, BALL_RETURNS_TO_DO
+	RET 	Z			
+	LD		A,(IY+0)
+	BIT		6,A
+	JR		Z,BALL_RETURNS_TO_DO
 LOC_9005:
 	CALL	SUB_9074
 	CALL	SUB_9099
-	BIT		2, E
-	JR		NZ, BALL_GETS_STUCK
+	BIT		2,E
+	JR		NZ,BALL_GETS_STUCK
 	CALL	SUB_912D
 	CALL	SUB_92F2
 	CP		2
 	RET		Z
 	CP		1
-	JR		Z, BALL_GETS_STUCK
+	JR		Z,BALL_GETS_STUCK
 	CALL	SUB_936F
 	CP		2
-	JR		NZ, LOC_9028
-	LD		A, 3
+	JR		NZ,LOC_9028
+	LD		A,3
 	RET
 LOC_9028:
 	CP		1
-	JR		Z, BALL_GETS_STUCK
+	JR		Z,BALL_GETS_STUCK
 	CALL	SUB_9337
 	AND		A
-	JR		NZ, BALL_GETS_STUCK
+	JR		NZ,BALL_GETS_STUCK
 	CALL	SUB_9399
 	AND		A
-	JR		Z, LOC_903E
-	RES		6, (IY+0)
+	JR		Z,LOC_903E
+	RES		6,(IY+0)
 	JR		LOC_9071
 LOC_903E:
 	CALL	SUB_93B6
 	JR		LOC_9071
 BALL_GETS_STUCK:
-	RES		6, (IY+0)
-	SET		4, (IY+0)
-	LD		(IY+5), 0
+	RES		6,(IY+0)
+	SET		4,(IY+0)
+	LD		(IY+5),0
 	PUSH	IY
 	CALL	PLAY_BALL_STUCK_SOUND_01
 	POP		IY
 	JR		LOC_906E
 BALL_RETURNS_TO_DO:
-	BIT		5, A
-	JR		Z, LOC_906E
-	RES		5, A
-	SET		3, A
-	LD		(IY+0), A
-	LD		(IY+5), 0
+	BIT		5,A
+	JR		Z,LOC_906E
+	RES		5,A
+	SET		3,A
+	LD		(IY+0),A
+	LD		(IY+5),0
 	PUSH	IY
 	CALL	PLAY_BALL_RETURN_SOUND
 	POP		IY
@@ -2475,10 +2475,10 @@ LOC_9071:
 RET
 
 SUB_9074:
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	BIT		1, (IY+0)
-	JR		NZ, LOC_9084
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	BIT		1,(IY+0)
+	JR		NZ,LOC_9084
 	INC		B
 	INC		B
 	JR		LOC_9086
@@ -2486,8 +2486,8 @@ LOC_9084:
 	DEC		B
 	DEC		B
 LOC_9086:
-	BIT		0, (IY+0)
-	JR		NZ, LOC_9090
+	BIT		0,(IY+0)
+	JR		NZ,LOC_9090
 	INC		C
 	INC		C
 	JR		LOC_9092
@@ -2495,68 +2495,68 @@ LOC_9090:
 	DEC		C
 	DEC		C
 LOC_9092:
-	LD		(IY+1), B
-	LD		(IY+2), C
+	LD		(IY+1),B
+	LD		(IY+2),C
 RET
 
 SUB_9099:
-	LD		DE, 0
-	LD		IX, APPLEDATA
-	LD		B, 5
+	LD		DE,0
+	LD		IX,APPLEDATA
+	LD		B,5
 LOC_90A2:
-	BIT		7, (IX+0)
-	JR		Z, LOC_911E
-	LD		A, (IX+1)
+	BIT		7,(IX+0)
+	JR		Z,LOC_911E
+	LD		A,(IX+1)
 	SUB		9
 	CP		(IY+1)
-	JR		NC, LOC_911E
-	ADD		A, 11H
+	JR		NC,LOC_911E
+	ADD		A,11H
 	CP		(IY+1)
-	JR		C, LOC_911E
-	LD		A, (IX+2)
+	JR		C,LOC_911E
+	LD		A,(IX+2)
 	SUB		8
 	CP		(IY+2)
-	JR		Z, LOC_90C5
-	JR		NC, LOC_911E
+	JR		Z,LOC_90C5
+	JR		NC,LOC_911E
 LOC_90C5:
-	ADD		A, 10H
-	JR		C, LOC_90CE
+	ADD		A,10H
+	JR		C,LOC_90CE
 	CP		(IY+2)
-	JR		C, LOC_911E
+	JR		C,LOC_911E
 LOC_90CE:
-	BIT		5, (IX+0)
-	JR		Z, LOC_90DC
-	SET		4, (IX+0)
-	LD		E, 4
+	BIT		5,(IX+0)
+	JR		Z,LOC_90DC
+	SET		4,(IX+0)
+	LD		E,4
 	RET
 LOC_90DC:
-	LD		A, (IY+1)
+	LD		A,(IY+1)
 	CP		(IX+1)
-	JR		C, LOC_90F0
-	BIT		1, (IY+0)
-	JR		Z, LOC_90FC
-	RES		1, (IY+0)
+	JR		C,LOC_90F0
+	BIT		1,(IY+0)
+	JR		Z,LOC_90FC
+	RES		1,(IY+0)
 	JR		LOC_90FA
 LOC_90F0:
-	BIT		1, (IY+0)
-	JR		NZ, LOC_90FC
-	SET		1, (IY+0)
+	BIT		1,(IY+0)
+	JR		NZ,LOC_90FC
+	SET		1,(IY+0)
 LOC_90FA:
-	SET		1, D
+	SET		1,D
 LOC_90FC:
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	CP		(IX+2)
-	JR		C, LOC_9110
-	BIT		0, (IY+0)
+	JR		C,LOC_9110
+	BIT		0,(IY+0)
 	RET		Z
-	RES		0, (IY+0)
+	RES		0,(IY+0)
 	JR		LOC_911A
 LOC_9110:
-	BIT		0, (IY+0)
-	JR		NZ, LOC_911E
-	SET		0, (IY+0)
+	BIT		0,(IY+0)
+	JR		NZ,LOC_911E
+	SET		0,(IY+0)
 LOC_911A:
-	SET		0, D
+	SET		0,D
 	RET
 LOC_911E:
 	INC		IX
@@ -2565,438 +2565,438 @@ LOC_911E:
 	INC		IX
 	INC		IX
 	DEC		B
-	JP		NZ, LOC_90A2
+	JP		NZ,LOC_90A2
 RET
 
 SUB_912D:
-	LD		B, (IY+1)
-	LD		C, (IY+2)
+	LD		B,(IY+1)
+	LD		C,(IY+2)
 	DEC		B
 	DEC		C
-	BIT		1, (IY+0)
-	JR		NZ, LOC_913D
+	BIT		1,(IY+0)
+	JR		NZ,LOC_913D
 	INC		B
 	INC		B
 LOC_913D:
-	BIT		0, (IY+0)
-	JR		NZ, LOC_9145
+	BIT		0,(IY+0)
+	JR		NZ,LOC_9145
 	INC		C
 	INC		C
 LOC_9145:
-	LD		E, 0
+	LD		E,0
 	PUSH	DE
 	CALL	SUB_AC3F
 	POP		DE
-	LD		A, (IY+1)
+	LD		A,(IY+1)
 	AND		0FH
-	BIT		1, (IY+0)
-	JR		Z, LOC_918A
+	BIT		1,(IY+0)
+	JR		Z,LOC_918A
 	CP		0AH
-	JR		NZ, LOC_9167
-	SET		7, E
-	BIT		4, (IX+0)
-	JR		NZ, LOC_91BB
-	SET		1, E
+	JR		NZ,LOC_9167
+	SET		7,E
+	BIT		4,(IX+0)
+	JR		NZ,LOC_91BB
+	SET		1,E
 	JR		LOC_91BB
 LOC_9167:
 	CP		2
-	JR		NZ, LOC_91BB
-	SET		5, E
-	LD		A, (IY+2)
+	JR		NZ,LOC_91BB
+	SET		5,E
+	LD		A,(IY+2)
 	AND		0FH
 	CP		8
-	JR		NC, LOC_9180
-	BIT		0, (IX+0)
-	JR		NZ, LOC_91BB
-	SET		1, E
+	JR		NC,LOC_9180
+	BIT		0,(IX+0)
+	JR		NZ,LOC_91BB
+	SET		1,E
 	JR		LOC_91BB
 LOC_9180:
-	BIT		1, (IX+0)
-	JR		NZ, LOC_91BB
-	SET		1, E
+	BIT		1,(IX+0)
+	JR		NZ,LOC_91BB
+	SET		1,E
 	JR		LOC_91BB
 LOC_918A:
 	CP		6
-	JR		NZ, LOC_919A
-	SET		7, E
-	BIT		5, (IX+0)
-	JR		NZ, LOC_91BB
-	SET		1, E
+	JR		NZ,LOC_919A
+	SET		7,E
+	BIT		5,(IX+0)
+	JR		NZ,LOC_91BB
+	SET		1,E
 	JR		LOC_91BB
 LOC_919A:
 	CP		0EH
-	JR		NZ, LOC_91BB
-	SET		5, E
-	LD		A, (IY+2)
+	JR		NZ,LOC_91BB
+	SET		5,E
+	LD		A,(IY+2)
 	AND		0FH
 	CP		8
-	JR		NC, LOC_91B3
-	BIT		2, (IX+0)
-	JR		NZ, LOC_91BB
-	SET		1, E
+	JR		NC,LOC_91B3
+	BIT		2,(IX+0)
+	JR		NZ,LOC_91BB
+	SET		1,E
 	JR		LOC_91BB
 LOC_91B3:
-	BIT		3, (IX+0)
-	JR		NZ, LOC_91BB
-	SET		1, E
+	BIT		3,(IX+0)
+	JR		NZ,LOC_91BB
+	SET		1,E
 LOC_91BB:
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	AND		0FH
-	BIT		0, (IY+0)
-	JR		Z, LOC_91F9
+	BIT		0,(IY+0)
+	JR		Z,LOC_91F9
 	CP		2
-	JR		NZ, LOC_91D6
-	SET		6, E
-	BIT		7, (IX+0)
-	JR		NZ, LOC_922A
-	SET		0, E
+	JR		NZ,LOC_91D6
+	SET		6,E
+	BIT		7,(IX+0)
+	JR		NZ,LOC_922A
+	SET		0,E
 	JR		LOC_922A
 LOC_91D6:
 	CP		0AH
-	JR		NZ, LOC_922A
-	SET		4, E
-	LD		A, (IY+1)
+	JR		NZ,LOC_922A
+	SET		4,E
+	LD		A,(IY+1)
 	AND		0FH
 	CP		8
-	JR		C, LOC_91EF
-	BIT		2, (IX+0)
-	JR		NZ, LOC_922A
-	SET		0, E
+	JR		C,LOC_91EF
+	BIT		2,(IX+0)
+	JR		NZ,LOC_922A
+	SET		0,E
 	JR		LOC_922A
 LOC_91EF:
-	BIT		0, (IX+0)
-	JR		NZ, LOC_922A
-	SET		0, E
+	BIT		0,(IX+0)
+	JR		NZ,LOC_922A
+	SET		0,E
 	JR		LOC_922A
 LOC_91F9:
 	CP		0EH
-	JR		NZ, LOC_9209
-	SET		6, E
-	BIT		6, (IX+0)
-	JR		NZ, LOC_922A
-	SET		0, E
+	JR		NZ,LOC_9209
+	SET		6,E
+	BIT		6,(IX+0)
+	JR		NZ,LOC_922A
+	SET		0,E
 	JR		LOC_922A
 LOC_9209:
 	CP		6
-	JR		NZ, LOC_922A
-	SET		4, E
-	LD		A, (IY+1)
+	JR		NZ,LOC_922A
+	SET		4,E
+	LD		A,(IY+1)
 	AND		0FH
 	CP		8
-	JR		C, LOC_9222
-	BIT		3, (IX+0)
-	JR		NZ, LOC_922A
-	SET		0, E
+	JR		C,LOC_9222
+	BIT		3,(IX+0)
+	JR		NZ,LOC_922A
+	SET		0,E
 	JR		LOC_922A
 LOC_9222:
-	BIT		1, (IX+0)
-	JR		NZ, LOC_922A
-	SET		0, E
+	BIT		1,(IX+0)
+	JR		NZ,LOC_922A
+	SET		0,E
 LOC_922A:
-	BIT		7, E
-	JR		Z, LOC_92A3
-	BIT		6, E
-	JR		Z, LOC_92A3
-	LD		A, E
+	BIT		7,E
+	JR		Z,LOC_92A3
+	BIT		6,E
+	JR		Z,LOC_92A3
+	LD		A,E
 	AND		3
-	JP		NZ, LOC_92E8
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	LD		A, B
-	BIT		1, (IY+0)
-	JR		Z, LOC_9275
+	JP		NZ,LOC_92E8
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	LD		A,B
+	BIT		1,(IY+0)
+	JR		Z,LOC_9275
 	SUB		4
-	LD		B, A
-	LD		A, C
-	BIT		0, (IY+0)
-	JR		Z, LOC_9263
+	LD		B,A
+	LD		A,C
+	BIT		0,(IY+0)
+	JR		Z,LOC_9263
 	SUB		4
-	LD		C, A
+	LD		C,A
 	PUSH	DE
 	CALL	SUB_AC3F
 	POP		DE
-	BIT		3, (IX+0)
-	JP		NZ, LOC_92E8
-	LD		E, 3
+	BIT		3,(IX+0)
+	JP		NZ,LOC_92E8
+	LD		E,3
 	JP		LOC_92E8
 LOC_9263:
-	ADD		A, 4
-	LD		C, A
+	ADD		A,4
+	LD		C,A
 	PUSH	DE
 	CALL	SUB_AC3F
 	POP		DE
-	BIT		2, (IX+0)
-	JR		NZ, LOC_92E8
-	LD		E, 3
+	BIT		2,(IX+0)
+	JR		NZ,LOC_92E8
+	LD		E,3
 	JR		LOC_92E8
 LOC_9275:
-	ADD		A, 4
-	LD		B, A
-	LD		A, C
-	BIT		0, (IY+0)
-	JR		Z, LOC_9291
+	ADD		A,4
+	LD		B,A
+	LD		A,C
+	BIT		0,(IY+0)
+	JR		Z,LOC_9291
 	SUB		4
-	LD		C, A
+	LD		C,A
 	PUSH	DE
 	CALL	SUB_AC3F
 	POP		DE
-	BIT		1, (IX+0)
-	JR		NZ, LOC_92E8
-	LD		E, 3
+	BIT		1,(IX+0)
+	JR		NZ,LOC_92E8
+	LD		E,3
 	JR		LOC_92E8
 LOC_9291:
-	ADD		A, 4
-	LD		C, A
+	ADD		A,4
+	LD		C,A
 	PUSH	DE
 	CALL	SUB_AC3F
 	POP		DE
-	BIT		0, (IX+0)
-	JR		NZ, LOC_92E8
-	LD		E, 3
+	BIT		0,(IX+0)
+	JR		NZ,LOC_92E8
+	LD		E,3
 	JR		LOC_92E8
 LOC_92A3:
-	BIT		5, E
-	JR		Z, LOC_92E8
-	BIT		4, E
-	JR		Z, LOC_92E8
-	LD		A, E
+	BIT		5,E
+	JR		Z,LOC_92E8
+	BIT		4,E
+	JR		Z,LOC_92E8
+	LD		A,E
 	AND		3
-	JR		NZ, LOC_92E8
-	BIT		1, (IY+0)
-	JR		Z, LOC_92D0
-	BIT		0, (IY+0)
-	JR		Z, LOC_92C6
-	BIT		0, (IX+0)
-	JR		NZ, LOC_92E8
-	LD		E, 3
+	JR		NZ,LOC_92E8
+	BIT		1,(IY+0)
+	JR		Z,LOC_92D0
+	BIT		0,(IY+0)
+	JR		Z,LOC_92C6
+	BIT		0,(IX+0)
+	JR		NZ,LOC_92E8
+	LD		E,3
 	JR		LOC_92E8
 LOC_92C6:
-	BIT		1, (IX+0)
-	JR		NZ, LOC_92E8
-	LD		E, 3
+	BIT		1,(IX+0)
+	JR		NZ,LOC_92E8
+	LD		E,3
 	JR		LOC_92E8
 LOC_92D0:
-	BIT		0, (IY+0)
-	JR		Z, LOC_92E0
-	BIT		2, (IX+0)
-	JR		NZ, LOC_92E8
-	LD		E, 3
+	BIT		0,(IY+0)
+	JR		Z,LOC_92E0
+	BIT		2,(IX+0)
+	JR		NZ,LOC_92E8
+	LD		E,3
 	JR		LOC_92E8
 LOC_92E0:
-	BIT		3, (IX+0)
-	JR		NZ, LOC_92E8
-	LD		E, 3
+	BIT		3,(IX+0)
+	JR		NZ,LOC_92E8
+	LD		E,3
 LOC_92E8:
-	LD		A, E
+	LD		A,E
 	AND		3
 	XOR		(IY+0)
-	LD		(IY+0), A
+	LD		(IY+0),A
 RET
 
 SUB_92F2:
-	LD		IX, ENEMY_DATA_ARRAY
-	LD		C, 0
+	LD		IX,ENEMY_DATA_ARRAY
+	LD		C,0
 LOC_92F8:
-	BIT		7, (IX+4)
-	JR		Z, LOC_9316
-	BIT		6, (IX+4)
-	JR		NZ, LOC_9316
+	BIT		7,(IX+4)
+	JR		Z,LOC_9316
+	BIT		6,(IX+4)
+	JR		NZ,LOC_9316
 	PUSH	BC
 	PUSH	IX
-	LD		B, (IX+2)
-	LD		C, (IX+1)
+	LD		B,(IX+2)
+	LD		C,(IX+1)
 	CALL	SUB_B5DD
 	POP		IX
 	POP		BC
 	AND		A
-	JR		NZ, LOC_9324
+	JR		NZ,LOC_9324
 LOC_9316:
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	INC		C
-	LD		A, C
+	LD		A,C
 	CP		7
-	JR		C, LOC_92F8
+	JR		C,LOC_92F8
 	XOR		A
 	RET
 LOC_9324:
 	CALL	SUB_B7C4			; outupt = ZF and A 
 	PUSH	AF
-	LD		DE, 32H
+	LD		DE,32H
 	CALL	SUB_B601
 	POP		AF
 						;	AND	A			; already in AF
-	LD		A, 2
+	LD		A,2
 	RET		Z
-	LD		A, 1
+	LD		A,1
 RET
 
 SUB_9337:
-	LD		IX, CHOMPDATA
-	LD		C, 0
+	LD		IX,CHOMPDATA
+	LD		C,0
 LOC_933D:
-	BIT		7, (IX+4)
-	JR		Z, LOC_9355
+	BIT		7,(IX+4)
+	JR		Z,LOC_9355
 	PUSH	BC
 	PUSH	IX
-	LD		B, (IX+2)
-	LD		C, (IX+1)
+	LD		B,(IX+2)
+	LD		C,(IX+1)
 	CALL	SUB_B5DD
 	POP		IX
 	POP		BC
 	AND		A
-	JR		NZ, LOC_9363
+	JR		NZ,LOC_9363
 LOC_9355:
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	INC		C
-	LD		A, C
+	LD		A,C
 	CP		3
-	JR		C, LOC_933D
+	JR		C,LOC_933D
 	XOR		A
 	RET
 LOC_9363:
 	CALL	SUB_B832
-	LD		DE, 32H
+	LD		DE,32H
 	CALL	SUB_B601
-	LD		A, 1
+	LD		A,1
 RET
 
 SUB_936F:
-	LD		A, ($72BD)
-	BIT		6, A
+	LD		A,($72BD)
+	BIT		6,A
 	RET		Z
-	LD		A, ($72BF)
-	LD		B, A
-	LD		A, ($72BE)
-	LD		C, A
+	LD		A,($72BF)
+	LD		B,A
+	LD		A,($72BE)
+	LD		C,A
 	CALL	SUB_B5DD
 	AND		A
 	RET		Z
-	LD		BC, $D908
-	LD		D, 0
-	LD		A, 3				; remove extra letter 
+	LD		BC,$D908
+	LD		D,0
+	LD		A,3				; remove extra letter 
 	CALL	PUTSPRITE
-	LD		DE, 32H
+	LD		DE,32H
 	CALL	SUB_B601
 	CALL	SUB_B76D
 	INC		A
 RET
 
 SUB_9399:
-	LD		A, (MRDO_DATA.Y)
-	LD		B, A
-	LD		A, (MRDO_DATA.X)
-	LD		C, A
+	LD		A,(MRDO_DATA.Y)
+	LD		B,A
+	LD		A,(MRDO_DATA.X)
+	LD		C,A
 	CALL	SUB_B5DD
 	AND		A
 	RET		Z
-	LD		HL, MRDO_DATA
-	SET		6, (HL)
+	LD		HL,MRDO_DATA
+	SET		6,(HL)
 	PUSH	IY
 	CALL	SUB_C98A
 	POP		IY
-	LD		A, 1
+	LD		A,1
 RET
 
 SUB_93B6:
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	LD		D, 1
-	LD		A, 4			; start ball explosion
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	LD		D,1
+	LD		A,4			; start ball explosion
 	CALL	PUTSPRITE
-	LD		HL, 1
+	LD		HL,1
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
+	LD		(IY+3),A
 RET
 
 SUB_93CE:  ; Ball intersecting with sprite
-	LD		A, (IY+5)
-	ADD		A, 2
-	LD		B, (IY+1)
-	LD		C, (IY+2)
-	BIT		3, (IY+0)
-	JR		Z, LOC_93ED
-	LD		C, A
-	LD		A, 9
+	LD		A,(IY+5)
+	ADD		A,2
+	LD		B,(IY+1)
+	LD		C,(IY+2)
+	BIT		3,(IY+0)
+	JR		Z,LOC_93ED
+	LD		C,A
+	LD		A,9
 	SUB		C
-	LD		IX, MRDO_DATA
-	LD		B, (IX+3)
-	LD		C, (IX+4)
+	LD		IX,MRDO_DATA
+	LD		B,(IX+3)
+	LD		C,(IX+4)
 LOC_93ED:
-	LD		D, A
-	LD		A, 4			; continue ball explosion
+	LD		D,A
+	LD		A,4			; continue ball explosion
 	CALL	PUTSPRITE
 	INC		(IY+5)
-	LD		A, (IY+5)
+	LD		A,(IY+5)
 	CP		6
-	JR		Z, LOC_9409
-	LD		HL, 5
+	JR		Z,LOC_9409
+	LD		HL,5
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
+	LD		(IY+3),A
 	RET
 LOC_9409:
-	BIT		4, (IY+0)
-	JR		Z, LOC_9444
-	RES		4, (IY+0)
-	SET		5, (IY+0)
-	LD		A, (IY+4)
+	BIT		4,(IY+0)
+	JR		Z,LOC_9444
+	RES		4,(IY+0)
+	SET		5,(IY+0)
+	LD		A,(IY+4)
 	DEC		A
 	CP		4
-	JR		C, LOC_9421
-	LD		A, 4
+	JR		C,LOC_9421
+	LD		A,4
 LOC_9421:  ; Ball intersects with sprite
-	ADD		A, A
-	LD		E, A
-	LD		D, 0
-	LD		IX, BYTE_944E
-	ADD		IX, DE
-	LD		L, (IX+0)
-	LD		H, (IX+1)
+	ADD		A,A
+	LD		E,A
+	LD		D,0
+	LD		IX,BYTE_944E
+	ADD		IX,DE
+	LD		L,(IX+0)
+	LD		H,(IX+1)
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
-	LD		BC, $D908
-	LD		D, 0
-	LD		A, 4			; remove ball explosion
+	LD		(IY+3),A
+	LD		BC,$D908
+	LD		D,0
+	LD		A,4			; remove ball explosion
 	CALL	PUTSPRITE
 	RET
 LOC_9444:
-	RES		3, (IY+0)
-	LD		HL, MRDO_DATA
-	SET		6, (HL)
+	RES		3,(IY+0)
+	LD		HL,MRDO_DATA
+	SET		6,(HL)
 RET
 
 BYTE_944E:
-    db 60, 0, 120, 0, 240, 0, 104, 1, 224, 1, 0
+    db 60,0,120,0,240,0,104,1,224,1,0
 
 LEADS_TO_CHERRY_STUFF:
-	LD		A, (GAMECONTROL)
-	BIT		6, A
-	JR		Z, LOC_9463
+	LD		A,(GAMECONTROL)
+	BIT		6,A
+	JR		Z,LOC_9463
 	XOR		A
 	RET
 LOC_9463:
-	LD		IY, MRDO_DATA  ; IY points to Mr. Do's sprite data
-	LD		A, (IY+2)
+	LD		IY,MRDO_DATA  ; IY points to Mr. Do's sprite data
+	LD		A,(IY+2)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_949A
+	JR		Z,LOC_949A
 	CALL	SUB_94A9
 	AND		A
-	JR		NZ, LOC_947A
-	LD		A, 1
+	JR		NZ,LOC_947A
+	LD		A,1
 	JR		LOC_9489
 LOC_947A:
 	CP		5
-	JR		NZ, LOC_9483
+	JR		NZ,LOC_9483
 	JP		LOC_D366
 LOC_9481:
 	JR		LOC_9491
 LOC_9483:
-	LD		(IY+1), A
+	LD		(IY+1),A
 	CALL	SUB_95A1	 ; Mr. Do sprite intersection logic
 LOC_9489:
 	PUSH	AF
@@ -3005,200 +3005,200 @@ LOC_9489:
 	POP		AF
 LOC_9491:
 	CALL	SUB_9732	; MrDo movements
-	CALL	CHECK_DIAMOND_COLLECTION  		; Diamond collection check A=0 if no diamond, A=$82 if diamond
+	CALL	CHECK_DIAMOND_COLLECTION  		; Diamond collection check A=0 if no diamond,A=$82 if diamond
 	AND		A
 	RET		NZ
 LOC_949A:
-	LD		HL, $7245
-	LD		B, 14H
+	LD		HL,ENEMYINTERACT
+	LD		B,20
 	XOR		A
 LOC_94A0:
 	CP		(HL)
 	RET		NZ
 	INC		HL
 	DJNZ	LOC_94A0
-	LD		A, 2
+	LD		A,2
 RET
 
 SUB_94A9:
-	LD		IX, $7088
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_94B8
-	LD		IX, $708D
+	LD		IX,$7088
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	JR		Z,LOC_94B8
+	LD		IX,$708D
 LOC_94B8:
-	BIT		6, (IX+0)
-	JR		NZ, LOC_94C4
-	BIT		6, (IX+3)
-	JR		Z, LOC_9538
+	BIT		6,(IX+0)
+	JR		NZ,LOC_94C4
+	BIT		6,(IX+3)
+	JR		Z,LOC_9538
 LOC_94C4:
-	LD		A, (MRDO_DATA)
-	BIT		6, A
-	JR		Z, LOC_9538
-	LD		B, (IY+3)
-	LD		C, (IY+4)
-	LD		A, (IY+1)
+	LD		A,(MRDO_DATA)
+	BIT		6,A
+	JR		Z,LOC_9538
+	LD		B,(IY+3)
+	LD		C,(IY+4)
+	LD		A,(IY+1)
 	CP		3
-	JR		NC, LOC_94FD
+	JR		NC,LOC_94FD
 	CP		1
-	LD		A, C
-	JR		NZ, LOC_94ED
-	ADD		A, 6
-	LD		($72DB), A
-	ADD		A, 3
-	JR		C, LOC_9538
-	LD		C, A
-	LD		A, B
-	LD		($72DA), A
+	LD		A,C
+	JR		NZ,LOC_94ED
+	ADD		A,6
+	LD		($72DB),A
+	ADD		A,3
+	JR		C,LOC_9538
+	LD		C,A
+	LD		A,B
+	LD		($72DA),A
 	JR		LOC_9524
 LOC_94ED:
 	SUB		6
-	LD		($72DB), A
+	LD		($72DB),A
 	SUB		3
-	JR		C, LOC_9538
-	LD		C, A
-	LD		A, B
-	LD		($72DA), A
+	JR		C,LOC_9538
+	LD		C,A
+	LD		A,B
+	LD		($72DA),A
 	JR		LOC_9524
 LOC_94FD:
 	CP		3
-	LD		A, B
-	JR		NZ, LOC_9514
+	LD		A,B
+	JR		NZ,LOC_9514
 	SUB		6
-	LD		($72DA), A
+	LD		($72DA),A
 	SUB		3
 	CP		1CH
-	JR		C, LOC_9538
-	LD		B, A
-	LD		A, C
-	LD		($72DB), A
+	JR		C,LOC_9538
+	LD		B,A
+	LD		A,C
+	LD		($72DB),A
 	JR		LOC_9524
 LOC_9514:
-	ADD		A, 6
-	LD		($72DA), A
-	ADD		A, 3
+	ADD		A,6
+	LD		($72DA),A
+	ADD		A,3
 	CP		0B5H
-	JR		NC, LOC_9538
-	LD		B, A
-	LD		A, C
-	LD		($72DB), A
+	JR		NC,LOC_9538
+	LD		B,A
+	LD		A,C
+	LD		($72DB),A
 LOC_9524:
 	PUSH	IX
 	CALL	SUB_AC3F
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	POP		IX
 	AND		0FH
 	CP		0FH
-	JR		NZ, LOC_9538
-	LD		A, 5
+	JR		NZ,LOC_9538
+	LD		A,5
 	RET
 LOC_9538:
-	LD		A, 1
-	BIT		1, (IX+1)
-	JR		NZ, LOC_9558
+	LD		A,1
+	BIT		1,(IX+1)
+	JR		NZ,LOC_9558
 	INC		A
-	BIT		3, (IX+1)
-	JR		NZ, LOC_9558
+	BIT		3,(IX+1)
+	JR		NZ,LOC_9558
 	INC		A
-	BIT		0, (IX+1)
-	JR		NZ, LOC_9558
+	BIT		0,(IX+1)
+	JR		NZ,LOC_9558
 	INC		A
-	BIT		2, (IX+1)
-	JR		NZ, LOC_9558
+	BIT		2,(IX+1)
+	JR		NZ,LOC_9558
 	XOR		A
 	RET
 
 LOC_9566:
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		0FH
 	CP		8
-	JR		Z, LOC_9575
+	JR		Z,LOC_9575
 LOC_956F:
 	POP		AF
-	LD		A, (IY+1)
+	LD		A,(IY+1)
 	RET
 LOC_9558:
 	PUSH	AF
 	CP		3
-	JR		NC, LOC_9566
-	LD		A, (IY+3)
+	JR		NC,LOC_9566
+	LD		A,(IY+3)
 	AND		0FH
-	JR		NZ, LOC_956F
+	JR		NZ,LOC_956F
 LOC_9575:
 	POP		AF
 RET
 
 SUB_9577:
-	LD		IX, BALLDATA
-	LD		A, (IY+1)
+	LD		IX,BALLDATA
+	LD		A,(IY+1)
 	DEC		A
-	LD		B, A
+	LD		B,A
 	CP		2
-	JR		C, LOC_9593
-	LD		B, 3
+	JR		C,LOC_9593
+	LD		B,3
 	CP		2
-	JR		Z, LOC_958C
-	LD		B, 1
+	JR		Z,LOC_958C
+	LD		B,1
 LOC_958C:
-	BIT		7, (IY+4)
-	JR		Z, LOC_9593
+	BIT		7,(IY+4)
+	JR		Z,LOC_9593
 	DEC		B
 LOC_9593:
-	SET		7, B
-	LD		(IX+0), B
-	SET		3, (IY+0)
-	RES		6, (IY+0)
+	SET		7,B
+	LD		(IX+0),B
+	SET		3,(IY+0)
+	RES		6,(IY+0)
 RET
 
 SUB_95A1:  ; Mr. Do Sprite intersection logic
 	CALL	SUB_961F  ; Mr. Do's sprite collision logic with the screen bounds
 	AND		A
-	JP		NZ, LOC_961C
+	JP		NZ,LOC_961C
 	PUSH	BC
-	RES		5, (IY+0)
-	LD		B, (IY+3)
-	LD		C, (IY+4)
-	LD		A, (IY+1)
+	RES		5,(IY+0)
+	LD		B,(IY+3)
+	LD		C,(IY+4)
+	LD		A,(IY+1)
 	CP		3
-	JR		NC, LOC_95CE
-	LD		D, A
-	LD		A, 1
+	JR		NC,LOC_95CE
+	LD		D,A
+	LD		A,1
 	CALL	SUB_AEE1 ; Mr do is pushing an apple
-	BIT		0, A
-	JR		Z, LOC_95C8
-	SET		5, (IY+0)
+	BIT		0,A
+	JR		Z,LOC_95C8
+	SET		5,(IY+0)
 LOC_95C8:
 	CP		2
-	JR		NC, LOC_9617
+	JR		NC,LOC_9617
 LOC_95D5:
 	POP		BC
-	LD		(IY+3), B
-	LD		(IY+4), C
-	LD		A, (IY+1)
-	LD		D, A
+	LD		(IY+3),B
+	LD		(IY+4),C
+	LD		A,(IY+1)
+	LD		D,A
 	CP		1
-	JR		NZ, LOC_95E9
+	JR		NZ,LOC_95E9
 	CALL	SUB_B2FA
 	JR		LOC_95FE
 LOC_95E9:
 	CP		2
-	JR		NZ, LOC_95F2
+	JR		NZ,LOC_95F2
 	CALL	SUB_B39D
 	JR		LOC_95FE
 LOC_95F2:
 	CP		3
-	JR		NZ, LOC_95FB
+	JR		NZ,LOC_95FB
 	CALL	SUB_B43F
 	JR		LOC_95FE
 LOC_95FB:
 	CALL	SUB_B4E9
 LOC_95FE:
-	BIT		0, E
-	JR		Z, LOC_9606
-	SET		4, (IY+0)
+	BIT		0,E
+	JR		Z,LOC_9606
+	SET		4,(IY+0)
 LOC_9606:
-	LD		B, (IY+3)
-	LD		C, (IY+4)
+	LD		B,(IY+3)
+	LD		C,(IY+4)
 	PUSH	DE
 	CALL	SUB_AC3F
 	CALL	SUB_AEB7
@@ -3206,616 +3206,612 @@ LOC_9606:
 	XOR		A
 	RET
 LOC_9617:
-	SET		5, (IY+0)
+	SET		5,(IY+0)
 	POP		BC
 LOC_961C:
-	LD		A, 1
+	LD		A,1
 	RET
 LOC_95CE: ; Mr. Do intersects with an apple while facing up or down
-	LD		D, A
+	LD		D,A
 	SCF 				; CF==1 Mr. Do collision offset to fix stuck in apple bug
-	CALL	SUB_B12D 	; Returns A=0 if no collision, A=1 if collision
+	CALL	SUB_B12D 	; Returns A=0 if no collision,A=1 if collision
 	AND		A
-	JR		Z, LOC_95D5
+	JR		Z,LOC_95D5
 	POP		BC			; here A==1
 RET					; Treat as a "wall" collision
 	
 SUB_961F:  ; Mr. Do's sprite collision logic with the screen bounds
-	LD		(IY+1), A
-	LD		B, (IY+3)
-	LD		C, (IY+4)
+	LD		(IY+1),A
+	LD		B,(IY+3)
+	LD		C,(IY+4)
 	CP		3		; Check if Mr. Do is facing up or down
-	JR		NC, LOC_964B  ; If facing up or down, jump to LOC_964B
-	LD		A, B
+	JR		NC,LOC_964B  ; If facing up or down,jump to LOC_964B
+	LD		A,B
 	AND		0FH
-	JR		NZ, LOC_966D
-	LD		A, C
-	ADD		A, 4
-	LD		C, A
-	LD		A, (IY+1)
+	JR		NZ,LOC_966D
+	LD		A,C
+	ADD		A,4
+	LD		C,A
+	LD		A,(IY+1)
 	CP		1
-	JR		Z, LOC_9640
-	LD		A, C
+	JR		Z,LOC_9640
+	LD		A,C
 	SUB		8
-	LD		C, A
+	LD		C,A
 LOC_9640:
-	LD		A, C
+	LD		A,C
 	CP		18H
-	JR		C, LOC_966D
+	JR		C,LOC_966D
 	CP		0E9H
-	JR		NC, LOC_966D
+	JR		NC,LOC_966D
 	JR		LOC_966A
 LOC_964B:
-	LD		A, C
+	LD		A,C
 	AND		0FH
 	CP		8
-	JR		NZ, LOC_966D
-	LD		A, B
-	ADD		A, 4
-	LD		B, A
-	LD		A, (IY+1)
+	JR		NZ,LOC_966D
+	LD		A,B
+	ADD		A,4
+	LD		B,A
+	LD		A,(IY+1)
 	CP		4
-	JR		Z, LOC_9661
-	LD		A, B
+	JR		Z,LOC_9661
+	LD		A,B
 	SUB		8
-	LD		B, A
+	LD		B,A
 LOC_9661:
-	LD		A, B
+	LD		A,B
 	CP		20H
-	JR		C, LOC_966D
+	JR		C,LOC_966D
 	CP		0B1H
-	JR		NC, LOC_966D
+	JR		NC,LOC_966D
 LOC_966A:
 	XOR		A
 	RET
 LOC_966D: ; Mr. Do has collided with the bounds of the screen
-	LD		A, 1
+	LD		A,1
 RET
 
 DEAL_WITH_CHERRIES:
 	CALL	SUB_B173
-	JR		C, GRAB_SOME_CHERRIES
-	BIT		1, (IY+0)
+	JR		C,GRAB_SOME_CHERRIES
+	BIT		1,(IY+0)
 	RET		Z
-	LD		A, (IY+8)
+	LD		A,(IY+8)
 	CALL	TEST_SIGNAL
 	AND		A
 	RET		Z
-	LD		(IY+7), 0
-	RES		1, (IY+0)
+	LD		(IY+7),0
+	RES		1,(IY+0)
 	PUSH	IY
 	CALL	SUB_C97F
 	POP		IY
 	RET
 GRAB_SOME_CHERRIES:
-	LD		DE, 5
+	LD		DE,5
 	CALL	SUB_B601
-	BIT		1, (IY+0)
-	JR		Z, LOC_96CA
-	LD		A, (IY+8)
+	BIT		1,(IY+0)
+	JR		Z,LOC_96CA
+	LD		A,(IY+8)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		NZ, LOC_96CA
-	LD		A, (IY+8)
+	JR		NZ,LOC_96CA
+	LD		A,(IY+8)
 	CALL	FREE_SIGNAL
 	INC		(IY+7)
-	LD		A, (IY+7)
+	LD		A,(IY+7)
 	CP		8
-	JR		C, LOC_96D5
-	LD		(IY+7), 0
-	LD		DE, 2DH 			; final cherry scores 500 not 550
+	JR		C,LOC_96D5
+	LD		(IY+7),0
+	LD		DE,2DH 			; final cherry scores 500 not 550
 	CALL	SUB_B601
-	RES		1, (IY+0)
+	RES		1,(IY+0)
 	RET
 LOC_96CA:
-	LD		(IY+7), 1
+	LD		(IY+7),1
 	PUSH	IY
 	CALL	PLAY_GRAB_CHERRIES_SOUND
 	POP		IY
 LOC_96D5:
 	XOR		A
-	LD		HL, 1EH
+	LD		HL,1EH
 	CALL	REQUEST_SIGNAL
-	LD		(IY+8), A
-	SET		1, (IY+0)
+	LD		(IY+8),A
+	SET		1,(IY+0)
 RET
 
 SUB_96E4:
-	LD		A, ($7272)
-	BIT		7, A
+	LD		A,($7272)
+	BIT		7,A
 	RET		Z
-	LD		A, (IY+3)
+	LD		A,(IY+3)
 	CP		60H
 	RET		NZ
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	CP		78H
 	RET		NZ
-	LD		HL, $7272
-	RES		7, (HL)
-	LD		A, (HL)
+	LD		HL,$7272
+	RES		7,(HL)
+	LD		A,(HL)
 	OR		32H
-	LD		(HL), A
-	LD		A, 0AH
-	LD		($728C), A
+	LD		(HL),A
+	LD		A,0AH
+	LD		($728C),A
 
-	LD		A, (GAMECONTROL)
-	LD		C, A
-	LD		A, (CURRENT_LEVEL_P1)
-	BIT		1, C
-	JR		Z, LOC_971B
+	LD		A,(GAMECONTROL)
+	LD		C,A
+	LD		A,(CURRENT_LEVEL_P1)
+	BIT		1,C
+	JR		Z,LOC_971B
 
-	LD		A, (CURRENT_LEVEL_P2)
+	LD		A,(CURRENT_LEVEL_P2)
 LOC_971B:
-	LD		HL, 0
-	LD		DE, 32H
+	LD		HL,0
+	LD		DE,32H
 LOC_9721:
-	ADD		HL, DE
+	ADD		HL,DE
 	DEC		A
-	JP		P, LOC_9721
-	EX		DE, HL
+	JP		P,LOC_9721
+	EX		DE,HL
 	CALL	SUB_B601
 RET
 
 SUB_9732:
 	AND		A					; if MrDo is halted reset animation
-	JR		NZ, LOC_973D
-	LD		A, (IY+6)
+	JR		NZ,LOC_973D
+	LD		A,(IY+6)
 	INC		A
 	CP		4					; Number of steps in the animation
-	JR		C, LOC_973E
+	JR		C,LOC_973E
 LOC_973D:
 	XOR		A
 LOC_973E:
-	LD		(IY+6), A
-	LD		C, 1
-	ADD		A, C
-	BIT		5, (IY+0)
-	JR		Z, LOC_974C
-	ADD		A, 4				; PUSH/WALK offset <-> add 4 if PUSHING
+	LD		(IY+6),A
+	LD		C,1
+	ADD		A,C
+	BIT		5,(IY+0)
+	JR		Z,LOC_974C
+	ADD		A,4				; PUSH/WALK offset <-> add 4 if PUSHING
 LOC_974C:
-	LD		C, A
-	LD		A, (IY+1)			; MrDo Direction
+	LD		C,A
+	LD		A,(IY+1)			; MrDo Direction
 	CP		2
-	JR		NZ, LOC_975A
-	LD		A, C
-	ADD		A, 8				; walk left offset
-	LD		C, A
+	JR		NZ,LOC_975A
+	LD		A,C
+	ADD		A,8				; walk left offset
+	LD		C,A
 	JR		LOC_9786
 LOC_975A:
 	CP		3
-	JR		NZ, LOC_9771
-	LD		A, (IY+4)
+	JR		NZ,LOC_9771
+	LD		A,(IY+4)
 	AND		A
-	JP		P, LOC_976B
-	LD		A, C
-	ADD		A, 16	;0EH		; walk up offset
-	LD		C, A
+	JP		P,LOC_976B
+	LD		A,C
+	ADD		A,16	;0EH		; walk up offset
+	LD		C,A
 	JR		LOC_9786
 LOC_976B:
-	LD		A, C
-	ADD		A, 32	;1CH		; walk up-mirror offset
-	LD		C, A
+	LD		A,C
+	ADD		A,32	;1CH		; walk up-mirror offset
+	LD		C,A
 	JR		LOC_9786
 LOC_9771:
 	CP		4
-	JR		NZ, LOC_9786
-	LD		A, (IY+4)
+	JR		NZ,LOC_9786
+	LD		A,(IY+4)
 	AND		A
-	JP		P, LOC_9782
-	LD		A, C
-	ADD		A, 24	;15H		; walk down offset
-	LD		C, A
+	JP		P,LOC_9782
+	LD		A,C
+	ADD		A,24	;15H		; walk down offset
+	LD		C,A
 	JR		LOC_9786
 LOC_9782:
-	LD		A, C
-	ADD		A, 40 ;23H			; walk down-mirror offset
-	LD		C, A
+	LD		A,C
+	ADD		A,40 ;23H			; walk down-mirror offset
+	LD		C,A
 LOC_9786:
-	LD		(IY+5), C			;  MrDO STEPS
-	BIT		6, (IY+0)
-	JR		Z, LOC_97C8
-	LD		A, (IY+1)
+	LD		(IY+5),C			;  MrDO STEPS
+	BIT		6,(IY+0)
+	JR		Z,LOC_97C8
+	LD		A,(IY+1)
 	CP		3
-	JR		C, LOC_97A1
-	LD		E, A
-	LD		A, (IY+4)
+	JR		C,LOC_97A1
+	LD		E,A
+	LD		A,(IY+4)
 	AND		A
-	LD		A, E
-	JP		M, LOC_97A1
-	ADD		A, 2
+	LD		A,E
+	JP		M,LOC_97A1
+	ADD		A,2
 LOC_97A1:
-	BIT		5, (IY+0)
-	JR		Z, LOC_97A9
-	ADD		A, 6
+	BIT		5,(IY+0)
+	JR		Z,LOC_97A9
+	ADD		A,6
 LOC_97A9:
 	DEC		A
-	ADD		A, A
-	LD		E, A
-	LD		D, 0
-	LD		HL, BYTE_97EF
-	ADD		HL, DE
-	LD		A, (IY+4)
-	ADD		A, 8
+	ADD		A,A
+	LD		E,A
+	LD		D,0
+	LD		HL,BYTE_97EF
+	ADD		HL,DE
+	LD		A,(IY+4)
+	ADD		A,8
 	SUB		(HL)
-	LD		C, A
+	LD		C,A
 	INC		HL
-	LD		A, (IY+3)
-	ADD		A, 8
+	LD		A,(IY+3)
+	ADD		A,8
 	SUB		(HL)
-	LD		B, A
-	LD		D, 1
-	LD		A, 4		; ball explosion
+	LD		B,A
+	LD		D,1
+	LD		A,4		; ball explosion
 	CALL	PUTSPRITE
 LOC_97C8:
-	LD		HL, 1EH
-	BIT		3, (IY+0)
-	JR		NZ, LOC_97DD
-	LD		HL, 0FH
-	BIT		5, (IY+0)
-	JR		NZ, LOC_97DD
-	LD		HL, 7
+	LD		HL,1EH
+	BIT		3,(IY+0)
+	JR		NZ,LOC_97DD
+	LD		HL,0FH
+	BIT		5,(IY+0)
+	JR		NZ,LOC_97DD
+	LD		HL,7
 LOC_97DD:
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IY+2), A
-	LD		A, (IY+0)
+	LD		(IY+2),A
+	LD		A,(IY+0)
 	AND		0E7H
 	OR		80H
-	LD		(IY+0), A
+	LD		(IY+0),A
 RET
 
 BYTE_97EF:
 	DB 002,006,014,006,006,014,006,002,010,014,010,002,012,008,004,008,008,004,008,012,008,004,008,012
 
 CHECK_DIAMOND_COLLECTION: ; Check if Mr. Do has collected a diamond
-    LD      A, (DIAMOND_RAM)  ; Load diamond status
-    BIT     7, A              ; Check if bit 7 is set (diamond active?)
-    JR      Z, LOC_983F       ; If not set, return 0 (no diamond)
+    LD      A,(DIAMOND_RAM)  ; Load diamond status
+    BIT     7,A              ; Check if bit 7 is set (diamond active?)
+    JR      Z,LOC_983F       ; If not set,return 0 (no diamond)
 
     ; Check X distance between Mr. Do and diamond
-    LD      IX, APPLEDATA     ; Diamond position stored in apple data
-    LD      B, (IX+1)         ; Get diamond X position
-    LD      C, (IX+2)         ; Get diamond Y position
-    LD      A, (IY+3)         ; Get Mr. Do's X position
-    SUB     B                 ; Calculate X distance
-    JR      NC, LOC_9820      ; If positive, skip next 2 lines
-    CPL                       ; If negative, make positive by
-    INC     A                 ; two's complement
+    LD      IX,APPLEDATA     ; Diamond position stored in apple data
+
+    LD      A,(IY+3)         ; Get Mr. Do's X position
+    SUB     (IX+1)             ; Calculate DX by diamond X 
+    JR      NC,LOC_9820      ; If positive,skip next line
+    NEG                      ; If negative,make positive by two's complement
 LOC_9820:
     CP      6                 ; Is X distance >= 6?
-    JR      NC, LOC_983F      ; If yes, too far, return 0
+    JR      NC,LOC_983F      ; If yes,too far,return 0
 
     ; Check Y distance between Mr. Do and diamond
-    LD      A, (IY+4)         ; Get Mr. Do's Y position
-    SUB     C                 ; Calculate Y distance
-    JR      NC, LOC_982C      ; If positive, skip next 2 lines
-    CPL                       ; If negative, make positive by
-    INC     A                 ; two's complement
+    LD      A,(IY+4)         ; Get Mr. Do's Y position
+    SUB     (IX+2)           ; Calculate DY distance by diamon Y
+    JR      NC,LOC_982C      ; If positive,skip next line
+    NEG                      ; If negative,make positive by two's complement
 LOC_982C:
     CP      6                 ; Is Y distance >= 6?
-    JR      NC, LOC_983F      ; If yes, too far, return 0
+    JR      NC,LOC_983F      ; If yes,too far,return 0
 
     ; Diamond collected! Award points
-    LD      DE, 320H          ; Load 800 (320 hex) for 8,000 points (previously was 10,000)
+    LD      DE,320H          ; Load 800 (320 hex) for 8,000 points (previously was 10,000)
     CALL    SUB_B601          ; Add points to score
-    LD      HL, DIAMOND_RAM   
-    RES     7, (HL)           ; Clear bit 7 (deactivate diamond)
-    LD      A, $82              ; Return $82 (diamond collected)
+    LD      HL,DIAMOND_RAM   
+    RES     7,(HL)           ; Clear bit 7 (deactivate diamond)
+    LD      A,$82              ; Return $82 (diamond collected)
     RET
 LOC_983F:                     ; No diamond collection
     XOR     A                 ; Return 0
 RET
 
 SUB_9842:						; TEST MRDO COLLISION AGAINST ENEMIES
-	LD		A, ($7272)
-	BIT		4, A
-	JR		Z, LOC_98A2
-	LD		A, (GAMEFLAGS)
-	BIT		7, A				; test chomper mode 
-	JR		NZ, LOC_986C
-	LD		A, ($728B)
+	LD		A,($7272)
+	BIT		4,A
+	JR		Z,LOC_98A2
+	LD		A,(GAMEFLAGS)
+	BIT		7,A				; test chomper mode 
+	JR		NZ,LOC_986C
+	LD		A,($728B)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_986C
-	LD		HL, 1EH
+	JR		Z,LOC_986C
+	LD		HL,1EH
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		($728B), A
-	LD		A, ($728C)
+	LD		($728B),A
+	LD		A,($728C)
 	DEC		A
-	LD		($728C), A
-	JR		Z, LOC_9892
+	LD		($728C),A
+	JR		Z,LOC_9892
 LOC_986C:
-	LD		IY, ENEMY_DATA_ARRAY
-	LD		B, 7
+	LD		IY,ENEMY_DATA_ARRAY
+	LD		B,7
 LOC_9872:
-	BIT		7, (IY+4)
-	JR		Z, LOC_9887
-	BIT		6, (IY+4)
-	JR		NZ, LOC_9887
+	BIT		7,(IY+4)
+	JR		Z,LOC_9887
+	BIT		6,(IY+4)
+	JR		NZ,LOC_9887
 	PUSH	BC
 	CALL	SUB_9FC8
-	LD		L, 1
+	LD		L,1
 	POP		BC
-	JR		NZ, LOC_98CB
+	JR		NZ,LOC_98CB
 LOC_9887:
-	LD		DE, 6
-	ADD		IY, DE
+	LD		DE,6
+	ADD		IY,DE
 	DJNZ	LOC_9872
-	LD		L, 0
+	LD		L,0
 	JR		LOC_98CB
 LOC_9892:
-	LD		A, ($7272)
-	RES		4, A
-	LD		($7272), A
-	LD		A, ($728A)
-	SET		4, A
-	LD		($728A), A
+	LD		A,($7272)
+	RES		4,A
+	LD		($7272),A
+	LD		A,($728A)
+	SET		4,A
+	LD		($728A),A
 LOC_98A2:
 	JP		LOC_D40B
 LOC_98A5:
 	CALL	SUB_98CE
-	LD		A, ($728C)
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_9A24
-	ADD		HL, BC
-	LD		C, (HL)
-	LD		IY, ENEMY_DATA_ARRAY
-	ADD		IY, BC
-	LD		L, 0
-	LD		A, (IY+4)
-	BIT		7, A
-	JR		Z, LOC_98C2
-	BIT		6, A
-	JR		NZ, LOC_98C2
-	BIT		7, (IY+0)
-	JR		NZ, LOC_98C2
+	LD		A,($728C)
+	LD		C,A
+	LD		B,0
+	LD		HL,BYTE_9A24
+	ADD		HL,BC
+	LD		C,(HL)
+	LD		IY,ENEMY_DATA_ARRAY
+	ADD		IY,BC
+	LD		L,0
+	LD		A,(IY+4)
+	BIT		7,A
+	JR		Z,LOC_98C2
+	BIT		6,A
+	JR		NZ,LOC_98C2
+	BIT		7,(IY+0)
+	JR		NZ,LOC_98C2
 	CALL	SUB_9A2C
-	LD		L, A
+	LD		L,A
 LOC_98C2:
-	LD		A, ($728C)
+	LD		A,($728C)
 	INC		A
 	AND		7
-	LD		($728C), A
+	LD		($728C),A
 LOC_98CB:
-	LD		A, L
+	LD		A,L
 	AND		A				; return L=A=1 if collison
 RET
 
 SUB_98CE:
 	PUSH	IX
-	LD		A, ($728A)
-	BIT		3, A
-	JR		NZ, LOC_9928
-	LD		IX, $72B2
-	LD		A, (IX+3)
+	LD		A,($728A)
+	BIT		3,A
+	JR		NZ,LOC_9928
+	LD		IX,$72B2
+	LD		A,(IX+3)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_9928
+	JR		Z,LOC_9928
 	CALL	SUB_9980
-	JR		Z, LOC_991E
-;	LD		BC, 6078H	; unused
+	JR		Z,LOC_991E
+;	LD		BC,6078H	; unused
 	CALL	SUB_992B
-	JR		Z, LOC_98F6
-	LD		HL, 1
+	JR		Z,LOC_98F6
+	LD		HL,1
 	JR		LOC_9915
 LOC_98F6:
-	LD		(IY+0), 28H
-	LD		(IY+4), 81H
+	LD		(IY+0),28H
+	LD		(IY+4),81H
 	XOR		A
-	LD		HL, 6
+	LD		HL,6
 	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
-	LD		BC, 6078H
-	LD		(IY+2), B
-	LD		(IY+1), C
-	LD		(IY+5), 5
+	LD		(IY+3),A
+	LD		BC,6078H
+	LD		(IY+2),B
+	LD		(IY+1),C
+	LD		(IY+5),5
 	CALL	SUB_9980
-	JR		Z, LOC_991E
-	LD		HL, 0D2H
-	LD		A, ($728A)
-	BIT		2, A
-	JR		NZ, LOC_9910
-	LD		HL, 1EH
+	JR		Z,LOC_991E
+	LD		HL,0D2H
+	LD		A,($728A)
+	BIT		2,A
+	JR		NZ,LOC_9910
+	LD		HL,1EH
 LOC_9910:
 	XOR		4
-	LD		($728A), A
+	LD		($728A),A
 LOC_9915:
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IX+3), A
+	LD		(IX+3),A
 	JR		LOC_9928
 LOC_991E:
-	LD		A, ($7272)
-	SET		0, A
-	SET		7, A
-	LD		($7272), A
+	LD		A,($7272)
+	SET		0,A
+	SET		7,A
+	LD		($7272),A
 LOC_9928:
 	POP		IX
 RET
 
 SUB_992B:
 	PUSH	IY
-	LD		IY, ENEMY_DATA_ARRAY		; enemy data starts here = 6*7 bytes
-	LD		BC, 700H		; B = enemy number
+	LD		IY,ENEMY_DATA_ARRAY		; enemy data starts here = 6*7 bytes
+	LD		BC,700H		; B = enemy number
 LOC_9934:
-	LD		A, (IY+4)
-	BIT		7, A
-	JR		Z, LOC_994D
-	BIT		6, A
-	JR		NZ, LOC_994D
-	LD		A, (IY+2)
+	LD		A,(IY+4)
+	BIT		7,A
+	JR		Z,LOC_994D
+	BIT		6,A
+	JR		NZ,LOC_994D
+	LD		A,(IY+2)
 	SUB		60H
-	JR		NC, LOC_9948
+	JR		NC,LOC_9948
 	CPL
 	INC		A
 LOC_9948:
 	CP		0DH
-	JR		NC, LOC_994D
+	JR		NC,LOC_994D
 	INC		C
 LOC_994D:
-	LD		DE, 6
-	ADD		IY, DE			; next enemy
+	LD		DE,6
+	ADD		IY,DE			; next enemy
 	DJNZ	LOC_9934
-	LD		A, C
+	LD		A,C
 	CP		2
-	JR		NC, LOC_995C
+	JR		NC,LOC_995C
 	XOR		A
 	JR		LOC_995E
 LOC_995C:
-	LD		A, 1
+	LD		A,1
 LOC_995E:
 	POP		IY
 	AND		A
 RET
 
 SUB_9980:
-	LD		IY, ENEMY_DATA_ARRAY
-	LD		L, 7
-	LD		DE, 6
+	LD		IY,ENEMY_DATA_ARRAY
+	LD		L,7
+	LD		DE,6
 LOC_9989:
-	BIT		7, (IY+4)
-	JR		Z, LOC_999C
-	ADD		IY, DE
+	BIT		7,(IY+4)
+	JR		Z,LOC_999C
+	ADD		IY,DE
 	DEC		L
-	JR		NZ, LOC_9989
-	LD		A, ($728A)
-	SET		3, A
-	LD		($728A), A
+	JR		NZ,LOC_9989
+	LD		A,($728A)
+	SET		3,A
+	LD		($728A),A
 LOC_999C:
-	LD		A, L
+	LD		A,L
 	AND		A
 RET
 
 SUB_999F:
-	LD		A, ($728A)
-	BIT		5, A
-	JR		NZ, LOC_99BB
-	SET		5, A
-	LD		($728A), A
-	LD		HL, 3CH
+	LD		A,($728A)
+	BIT		5,A
+	JR		NZ,LOC_99BB
+	SET		5,A
+	LD		($728A),A
+	LD		HL,3CH
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		IX, $72B2
-	LD		(IX+3), A
+	LD		IX,$72B2
+	LD		(IX+3),A
 	JR		LOC_9A07
 LOC_99BB:
-	LD		A, ($728B)
+	LD		A,($728B)
 	CALL	TEST_SIGNAL
 	AND		A
 	RET		Z
-	LD		A, ($728D)
-	LD		D, A
-	LD		A, ($728A)
-	SET		6, A
-	BIT		7, A
-	JR		Z, LOC_99E4
-	RES		7, A
-	LD		($728A), A
+	LD		A,($728D)
+	LD		D,A
+	LD		A,($728A)
+	SET		6,A
+	BIT		7,A
+	JR		Z,LOC_99E4
+	RES		7,A
+	LD		($728A),A
 	INC		D
-	JR		NZ, LOC_99DB
-	LD		D, 0FFH
+	JR		NZ,LOC_99DB
+	LD		D,0FFH
 LOC_99DB:
-	LD		A, D
-	LD		($728D), A
-	LD		A, ($728A)
+	LD		A,D
+	LD		($728D),A
+	LD		A,($728A)
 	JR		LOC_99E9
 LOC_99E4:
-	SET		7, A
-	LD		($728A), A
+	SET		7,A
+	LD		($728A),A
 LOC_99E9:
-	LD		E, 7
-	LD		BC, 6
-	LD		IY, ENEMY_DATA_ARRAY
+	LD		E,7
+	LD		BC,6
+	LD		IY,ENEMY_DATA_ARRAY
 LOC_99F2:
-	LD		H, (IY+4)
-	SET		5, H
-	SET		4, H
-	BIT		7, A
-	JR		Z, LOC_99FF
-	RES		4, H
+	LD		H,(IY+4)
+	SET		5,H
+	SET		4,H
+	BIT		7,A
+	JR		Z,LOC_99FF
+	RES		4,H
 LOC_99FF:
-	LD		(IY+4), H
-	ADD		IY, BC
+	LD		(IY+4),H
+	ADD		IY,BC
 	DEC		E
-	JR		NZ, LOC_99F2
+	JR		NZ,LOC_99F2
 LOC_9A07:
-	LD		HL, 1EH
+	LD		HL,1EH
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		($728B), A
+	LD		($728B),A
 RET
 
 
 BYTE_9A24:
 	DB 000,006,012,018,024,030,036,042
 
-SUB_9A2C:
+SUB_9A2C:					; Bad guy logic
+	LD		A,(IY+3)
+	CALL	TEST_SIGNAL		; IX unchanged
+	RET 	Z
 	PUSH	IX
-	LD		A, (IY+3)
-	CALL	TEST_SIGNAL
-	AND		A
-	JR		Z, LOC_9AB1
-	LD		A, (IY+0)
-	BIT		5, A
-	JR		Z, LOC_9A50
-	BIT		3, A
-	JR		Z, LOC_9A49
-	CALL	SUB_9B91
-	JR		NZ, LOC_9A5E
+	LD		A,(IY+0)
+	BIT		5,A
+	JR		Z,LOC_9A50		; B5==0,Digger
+	BIT		3,A
+	JR		Z,LOC_9A49
+	CALL	SUB_9B91		; IX unchanged
+	JR		NZ,LOC_9A5E
 	JR		LOC_9A75
 LOC_9A49:
-	CALL	SUB_9BBD
-	JR		NZ, LOC_9A59
+	CALL	SUB_9BBD		; IX unchanged
+	JR		NZ,LOC_9A59
 	JR		LOC_9A75
 LOC_9A50:
-	BIT		4, A
-	JR		Z, LOC_9A5E
-	CALL	SUB_9C76
-	JR		NZ, LOC_9A75
+	BIT		4,A
+	JR		Z,LOC_9A5E
+	CALL	SUB_9C76		; IX unchanged
+	JR		NZ,LOC_9A75
 LOC_9A59:
-	CALL	SUB_A460
+	CALL	SUB_A460		; digger interact with apples
 	JR		LOC_9AA0
 LOC_9A5E:
 	CALL	SUB_A1DF
-	JR		NZ, LOC_9A75
+	JR		NZ,LOC_9A75
 	CALL	SUB_9CAB
-	JR		NZ, LOC_9A6D
+	JR		NZ,LOC_9A6D
 	CALL	SUB_9E7C
 	JR		LOC_9A75
 LOC_9A6D:
 	CALL	SUB_9FF4
-	JR		Z, LOC_9AA0
+	JR		Z,LOC_9AA0
 	CALL	SUB_9E3F
 LOC_9A75:
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
 	CALL	SUB_9D2F
-	JR		Z, LOC_9AA0
-	LD		A, (IY+4)
+	JR		Z,LOC_9AA0
+	LD		A,(IY+4)
 	AND		7
 	DEC		A
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_9AB5
-	ADD		HL, BC
-	LD		B, (HL)
+	LD		C,A
+	LD		B,0
+	LD		HL,BYTE_9AB5
+	ADD		HL,BC
+	LD		B,(HL)
 	PUSH	BC
 	CALL	SUB_9F29
 	POP		BC
 	AND		B
-	JR		Z, LOC_9AA0
+	JR		Z,LOC_9AA0
 	CALL	SUB_9E7A
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
 	CALL	SUB_9D2F
 LOC_9AA0:
 	CALL	SUB_9AB9
-	CALL	SUB_9AE2
-	LD		A, (IY+4)
+	CALL	SUB_9AE2		; plot bad guy/transformer/digger
+	LD		A,(IY+4)
 	AND		0C7H
-	LD		(IY+4), A
+	LD		(IY+4),A
 	CALL	SUB_9FC8
 LOC_9AB1:
 	POP		IX
@@ -3829,23 +3825,23 @@ BYTE_9AB5:
 SUB_9AB9:
 	PUSH	DE
 	PUSH	HL
-	LD		E, (IY+0)
-	LD		HL, 6
-	BIT		5, E
-	JR		NZ, LOC_9AD8
-	BIT		4, E
-	JR		Z, LOC_9ACE
+	LD		E,(IY+0)
+	LD		HL,6
+	BIT		5,E
+	JR		NZ,LOC_9AD8
+	BIT		4,E
+	JR		Z,LOC_9ACE
 	CALL	SUB_9BE2
 	JR		LOC_9AD8
 LOC_9ACE:
 	CALL	SUB_9BDA
-	BIT		3, (IY+4)
-	JR		Z, LOC_9AD8
-	ADD		HL, HL
+	BIT		3,(IY+4)
+	JR		Z,LOC_9AD8
+	ADD		HL,HL
 LOC_9AD8:
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
+	LD		(IY+3),A
 	POP		HL
 	POP		DE
 RET
@@ -3853,61 +3849,61 @@ RET
 SUB_9AE2:
 	PUSH	IX
 	PUSH	IY
-	LD		H, (IY+0)	; enemy status flag
-	LD		D, 1		; Bad buy (right)
-	BIT		6, H		; B6==0, Transform
-	JR		NZ, LOC_9B07
-	LD		D, 13		; Bad guys Transforming (right)
-	BIT		5, H		; B5==0, Digger
-	JR		NZ, LOC_9B07
 	
+	LD		D,1				; Bad guy (right)
+	BIT		6,(IY+0)		; B6==0,Transform
+	JR		NZ,LOC_9B07
+	
+	LD		D,13			; Bad guys Transforming (right)
+	BIT		5,(IY+0)		
+	JR		NZ,LOC_9B07
+							; B5==0,Digger
+
 	CALL	SUB_9B4F
-	LD		B, (IY+2)
-	LD		C, (IY+1)
+	LD		B,(IY+2)
+	LD		C,(IY+1)
 	CALL	SUB_AC3F
-	LD		D, A
+	LD		D,A
 	CALL	SUB_B173
 	
-	LD		D, 25		; Digger (right)
+	LD		D,25			; Digger (right)
 LOC_9B07:
-	LD		A, (IY+4)				; direction
+	LD		A,(IY+4)		; direction
 	AND		7
-	LD		L, 0					; 1 == rigth	L=0
+	LD		L,0				; 1 == rigth	L=0
 	DEC		A
-	JR		Z, LOC_9B28
-	LD		L, 2
-	DEC		A						; 2 == left		L=2
-	JR		Z, LOC_9B28
+	JR		Z,LOC_9B28
+	LD		L,2
+	DEC		A				; 2 == left		L=2
+	JR		Z,LOC_9B28
 
-	LD		L, 4					; FootLeft
-	BIT     7,(IY+1)				; test if x<128
+	LD		L,4				; FootLeft
+	BIT     7,(IY+1)		; test if x<128
 	JR 		NZ,.FootRight
-	LD		L, 8
+	LD		L,8
 .FootRight:
 	DEC 	A
-	JR		Z, LOC_9B28				; 3 == down		L=4 or 8
+	JR		Z,LOC_9B28		; 3 == down		L=4 or 8
 
-	INC		L						; 4 == up 		L=6 or 10	
+	INC		L				; 4 == up 		L=6 or 10	
 	INC		L
+
 LOC_9B28:
-	LD		C, (IY+5)
-	BIT		7, C
-	JR		Z, LOC_9B33
-	RES		7, C
-	JR		LOC_9B36
-LOC_9B33:
-	SET		7, C
-	INC		L
-LOC_9B36:
-	LD		(IY+5), C
-	LD		A, D
-	ADD		A, L
-	LD		D, A
-	LD		A, ($728C)
-	ADD		A, 5
-	LD		B, (IY+2)
-	LD		C, (IY+1)		
-mytst:	
+
+	LD		A,(IY+5)
+	XOR		$80
+	JR		Z,.odd
+	INC 	L
+.odd:
+	LD		(IY+5),A
+	
+	LD		A,D
+	ADD		A,L
+	LD		D,A
+	LD		A,($728C)
+	ADD		A,5
+	LD		B,(IY+2)
+	LD		C,(IY+1)		
 	CALL	PUTSPRITE		; show bad guy
 	POP		IY
 	POP		IX
@@ -3918,29 +3914,29 @@ SUB_9B4F:
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		A, (IY+0)
-	BIT		0, A
-	JR		NZ, LOC_9B83
-	BIT		5, A
-	JR		NZ, LOC_9B83
-	LD		A, (IY+4)
+	LD		A,(IY+0)
+	BIT		0,A
+	JR		NZ,LOC_9B83
+	BIT		5,A				; digger
+	JR		NZ,LOC_9B83
+	LD		A,(IY+4)		; direction
 	AND		7
-	DEC		A
-	CP		4
-	JR		NC, LOC_9B83
-	LD		HL, OFF_9B89
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		E, (HL)
+	DEC		A				; 0 - 3 valid directions
+	CP		4				
+	JR		NC,LOC_9B83		; skip if invalid direction 		
+	LD		HL,OFF_9B89
+	ADD		A,A
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
+	LD		D,(HL)
 	PUSH	DE
 	POP		IX
-	LD		B, (IY+2)
-	LD		C, (IY+1)
-	LD		DE, LOC_9B83
+	LD		B,(IY+2)
+	LD		C,(IY+1)
+	LD		DE,LOC_9B83
 	PUSH	DE
 	JP		(IX)
 LOC_9B83:
@@ -3958,48 +3954,48 @@ OFF_9B89:
 
 SUB_9B91:
 	CALL	SUB_9BA8
-	LD		B, 0
-	JR		NZ, LOC_9BA5
-	LD		A, (IY+0)
-	RES		5, A
-	SET		6, A
+	LD		B,0
+	JR		NZ,LOC_9BA5
+	LD		A,(IY+0)
+	RES		5,A
+	SET		6,A
 	AND		0F8H
-	LD		(IY+0), A
+	LD		(IY+0),A
 	INC		B
 LOC_9BA5:
-	LD		A, B
+	LD		A,B
 	AND		A
 RET
 
 SUB_9BA8:
-	LD		A, (IY+5)
+	LD		A,(IY+5)
 	DEC		A
-	LD		(IY+5), A
+	LD		(IY+5),A
 	AND		3FH
 RET
 
 SUB_9BB2:
-	LD		C, A
-	LD		A, (IY+5)
+	LD		C,A
+	LD		A,(IY+5)
 	AND		0C0H
 	OR		C
-	LD		(IY+5), A
+	LD		(IY+5),A
 RET
 
 SUB_9BBD:
-	LD		B, 0
+	LD		B,0
 	CALL	SUB_9BA8
-	JR		NZ, LOC_9BD7
-	LD		A, (IY+0)
+	JR		NZ,LOC_9BD7
+	LD		A,(IY+0)
 	AND		0F8H
-	RES		5, A
-	SET		4, A
-	LD		(IY+0), A
+	RES		5,A
+	SET		4,A
+	LD		(IY+0),A
 	CALL	SUB_9BE2
 	CALL	SUB_9BB2
 	INC		B
 LOC_9BD7:
-	LD		A, B
+	LD		A,B
 	OR		A
 RET
 
@@ -4007,56 +4003,56 @@ SUB_9BDA:
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
-	LD		D, 0
+	LD		D,0
 	JR		LOC_9BE8
 
 SUB_9BE2:
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
-	LD		D, 1
+	LD		D,1
 LOC_9BE8:
-	LD		A, (SKILLLEVEL)
+	LD		A,(SKILLLEVEL)
 	DEC		A
-	LD		C, A
-	LD		B, 0
-	LD		IX, BYTE_9D1A
-	ADD		IX, BC
-	LD		C, (IX+0)
-	LD		HL, CURRENT_LEVEL_P1
-	LD		A, (GAMECONTROL)
+	LD		C,A
+	LD		B,0
+	LD		IX,BYTE_9D1A
+	ADD		IX,BC
+	LD		C,(IX+0)
+	LD		HL,CURRENT_LEVEL_P1
+	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_9C05
+	JR		NZ,LOC_9C05
 	INC		HL
 LOC_9C05:
-	LD		A, (HL)
+	LD		A,(HL)
 	DEC		A
-	ADD		A, C
-	LD		C, A
-	LD		A, ($728A)
-	BIT		4, A
-	JR		Z, LOC_9C12
+	ADD		A,C
+	LD		C,A
+	LD		A,($728A)
+	BIT		4,A
+	JR		Z,LOC_9C12
 	INC		C
 	INC		C
 LOC_9C12:
-	LD		A, C
+	LD		A,C
 	CP		0FH
-	JR		C, LOC_9C19
-	LD		A, 0FH
+	JR		C,LOC_9C19
+	LD		A,0FH
 LOC_9C19:
-	ADD		A, A
-	LD		C, A
-	LD		IX, BYTE_9C56
-	LD		A, D
+	ADD		A,A
+	LD		C,A
+	LD		IX,BYTE_9C56
+	LD		A,D
 	AND		A
-	JR		Z, LOC_9C27
-	LD		IX, BYTE_9C36
+	JR		Z,LOC_9C27
+	LD		IX,BYTE_9C36
 LOC_9C27:
-	ADD		IX, BC
-	LD		L, (IX+0)
-	LD		H, 0
-	LD		A, (IX+1)
+	ADD		IX,BC
+	LD		L,(IX+0)
+	LD		H,0
+	LD		A,(IX+1)
 	POP		IX
 	POP		DE
 	POP		BC
@@ -4068,104 +4064,104 @@ BYTE_9C56:
 	DB 008,001,008,001,008,001,006,001,006,001,006,001,005,001,005,001,005,001,005,001,004,001,004,001,004,001,004,001,004,001,004,001
 
 SUB_9C76:
-	LD		B, 0
-	LD		A, (IY+5)
+	LD		B,0
+	LD		A,(IY+5)
 	AND		3FH
-	JR		Z, LOC_9C84
+	JR		Z,LOC_9C84
 	CALL	SUB_9BA8
-	JR		NZ, LOC_9CA8
+	JR		NZ,LOC_9CA8
 LOC_9C84:
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	AND		0FH
-	JR		NZ, LOC_9CA8
-	LD		A, (IY+1)
+	JR		NZ,LOC_9CA8
+	LD		A,(IY+1)
 	AND		0FH
 	CP		8
-	JR		NZ, LOC_9CA8
-	LD		A, (IY+0)
+	JR		NZ,LOC_9CA8
+	LD		A,(IY+0)
 	AND		0F8H
-	RES		4, A
-	SET		5, A
-	SET		3, A
-	LD		(IY+0), A
-	LD		A, 0AH
+	RES		4,A
+	SET		5,A
+	SET		3,A
+	LD		(IY+0),A
+	LD		A,0AH
 	CALL	SUB_9BB2
 	INC		B
 LOC_9CA8:
-	LD		A, B
+	LD		A,B
 	AND		A
 RET
 
 SUB_9CAB:
-	LD		B, (IY+0)
-	BIT		5, (IY+4)
-	JR		NZ, LOC_9CBA
-	BIT		2, B
-	JR		NZ, LOC_9CD4
+	LD		B,(IY+0)
+	BIT		5,(IY+4)
+	JR		NZ,LOC_9CBA
+	BIT		2,B
+	JR		NZ,LOC_9CD4
 	JR		LOC_9CDA
 LOC_9CBA:
 	CALL	SUB_9CE0
-	LD		E, A
-	LD		A, ($728D)
+	LD		E,A
+	LD		A,($728D)
 	RRA
 	RRA
 	RRA
 	RRA
 	RRA
 	AND		7
-	ADD		A, E
-	LD		E, A
+	ADD		A,E
+	LD		E,A
 	CALL	RAND_GEN
 	AND		0FH
-	RES		2, B
+	RES		2,B
 	CP		E
-	JR		NC, LOC_9CDA
+	JR		NC,LOC_9CDA
 LOC_9CD4:
-	SET		2, B
-	RES		0, B
-	RES		1, B
+	SET		2,B
+	RES		0,B
+	RES		1,B
 LOC_9CDA:
-	LD		(IY+0), B
-	BIT		2, B
+	LD		(IY+0),B
+	BIT		2,B
 RET
 
 SUB_9CE0:
 	PUSH	DE
 	PUSH	HL
-	LD		A, (SKILLLEVEL)
+	LD		A,(SKILLLEVEL)
 	DEC		A
-	LD		E, A
-	LD		D, 0
-	LD		HL, BYTE_9D1A
-	ADD		HL, DE
-	LD		E, (HL)
-	LD		HL, CURRENT_LEVEL_P1
-	LD		A, (GAMECONTROL)
+	LD		E,A
+	LD		D,0
+	LD		HL,BYTE_9D1A
+	ADD		HL,DE
+	LD		E,(HL)
+	LD		HL,CURRENT_LEVEL_P1
+	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_9CFB
+	JR		NZ,LOC_9CFB
 	INC		HL
 LOC_9CFB:
-	LD		A, (HL)
+	LD		A,(HL)
 	DEC		A
-	ADD		A, E
-	LD		E, A
-	LD		A, ($728A)
-	BIT		4, A
-	JR		Z, LOC_9D08
+	ADD		A,E
+	LD		E,A
+	LD		A,($728A)
+	BIT		4,A
+	JR		Z,LOC_9D08
 	INC		E
 	INC		E
 LOC_9D08:
-	LD		A, E
+	LD		A,E
 	CP		0FH
-	JR		C, LOC_9D0F
-	LD		A, 0FH
+	JR		C,LOC_9D0F
+	LD		A,0FH
 LOC_9D0F:
-	LD		E, A
-	LD		D, 0
-	LD		HL, BYTE_9D1E
-	ADD		HL, DE
-	LD		A, (HL)
+	LD		E,A
+	LD		D,0
+	LD		HL,BYTE_9D1E
+	ADD		HL,DE
+	LD		A,(HL)
 	POP		HL
 	POP		DE
 RET
@@ -4176,77 +4172,77 @@ BYTE_9D1E:
 	DB 008,008,009,009,010,010,011,011,012,012,013,013,014,014,014,014,014
 
 SUB_9D2F:
-	LD		C, A
+	LD		C,A
 	XOR		A
-	LD		H, (IY+0)
-	BIT		0, H
+	LD		H,(IY+0)
+	BIT		0,H
 	RET		NZ
-	BIT		5, H
+	BIT		5,H
 	RET		NZ
 	PUSH	BC
-	LD		B, (IY+2)
-	LD		C, (IY+1)
+	LD		B,(IY+2)
+	LD		C,(IY+1)
 	CALL	SUB_9E07
 	POP		BC
 	RET		NZ
 	DEC		C
-	LD		A, C
+	LD		A,C
 	CP		4
-	LD		A, 0
+	LD		A,0
 	RET		NC
-	LD		A, C
+	LD		A,C
 	RLCA
-	LD		C, A
-	LD		B, 0
-	LD		HL, OFF_9D9F
-	ADD		HL, BC
-	LD		E, (HL)
+	LD		C,A
+	LD		B,0
+	LD		HL,OFF_9D9F
+	ADD		HL,BC
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
-	EX		DE, HL
-	LD		B, (IY+2)
-	LD		C, (IY+1)
-	LD		E, 4
+	LD		D,(HL)
+	EX		DE,HL
+	LD		B,(IY+2)
+	LD		C,(IY+1)
+	LD		E,4
 	JP		(HL)
 LOC_9D67:
-	LD		A, C
-	ADD		A, E
-	LD		C, A
+	LD		A,C
+	ADD		A,E
+	LD		C,A
 	JR		LOC_9D79
 LOC_9D6C:
-	LD		A, C
+	LD		A,C
 	SUB		E
-	LD		C, A
+	LD		C,A
 	JR		LOC_9D79
 LOC_9D71:
-	LD		A, B
+	LD		A,B
 	SUB		E
-	LD		B, A
+	LD		B,A
 	JR		LOC_9D79
 LOC_9D76:
-	LD		A, B
-	ADD		A, E
-	LD		B, A
+	LD		A,B
+	ADD		A,E
+	LD		B,A
 LOC_9D79:
 	PUSH	HL
 	PUSH	BC
 	PUSH	IY
 	POP		HL
-	LD		BC, $72B8
+	LD		BC,$72B8
 	AND		A
-	SBC		HL, BC
+	SBC		HL,BC
 	POP		BC
 	POP		HL
-	JR		NC, LOC_9D92
-	LD		A, (IY+4)
+	JR		NC,LOC_9D92
+	LD		A,(IY+4)
 	AND		7
 	CALL	SUB_9DA7
 	RET		NZ
 LOC_9D92:
 	CALL	SUB_9E07
 	RET		NZ
-	LD		(IY+2), B
-	LD		(IY+1), C
+	LD		(IY+2),B
+	LD		(IY+1),C
 	AND		A
 RET
 
@@ -4260,55 +4256,55 @@ SUB_9DA7:
 	PUSH	BC
 	PUSH	IX
 	CP		3
-	JR		C, LOC_9E01
-	LD		C, A
-	LD		IX, ENEMY_DATA_ARRAY
-	LD		HL, 7
+	JR		C,LOC_9E01
+	LD		C,A
+	LD		IX,ENEMY_DATA_ARRAY
+	LD		HL,7
 LOC_9DB6:
-	BIT		7, (IX+4)
-	JR		Z, LOC_9DF0
-	BIT		6, (IX+4)
-	JR		NZ, LOC_9DF0
-	LD		A, (IX+2)
-	BIT		2, C
-	JR		NZ, LOC_9DD5
+	BIT		7,(IX+4)
+	JR		Z,LOC_9DF0
+	BIT		6,(IX+4)
+	JR		NZ,LOC_9DF0
+	LD		A,(IX+2)
+	BIT		2,C
+	JR		NZ,LOC_9DD5
 	CP		B
-	JR		Z, LOC_9DCE
-	JR		NC, LOC_9DF0
+	JR		Z,LOC_9DCE
+	JR		NC,LOC_9DF0
 LOC_9DCE:
-	ADD		A, 0CH
+	ADD		A,0CH
 	CP		B
-	JR		C, LOC_9DF0
+	JR		C,LOC_9DF0
 	JR		LOC_9DDD
 LOC_9DD5:
 	CP		B
-	JR		C, LOC_9DF0
+	JR		C,LOC_9DF0
 	SUB		0DH
 	CP		B
-	JR		NC, LOC_9DF0
+	JR		NC,LOC_9DF0
 LOC_9DDD:
 	INC		H
-	LD		A, H
+	LD		A,H
 	CP		1
-	JR		NZ, LOC_9DF0
+	JR		NZ,LOC_9DF0
 	PUSH	HL
 	PUSH	IY
 	POP		DE
 	PUSH	IX
 	POP		HL
 	AND		A
-	SBC		HL, DE
+	SBC		HL,DE
 	POP		HL
-	JR		NC, LOC_9E01
+	JR		NC,LOC_9E01
 LOC_9DF0:
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	DEC		L
-	JR		NZ, LOC_9DB6
-	LD		A, H
+	JR		NZ,LOC_9DB6
+	LD		A,H
 	CP		2
-	JR		C, LOC_9E01
-	LD		A, 0FFH
+	JR		C,LOC_9E01
+	LD		A,0FFH
 	JR		LOC_9E02
 LOC_9E01:
 	XOR		A
@@ -4320,158 +4316,158 @@ RET
 
 SUB_9E07:
 	PUSH	BC
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
-	LD		D, A
-	LD		A, 3
-	BIT		4, (IY+0)
-	JR		Z, LOC_9E17
+	LD		D,A
+	LD		A,3
+	BIT		4,(IY+0)
+	JR		Z,LOC_9E17
 	DEC		A
 LOC_9E17:
-	LD		E, A
-	LD		A, D
+	LD		E,A
+	LD		A,D
 	CP		3
-	LD		A, E
-	JR		NC, LOC_9E31
+	LD		A,E
+	JR		NC,LOC_9E31
 	CALL	SUB_AEE1
 	CP		2
-	JR		NC, LOC_9E39
-	LD		L, 0
+	JR		NC,LOC_9E39
+	LD		L,0
 	CP		1
-	JR		NZ, LOC_9E3B
-	SET		3, (IY+4)
+	JR		NZ,LOC_9E3B
+	SET		3,(IY+4)
 	JR		LOC_9E3B
 LOC_9E31:
 	AND		A 			; CF==0 Monster collision offset
 	CALL	SUB_B12D	; Returns A=1 if vertical apple collision
-	LD		L, 0
+	LD		L,0
 	AND		A
-	JR		Z, LOC_9E3B
+	JR		Z,LOC_9E3B
 LOC_9E39:
-	LD		L, 1
+	LD		L,1
 LOC_9E3B:
 	POP		BC
-	LD		A, L
+	LD		A,L
 	AND		A
 RET
 
 SUB_9E3F:
-	SET		0, (IY+0)
-	BIT		4, (IY+4)
-	JR		Z, LOC_9E75
+	SET		0,(IY+0)
+	BIT		4,(IY+4)
+	JR		Z,LOC_9E75
 	CALL	SUB_A527
-	JR		Z, LOC_9E54
-	BIT		3, (IY+4)
-	JR		Z, LOC_9E75
+	JR		Z,LOC_9E54
+	BIT		3,(IY+4)
+	JR		Z,LOC_9E75
 LOC_9E54:
 	CALL	SUB_9CE0
 	AND		0FH
-	LD		B, A
+	LD		B,A
 	CALL	RAND_GEN
 	AND		0FH
 	CP		B
-	JR		NC, LOC_9E75
-	LD		A, (IY+0)
+	JR		NC,LOC_9E75
+	LD		A,(IY+0)
 	AND		0F8H
-	RES		6, A
-	SET		5, A
-	RES		3, A
-	LD		(IY+0), A
-	LD		A, 0AH
+	RES		6,A
+	SET		5,A
+	RES		3,A
+	LD		(IY+0),A
+	LD		A,0AH
 	CALL	SUB_9BB2
 LOC_9E75:
-	RES		3, (IY+4)
+	RES		3,(IY+4)
 RET
 
 
 SUB_9E7C:
-	BIT		4, (IY+4)
-	JR		NZ, LOC_9EAA
-	BIT		0, (IY+0)
-	JP		NZ, LOC_9F10
-	LD		A, (IY+4)
+	BIT		4,(IY+4)
+	JR		NZ,LOC_9EAA
+	BIT		0,(IY+0)
+	JP		NZ,LOC_9F10
+	LD		A,(IY+4)
 	AND		7
 	DEC		A
 	CP		4
-	JR		NC, LOC_9EAA
-	LD		HL, BYTE_9F25
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		B, (HL)
+	JR		NC,LOC_9EAA
+	LD		HL,BYTE_9F25
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		B,(HL)
 	PUSH	BC
 	CALL	SUB_9F29
 	POP		BC
 	AND		A
-	JR		Z, LOC_9EAA
-	LD		C, A
+	JR		Z,LOC_9EAA
+	LD		C,A
 	AND		B
-	JR		NZ, LOC_9F10
-	LD		A, C
+	JR		NZ,LOC_9F10
+	LD		A,C
 	JR		LOC_9EBD
 LOC_9EAA:
-	SET		0, (IY+0)
+	SET		0,(IY+0)
 	CALL	RAND_GEN
 	AND		0FH
 	CP		8
-	JR		C, LOC_9F10
+	JR		C,LOC_9F10
 	CALL	SUB_9F29
 	AND		A
-	JR		Z, LOC_9F10
+	JR		Z,LOC_9F10
 	
 SUB_9E7A:	
 LOC_9EBD:
-	LD		IX, BYTE_9F15
-	LD		C, 4
+	LD		IX,BYTE_9F15
+	LD		C,4
 LOC_9EC3:
-	LD		E, (IX+1)
+	LD		E,(IX+1)
 	CP		(IX+0)
-	JR		Z, LOC_9F03
+	JR		Z,LOC_9F03
 	INC		IX
 	INC		IX
 	DEC		C
-	JR		NZ, LOC_9EC3
-	LD		B, A
+	JR		NZ,LOC_9EC3
+	LD		B,A
 LOC_9ED3:
 	CALL	RAND_GEN
 	AND		3
 	RLCA
-	LD		HL, OFF_9F1D
-	LD		E, A
-	LD		D, 0
-	ADD		HL, DE
-	LD		E, (HL)
+	LD		HL,OFF_9F1D
+	LD		E,A
+	LD		D,0
+	ADD		HL,DE
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
-	EX		DE, HL
+	LD		D,(HL)
+	EX		DE,HL
 	JP		(HL)
 LOC_9EE5:
-	LD		E, 3
-	BIT		4, B
-	JR		NZ, LOC_9F03
+	LD		E,3
+	BIT		4,B
+	JR		NZ,LOC_9F03
 	JR		LOC_9ED3
 LOC_9EED:
-	LD		E, 4
-	BIT		5, B
-	JR		NZ, LOC_9F03
+	LD		E,4
+	BIT		5,B
+	JR		NZ,LOC_9F03
 	JR		LOC_9ED3
 LOC_9EF5:
-	LD		E, 1
-	BIT		6, B
-	JR		NZ, LOC_9F03
+	LD		E,1
+	BIT		6,B
+	JR		NZ,LOC_9F03
 	JR		LOC_9ED3
 LOC_9EFD:
-	LD		E, 2
-	BIT		7, B
-	JR		Z, LOC_9ED3
+	LD		E,2
+	BIT		7,B
+	JR		Z,LOC_9ED3
 LOC_9F03:
-	RES		0, (IY+0)
-	LD		A, (IY+4)
+	RES		0,(IY+0)
+	LD		A,(IY+4)
 	AND		0F8H
 	OR		E
-	LD		(IY+4), A
+	LD		(IY+4),A
 LOC_9F10:
-	BIT		0, (IY+0)
+	BIT		0,(IY+0)
 RET
 
 BYTE_9F15:
@@ -4488,89 +4484,89 @@ BYTE_9F25:
 
 SUB_9F29:
 	PUSH	IX
-	LD		B, (IY+2)
-	LD		C, (IY+1)
+	LD		B,(IY+2)
+	LD		C,(IY+1)
 	CALL	SUB_AC3F
-	LD		C, A
-	LD		HL, UNK_9FB3
-	LD		A, (IY+1)
+	LD		C,A
+	LD		HL,UNK_9FB3
+	LD		A,(IY+1)
 	RLCA
 	RLCA
 	RLCA
 	RLCA
 	AND		0F0H
-	LD		B, A
-	LD		A, (IY+2)
+	LD		B,A
+	LD		A,(IY+2)
 	AND		0FH
 	OR		B
-	LD		E, 7
+	LD		E,7
 LOC_9F4A:
 	CP		(HL)
-	JR		Z, LOC_9F55
+	JR		Z,LOC_9F55
 	INC		HL
 	INC		HL
 	INC		HL
 	DEC		E
-	JR		NZ, LOC_9F4A
+	JR		NZ,LOC_9F4A
 	JR		LOC_9FA0
 LOC_9F55:
 	XOR		A
 	INC		HL
-	LD		E, (HL)
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
+	LD		D,(HL)
 	PUSH	IX
 	PUSH	DE
 	POP		IX
 	POP		HL
 	JP		(IX)
 LOC_9F62:
-	BIT		1, (HL)
-	JR		Z, LOC_9F6C
-	BIT		3, (HL)
-	JR		Z, LOC_9F6C
-	SET		6, A
+	BIT		1,(HL)
+	JR		Z,LOC_9F6C
+	BIT		3,(HL)
+	JR		Z,LOC_9F6C
+	SET		6,A
 LOC_9F6C:
 	DEC		HL
-	BIT		0, (HL)
-	JR		Z, LOC_9FAF
-	BIT		2, (HL)
-	JR		Z, LOC_9FAF
-	SET		7, A
+	BIT		0,(HL)
+	JR		Z,LOC_9FAF
+	BIT		2,(HL)
+	JR		Z,LOC_9FAF
+	SET		7,A
 	JR		LOC_9FAF
 LOC_9F79:
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		0F0H
 	JR		LOC_9FAF
 LOC_9F7E:
-	LD		A, 0C0H
+	LD		A,0C0H
 	JR		LOC_9FAF
 LOC_9F82:
-	BIT		2, (HL)
-	JR		Z, LOC_9F8C
-	BIT		3, (HL)
-	JR		Z, LOC_9F8C
-	SET		5, A
+	BIT		2,(HL)
+	JR		Z,LOC_9F8C
+	BIT		3,(HL)
+	JR		Z,LOC_9F8C
+	SET		5,A
 LOC_9F8C:
-	LD		BC, 0FFF0H
-	ADD		HL, BC
-	BIT		0, (HL)
-	JR		Z, LOC_9FAF
-	BIT		1, (HL)
-	JR		Z, LOC_9FAF
-	SET		4, A
+	LD		BC,0FFF0H
+	ADD		HL,BC
+	BIT		0,(HL)
+	JR		Z,LOC_9FAF
+	BIT		1,(HL)
+	JR		Z,LOC_9FAF
+	SET		4,A
 	JR		LOC_9FAF
 LOC_9F9C:
-	LD		A, 30H
+	LD		A,30H
 	JR		LOC_9FAF
 LOC_9FA0:
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		0F0H
 	PUSH	AF
-	LD		A, C
+	LD		A,C
 	CALL	SUB_ABB7
-	LD		(IY+2), B
-	LD		(IY+1), C
+	LD		(IY+2),B
+	LD		(IY+1),C
 	POP		AF
 LOC_9FAF:
 	AND		A
@@ -4598,30 +4594,30 @@ SUB_9FC8:
 	; XOR		A    ; (Uncomment for invincibility)
 	; RET        ; (Uncomment for invincibility)
 	PUSH	IY
-	LD		B, (IY+2)
-	LD		A, (MRDO_DATA.Y)
+	LD		B,(IY+2)
+	LD		A,(MRDO_DATA.Y)
 	SUB		B
-	JR		NC, LOC_9FD5
+	JR		NC,LOC_9FD5
 	CPL
 	INC		A
 LOC_9FD5:
-	LD		L, 0
+	LD		L,0
 	CP		5
-	JR		NC, LOC_9FEF
-	LD		B, (IY+1)
-	LD		A, (MRDO_DATA.X)
+	JR		NC,LOC_9FEF
+	LD		B,(IY+1)
+	LD		A,(MRDO_DATA.X)
 	SUB		B
-	JR		NC, LOC_9FE6
+	JR		NC,LOC_9FE6
 	CPL
 	INC		A
 LOC_9FE6:
 	CP		5
-	JR		NC, LOC_9FEF
+	JR		NC,LOC_9FEF
 	CALL	PLAY_LOSE_LIFE_SOUND		; XXX DEATH SEQUENCE HERE 
-	LD		L, 1
+	LD		L,1
 LOC_9FEF:
 	POP		IY
-	LD		A, L
+	LD		A,L
 	AND		A
 RET
 
@@ -4629,26 +4625,26 @@ SUB_9FF4:
 	PUSH	IX
 	CALL	SUB_9F29
 	PUSH	AF
-	LD		B, (IY+2)
-	LD		C, (IY+1)
+	LD		B,(IY+2)
+	LD		C,(IY+1)
 	CALL	SUB_AC3F
 	POP		BC
 	CALL	SUB_A028
-	JR		NZ, LOC_A00C
+	JR		NZ,LOC_A00C
 	CALL	SUB_A1AC
 LOC_A00C:
 	CP		2
-	JR		Z, LOC_A01E
-	LD		A, (IY+4)
+	JR		Z,LOC_A01E
+	LD		A,(IY+4)
 	AND		7
 	CALL	SUB_9D2F
-	JR		Z, LOC_A024
+	JR		Z,LOC_A024
 	CP		0FFH
-	JR		Z, LOC_A022
+	JR		Z,LOC_A022
 LOC_A01E:
-	SET		3, (IY+4)
+	SET		3,(IY+4)
 LOC_A022:
-	LD		A, 1
+	LD		A,1
 LOC_A024:
 	AND		A
 	POP		IX
@@ -4658,170 +4654,170 @@ SUB_A028:
 	PUSH	BC
 	PUSH	IX
 	PUSH	AF
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	AND		0FH
-	LD		C, A
-	LD		A, (IY+1)
+	LD		C,A
+	LD		A,(IY+1)
 	RLCA
 	RLCA
 	RLCA
 	RLCA
 	AND		0F0H
 	OR		C
-	LD		C, 7
-	LD		HL, UNK_A12A
+	LD		C,7
+	LD		HL,UNK_A12A
 LOC_A041:
 	CP		(HL)
-	JR		Z, LOC_A04D
+	JR		Z,LOC_A04D
 	INC		HL
 	INC		HL
 	INC		HL
 	DEC		C
-	JR		NZ, LOC_A041
+	JR		NZ,LOC_A041
 	DEC		HL
 	DEC		HL
 	DEC		HL
 LOC_A04D:
 	INC		HL
-	LD		E, (HL)
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
+	LD		D,(HL)
 	PUSH	DE
 	POP		IX
 	POP		HL
-	LD		A, H
-	LD		L, 0FFH
+	LD		A,H
+	LD		L,0FFH
 	CALL	SUB_A13F
-	JR		Z, LOC_A05E
-	LD		L, A
+	JR		Z,LOC_A05E
+	LD		L,A
 LOC_A05E:
 	JP		(IX)
 
 LOC_A060:
-	LD		C, 41H
-	LD		A, H
+	LD		C,41H
+	LD		A,H
 	DEC		A
 	CALL	SUB_A13F
-	JR		Z, LOC_A06F
+	JR		Z,LOC_A06F
 	CP		L
-	JR		NC, LOC_A06F
-	LD		C, 82H
-	LD		L, A
+	JR		NC,LOC_A06F
+	LD		C,82H
+	LD		L,A
 LOC_A06F:
 	JP		LOC_A102
 LOC_A072:
-	LD		C, 82H
-	LD		A, H
+	LD		C,82H
+	LD		A,H
 	INC		A
 	CALL	SUB_A13F
-	JR		Z, LOC_A081
+	JR		Z,LOC_A081
 	CP		L
-	JR		NC, LOC_A081
-	LD		L, A
-	LD		C, 41H
+	JR		NC,LOC_A081
+	LD		L,A
+	LD		C,41H
 LOC_A081:
 	JP		LOC_A102
 LOC_A084:
-	LD		C, 13H
-	LD		A, H
-	ADD		A, 10H
+	LD		C,13H
+	LD		A,H
+	ADD		A,10H
 	CALL	SUB_A13F
-	JR		Z, LOC_A094
+	JR		Z,LOC_A094
 	CP		L
-	JR		NC, LOC_A094
-	LD		L, A
-	LD		C, 24H
+	JR		NC,LOC_A094
+	LD		L,A
+	LD		C,24H
 LOC_A094:
 	JP		LOC_A102
 LOC_A097:
-	LD		C, 24H
-	LD		A, H
+	LD		C,24H
+	LD		A,H
 	SUB		10H
 	CALL	SUB_A13F
-	JR		Z, LOC_A0A7
+	JR		Z,LOC_A0A7
 	CP		L
-	JR		NC, LOC_A0A7
-	LD		L, A
-	LD		C, 13H
+	JR		NC,LOC_A0A7
+	LD		L,A
+	LD		C,13H
 LOC_A0A7:
 	JP		LOC_A102
 LOC_A0AA:
-	LD		L, 0FFH
-	LD		A, H
+	LD		L,0FFH
+	LD		A,H
 	AND		0FH
-	JR		Z, LOC_A0BF
-	BIT		6, B
-	JR		Z, LOC_A0BF
-	LD		A, H
+	JR		Z,LOC_A0BF
+	BIT		6,B
+	JR		Z,LOC_A0BF
+	LD		A,H
 	INC		A
 	CALL	SUB_A13F
-	JR		Z, LOC_A0BF
-	LD		L, A
-	LD		C, 41H
+	JR		Z,LOC_A0BF
+	LD		L,A
+	LD		C,41H
 LOC_A0BF:
-	LD		A, H
+	LD		A,H
 	DEC		A
 	AND		0FH
-	JR		Z, LOC_A0D6
-	BIT		7, B
-	JR		Z, LOC_A0D6
-	LD		A, H
+	JR		Z,LOC_A0D6
+	BIT		7,B
+	JR		Z,LOC_A0D6
+	LD		A,H
 	DEC		A
 	CALL	SUB_A13F
-	JR		Z, LOC_A0D6
+	JR		Z,LOC_A0D6
 	CP		L
-	JR		NC, LOC_A0D6
-	LD		L, A
-	LD		C, 82H
+	JR		NC,LOC_A0D6
+	LD		L,A
+	LD		C,82H
 LOC_A0D6:
-	LD		A, H
+	LD		A,H
 	CP		11H
-	JR		C, LOC_A0EC
-	BIT		4, B
-	JR		Z, LOC_A0EC
+	JR		C,LOC_A0EC
+	BIT		4,B
+	JR		Z,LOC_A0EC
 	SUB		10H
 	CALL	SUB_A13F
-	JR		Z, LOC_A0EC
+	JR		Z,LOC_A0EC
 	CP		L
-	JR		NC, LOC_A0EC
-	LD		L, A
-	LD		C, 13H
+	JR		NC,LOC_A0EC
+	LD		L,A
+	LD		C,13H
 LOC_A0EC:
-	LD		A, H
+	LD		A,H
 	CP		91H
-	JR		NC, LOC_A102
-	BIT		5, B
-	JR		Z, LOC_A102
-	ADD		A, 10H
+	JR		NC,LOC_A102
+	BIT		5,B
+	JR		Z,LOC_A102
+	ADD		A,10H
 	CALL	SUB_A13F
-	JR		Z, LOC_A102
+	JR		Z,LOC_A102
 	CP		L
-	JR		NC, LOC_A102
-	LD		L, A
-	LD		C, 24H
+	JR		NC,LOC_A102
+	LD		L,A
+	LD		C,24H
 LOC_A102:
-	LD		D, 0
-	LD		A, L
+	LD		D,0
+	LD		A,L
 	CP		0FFH
-	JR		Z, LOC_A124
-	LD		A, C
+	JR		Z,LOC_A124
+	LD		A,C
 	AND		7
-	LD		L, A
-	LD		A, (IY+4)
+	LD		L,A
+	LD		A,(IY+4)
 	AND		0F8H
 	OR		L
-	LD		(IY+4), A
-	LD		D, 1
-	LD		A, C
+	LD		(IY+4),A
+	LD		D,1
+	LD		A,C
 	AND		0F0H
 	AND		B
-	JR		NZ, LOC_A124
-	SET		0, (IY+0)
-	LD		D, 2
+	JR		NZ,LOC_A124
+	SET		0,(IY+0)
+	LD		D,2
 LOC_A124:
 	POP		IX
 	POP		BC
-	LD		A, D
+	LD		A,D
 	AND		A
 RET
 
@@ -4846,68 +4842,67 @@ SUB_A13F:
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		D, A
-	LD		A, (BADGUY_BHVR_CNT_RAM)
+	LD		D,A
+	LD		A,(BADGUY_BHVR_CNT_RAM)
 	AND		A
-	JR		Z, LOC_A159
-	LD		C, A
-	LD		B, 0
+	JR		Z,LOC_A159
+	LD		C,A
+	LD		B,0
 	DEC		BC
-	LD		HL, BADGUY_BEHAVIOR_RAM
-	ADD		HL, BC
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	ADD		HL,BC
 	INC		BC
-	LD		A, D
+	LD		A,D
 	CPDR
-	JR		Z, LOC_A182
+	JR		Z,LOC_A182
 LOC_A159:
-	LD		HL, BADGUY_BEHAVIOR_RAM
-	LD		BC, 4FH
-	ADD		HL, BC
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	LD		BC,4FH
+	ADD		HL,BC
 	PUSH	HL
 	POP		IX
-	LD		HL, BADGUY_BEHAVIOR_RAM
-	LD		A, (BADGUY_BHVR_CNT_RAM)
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		B, H
-	LD		C, L
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	LD		A,(BADGUY_BHVR_CNT_RAM)
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		B,H
+	LD		C,L
 	PUSH	IX
 	POP		HL
 	XOR		A
-	SBC		HL, BC
-	JR		Z, LOC_A1A4
+	SBC		HL,BC
+	JR		Z,LOC_A1A4
 	INC		HL
-	LD		B, H
-	LD		C, L
+	LD		B,H
+	LD		C,L
 	PUSH	IX
 	POP		HL
-	LD		A, D
+	LD		A,D
 	CPDR
-	JR		NZ, LOC_A1A4
+	JR		NZ,LOC_A1A4
 LOC_A182:
 	INC		HL
 	PUSH	HL
-	LD		HL, BADGUY_BEHAVIOR_RAM
-	LD		A, (BADGUY_BHVR_CNT_RAM)
-	LD		C, A
-	LD		B, 0
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	LD		A,(BADGUY_BHVR_CNT_RAM)
+	LD		C,A
+	LD		B,0
 	AND		A
-	JR		NZ, LOC_A193
-	LD		BC, 50H
+	JR		NZ,LOC_A193
+	LD		BC,50H
 LOC_A193:
 	DEC		BC
-	ADD		HL, BC
+	ADD		HL,BC
 	POP		BC
 	XOR		A
-	SBC		HL, BC
-	JR		NC, LOC_A1A0
-	LD		BC, 50H
-;	XOR		A	; unused
-	ADD		HL, BC
+	SBC		HL,BC
+	JR		NC,LOC_A1A0
+	LD		BC,50H
+	ADD		HL,BC
 LOC_A1A0:
 	INC		L
-	LD		A, L
+	LD		A,L
 	JR		LOC_A1A5
 LOC_A1A4:
 	XOR		A
@@ -4920,100 +4915,100 @@ LOC_A1A5:
 RET
 
 SUB_A1AC:
-	LD		L, 0
-	LD		H, (IY+1)
-	LD		A, (MRDO_DATA.X)
+	LD		L,0
+	LD		H,(IY+1)
+	LD		A,(MRDO_DATA.X)
 	CP		H
-	JR		Z, LOC_A1BF
-	JR		C, LOC_A1BD
-	SET		6, L
+	JR		Z,LOC_A1BF
+	JR		C,LOC_A1BD
+	SET		6,L
 	JR		LOC_A1BF
 LOC_A1BD:
-	SET		7, L
+	SET		7,L
 LOC_A1BF:
-	LD		H, (IY+2)
-	LD		A, (MRDO_DATA.Y)
+	LD		H,(IY+2)
+	LD		A,(MRDO_DATA.Y)
 	CP		H
-	JR		Z, LOC_A1D0
-	JR		C, LOC_A1CE
-	SET		5, L
+	JR		Z,LOC_A1D0
+	JR		C,LOC_A1CE
+	SET		5,L
 	JR		LOC_A1D0
 LOC_A1CE:
-	SET		4, L
+	SET		4,L
 LOC_A1D0:
-	LD		A, L
+	LD		A,L
 	AND		B
-	JR		NZ, LOC_A1D8
-	LD		A, 2
+	JR		NZ,LOC_A1D8
+	LD		A,2
 	RET		;JR		LOC_A1DD
 LOC_A1D8:
 	CALL	SUB_9E7A
-	LD		A, 1
+	LD		A,1
 ;LOC_A1DD:
 ;	AND		A	; unused
 RET
 
 SUB_A1DF:
 	PUSH	IX
-	LD		B, 0
-	BIT		5, (IY+4)
-	JR		NZ, LOC_A20E
-	BIT		1, (IY+0)
-	JR		Z, LOC_A254
-	LD		A, (IY+4)
+	LD		B,0
+	BIT		5,(IY+4)
+	JR		NZ,LOC_A20E
+	BIT		1,(IY+0)
+	JR		Z,LOC_A254
+	LD		A,(IY+4)
 	AND		7
 	DEC		A
 	CP		4
-	JR		NC, LOC_A254
-	LD		HL, BYTE_9F25
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		C, (HL)
+	JR		NC,LOC_A254
+	LD		HL,BYTE_9F25
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		C,(HL)
 	PUSH	BC
 	CALL	SUB_9F29
 	POP		BC
 	AND		A
-	JR		Z, LOC_A254
+	JR		Z,LOC_A254
 	AND		C
-	JR		NZ, LOC_A252
+	JR		NZ,LOC_A252
 	JR		LOC_A21E
 LOC_A20E:
-	RES		1, (IY+0)
+	RES		1,(IY+0)
 	CALL	SUB_9CE0
-	LD		C, A
+	LD		C,A
 	CALL	RAND_GEN
 	AND		0FH
 	CP		C
-	JR		NC, LOC_A254
+	JR		NC,LOC_A254
 LOC_A21E:
-	LD		A, (IY+0)
+	LD		A,(IY+0)
 	AND		0F8H
-	LD		(IY+0), A
-	LD		B, (IY+2)
-	LD		C, (IY+1)
+	LD		(IY+0),A
+	LD		B,(IY+2)
+	LD		C,(IY+1)
 	CALL	SUB_AC3F
-	LD		E, A
+	LD		E,A
 	CALL	SUB_A259
-	JR		NZ, LOC_A241
+	JR		NZ,LOC_A241
 	CALL	SUB_A382
-	JR		Z, LOC_A241
+	JR		Z,LOC_A241
 	CALL	SUB_A402
-	LD		B, 0
-	JR		NZ, LOC_A254
+	LD		B,0
+	JR		NZ,LOC_A254
 LOC_A241:
 	PUSH	HL
 	CALL	SUB_9F29
 	POP		HL
-	LD		B, 0
+	LD		B,0
 	AND		L
-	JR		Z, LOC_A254
+	JR		Z,LOC_A254
 	CALL	SUB_9E7A
-	SET		1, (IY+0)
+	SET		1,(IY+0)
 LOC_A252:
-	LD		B, 1
+	LD		B,1
 LOC_A254:
-	LD		A, B
+	LD		A,B
 	POP		IX
 	AND		A
 RET
@@ -5022,19 +5017,19 @@ SUB_A259:
 	PUSH	IX
 	PUSH	DE
 	PUSH	BC
-	LD		A, (BALLDATA)
-	LD		B, A
+	LD		A,(BALLDATA)
+	LD		B,A
 	XOR		A
-	BIT		6, B
-	JR		Z, LOC_A2B9
+	BIT		6,B
+	JR		Z,LOC_A2B9
 	PUSH	DE
-	LD		A, E
+	LD		A,E
 	CALL	SUB_ABB7
 	PUSH	BC
-	LD		A, ($72DA)
-	LD		B, A
-	LD		A, ($72DB)
-	LD		C, A
+	LD		A,($72DA)
+	LD		B,A
+	LD		A,($72DB)
+	LD		C,A
 	CALL	SUB_AC3F
 	PUSH	AF
 	PUSH	IX
@@ -5043,36 +5038,36 @@ SUB_A259:
 	POP		AF
 	POP		HL
 	POP		DE
-	LD		D, A
+	LD		D,A
 	SUB		E
-	JR		Z, LOC_A2B9
-	LD		A, (BALLDATA)
+	JR		Z,LOC_A2B9
+	LD		A,(BALLDATA)
 	AND		3
-	JR		NZ, LOC_A297
+	JR		NZ,LOC_A297
 	CALL	SUB_A2C0
-	JR		NZ, LOC_A2B9
+	JR		NZ,LOC_A2B9
 	CALL	SUB_A34C
 	JR		LOC_A2B9
 LOC_A297:
 	DEC		A
-	JR		NZ, LOC_A2A4
+	JR		NZ,LOC_A2A4
 	CALL	SUB_A2E8
-	JR		NZ, LOC_A2B9
+	JR		NZ,LOC_A2B9
 	CALL	SUB_A34C
 	JR		LOC_A2B9
 LOC_A2A4:
 	DEC		A
-	JR		NZ, LOC_A2B1
+	JR		NZ,LOC_A2B1
 	CALL	SUB_A2C0
-	JR		NZ, LOC_A2B9
+	JR		NZ,LOC_A2B9
 	CALL	SUB_A316
 	JR		LOC_A2B9
 LOC_A2B1:
 	CALL	SUB_A2E8
-	JR		NZ, LOC_A2B9
+	JR		NZ,LOC_A2B9
 	CALL	SUB_A316
 LOC_A2B9:
-	LD		L, A
+	LD		L,A
 	POP		BC
 	POP		DE
 	POP		IX
@@ -5082,24 +5077,24 @@ RET
 SUB_A2C0:
 	PUSH	DE
 	PUSH	HL
-	LD		A, B
+	LD		A,B
 	CP		H
-	JR		NZ, LOC_A2E3
-	LD		A, L
+	JR		NZ,LOC_A2E3
+	LD		A,L
 	SUB		C
-	JR		C, LOC_A2E3
+	JR		C,LOC_A2E3
 	CP		21H
-	JR		NC, LOC_A2E3
+	JR		NC,LOC_A2E3
 	INC		D
-	BIT		6, (IX+0)
-	JR		Z, LOC_A2E3
-	LD		A, E
+	BIT		6,(IX+0)
+	JR		Z,LOC_A2E3
+	LD		A,E
 	CP		D
-	JR		Z, LOC_A2DF
-	BIT		6, (IX+1)
-	JR		Z, LOC_A2E3
+	JR		Z,LOC_A2DF
+	BIT		6,(IX+1)
+	JR		Z,LOC_A2E3
 LOC_A2DF:
-	LD		A, 70H
+	LD		A,70H
 	JR		LOC_A2E4
 LOC_A2E3:
 	XOR		A
@@ -5113,25 +5108,25 @@ SUB_A2E8:
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		A, B
+	LD		A,B
 	CP		H
-	JR		NZ, LOC_A30F
-	LD		A, C
+	JR		NZ,LOC_A30F
+	LD		A,C
 	SUB		L
-	JR		C, LOC_A30F
+	JR		C,LOC_A30F
 	CP		21H
-	JR		NC, LOC_A30F
+	JR		NC,LOC_A30F
 	DEC		D
-	BIT		7, (IX+0)
-	JR		Z, LOC_A30F
-	LD		A, E
+	BIT		7,(IX+0)
+	JR		Z,LOC_A30F
+	LD		A,E
 	CP		D
-	JR		Z, LOC_A30B
+	JR		Z,LOC_A30B
 	DEC		IX
-	BIT		7, (IX+0)
-	JR		Z, LOC_A30F
+	BIT		7,(IX+0)
+	JR		Z,LOC_A30F
 LOC_A30B:
-	LD		A, 0B0H
+	LD		A,0B0H
 	JR		LOC_A310
 LOC_A30F:
 	XOR		A
@@ -5146,30 +5141,30 @@ SUB_A316:
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		A, C
+	LD		A,C
 	CP		L
-	JR		NZ, LOC_A345
-	LD		A, B
+	JR		NZ,LOC_A345
+	LD		A,B
 	SUB		H
-	JR		C, LOC_A345
+	JR		C,LOC_A345
 	CP		21H
-	JR		NC, LOC_A345
-	LD		A, D
+	JR		NC,LOC_A345
+	LD		A,D
 	SUB		10H
-	LD		D, A
-	BIT		4, (IX+0)
-	JR		Z, LOC_A345
-	LD		A, E
+	LD		D,A
+	BIT		4,(IX+0)
+	JR		Z,LOC_A345
+	LD		A,E
 	CP		D
-	JR		Z, LOC_A341
+	JR		Z,LOC_A341
 	PUSH	BC
-	LD		BC, 0FFF0H
-	ADD		IX, BC
+	LD		BC,0FFF0H
+	ADD		IX,BC
 	POP		BC
-	BIT		4, (IX+0)
-	JR		Z, LOC_A345
+	BIT		4,(IX+0)
+	JR		Z,LOC_A345
 LOC_A341:
-	LD		A, 0D0H
+	LD		A,0D0H
 	JR		LOC_A346
 LOC_A345:
 	XOR		A
@@ -5184,30 +5179,30 @@ SUB_A34C:
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		A, C
+	LD		A,C
 	CP		L
-	JR		NZ, LOC_A37B
-	LD		A, H
+	JR		NZ,LOC_A37B
+	LD		A,H
 	SUB		B
-	JR		C, LOC_A37B
+	JR		C,LOC_A37B
 	CP		21H
-	JR		NC, LOC_A37B
-	LD		A, D
-	ADD		A, 10H
-	LD		D, A
-	BIT		5, (IX+0)
-	JR		Z, LOC_A37B
-	LD		A, E
+	JR		NC,LOC_A37B
+	LD		A,D
+	ADD		A,10H
+	LD		D,A
+	BIT		5,(IX+0)
+	JR		Z,LOC_A37B
+	LD		A,E
 	CP		D
-	JR		Z, LOC_A377
+	JR		Z,LOC_A377
 	PUSH	BC
-	LD		BC, 10H
-	ADD		IX, BC
+	LD		BC,10H
+	ADD		IX,BC
 	POP		BC
-	BIT		5, (IX+0)
-	JR		Z, LOC_A37B
+	BIT		5,(IX+0)
+	JR		Z,LOC_A37B
 LOC_A377:
-	LD		A, 0E0H
+	LD		A,0E0H
 	JR		LOC_A37C
 LOC_A37B:
 	XOR		A
@@ -5223,71 +5218,71 @@ SUB_A382:
 	PUSH	DE
 	PUSH	IX
 	PUSH	IY
-	LD		A, E
+	LD		A,E
 	PUSH	DE
 	CALL	SUB_ABB7
 	POP		DE
-	LD		L, 5
-	LD		IY, APPLEDATA
+	LD		L,5
+	LD		IY,APPLEDATA
 LOC_A394:
-	BIT		7, (IY+0)
-	JR		Z, LOC_A3EE
-	BIT		5, (IY+0)
-	JR		Z, LOC_A3EE
-	LD		A, C
+	BIT		7,(IY+0)
+	JR		Z,LOC_A3EE
+	BIT		5,(IY+0)
+	JR		Z,LOC_A3EE
+	LD		A,C
 	CP		(IY+2)
-	JR		NZ, LOC_A3EE
-	LD		A, B
+	JR		NZ,LOC_A3EE
+	LD		A,B
 	CP		(IY+1)
-	JR		C, LOC_A3EE
+	JR		C,LOC_A3EE
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		B, (IY+1)
-	LD		C, (IY+2)
+	LD		B,(IY+1)
+	LD		C,(IY+2)
 	CALL	SUB_AC3F
 	POP		IX
 	POP		HL
 	POP		DE
 	POP		BC
-	LD		H, A
-	LD		D, E
+	LD		H,A
+	LD		D,E
 LOC_A3C1:
 	PUSH	BC
-	LD		BC, 0FFF0H
-	ADD		IX, BC
+	LD		BC,0FFF0H
+	ADD		IX,BC
 	POP		BC
-	LD		A, D
+	LD		A,D
 	SUB		10H
-	LD		D, A
-	LD		A, (IX+0)
+	LD		D,A
+	LD		A,(IX+0)
 	AND		0FH
 	CP		0FH
-	JR		NZ, LOC_A3EE
-	LD		A, H
+	JR		NZ,LOC_A3EE
+	LD		A,H
 	CP		D
-	JR		C, LOC_A3C1
-	LD		L, 0E0H
+	JR		C,LOC_A3C1
+	LD		L,0E0H
 	POP		IY
-	LD		A, (IY+1)
+	LD		A,(IY+1)
 	CP		C
-	JR		Z, LOC_A3EB
-	RES		7, L
-	JR		NC, LOC_A3EB
-	SET		7, L
-	RES		6, L
+	JR		Z,LOC_A3EB
+	RES		7,L
+	JR		NC,LOC_A3EB
+	SET		7,L
+	RES		6,L
 LOC_A3EB:
 	XOR		A
 	JR		LOC_A3FC
 LOC_A3EE:
 	PUSH	BC
-	LD		BC, 5
-	ADD		IY, BC
+	LD		BC,5
+	ADD		IY,BC
 	POP		BC
 	DEC		L
-	JR		NZ, LOC_A394
-	LD		A, 1
+	JR		NZ,LOC_A394
+	LD		A,1
 	POP		IY
 LOC_A3FC:
 	POP		IX
@@ -5300,55 +5295,55 @@ SUB_A402:
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
-	LD		B, (IY+2)
-	LD		C, (IY+1)
-	LD		L, 5
-	LD		IX, APPLEDATA
+	LD		B,(IY+2)
+	LD		C,(IY+1)
+	LD		L,5
+	LD		IX,APPLEDATA
 LOC_A412:
-	BIT		7, (IX+0)
-	JR		Z, LOC_A44D
-	BIT		6, (IX+0)
-	JR		Z, LOC_A44D
-	LD		D, (IX+1)
-	LD		E, (IX+2)
-	LD		A, B
+	BIT		7,(IX+0)
+	JR		Z,LOC_A44D
+	BIT		6,(IX+0)
+	JR		Z,LOC_A44D
+	LD		D,(IX+1)
+	LD		E,(IX+2)
+	LD		A,B
 	CP		D
-	JR		C, LOC_A44D
+	JR		C,LOC_A44D
 	SUB		D
 	CP		21H
-	JR		NC, LOC_A44D
-	LD		A, C
+	JR		NC,LOC_A44D
+	LD		A,C
 	SUB		E
-	JR		NC, LOC_A433
+	JR		NC,LOC_A433
 	CPL
 	INC		A
 LOC_A433:
 	CP		11H
-	JR		NC, LOC_A44D
-	; LD		H, 0
-	LD		A, (IY+1)
-	; LD		L, 0E0H
-	LD		HL, 00E0H
+	JR		NC,LOC_A44D
+	; LD		H,0
+	LD		A,(IY+1)
+	; LD		L,0E0H
+	LD		HL,00E0H
 	CP		(IX+2)
-	JR		Z, LOC_A459
-	RES		7, L
-	JR		NC, LOC_A459
-	SET		7, L
-	RES		6, L
+	JR		Z,LOC_A459
+	RES		7,L
+	JR		NC,LOC_A459
+	SET		7,L
+	RES		6,L
 	JR		LOC_A459
 LOC_A44D:
 	PUSH	BC
-	LD		BC, 5
-	ADD		IX, BC
+	LD		BC,5
+	ADD		IX,BC
 	POP		BC
 	DEC		L
-	JR		NZ, LOC_A412
-	LD		H, 1
+	JR		NZ,LOC_A412
+	LD		H,1
 LOC_A459:
 	POP		IX
 	POP		DE
 	POP		BC
-	LD		A, H
+	LD		A,H
 	AND		A
 RET
 
@@ -5356,116 +5351,116 @@ SUB_A460:
 	CALL	SUB_A497
 	RET		Z
 LOC_A465:
-	LD		L, A
+	LD		L,A
 	PUSH	HL
 	CALL	SUB_9E7A
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
 	CALL	SUB_9D2F
 	POP		HL
 	RET		Z
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
-	LD		C, 0C0H
+	LD		C,0C0H
 	CP		3
-	JR		NC, LOC_A482
-	LD		C, 30H
+	JR		NC,LOC_A482
+	LD		C,30H
 LOC_A482:
-	LD		A, L
+	LD		A,L
 	AND		C
-	JR		NZ, LOC_A465
-	LD		A, (IY+4)
-	BIT		0, A
-	JR		Z, LOC_A490
+	JR		NZ,LOC_A465
+	LD		A,(IY+4)
+	BIT		0,A
+	JR		Z,LOC_A490
 	INC		A
 	JR		LOC_A491
 LOC_A490:
 	DEC		A
 LOC_A491:
-	LD		(IY+4), A
+	LD		(IY+4),A
 RET
 
 SUB_A497:
-	LD		A, (IY+2)
-	LD		B, A
+	LD		A,(IY+2)
+	LD		B,A
 	AND		0FH
-	JR		NZ, LOC_A512
-	LD		A, (IY+1)
-	LD		C, A
+	JR		NZ,LOC_A512
+	LD		A,(IY+1)
+	LD		C,A
 	AND		0FH
 	CP		8
-	JR		NZ, LOC_A512
-	LD		H, 0
-	LD		A, (MRDO_DATA.Y)
+	JR		NZ,LOC_A512
+	LD		H,0
+	LD		A,(MRDO_DATA.Y)
 	CP		B
-	JR		Z, LOC_A4B9
-	JR		NC, LOC_A4B7
-	SET		4, H
+	JR		Z,LOC_A4B9
+	JR		NC,LOC_A4B7
+	SET		4,H
 	JR		LOC_A4B9
 LOC_A4B7:
-	SET		5, H
+	SET		5,H
 LOC_A4B9:
-	LD		A, (MRDO_DATA.X)
+	LD		A,(MRDO_DATA.X)
 	CP		C
-	JR		Z, LOC_A520
-	LD		A, C
-	JR		C, LOC_A4C8
-	SET		6, H
-	ADD		A, 10H
+	JR		Z,LOC_A520
+	LD		A,C
+	JR		C,LOC_A4C8
+	SET		6,H
+	ADD		A,10H
 	JR		LOC_A4CC
 LOC_A4C8:
-	SET		7, H
+	SET		7,H
 	SUB		10H
 LOC_A4CC:
-	LD		C, A
-	LD		IX, APPLEDATA
-	LD		L, 5
+	LD		C,A
+	LD		IX,APPLEDATA
+	LD		L,5
 LOC_A4D3:
-	BIT		7, (IX+0)
-	JR		Z, LOC_A4F3
-	LD		A, (IX+1)
+	BIT		7,(IX+0)
+	JR		Z,LOC_A4F3
+	LD		A,(IX+1)
 	SUB		9
 	CP		B
-	JR		NC, LOC_A4F3
-	ADD		A, 12H
+	JR		NC,LOC_A4F3
+	ADD		A,12H
 	CP		B
-	JR		C, LOC_A4F3
-	LD		A, (IX+2)
+	JR		C,LOC_A4F3
+	LD		A,(IX+2)
 	SUB		0FH
 	CP		C
-	JR		NC, LOC_A4F3
-	ADD		A, 1FH
+	JR		NC,LOC_A4F3
+	ADD		A,1FH
 	CP		C
-	JR		NC, LOC_A4FD
+	JR		NC,LOC_A4FD
 LOC_A4F3:
-	LD		DE, 5
-	ADD		IX, DE
+	LD		DE,5
+	ADD		IX,DE
 	DEC		L
-	JR		NZ, LOC_A4D3
+	JR		NZ,LOC_A4D3
 	JR		LOC_A520
 LOC_A4FD:
-	LD		A, H
+	LD		A,H
 	AND		30H
-	LD		H, A
-	JR		NZ, LOC_A520
-	SET		4, H
-	LD		A, (IY+2)
+	LD		H,A
+	JR		NZ,LOC_A520
+	SET		4,H
+	LD		A,(IY+2)
 	CP		30H
-	JR		NC, LOC_A520
-	RES		4, H
-	SET		5, H
+	JR		NC,LOC_A520
+	RES		4,H
+	SET		5,H
 	JR		LOC_A520
 LOC_A512:
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
 	DEC		A
-	LD		E, A
-	LD		D, 0
-	LD		HL, BYTE_A523
-	ADD		HL, DE
-	LD		H, (HL)
+	LD		E,A
+	LD		D,0
+	LD		HL,BYTE_A523
+	ADD		HL,DE
+	LD		H,(HL)
 LOC_A520:
-	LD		A, H
+	LD		A,H
 	AND		A
 RET
 
@@ -5474,56 +5469,56 @@ BYTE_A523:
 
 SUB_A527:
 	PUSH	BC
-	LD		A, (GAMECONTROL)
-	LD		B, A
-	LD		A, (ENEMY_NUM_P1)
-	BIT		0, B
-	JR		Z, LOC_A53A
-	BIT		1, B
-	JR		Z, LOC_A53A
-	LD		A, (ENEMY_NUM_P2)
+	LD		A,(GAMECONTROL)
+	LD		B,A
+	LD		A,(ENEMY_NUM_P1)
+	BIT		0,B
+	JR		Z,LOC_A53A
+	BIT		1,B
+	JR		Z,LOC_A53A
+	LD		A,(ENEMY_NUM_P2)
 LOC_A53A:
 	CP		1
 	POP		BC
 RET
 
 SUB_A53E:
-	LD		A, ($72BA)
-	BIT		7, A
-	JR		NZ, LOC_A551
-	SET		7, A
-	LD		($72BA), A
-	LD		A, 40H
-	LD		($72BD), A
+	LD		A,($72BA)
+	BIT		7,A
+	JR		NZ,LOC_A551
+	SET		7,A
+	LD		($72BA),A
+	LD		A,40H
+	LD		($72BD),A
 	JR		LOC_A5A6
 LOC_A551:
-	LD		A, ($72BD)
-	BIT		7, A
-	LD		A, 0
-	JR		NZ, LOC_A5BB
-	LD		A, ($72C0)
+	LD		A,($72BD)
+	BIT		7,A
+	LD		A,0
+	JR		NZ,LOC_A5BB
+	LD		A,($72C0)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_A5BB
-	LD		A, ($72BA)
-	BIT		6, A
-	JR		Z, LOC_A56F
+	JR		Z,LOC_A5BB
+	LD		A,($72BA)
+	BIT		6,A
+	JR		Z,LOC_A56F
 	CALL	SUB_A6BB
 	JR		LOC_A5AA
 LOC_A56F:
-	LD		A, ($7272)
-	BIT		5, A
-	JR		NZ, LOC_A57B
+	LD		A,($7272)
+	BIT		5,A
+	JR		NZ,LOC_A57B
 	CALL	SUB_A61F
-	JR		Z, LOC_A591
+	JR		Z,LOC_A591
 LOC_A57B:
 	CALL	SUB_A5F9
-	JR		NZ, LOC_A591
+	JR		NZ,LOC_A591
 	CALL	SUB_A662
-	LD		HL, $7272
-	BIT		5, (HL)
-	JR		Z, LOC_A5A9
-	RES		5, (HL)
+	LD		HL,$7272
+	BIT		5,(HL)
+	JR		Z,LOC_A5A9
+	RES		5,(HL)
 	CALL	SUB_B8A3
 	JR		LOC_A5A9
 LOC_A591:
@@ -5531,23 +5526,23 @@ LOC_A591:
 
 
 LOC_A596:
-	LD		A, ($7272)
-	BIT		4, A
-	JR		NZ, LOC_A5A9
-	LD		A, ($72C2)
+	LD		A,($7272)
+	BIT		4,A
+	JR		NZ,LOC_A5A9
+	LD		A,($72C2)
 	DEC		A
-	LD		($72C2), A
-	JR		NZ, LOC_A5A9
+	LD		($72C2),A
+	JR		NZ,LOC_A5A9
 LOC_A5A6:
 	CALL	SUB_A5BD
 LOC_A5A9:
 	XOR		A
 LOC_A5AA:
 	PUSH	AF
-	LD		HL, 0AH
+	LD		HL,0AH
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		($72C0), A
+	LD		($72C0),A
 	POP		AF
 	PUSH	AF
 	CALL	SUB_A788
@@ -5557,51 +5552,51 @@ LOC_A5BB:
 RET
 
 SUB_A5BD:
-	LD		A, ($72BA)
+	LD		A,($72BA)
 	INC		A
 	AND		0F7H
-	LD		($72BA), A
-	LD		HL, BYTE_A5F1
-	LD		A, ($72BA)
+	LD		($72BA),A
+	LD		HL,BYTE_A5F1
+	LD		A,($72BA)
 	AND		7
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		A, (HL)
-	LD		($72BE), A
-	LD		A, 0CH
-	LD		($72BF), A
-	LD		HL, BYTE_A616
-	ADD		HL, BC
-	LD		A, (HL)
-	LD		($72BC), A
-	LD		HL, BYTE_A617
-	ADD		HL, BC
-	LD		A, (HL)
-	LD		($72BB), A
-	LD		A, 18H
-	LD		($72C2), A
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		A,(HL)
+	LD		($72BE),A
+	LD		A,0CH
+	LD		($72BF),A
+	LD		HL,BYTE_A616
+	ADD		HL,BC
+	LD		A,(HL)
+	LD		($72BC),A
+	LD		HL,BYTE_A617
+	ADD		HL,BC
+	LD		A,(HL)
+	LD		($72BB),A
+	LD		A,18H
+	LD		($72C2),A
 RET
 
 BYTE_A5F1:
 	DB 091,107,123,139,155,139,123,107
 
 SUB_A5F9:
-	LD		A, ($72BA)
+	LD		A,($72BA)
 	AND		7
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_A617
-	ADD		HL, BC
-	LD		B, (HL)
-	LD		HL, $72B8
-	LD		A, (GAMECONTROL)
+	LD		C,A
+	LD		B,0
+	LD		HL,BYTE_A617
+	ADD		HL,BC
+	LD		B,(HL)
+	LD		HL,$72B8
+	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_A613
+	JR		NZ,LOC_A613
 	INC		HL
 LOC_A613:
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		B
 RET
 
@@ -5611,180 +5606,180 @@ BYTE_A617:
 	DB 001,002,004,008,016,008,004,002
 
 SUB_A61F:
-						;    LD      HL, $727A ; duplicated
-	LD		BC, (SCORE_P1_RAM)
-	LD		HL, $727A
-	LD		A, (GAMECONTROL)
+						;    LD      HL,$727A ; duplicated
+	LD		BC,(SCORE_P1_RAM)
+	LD		HL,$727A
+	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_A637
-	LD		BC, (SCORE_P2_RAM)
+	JR		NZ,LOC_A637
+	LD		BC,(SCORE_P2_RAM)
 	INC		HL
 LOC_A637:
-	LD		D, (HL)
-	LD		E, 0
+	LD		D,(HL)
+	LD		E,0
 LOC_A63A:
-	LD		A, C
+	LD		A,C
 	SUB		0F4H
-	LD		C, A
-	LD		A, B
-	SBC		A, 1
-	LD		B, A
-	JR		C, LOC_A647
+	LD		C,A
+	LD		A,B
+	SBC		A,1
+	LD		B,A
+	JR		C,LOC_A647
 	INC		E
 	JR		LOC_A63A
 LOC_A647:
-	LD		A, E
-	LD		E, 0
+	LD		A,E
+	LD		E,0
 	CP		D
-	JR		Z, LOC_A65F
-	LD		(HL), A
-	LD		A, ($72BA)
-	LD		B, A
-	BIT		6, A
-	JR		NZ, LOC_A65F
-	LD		A, ($72BA)
-	SET		5, A
-	LD		($72BA), A
+	JR		Z,LOC_A65F
+	LD		(HL),A
+	LD		A,($72BA)
+	LD		B,A
+	BIT		6,A
+	JR		NZ,LOC_A65F
+	LD		A,($72BA)
+	SET		5,A
+	LD		($72BA),A
 	INC		E
 LOC_A65F:
-	LD		A, E
+	LD		A,E
 	AND		A
 RET
 
 SUB_A662:
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, LOC_A66F
-	LD		A, (CURRENT_LEVEL_P2)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(CURRENT_LEVEL_P1)
+	JR		Z,LOC_A66F
+	LD		A,(CURRENT_LEVEL_P2)
 LOC_A66F:
 	CP		0BH
-	JR		C, LOC_A677
+	JR		C,LOC_A677
 	SUB		0AH
 	JR		LOC_A66F
 LOC_A677:
 	CP		4
-	JR		NZ, LOC_A67F
-	LD		A, 98H
+	JR		NZ,LOC_A67F
+	LD		A,98H
 	JR		LOC_A681
 LOC_A67F:
-	LD		A, 78H
+	LD		A,78H
 LOC_A681:
-	LD		($72BE), A
-	LD		A, 20H
-	LD		($72BF), A
-	LD		A, 0CH
-	LD		($72C2), A
-	LD		A, ($72BA)
-	SET		6, A
-	LD		($72BA), A
-	LD		A, ($7272)
-	BIT		5, A
-	JR		NZ, LOC_A6AB
-	LD		HL, $72C4
-	SET		0, (HL)
-	LD		HL, 5A0H
+	LD		($72BE),A
+	LD		A,20H
+	LD		($72BF),A
+	LD		A,0CH
+	LD		($72C2),A
+	LD		A,($72BA)
+	SET		6,A
+	LD		($72BA),A
+	LD		A,($7272)
+	BIT		5,A
+	JR		NZ,LOC_A6AB
+	LD		HL,$72C4
+	SET		0,(HL)
+	LD		HL,5A0H
 	CALL	REQUEST_SIGNAL
-	LD		(GAMETIMER), A
+	LD		(GAMETIMER),A
 LOC_A6AB:
-	LD		A, ($72BA)
-	BIT		5, A
+	LD		A,($72BA)
+	BIT		5,A
 	RET		Z
-	RES		5, A
-	LD		($72BA), A
+	RES		5,A
+	LD		($72BA),A
 	JP		LOC_D31C
 RET
 
 SUB_A6BB:
 	PUSH	IX
 	PUSH	IY
-	LD		A, ($72C4)
-	BIT		0, A
-	JR		Z, LOC_A6F2
+	LD		A,($72C4)
+	BIT		0,A
+	JR		Z,LOC_A6F2
 	CALL	SUB_A61F
-	LD		A, (GAMETIMER)
+	LD		A,(GAMETIMER)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_A6F2
-	LD		HL, $72C4
-	RES		0, (HL)
-	LD		A, 40H
-	LD		($72BD), A
-	LD		A, 1
-	LD		($72C2), A
-	LD		A, ($72BA)
-	RES		6, A
-	RES		5, A
-	LD		($72BA), A
+	JR		Z,LOC_A6F2
+	LD		HL,$72C4
+	RES		0,(HL)
+	LD		A,40H
+	LD		($72BD),A
+	LD		A,1
+	LD		($72C2),A
+	LD		A,($72BA)
+	RES		6,A
+	RES		5,A
+	LD		($72BA),A
 	CALL	SUB_CA24
 	XOR		A
 	JP		LOC_A77E
 LOC_A6F2:
-	LD		IY, $72BD
-	SET		4, (IY+0)
+	LD		IY,$72BD
+	SET		4,(IY+0)
 	CALL	SUB_9F29
-	LD		D, A
+	LD		D,A
 	PUSH	DE
-	LD		HL, $7272
-	BIT		5, (HL)
-	JR		Z, LOC_A70B
-	RES		5, (HL)
+	LD		HL,$7272
+	BIT		5,(HL)
+	JR		Z,LOC_A70B
+	RES		5,(HL)
 	CALL	SUB_B8A3
 LOC_A70B:
 	CALL	SUB_A527
 	POP		DE
-	JR		Z, LOC_A74B
-	LD		A, ($728A)
-	BIT		4, A
-	JR		NZ, LOC_A74B
+	JR		Z,LOC_A74B
+	LD		A,($728A)
+	BIT		4,A
+	JR		NZ,LOC_A74B
 LOC_A718:
-	LD		A, ($72C2)
+	LD		A,($72C2)
 	DEC		A
-	LD		($72C2), A
-	JR		NZ, LOC_A72F
-	LD		A, 0CH
-	LD		($72C2), A
+	LD		($72C2),A
+	JR		NZ,LOC_A72F
+	LD		A,0CH
+	LD		($72C2),A
 	CALL	RAND_GEN
 	AND		0FH
 	CP		7
-	JR		NC, LOC_A76B
+	JR		NC,LOC_A76B
 LOC_A72F:
-	LD		A, ($72C1)
+	LD		A,($72C1)
 	AND		0FH
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_A783
-	ADD		HL, BC
-	LD		A, (HL)
+	LD		C,A
+	LD		B,0
+	LD		HL,BYTE_A783
+	ADD		HL,BC
+	LD		A,(HL)
 	AND		D
-	JR		Z, LOC_A76B
-	LD		A, ($72C1)
+	JR		Z,LOC_A76B
+	LD		A,($72C1)
 	AND		0FH
 	CALL	SUB_9D2F
-	JR		Z, LOC_A77B
+	JR		Z,LOC_A77B
 	JR		LOC_A76B
 LOC_A74B:
-	LD		A, ($72BF)
-	LD		B, A
-	LD		A, ($72BE)
-	LD		C, A
+	LD		A,($72BF)
+	LD		B,A
+	LD		A,($72BE)
+	LD		C,A
 	PUSH	DE
 	CALL	SUB_AC3F
 	POP		BC
 	CALL	SUB_A028
-	JR		Z, LOC_A718
+	JR		Z,LOC_A718
 	CP		2
-	JR		Z, LOC_A76B
-	LD		A, ($72C1)
+	JR		Z,LOC_A76B
+	LD		A,($72C1)
 	AND		7
 	CALL	SUB_9D2F
-	JR		Z, LOC_A77B
+	JR		Z,LOC_A77B
 LOC_A76B:
 	CALL	SUB_9F29
-	JR		Z, LOC_A77B
+	JR		Z,LOC_A77B
 	CALL	SUB_9E7A
-	LD		A, ($72C1)
+	LD		A,($72C1)
 	AND		7
 	CALL	SUB_9D2F
 LOC_A77B:
@@ -5798,50 +5793,50 @@ BYTE_A783:
 	DB 000,064,128,016,032
 
 SUB_A788:
-	LD		A, ($7272)
-	BIT		4, A
-	JR		Z, LOC_A796
-	LD		A, ($72BA)
-	BIT		6, A
+	LD		A,($7272)
+	BIT		4,A
+	JR		Z,LOC_A796
+	LD		A,($72BA)
+	BIT		6,A
 	RET		Z
 LOC_A796:
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		IX, $72B8
-	JR		Z, LOC_A7A5
-	LD		IX, $72B9
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		IX,$72B8
+	JR		Z,LOC_A7A5
+	LD		IX,$72B9
 LOC_A7A5:
-	LD		A, ($72BA)
+	LD		A,($72BA)
 	AND		7
-	LD		HL, BYTE_A7DC
-	LD		C, A
-	ADD		A, A
-	ADD		A, C
-	LD		C, A
-	LD		B, 0
-	ADD		HL, BC
-	LD		A, (HL)
+	LD		HL,BYTE_A7DC
+	LD		C,A
+	ADD		A,A
+	ADD		A,C
+	LD		C,A
+	LD		B,0
+	ADD		HL,BC
+	LD		A,(HL)
 	INC		HL
 	AND		(IX+0)
-	JR		Z, LOC_A7BC
+	JR		Z,LOC_A7BC
 	INC		HL
 LOC_A7BC:
-	LD		D, (HL)
-	LD		A, ($72BA)
-	BIT		5, A
-	JR		Z, LOC_A7C8
-	RES		5, A
+	LD		D,(HL)
+	LD		A,($72BA)
+	BIT		5,A
+	JR		Z,LOC_A7C8
+	RES		5,A
 	JR		LOC_A7CB
 LOC_A7C8:
-	SET		5, A
+	SET		5,A
 	INC		D
 LOC_A7CB:
-	LD		($72BA), A
-	LD		A, ($72BF)
-	LD		B, A
-	LD		A, ($72BE)
-	LD		C, A
-	LD		A, 3			; extra letter
+	LD		($72BA),A
+	LD		A,($72BF)
+	LD		B,A
+	LD		A,($72BE)
+	LD		C,A
+	LD		A,3			; extra letter
 	CALL	PUTSPRITE
 RET
 
@@ -5849,24 +5844,24 @@ BYTE_A7DC:
 	DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
 
 SUB_A7F4:
-	LD		A, (CHOMPNUMBER)
+	LD		A,(CHOMPNUMBER)
 	AND		3
-	LD		IY, CHOMPDATA
-	LD		BC, 6
+	LD		IY,CHOMPDATA
+	LD		BC,6
 LOC_A800:
 	DEC		A
-	JP		M, LOC_A808
-	ADD		IY, BC
+	JP		M,LOC_A808
+	ADD		IY,BC
 	JR		LOC_A800
 LOC_A808:
-	BIT		7, (IY+4)
-	JR		Z, LOC_A82B
-	BIT		7, (IY+0)
-	JR		NZ, LOC_A82B
-	LD		A, (IY+3)
+	BIT		7,(IY+4)
+	JR		Z,LOC_A82B
+	BIT		7,(IY+0)
+	JR		NZ,LOC_A82B
+	LD		A,(IY+3)
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_A82B
+	JR		Z,LOC_A82B
 	CALL	SUB_A83E
 	CALL	SUB_A8CB
 	CALL	SUB_A921
@@ -5876,15 +5871,15 @@ LOC_A82B:
 	XOR		A
 LOC_A82C:
 	PUSH	AF
-	LD		HL, CHOMPNUMBER
+	LD		HL,CHOMPNUMBER
 	INC		(HL)
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_A83C
-	LD		A, (HL)
+	JR		NZ,LOC_A83C
+	LD		A,(HL)
 	AND		0FCH
-	LD		(HL), A
+	LD		(HL),A
 LOC_A83C:
 	POP		AF
 RET
@@ -5894,71 +5889,71 @@ LOC_A853:
 	CALL	SUB_A460
 	RET
 LOC_A858:
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	AND		0FH
-	JR		NZ, LOC_A868
-	LD		A, (IY+1)
+	JR		NZ,LOC_A868
+	LD		A,(IY+1)
 	AND		0FH
 	CP		8
-	JR		Z, LOC_A878
+	JR		Z,LOC_A878
 LOC_A868:
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
 	DEC		A
-	LD		E, A
-	LD		D, 0
-	LD		HL, BYTE_A8C7
-	ADD		HL, DE
-	LD		H, (HL)
+	LD		E,A
+	LD		D,0
+	LD		HL,BYTE_A8C7
+	ADD		HL,DE
+	LD		H,(HL)
 	JR		LOC_A898
 LOC_A878:
-	LD		H, 0F0H
-	LD		A, (IY+2)
+	LD		H,0F0H
+	LD		A,(IY+2)
 	CP		28H
-	JR		NC, LOC_A883
-	RES		4, H
+	JR		NC,LOC_A883
+	RES		4,H
 LOC_A883:
 	CP		0A8H
-	JR		C, LOC_A889
-	RES		5, H
+	JR		C,LOC_A889
+	RES		5,H
 LOC_A889:
-	LD		A, (IY+1)
+	LD		A,(IY+1)
 	CP		20H
-	JR		NC, LOC_A892
-	RES		7, H
+	JR		NC,LOC_A892
+	RES		7,H
 LOC_A892:
 	CP		0E0H
-	JR		C, LOC_A898
-	RES		6, H
+	JR		C,LOC_A898
+	RES		6,H
 LOC_A898:
-	LD		A, H
+	LD		A,H
 	PUSH	HL
 	CALL	SUB_9E7A
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
 	CALL	SUB_9D2F
 	POP		HL
 	RET		Z
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	JP		LOC_D3D5
 
 LOC_A8AF:
-	JR		NC, LOC_A8B3
-	LD		C, 30H
+	JR		NC,LOC_A8B3
+	LD		C,30H
 LOC_A8B3:
-	LD		A, H
+	LD		A,H
 	AND		C
-	LD		H, A
-	JR		NZ, LOC_A898
-	LD		A, (IY+4)
-	BIT		0, A
-	JR		Z, LOC_A8C2
+	LD		H,A
+	JR		NZ,LOC_A898
+	LD		A,(IY+4)
+	BIT		0,A
+	JR		Z,LOC_A8C2
 	INC		A
 	JR		LOC_A8C3
 LOC_A8C2:
 	DEC		A
 LOC_A8C3:
-	LD		(IY+4), A
+	LD		(IY+4),A
 RET
 
 BYTE_A8C7:
@@ -5966,13 +5961,13 @@ BYTE_A8C7:
 
 SUB_A8CB:
 	CALL	SUB_9B4F
-	LD		B, (IY+2)
-	LD		C, (IY+1)
+	LD		B,(IY+2)
+	LD		C,(IY+1)
 	CALL	SUB_AC3F
-;	LD		D, A		; already A==D in SUB_AC3F
+;	LD		D,A		; already A==D in SUB_AC3F
 	CALL	SUB_B173
 
-	LD		A, (IY+4)
+	LD		A,(IY+4)
 	AND		7
 	CP		1						; right
 	JR		Z,CHMPRIGHT
@@ -5984,33 +5979,33 @@ SUB_A8CB:
 	JR		Z,CHMPUP
 									; ANY OTHER VALUE (??)
 CHMPLEFT:
-	LD		D, 3
+	LD		D,3
 	JR		LOC_A905
 CHMPDOWN:
-	LD		D, 8			; left side
-	BIT		7, (IY+1)		; test if X<128
+	LD		D,8			; left side
+	BIT		7,(IY+1)		; test if X<128
 	JR		NZ,LOC_A905
-	LD		D, 12			; right side
+	LD		D,12			; right side
 	JR		LOC_A905
 CHMPUP:
-	LD		D, 6			; left side
-	BIT		7, (IY+1)		; test if X<128
+	LD		D,6			; left side
+	BIT		7,(IY+1)		; test if X<128
 	JR		NZ,LOC_A905
-	LD		D, 10			; right side
+	LD		D,10			; right side
 	JR		LOC_A905
 CHMPRIGHT:	
-	LD		D, 1
+	LD		D,1
 LOC_A905:
-	LD		A, (IY+5)
-	XOR		80H							
-	JR		Z, LOC_A90D
+	LD		A,(IY+5)
+	XOR		$80
+	JR		Z,.odd
 	INC		D
-LOC_A90D:
-	LD		(IY+5), A
-	LD		B, (IY+2)
-	LD		C, (IY+1)
-	LD		A, (CHOMPNUMBER)
-	ADD		A, 17			; animate chomper
+.odd:
+	LD		(IY+5),A
+	LD		B,(IY+2)
+	LD		C,(IY+1)
+	LD		A,(CHOMPNUMBER)
+	ADD		A,17			; animate chomper
 	CALL	PUTSPRITE
 RET
 
@@ -6018,16 +6013,16 @@ SUB_A921:
 	CALL	SUB_9BE2
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(IY+3), A
+	LD		(IY+3),A
 RET
 
 
 GOT_DIAMOND:
-	LD		HL, DIAMOND_RAM
-	LD		(HL), 0
+	LD		HL,DIAMOND_RAM
+	LD		(HL),0
 	CP		1
-	JR		NZ, COMPLETED_LEVEL
-	LD		HL, 78H
+	JR		NZ,COMPLETED_LEVEL
+	LD		HL,78H
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
@@ -6036,12 +6031,12 @@ GOT_DIAMOND:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, .wait
+	JR		Z,.wait
 	POP		AF
 	JR		LOC_A973
 COMPLETED_LEVEL:
 	PUSH	AF
-	LD		HL, 1EH
+	LD		HL,1EH
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
@@ -6050,15 +6045,15 @@ COMPLETED_LEVEL:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, .wait
+	JR		Z,.wait
 	POP		AF
 	POP		AF
 	CP      $82   				; I chose this value so I know a diamond was collected
-	JR		Z, DIAMOND_COLLECTED
+	JR		Z,DIAMOND_COLLECTED
 	CP		2					; extra MrDo
-	JR		NZ, LOC_A969
+	JR		NZ,LOC_A969
 	CALL	PLAY_END_OF_ROUND_TUNE
-	LD		HL, 103H
+	LD		HL,103H
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
 LOC_A992:
@@ -6066,55 +6061,55 @@ LOC_A992:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_A992
+	JR		Z,LOC_A992
 	POP		AF
 	JR		LOC_A96C
 LOC_A969:
 
-	LD    C, 4
+	LD    C,4
 	CALL	STORE_COMPLETION_TYPE
 
 	CALL	ExtraMrDo
 	JR		LOC_A96C
 DIAMOND_COLLECTED:
 	CALL	CONGRATULATION
-	LD		A, 2
+	LD		A,2
 LOC_A96C:
 	CALL	GO_NEXT_LEVEL
-	LD		A, 2
+	LD		A,2
 	RET
 LOC_A973:
 	CALL	SUB_AA69
 	CP		1
 	RET		Z
 	AND		A
-	JR		Z, LOC_A984
+	JR		Z,LOC_A984
 	PUSH	AF
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_AAE2:
-	BIT		7, (HL)
-	JR		NZ, LOC_AAE2
-	LD		HL, PNT
-	LD		DE, 300H
+	BIT		7,(HL)
+	JR		NZ,LOC_AAE2
+	LD		HL,PNT
+	LD		DE,300H
 	XOR		A
 	CALL	FILL_VRAM
-	LD		HL, SAT
-	LD		DE, 80H
+	LD		HL,SAT
+	LD		DE,80H
 	XOR		A
 	CALL	FILL_VRAM
 	CALL	REMOVESPRITES
 	POP		AF
 	CP		2
-	LD		A, 7
-	JR		Z, LOC_AB0D
-	LD		A, 8
+	LD		A,7
+	JR		Z,LOC_AB0D
+	LD		A,8
 LOC_AB0D:
 	CALL	DEAL_WITH_PLAYFIELD
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	XOR		A
-	LD		HL, 0B4H
+	LD		HL,0B4H
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
 LOC_AB1E:
@@ -6122,15 +6117,15 @@ LOC_AB1E:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_AB1E
+	JR		Z,LOC_AB1E
 	POP		AF
-	LD		A, 1
+	LD		A,1
 	RET
 LOC_A984:
 	CALL	SUB_AB28
 RET
 
-; Input: C = completion type (1 for cherries, 2 for monsters, 3 diamond, 4 for Extra MrDo)
+; Input: C = completion type (1 for cherries,2 for monsters,3 diamond,4 for Extra MrDo)
 ; Uses: GAMECONTROL to determine active player
 ;       CURRENT_LEVEL_P1/P2 to get current level
 ; Output: Stores completion type to correct player's slot
@@ -6138,50 +6133,50 @@ RET
 STORE_COMPLETION_TYPE:    
 	PUSH	AF
     ; Get current level based on active player
-    LD      A, (GAMECONTROL)
-    BIT     1, A           ; Test if Player 2 is active
+    LD      A,(GAMECONTROL)
+    BIT     1,A           ; Test if Player 2 is active
 
-    LD      A, (CURRENT_LEVEL_P1)			; Player 1
-    LD      HL, P1_LEVEL_FINISH_BASE
-    JR      Z, .p1
-    LD      A, (CURRENT_LEVEL_P2)		   	; Player 2
-    LD      HL, P2_LEVEL_FINISH_BASE	
+    LD      A,(CURRENT_LEVEL_P1)			; Player 1
+    LD      HL,P1_LEVEL_FINISH_BASE
+    JR      Z,.p1
+    LD      A,(CURRENT_LEVEL_P2)		   	; Player 2
+    LD      HL,P2_LEVEL_FINISH_BASE	
 .p1:
     CALL    GET_SLOT_OFFSET  	; Get offset in A and DE
 	SRL     E               	; Divide offset by 2
     
-    ADD     HL, DE         	; Add offset to base
-    LD      (HL), C       	; Store completion type in correct slot
+    ADD     HL,DE         	; Add offset to base
+    LD      (HL),C       	; Store completion type in correct slot
 	POP		AF
     RET
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_A9A1:
-	BIT		7, (HL)
-	JR		NZ, LOC_A9A1
+	BIT		7,(HL)
+	JR		NZ,LOC_A9A1
 
 	XOR		A
-	LD		($72BC), A
-	LD		($72BB), A
-	LD		HL, GAMECONTROL
-	BIT		1, (HL)
-	JR		NZ, .p2
-	LD		($72B8), A
-	LD		HL, LIVES_LEFT_P1_RAM
+	LD		($72BC),A
+	LD		($72BB),A
+	LD		HL,GAMECONTROL
+	BIT		1,(HL)
+	JR		NZ,.p2
+	LD		($72B8),A
+	LD		HL,LIVES_LEFT_P1_RAM
 	JR		LOC_A9EC
 .p2:
-	LD		($72B9), A
-	LD		HL, LIVES_LEFT_P2_RAM
+	LD		($72B9),A
+	LD		HL,LIVES_LEFT_P2_RAM
 
 LOC_A9EC:
-	LD		A, (HL)
+	LD		A,(HL)
 	CP		6				; max number of lives
-	JR		NC, LOC_A9F2
+	JR		NC,LOC_A9F2
 	INC		(HL)
 LOC_A9F2:
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -6193,7 +6188,7 @@ LOC_A9F2:
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_WIN_EXTRA_DO_TUNE
 
-	LD		HL, 280H				; music duration
+	LD		HL,280H				; music duration
 	XOR		A
 	CALL	REQUEST_SIGNAL
 
@@ -6207,14 +6202,14 @@ LOC_A9F2:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, .1
+	JR		Z,.1
 	POP		AF
 
 	CALL 	MYDISSCR
 	CALL	REMOVESPRITES
 
-	LD		HL, 0000H			; do not delete player data in VRAM
-	LD		DE, 3000H			
+	LD		HL,0000H			; do not delete player data in VRAM
+	LD		DE,3000H			
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
@@ -6224,14 +6219,14 @@ LOC_A9F2:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS
 	
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_AA14:
-	BIT		7, (HL)
-	JR		NZ, LOC_AA14
+	BIT		7,(HL)
+	JR		NZ,LOC_AA14
 
 ;	; Original code's final register writes
-	LD		BC, 1E2H		 ; Original game state register
+	LD		BC,1E2H		 ; Original game state register
 	CALL	WRITE_REGISTER
 RET
 
@@ -6242,91 +6237,91 @@ WAIT8:
 RET
 
 
-GO_NEXT_LEVEL: ; Level complete, load next level
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+GO_NEXT_LEVEL: ; Level complete,load next level
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_AA2A:
-	BIT		7, (HL)
-	JR		NZ, LOC_AA2A
+	BIT		7,(HL)
+	JR		NZ,LOC_AA2A
 
 ; CALCULATE_LEVEL_SCORE
 	
     ; Check which player
-    LD      A, (GAMECONTROL)
-    BIT     1, A
-    JR      Z, .calc_p1_score
+    LD      A,(GAMECONTROL)
+    BIT     1,A
+    JR      Z,.calc_p1_score
     
 .calc_p2_score:
-    LD      HL, (SCORE_P2_RAM)		; Get current total score
-    LD      DE, (P2_PREV_SCORE)		; Get previous total score
-    LD      IY, P2_LEVEL1_SCORE		; Base address for P2 scores ($74DE)
-    LD      A, (CURRENT_LEVEL_P2)	; Get P2's level
+    LD      HL,(SCORE_P2_RAM)		; Get current total score
+    LD      DE,(P2_PREV_SCORE)		; Get previous total score
+    LD      IY,P2_LEVEL1_SCORE		; Base address for P2 scores ($74DE)
+    LD      A,(CURRENT_LEVEL_P2)	; Get P2's level
     JR      .calc_difference
     
 .calc_p1_score:
-    LD      HL, (SCORE_P1_RAM)		; Get current total score
-    LD      DE, (P1_PREV_SCORE)		; Get previous total score
-    LD      IY, P1_LEVEL1_SCORE		; Base address for P1 scores
-    LD      A, (CURRENT_LEVEL_P1)	; Get P1's level
+    LD      HL,(SCORE_P1_RAM)		; Get current total score
+    LD      DE,(P1_PREV_SCORE)		; Get previous total score
+    LD      IY,P1_LEVEL1_SCORE		; Base address for P1 scores
+    LD      A,(CURRENT_LEVEL_P1)	; Get P1's level
     
 .calc_difference:
     ; First check if it's level 10 or multiple of 10
 
-    LD      B, 10
+    LD      B,10
     CALL    MOD_B          			; Check if multiple of 10
     AND     A               		; Check if remainder is 0
-    JR      Z, .use_first_slot    	; If multiple of 10, use first slot
+    JR      Z,.use_first_slot    	; If multiple of 10,use first slot
     
-    ; For all other levels, calculate based on remainder after division by 10
+    ; For all other levels,calculate based on remainder after division by 10
 
     DEC     A               		; Convert to completed level
-    LD      B, 3
+    LD      B,3
     CALL    MOD_B          			; Get mod 3 (0,1,2)
-    ADD     A, A           			; Multiply by 2 for bytes offset
+    ADD     A,A           			; Multiply by 2 for bytes offset
     
     ; Add offset to IY
-    LD      B, 0
-    LD      C, A
-    ADD     IY, BC         			; IY now points to correct score slot
+    LD      B,0
+    LD      C,A
+    ADD     IY,BC         			; IY now points to correct score slot
 
 .use_first_slot:
 									; Calculate HL (current) - DE (previous) = level score
     OR      A               		; Clear carry
-    SBC     HL, DE         			; HL now contains level score
+    SBC     HL,DE         			; HL now contains level score
     
     ; Store level score
-    LD      (IY+0), L      ; Store low byte
-    LD      (IY+1), H      ; Store high byte
+    LD      (IY+0),L      ; Store low byte
+    LD      (IY+1),H      ; Store high byte
     
 	
     ; Update previous score for next level
-    LD      A, (GAMECONTROL)
-    BIT     1, A
-    JR      Z, .update_p1_prev
+    LD      A,(GAMECONTROL)
+    BIT     1,A
+    JR      Z,.update_p1_prev
     
 .update_p2_prev:
-    LD      HL, (SCORE_P2_RAM)
-    LD      (P2_PREV_SCORE), HL
+    LD      HL,(SCORE_P2_RAM)
+    LD      (P2_PREV_SCORE),HL
     JR      .done
     
 .update_p1_prev:
-    LD      HL, (SCORE_P1_RAM)
-    LD      (P1_PREV_SCORE), HL
+    LD      HL,(SCORE_P1_RAM)
+    LD      (P1_PREV_SCORE),HL
     
 .done:
 
-	LD      HL, CURRENT_LEVEL_P1	; Player 1
-	LD      IX, ENEMY_NUM_P1
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, .PLAYERONE
+	LD      HL,CURRENT_LEVEL_P1	; Player 1
+	LD      IX,ENEMY_NUM_P1
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	JR		Z,.PLAYERONE
 	INC      HL			; $7275	; Player 2 data 
 	INC      IX			; $7279 ; Player 2 data
 .PLAYERONE:
 
 	; Current level (either p1 or p2) is loaded into HL
-	LD      A, (HL)     ; Load level number
-	LD      B, 10
+	LD      A,(HL)     ; Load level number
+	LD      B,10
 	CALL MOD_B	; Get modulo B
 	
 	; test if we completed level 10xN
@@ -6342,7 +6337,7 @@ LOC_AA2A:
 	
 .TEST_INTERMISSION:
 	; here A is in 0-9
-	LD      B, 3
+	LD      B,3
 	CALL MOD_B	; Get modulo B
 
 	; now A contains just 0,1,2
@@ -6350,115 +6345,115 @@ LOC_AA2A:
 
     PUSH    IX				; Save Player data pointer 
     PUSH    HL				; Save Level Pointer
-    CALL    Z, INTERMISSION
+    CALL    Z,INTERMISSION
     POP     HL
     POP     IX 
 
 .CONTINUE_NEXT_LEVEL:
 
-	LD		(IX+0), 7
+	LD		(IX+0),7
 	INC		(HL)     		; Increment the level number
-	LD		A, (HL)
+	LD		A,(HL)
 	CALL	SUB_B286		; buld level in A
 
 	CALL 	CURRTIMERINIT	;	update pointer to timer
 
-	LD		HL, GAMESTATE
-	LD		DE, 3400H		; VRAM address to store P1 data
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_AA5C
-	LD		DE, 3600H		; VRAM address to store P2 data
+	LD		HL,GAMESTATE
+	LD		DE,3400H		; VRAM address to store P1 data
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	JR		Z,LOC_AA5C
+	LD		DE,3600H		; VRAM address to store P2 data
 LOC_AA5C:
-	LD		BC, 0D4H
+	LD		BC,0D4H
 	CALL	WRITE_VRAM		; save game data in VRAM 
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 RET
 
 ; Get A modulo B
 MOD_B:
     SUB     A,B			; Subtract B
-    JR      NC, MOD_B	; If result >= 0, continue
-    ADD     A, B		; Add back B to get remainder in 0-(B-1)
+    JR      NC,MOD_B	; If result >= 0,continue
+    ADD     A,B		; Add back B to get remainder in 0-(B-1)
 RET 
 
 ; Divide HL by 10
-; Quotient in C, reminder in HL
+; Quotient in C,reminder in HL
 DIV_HLby10:	
     ; Get tens and ones only
-    ld de, 10
+    ld de,10
 
 ; Divide HL by DE
-; Quotient in C, reminder in HL
+; Quotient in C,reminder in HL
 
 DIV_HLbyDE:	
-    ld  c, 0                   ; Counter for tens	
+    ld  c,0                   ; Counter for tens	
 .1: or a                       ; Clear carry
-    sbc hl, de
-    jr c, .2
+    sbc hl,de
+    jr c,.2
     inc c
     jr .1
-.2: add hl, de                 ; Restore remainder in HL
+.2: add hl,de                 ; Restore remainder in HL
 RET	
 
 
 
 SUB_AA69:
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_AA6E:
-	BIT		7, (HL)
-	JR		NZ, LOC_AA6E
-	LD		DE, 3400H
-	BIT		1, (HL)
-	JR		Z, LOC_AA7C
-	LD		DE, 3600H
+	BIT		7,(HL)
+	JR		NZ,LOC_AA6E
+	LD		DE,3400H
+	BIT		1,(HL)
+	JR		Z,LOC_AA7C
+	LD		DE,3600H
 LOC_AA7C:
-	LD		HL, GAMESTATE
-	LD		BC, 0D4H
+	LD		HL,GAMESTATE
+	LD		BC,0D4H
 	CALL	WRITE_VRAM
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
-	LD		IX, LIVES_LEFT_P1_RAM
-	LD		IY, LIVES_LEFT_P2_RAM
-	LD		HL, GAMECONTROL
-	BIT		1, (HL)
-	JR		NZ, LOC_AABD
+	LD		IX,LIVES_LEFT_P1_RAM
+	LD		IY,LIVES_LEFT_P2_RAM
+	LD		HL,GAMECONTROL
+	BIT		1,(HL)
+	JR		NZ,LOC_AABD
 	DEC		(IX+0)
-	JR		Z, LOC_AAAD
-	BIT		0, (HL)
-	JR		Z, LOC_AACA
-	LD		A, (IY+0)
+	JR		Z,LOC_AAAD
+	BIT		0,(HL)
+	JR		Z,LOC_AACA
+	LD		A,(IY+0)
 	AND		A
-	JR		Z, LOC_AACA
-	SET		1, (HL)
+	JR		Z,LOC_AACA
+	SET		1,(HL)
 	JR		LOC_AACA
 LOC_AAAD:
-	BIT		0, (HL)
-	JR		Z, LOC_AADA
-	LD		A, (IY+0)
+	BIT		0,(HL)
+	JR		Z,LOC_AADA
+	LD		A,(IY+0)
 	AND		A
-	JR		Z, LOC_AADA
-	SET		1, (HL)
-	LD		A, 2
+	JR		Z,LOC_AADA
+	SET		1,(HL)
+	LD		A,2
 	RET
 LOC_AABD:
 	DEC		(IY+0)
-	JR		Z, LOC_AACE
-	LD		A, (IX+0)
+	JR		Z,LOC_AACE
+	LD		A,(IX+0)
 	AND		A
-	JR		Z, LOC_AACA
-	RES		1, (HL)
+	JR		Z,LOC_AACA
+	RES		1,(HL)
 LOC_AACA:
-	LD		A, 1
+	LD		A,1
 	RET
 LOC_AACE:
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		A
-	JR		Z, LOC_AADA
-	RES		1, (HL)
-	LD		A, 3
+	JR		Z,LOC_AADA
+	RES		1,(HL)
+	LD		A,3
 	RET
 LOC_AADA:
 	XOR		A
@@ -6466,22 +6461,22 @@ RET
 
 
 SUB_AB28:
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_AB2D:
-	BIT		7, (HL)
-	JR		NZ, LOC_AB2D
-	LD		HL, SAT
-	LD		DE, 80H
+	BIT		7,(HL)
+	JR		NZ,LOC_AB2D
+	LD		HL,SAT
+	LD		DE,80H
 	XOR		A
 	CALL	FILL_VRAM
 	CALL	REMOVESPRITES
-	LD		A, 9
+	LD		A,9
 	CALL	DEAL_WITH_PLAYFIELD				; game over text
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	CALL	PLAY_GAME_OVER_TUNE
-	LD		HL, 168H
+	LD		HL,168H
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
@@ -6490,40 +6485,40 @@ LOC_AB5B:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_AB5B
+	JR		Z,LOC_AB5B
 	POP		AF
-	LD		HL, 4B0H
+	LD		HL,4B0H
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
 	
 	
 LOC_AB6C:
-	LD		A, (KEYBOARD_P1)
+	LD		A,(KEYBOARD_P1)
 	CP		0AH
-	JR		Z, LOC_ABA5
+	JR		Z,LOC_ABA5
 	CP		0BH
-	JR		Z, LOC_ABA9
-	LD		A, (KEYBOARD_P2)
+	JR		Z,LOC_ABA9
+	LD		A,(KEYBOARD_P2)
 	CP		0AH
-	JR		Z, LOC_ABA5
+	JR		Z,LOC_ABA5
 	CP		0BH
-	JR		Z, LOC_ABA9
+	JR		Z,LOC_ABA9
 	POP		AF
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, LOC_AB6C
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	JR		Z,LOC_AB6C
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_AB8F:
-	BIT		7, (HL)
-	JR		NZ, LOC_AB8F
-	LD		HL, PNT
-	LD		DE, 300H
+	BIT		7,(HL)
+	JR		NZ,LOC_AB8F
+	LD		HL,PNT
+	LD		DE,300H
 	XOR		A
 	CALL	FILL_VRAM
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	JR		LOC_AB6C
 LOC_ABA5:
@@ -6531,44 +6526,44 @@ LOC_ABA5:
 	XOR		A
 	RET
 LOC_ABA9:
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_ABAE:
-	BIT		7, (HL)
-	JR		NZ, LOC_ABAE
+	BIT		7,(HL)
+	JR		NZ,LOC_ABAE
 	POP		AF
-	LD		A, 3
+	LD		A,3
 RET
 
 SUB_ABB7:
-	LD		B, 20H
-	LD		C, 8
-	LD		D, 0
+	LD		B,20H
+	LD		C,8
+	LD		D,0
 	DEC		A
 LOC_ABBE:
 	CP		10H
-	JR		C, LOC_ABC7
+	JR		C,LOC_ABC7
 	SUB		10H
 	INC		D
 	JR		LOC_ABBE
 LOC_ABC7:
-	LD		E, A
+	LD		E,A
 LOC_ABC8:
-	LD		A, E
+	LD		A,E
 	AND		A		;	CP		0
-	JR		Z, LOC_ABD4
-	LD		A, C
-	ADD		A, 10H
-	LD		C, A
+	JR		Z,LOC_ABD4
+	LD		A,C
+	ADD		A,10H
+	LD		C,A
 	DEC		E
 	JR		LOC_ABC8
 LOC_ABD4:
-	LD		A, D
+	LD		A,D
 	AND 	A 		;	CP		0
 	RET		Z
-	LD		A, B
-	ADD		A, 10H
-	LD		B, A
+	LD		A,B
+	ADD		A,10H
+	LD		B,A
 	DEC		D
 	JR		LOC_ABC8
 RET
@@ -6576,53 +6571,53 @@ RET
 SUB_ABE1:
 	PUSH	IX
 	CALL	SUB_AC1F
-	LD		IX, BYTE_AC2F
-	LD		E, A
-	ADD		IX, DE
-	LD		E, (IX+0)
-	LD		A, (HL)
+	LD		IX,BYTE_AC2F
+	LD		E,A
+	ADD		IX,DE
+	LD		E,(IX+0)
+	LD		A,(HL)
 	OR		E
-	LD		(HL), A
+	LD		(HL),A
 	POP		IX
 RET
 
 SUB_ABF6:
 	PUSH	IX
 	CALL	SUB_AC1F
-	LD		IX, BYTE_AC37
-	LD		E, A
-	ADD		IX, DE
-	LD		E, (IX+0)
-	LD		A, (HL)
+	LD		IX,BYTE_AC37
+	LD		E,A
+	ADD		IX,DE
+	LD		E,(IX+0)
+	LD		A,(HL)
 	AND		E
-	LD		(HL), A
+	LD		(HL),A
 	POP		IX
 RET
 
 SUB_AC0B:
 	PUSH	IX
 	CALL	SUB_AC1F
-	LD		IX, BYTE_AC2F
-	LD		E, A
-	ADD		IX, DE
-	LD		E, (IX+0)
-	LD		A, (HL)
+	LD		IX,BYTE_AC2F
+	LD		E,A
+	ADD		IX,DE
+	LD		E,(IX+0)
+	LD		A,(HL)
 	AND		E
 	POP		IX
 RET
 
 SUB_AC1F:
-	LD		E, 0
+	LD		E,0
 	DEC		A
 LOC_AC22:
 	CP		8
-	JR		C, LOC_AC2B
+	JR		C,LOC_AC2B
 	SUB		8
 	INC		E
 	JR		LOC_AC22
 LOC_AC2B:
-	LD		D, 0
-	ADD		HL, DE
+	LD		D,0
+	ADD		HL,DE
 RET
 
 BYTE_AC2F:
@@ -6631,69 +6626,69 @@ BYTE_AC37:
 	DB 127,191,223,239,247,251,253,254
 
 SUB_AC3F:
-	PUSH	BC				; B = Y, C = X
-	LD		D, 1
-	LD		A, B
-	SUB		18H
+	PUSH	BC				; B = Y,C = X
+	LD		D,1
+	LD		A,B
+	SUB		A,24
 LOC_AC45:
-	SUB		10H
-	JR		C, LOC_AC51
+	SUB		A,16
+	JR		C,LOC_AC51
 	PUSH	AF
-	LD		A, D
-	ADD		A, 10H
-	LD		D, A
+	LD		A,D
+	ADD		A,16
+	LD		D,A
 	POP		AF
 	JR		LOC_AC45
 LOC_AC51:
-	LD		A, C
+	LD		A,C
 LOC_AC52:
-	SUB		10H
-	JR		C, LOC_AC59
+	SUB		16
+	JR		C,LOC_AC59
 	INC		D
 	JR		LOC_AC52
 LOC_AC59:
-	LD		A, D
+	LD		A,D
 	DEC		A
-	LD		B, 0
-	LD		C, A
-	LD		IX, GAMESTATE
-	ADD		IX, BC
-	LD		A, D
+	LD		B,0
+	LD		C,A
+	LD		IX,GAMESTATE
+	ADD		IX,BC
+	LD		A,D
 	POP		BC
 RET
 
 INIT_PLAYFIELD_MAP:
 	DEC		A
-	ADD		A, A
-	LD		B, 0
-	LD		C, A
-	LD		IX, PLAYFIELD_MAP
-	ADD		IX, BC
-	LD		B, (IX+1)
-	LD		C, (IX+0)
+	ADD		A,A
+	LD		B,0
+	LD		C,A
+	LD		IX,PLAYFIELD_MAP
+	ADD		IX,BC
+	LD		B,(IX+1)
+	LD		C,(IX+0)
 	PUSH	BC
 	POP		IX
 LOC_ACD5:
-	LD		A, 2
+	LD		A,2
 	CP		(IX+0)
 	RET		Z					; 2 == END of data
-	LD		A, 1
+	LD		A,1
 	CP		(IX+0)
-	JR		NZ, LOC_ACF6
+	JR		NZ,LOC_ACF6
 	INC		IX					; 1 == Encode a RUN of tiles
-	LD		B, (IX+0)
+	LD		B,(IX+0)
 	INC		IX
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 LOC_ACED:
-	LD		(HL), B
+	LD		(HL),B
 	INC		HL
 	DEC		A
-	JR		NZ, LOC_ACED
+	JR		NZ,LOC_ACED
 	INC		IX
 	JR		LOC_ACD5
 LOC_ACF6:
-	LD		B, (IX+0)			; single tiles
-	LD		(HL), B
+	LD		B,(IX+0)			; single tiles
+	LD		(HL),B
 	INC		HL
 	INC		IX
 	JR		LOC_ACD5
@@ -6704,16 +6699,16 @@ RET
 
 UPDATE_SPT:	
 	
-	LD		A, (IX+0)			; flag
-	LD		E, (IX+1)			; Position in the SPT in VRAM
-	LD		D, (IX+2)
-	LD		L, (IX+3)			; pointer to sprite pattern
-	LD		H, (IX+4)
+	LD		A,(IX+0)			; flag
+	LD		E,(IX+1)			; Position in the SPT in VRAM
+	LD		D,(IX+2)
+	LD		L,(IX+3)			; pointer to sprite pattern
+	LD		H,(IX+4)
 	AND		A
 	JP		NZ,ROTATION
 NOROTATION:
-	LD		A, 1				; write the SPT
-	CALL	PUT_VRAM			; IY = #of chars, DE = SPT pos, HL = ROM addr
+	LD		A,1				; write the SPT
+	CALL	PUT_VRAM			; IY = #of chars,DE = SPT pos,HL = ROM addr
 	RET
 ROTATION:
 
@@ -6721,7 +6716,7 @@ ROTATION:
 	exx 
 	POP de						; save DE pointer to SPT positions
 	exx 
-	LD		B, IYL
+	LD		B,IYL
 
 	DEC		A					; 1 mirror frame left
 	JP		Z,MIRRORLEFT
@@ -6736,21 +6731,21 @@ ROTATE_DWNMIRROR:
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
-	LD		IY, SPTBUFF2
+	LD		IY,SPTBUFF2
 	CALL	SUB_AE0C			; rotate face DOWN-mirror
 	exx
 	LD		a,(DE)
 	inc 	de
 	exx 
-	LD		E, a
-	LD		D, 0
-	LD		HL, SPTBUFF2
-	LD		IY, 1
-	LD		A, 1
+	LD		E,a
+	LD		D,0
+	LD		HL,SPTBUFF2
+	LD		IY,1
+	LD		A,1
 	CALL	PUT_VRAM
 	POP		HL
-	LD		BC, 8
-	ADD		HL, BC
+	LD		BC,8
+	ADD		HL,BC
 	POP		BC
 	DJNZ	.nextpattern
 RET
@@ -6759,21 +6754,21 @@ MIRRORLEFT:
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
-	LD		IY, SPTBUFF2
+	LD		IY,SPTBUFF2
 	CALL	SUB_AD96			; mirror frame left
 	exx
 	LD		a,(DE)
 	inc 	de
 	exx 
-	LD		E, a
-	LD		D, 0
-	LD		HL, SPTBUFF2
-	LD		IY, 1
-	LD		A, 1
+	LD		E,a
+	LD		D,0
+	LD		HL,SPTBUFF2
+	LD		IY,1
+	LD		A,1
 	CALL	PUT_VRAM
 	POP		HL
-	LD		BC, 8
-	ADD		HL, BC
+	LD		BC,8
+	ADD		HL,BC
 	POP		BC
 	DJNZ	.nextpattern
 RET
@@ -6782,21 +6777,21 @@ ROTATE_UP:
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
-	LD		IY, SPTBUFF2
+	LD		IY,SPTBUFF2
 	CALL	SUB_ADAB			; rotate face down 
 	exx
 	LD		a,(DE)
 	inc 	de
 	exx 
-	LD		E, a
-	LD		D, 0
-	LD		HL, SPTBUFF2
-	LD		IY, 1
-	LD		A, 1
+	LD		E,a
+	LD		D,0
+	LD		HL,SPTBUFF2
+	LD		IY,1
+	LD		A,1
 	CALL	PUT_VRAM
 	POP		HL
-	LD		BC, 8
-	ADD		HL, BC
+	LD		BC,8
+	ADD		HL,BC
 	POP		BC
 	DJNZ	.nextpattern
 RET
@@ -6805,21 +6800,21 @@ ROTATE_DWN:
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
-	LD		IY, SPTBUFF2
+	LD		IY,SPTBUFF2
 	CALL	SUB_ADCA			; rotate face down
 	exx
 	LD		a,(DE)
 	inc 	de
 	exx 
-	LD		E, a
-	LD		D, 0
-	LD		HL, SPTBUFF2
-	LD		IY, 1
-	LD		A, 1
+	LD		E,a
+	LD		D,0
+	LD		HL,SPTBUFF2
+	LD		IY,1
+	LD		A,1
 	CALL	PUT_VRAM
 	POP		HL
-	LD		BC, 8
-	ADD		HL, BC
+	LD		BC,8
+	ADD		HL,BC
 	POP		BC
 	DJNZ	.nextpattern
 RET
@@ -6828,186 +6823,186 @@ ROTATE_UPMIRROR:
 .nextpattern:
 	PUSH	BC
 	PUSH	HL
-	LD		IY, SPTBUFF2
+	LD		IY,SPTBUFF2
 	CALL	SUB_ADE9			; rotate face up-mirror
 	exx
 	LD		a,(DE)
 	inc 	de
 	exx 
-	LD		E, a
-	LD		D, 0
-	LD		HL, SPTBUFF2
-	LD		IY, 1
-	LD		A, 1
+	LD		E,a
+	LD		D,0
+	LD		HL,SPTBUFF2
+	LD		IY,1
+	LD		A,1
 	CALL	PUT_VRAM
 	POP		HL
-	LD		BC, 8
-	ADD		HL, BC
+	LD		BC,8
+	ADD		HL,BC
 	POP		BC
 	DJNZ	.nextpattern
 RET
 
 
 SUB_AD96:					; mirror frame left
-	LD		B, 8
+	LD		B,8
 LOC_AD98:
-	LD		D, (HL)
-	LD		C, 8
+	LD		D,(HL)
+	LD		C,8
 LOC_AD9B:
 	SRL		D
 	RL		E
 	DEC		C
-	JR		NZ, LOC_AD9B
-	LD		(IY+0), E
+	JR		NZ,LOC_AD9B
+	LD		(IY+0),E
 	INC		HL
 	INC		IY
 	DJNZ	LOC_AD98
 RET
 
 SUB_ADAB:					; rotate face down 
-	LD		C, 8
+	LD		C,8
 	PUSH	HL
-	LD		D, 1
+	LD		D,1
 LOC_ADB0:
 	POP		HL
 	PUSH	HL
-	LD		B, 8
+	LD		B,8
 LOC_ADB4:
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		D
-	JR		Z, LOC_ADB9
+	JR		Z,LOC_ADB9
 	SCF
 LOC_ADB9:
 	RL		E
 	INC		HL
 	DJNZ	LOC_ADB4
-	LD		(IY+0), E
+	LD		(IY+0),E
 	INC		IY
 	RLC		D
 	DEC		C
-	JR		NZ, LOC_ADB0
+	JR		NZ,LOC_ADB0
 	POP		HL
 RET
 
 SUB_ADCA:						; rotate face up
-	LD		C, 8
+	LD		C,8
 	PUSH	HL
-	LD		D, 80H
+	LD		D,80H
 LOC_ADCF:
 	POP		HL
 	PUSH	HL
-	LD		B, 8
+	LD		B,8
 LOC_ADD3:
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		D
-	JR		Z, LOC_ADD8
+	JR		Z,LOC_ADD8
 	SCF
 LOC_ADD8:
 	RL		E
 	INC		HL
 	DJNZ	LOC_ADD3
-	LD		(IY+0), E
+	LD		(IY+0),E
 	INC		IY
 	RRC		D
 	DEC		C
-	JR		NZ, LOC_ADCF
+	JR		NZ,LOC_ADCF
 	POP		HL
 RET
 
 SUB_ADE9:						; rotate face up-mirror
-	LD		BC, 7
-	ADD		HL, BC
-	LD		C, 8
-	LD		D, 1
+	LD		BC,7
+	ADD		HL,BC
+	LD		C,8
+	LD		D,1
 	PUSH	HL
 LOC_ADF2:
 	POP		HL
 	PUSH	HL
-	LD		B, 8
+	LD		B,8
 LOC_ADF6:
-	LD		A, (HL)
+	LD		A,(HL)
 	AND		D
-	JR		Z, LOC_ADFB
+	JR		Z,LOC_ADFB
 	SCF
 LOC_ADFB:
 	RL		E
 	DEC		HL
 	DJNZ	LOC_ADF6
-	LD		(IY+0), E
+	LD		(IY+0),E
 	INC		IY
 	RLC		D
 	DEC		C
-	JR		NZ, LOC_ADF2
+	JR		NZ,LOC_ADF2
 	POP		HL
 RET
 
 SUB_AE0C:							; rotate face DOWN-mirror
-	LD		BC, 7
-	ADD		HL, BC
-	LD		D, 80H
+	LD		BC,7
+	ADD		HL,BC
+	LD		D,80H
 	PUSH	HL
-	LD		C, 8
+	LD		C,8
 LOC_AE15:
 	POP		HL
 	PUSH	HL
-	LD		B, 8
+	LD		B,8
 LOC_AE19:
 	LD		A,D
 	AND		(HL)						; use A instead of D (?)
-	JR		Z, LOC_AE1E
+	JR		Z,LOC_AE1E
 	SCF
 LOC_AE1E:
 	RL		E
 	DEC		HL
 	DJNZ	LOC_AE19
-	LD		(IY+0), E
+	LD		(IY+0),E
 	INC		IY
 	RRC		D
 	DEC		C
-	JR		NZ, LOC_AE15
+	JR		NZ,LOC_AE15
 	POP		HL
 RET
 
 DEAL_WITH_PLAYFIELD:			; Print strings to the playfield
 	DEC		A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	LD		HL, OBJ_POSITION_LIST
-	ADD		HL, BC
-	LD		E, (HL)
+	ADD		A,A
+	LD		C,A
+	LD		B,0
+	LD		HL,OBJ_POSITION_LIST
+	ADD		HL,BC
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
-	LD		IX, OBJ_DESCRIPTION_LIST
-	ADD		IX, BC
-	LD		L, (IX+0)
-	LD		H, (IX+1)
+	LD		D,(HL)
+	LD		IX,OBJ_DESCRIPTION_LIST
+	ADD		IX,BC
+	LD		L,(IX+0)
+	LD		H,(IX+1)
 LOC_AE47:
-	LD		A, (HL)
+	LD		A,(HL)
 	CP		0FFH
 	RET		Z
 	CP		0FEH
-	JR		NZ, LOC_AE5A
+	JR		NZ,LOC_AE5A
 	INC		HL
-	LD		C, (HL)
+	LD		C,(HL)
 	INC		HL
-	LD		B, 0
-	EX		DE, HL
-	ADD		HL, BC
-	EX		DE, HL
+	LD		B,0
+	EX		DE,HL
+	ADD		HL,BC
+	EX		DE,HL
 	JR		LOC_AE47
 LOC_AE5A:
 	CP		0FDH
-	JR		NZ, LOC_AE76
+	JR		NZ,LOC_AE76
 	INC		HL
-	LD		B, (HL)
+	LD		B,(HL)
 	INC		HL
 LOOP_AE61:
 	PUSH	BC
 	PUSH	HL
 	PUSH	DE
-	LD		A, 2	
-	LD		IY, 1	
+	LD		A,2	
+	LD		IY,1	
 	CALL	PUT_VRAM
 	POP		DE
 	POP		HL
@@ -7019,8 +7014,8 @@ LOOP_AE61:
 LOC_AE76:
 	PUSH	HL
 	PUSH	DE
-	LD		A, 2
-	LD		IY, 1
+	LD		A,2
+	LD		IY,1
 	CALL	PUT_VRAM
 	POP		DE
 	POP		HL
@@ -7030,25 +7025,25 @@ LOC_AE76:
 RET
 
 LOC_AE88:
-	LD		IX, BYTE_AEAD
-	LD		B, 5
+	LD		IX,BYTE_AEAD
+	LD		B,5
 LOOP_AE8E:
 	PUSH	BC
 	XOR		A
-	EX		DE, HL
-	LD		C, (IX+0)
-	LD		B, (IX+1)
+	EX		DE,HL
+	LD		C,(IX+0)
+	LD		B,(IX+1)
 LOC_AE97:
 	AND		A
-	SBC		HL, BC
-	JR		C, LOC_AE9F
+	SBC		HL,BC
+	JR		C,LOC_AE9F
 	INC		A
 	JR		LOC_AE97
 LOC_AE9F:
-	ADD		HL, BC
-	EX		DE, HL
-	ADD		A, 0D8H
-	LD		(HL), A
+	ADD		HL,BC
+	EX		DE,HL
+	ADD		A,0D8H
+	LD		(HL),A
 	INC		HL
 	INC		IX
 	INC		IX
@@ -7060,112 +7055,112 @@ BYTE_AEAD:
 	DB 016,039,232,003,100,000,010,000,001,000
 
 SUB_AEB7:
-	LD		B, A
-	LD		A, (BADGUY_BHVR_CNT_RAM)
+	LD		B,A
+	LD		A,(BADGUY_BHVR_CNT_RAM)
 	DEC		A
-	JP		P, LOC_AEC1
-	LD		A, 4FH
+	JP		P,LOC_AEC1
+	LD		A,4FH
 LOC_AEC1:
-	LD		E, A
-	LD		D, 0
-	LD		HL, BADGUY_BEHAVIOR_RAM
-	ADD		HL, DE
-	LD		A, (HL)
+	LD		E,A
+	LD		D,0
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	ADD		HL,DE
+	LD		A,(HL)
 	CP		B
 	RET		Z
-	LD		A, (BADGUY_BHVR_CNT_RAM)
-	LD		D, 0
-	LD		E, A
-	LD		HL, BADGUY_BEHAVIOR_RAM
-	ADD		HL, DE
-	LD		(HL), B
+	LD		A,(BADGUY_BHVR_CNT_RAM)
+	LD		D,0
+	LD		E,A
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	ADD		HL,DE
+	LD		(HL),B
 	INC		A
 	CP		50H
-	JR		C, LOC_AEDD
+	JR		C,LOC_AEDD
 	XOR		A
 LOC_AEDD:
-	LD		(BADGUY_BHVR_CNT_RAM), A
+	LD		(BADGUY_BHVR_CNT_RAM),A
 RET
 
 SUB_AEE1:	; Apple Pushing/Intersection logic
 	PUSH	AF
-	LD		H, 0
+	LD		H,0
 LOC_AEE4:
-	LD		A, D
+	LD		A,D
 	CP		1
-	LD		A, C
-	JR		NZ, LOC_AEF1
-	ADD		A, 0CH
-	JP		C, LOC_AFF5
+	LD		A,C
+	JR		NZ,LOC_AEF1
+	ADD		A,0CH
+	JP		C,LOC_AFF5
 	JR		LOC_AEF6
 LOC_AEF1:
 	SUB		0CH
-	JP		C, LOC_AFF5
+	JP		C,LOC_AFF5
 LOC_AEF6:
-	LD		C, A
-	LD		E, 5
-	LD		IX, APPLEDATA
+	LD		C,A
+	LD		E,5
+	LD		IX,APPLEDATA
 LOC_AEFD:
-	BIT		7, (IX+0)
-	JR		Z, LOC_AF1A
-	LD		A, (IX+2)
+	BIT		7,(IX+0)
+	JR		Z,LOC_AF1A
+	LD		A,(IX+2)
 	CP		C
-	JR		NZ, LOC_AF1A
-	LD		A, (IX+1)
+	JR		NZ,LOC_AF1A
+	LD		A,(IX+1)
 	CP		B
-	JR		Z, LOC_AF26
+	JR		Z,LOC_AF26
 	SUB		10H
 	CP		B
-	JR		NC, LOC_AF1A
-	ADD		A, 1FH
+	JR		NC,LOC_AF1A
+	ADD		A,1FH
 	CP		B
-	JP		NC, LOC_B061
+	JP		NC,LOC_B061
 LOC_AF1A:
 	PUSH	DE
-	LD		DE, 5
-	ADD		IX, DE
+	LD		DE,5
+	ADD		IX,DE
 	POP		DE
 	DEC		E
-	JR		NZ, LOC_AEFD
+	JR		NZ,LOC_AEFD
 	JR		LOC_AF76
 LOC_AF26:
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		78H
-	JP		NZ, LOC_AFD2
+	JP		NZ,LOC_AFD2
 	INC		H
 	POP		AF
 	PUSH	AF
 	CP		2
-	JP		Z, LOC_AEE4
+	JP		Z,LOC_AEE4
 	CP		3
-	JR		NZ, LOC_AEE4
+	JR		NZ,LOC_AEE4
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		A, C
-	BIT		0, D
-	JR		Z, LOC_AF48
-	ADD		A, 6
+	LD		A,C
+	BIT		0,D
+	JR		Z,LOC_AF48
+	ADD		A,6
 	JR		LOC_AF4A
 LOC_AF48:
 	SUB		6
 LOC_AF4A:
-	LD		C, A
+	LD		C,A
 	CALL	SUB_AC3F
-	LD		A, C
+	LD		A,C
 	AND		0FH
 	CP		8
-	LD		A, (IX+0)
-	JR		NC, LOC_AF60
+	LD		A,(IX+0)
+	JR		NC,LOC_AF60
 	AND		5
 	CP		5
-	JR		NZ, LOC_AF6E
+	JR		NZ,LOC_AF6E
 	JR		LOC_AF66
 LOC_AF60:
 	AND		0AH
 	CP		0AH
-	JR		NZ, LOC_AF6E
+	JR		NZ,LOC_AF6E
 LOC_AF66:
 	POP		IX
 	POP		HL
@@ -7179,129 +7174,129 @@ LOC_AF6E:
 	POP		BC
 	JP		LOC_B061
 LOC_AF76:
-	LD		E, 0
-	LD		A, H
+	LD		E,0
+	LD		A,H
 	AND		A
-	JP		Z, LOC_B063
+	JP		Z,LOC_B063
 	POP		AF
 	PUSH	AF
 	CP		1
-	JR		NZ, LOC_AFD7
+	JR		NZ,LOC_AFD7
 	PUSH	DE
 	PUSH	HL
-	LD		IX, ENEMY_DATA_ARRAY
-	LD		L, 7
+	LD		IX,ENEMY_DATA_ARRAY
+	LD		L,7
 LOC_AF8B:
-	BIT		7, (IX+4)
-	JR		Z, LOC_AFBF
-	BIT		6, (IX+4)
-	JR		NZ, LOC_AFBF
-	LD		A, ($7272)
-	BIT		4, A
-	JR		NZ, LOC_AFA5
-	LD		A, (IX+0)
+	BIT		7,(IX+4)
+	JR		Z,LOC_AFBF
+	BIT		6,(IX+4)
+	JR		NZ,LOC_AFBF
+	LD		A,($7272)
+	BIT		4,A
+	JR		NZ,LOC_AFA5
+	LD		A,(IX+0)
 	AND		30H
-	JR		Z, LOC_AFBF
+	JR		Z,LOC_AFBF
 LOC_AFA5:
-	LD		A, (IX+2)
+	LD		A,(IX+2)
 	SUB		0CH
 	CP		B
-	JR		NC, LOC_AFBF
-	ADD		A, 18H
+	JR		NC,LOC_AFBF
+	ADD		A,18H
 	CP		B
-	JR		C, LOC_AFBF
-	LD		A, (IX+1)
+	JR		C,LOC_AFBF
+	LD		A,(IX+1)
 	SUB		4
 	CP		C
-	JR		NC, LOC_AFBF
-	ADD		A, 8
+	JR		NC,LOC_AFBF
+	ADD		A,8
 	CP		C
-	JR		NC, LOC_AFD0
+	JR		NC,LOC_AFD0
 LOC_AFBF:
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	DEC		L
-	JR		NZ, LOC_AF8B
+	JR		NZ,LOC_AF8B
 	POP		HL
 	POP		DE
 	CALL	SUB_B066
-	JR		NZ, LOC_AFD2
+	JR		NZ,LOC_AFD2
 	JR		LOC_AFF6
 LOC_AFD0:
 	POP		HL
 	POP		DE
 LOC_AFD2:
-	LD		E, 3
+	LD		E,3
 	JP		LOC_B063
 LOC_AFD7:						; BADGUY Pushes APPLE
-	LD		A, (MRDO_DATA.Y)
+	LD		A,(MRDO_DATA.Y)
 	SUB		0CH
 	CP		B
-	JR		NC, LOC_AFF6
-	ADD		A, 18H
+	JR		NC,LOC_AFF6
+	ADD		A,18H
 	CP		B
-	JR		C, LOC_AFF6
-	LD		A, (MRDO_DATA.X)
+	JR		C,LOC_AFF6
+	LD		A,(MRDO_DATA.X)
 	SUB		4
 	CP		C
-	JR		NC, LOC_AFF6
-	ADD		A, 8
+	JR		NC,LOC_AFF6
+	ADD		A,8
 	CP		C
-	JR		C, LOC_AFF6
-	LD		E, 3
+	JR		C,LOC_AFF6
+	LD		E,3
 	JR		LOC_B063
 LOC_AFF5:
-	LD		C, A
+	LD		C,A
 LOC_AFF6:
-	LD		E, 0
-	LD		A, H
+	LD		E,0
+	LD		A,H
 	AND		A
-	JR		Z, LOC_B063
+	JR		Z,LOC_B063
 LOC_AFFC:
-	LD		A, D
+	LD		A,D
 	CP		1
-	LD		A, C
-	JR		NZ, LOC_B006
+	LD		A,C
+	JR		NZ,LOC_B006
 	SUB		0CH
 	JR		LOC_B008
 LOC_B006:
-	ADD		A, 0CH
+	ADD		A,0CH
 LOC_B008:
-	LD		C, A
-	LD		IX, APPLEDATA
-	LD		E, 5
+	LD		C,A
+	LD		IX,APPLEDATA
+	LD		E,5
 LOC_B00F:
-	BIT		7, (IX+0)
-	JR		Z, LOC_B050
-	LD		A, (IX+1)
+	BIT		7,(IX+0)
+	JR		Z,LOC_B050
+	LD		A,(IX+1)
 	CP		B
-	JR		NZ, LOC_B050
-	LD		A, (IX+2)
+	JR		NZ,LOC_B050
+	LD		A,(IX+2)
 	CP		C
-	JR		NZ, LOC_B050
-	LD		A, D
+	JR		NZ,LOC_B050
+	LD		A,D
 	CP		1
-	LD		A, C
-	JR		NZ, LOC_B02F
-	ADD		A, 4
+	LD		A,C
+	JR		NZ,LOC_B02F
+	ADD		A,4
 	CP		0E9H
-	JR		NC, LOC_B061
+	JR		NC,LOC_B061
 	JR		LOC_B035
 LOC_B02F:
 	SUB		4
 	CP		18H
-	JR		C, LOC_B061
+	JR		C,LOC_B061
 LOC_B035:
-	LD		(IX+2), A
+	LD		(IX+2),A
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
 	PUSH	IX
-	LD		C, A
-	LD		B, (IX+1)
-	LD		A, 17
+	LD		C,A
+	LD		B,(IX+1)
+	LD		A,17
 	SUB		E
-	LD		D, 1			; animate chomper
+	LD		D,1			; animate chomper
 	CALL	PUTSPRITE
 	POP		IX
 	POP		HL
@@ -7310,54 +7305,54 @@ LOC_B035:
 	JR		LOC_B05A
 LOC_B050:
 	PUSH	DE
-	LD		DE, 5
-	ADD		IX, DE
+	LD		DE,5
+	ADD		IX,DE
 	POP		DE
 	DEC		E
-	JR		NZ, LOC_B00F
+	JR		NZ,LOC_B00F
 LOC_B05A:	; Mr. Do pushing an apple from the bottom
 	DEC		H
-	JR		NZ, LOC_AFFC
-	LD		E, 1
+	JR		NZ,LOC_AFFC
+	LD		E,1
 	JR		LOC_B063
 LOC_B061:
-	LD		E, 2
+	LD		E,2
 LOC_B063:
 	POP		AF
-	LD		A, E
+	LD		A,E
 RET
 
 SUB_B066:
 	PUSH	IY
 	PUSH	HL
-	LD		IY, ENEMY_DATA_ARRAY
-	LD		HL, 207H
+	LD		IY,ENEMY_DATA_ARRAY
+	LD		HL,207H
 LOC_B070:
-	LD		A, (IY+4)
-	BIT		7, A
-	JP		Z, LOC_B105
-	BIT		6, A
-	JP		NZ, LOC_B105
-	LD		A, (IY+0)
+	LD		A,(IY+4)
+	BIT		7,A
+	JP		Z,LOC_B105
+	BIT		6,A
+	JP		NZ,LOC_B105
+	LD		A,(IY+0)
 	AND		30H
-	JP		NZ, LOC_B105
+	JP		NZ,LOC_B105
 LOC_B085:
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	SUB		B
-	JR		NC, LOC_B08D
+	JR		NC,LOC_B08D
 	CPL
 	INC		A
 LOC_B08D:
 	CP		10H
-	JR		NC, LOC_B105
-	LD		A, (IY+1)
-	BIT		0, D
-	JR		NZ, LOC_B0B7
+	JR		NC,LOC_B105
+	LD		A,(IY+1)
+	BIT		0,D
+	JR		NZ,LOC_B0B7
 	CP		C
-	JR		C, LOC_B105
+	JR		C,LOC_B105
 	SUB		9
 	CP		C
-	JR		NC, LOC_B105
+	JR		NC,LOC_B105
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
@@ -7365,20 +7360,20 @@ LOC_B08D:
 	POP		HL
 	POP		DE
 	POP		BC
-	BIT		7, A
-	JR		Z, LOC_B0D8
-	LD		A, (IY+1)
+	BIT		7,A
+	JR		Z,LOC_B0D8
+	LD		A,(IY+1)
 	SUB		4
-	LD		(IY+1), A
+	LD		(IY+1),A
 	JR		LOC_B085
 LOC_B0B7:
 	CP		C
-	JR		Z, LOC_B0BC
-	JR		NC, LOC_B105
+	JR		Z,LOC_B0BC
+	JR		NC,LOC_B105
 LOC_B0BC:
-	ADD		A, 9
+	ADD		A,9
 	CP		C
-	JR		C, LOC_B105
+	JR		C,LOC_B105
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
@@ -7386,58 +7381,58 @@ LOC_B0BC:
 	POP		HL
 	POP		DE
 	POP		BC
-	BIT		6, A
-	JR		Z, LOC_B0D8
-	LD		A, (IY+1)
-	ADD		A, 4
-	LD		(IY+1), A
+	BIT		6,A
+	JR		Z,LOC_B0D8
+	LD		A,(IY+1)
+	ADD		A,4
+	LD		(IY+1),A
 	JR		LOC_B085
 LOC_B0D8:
 	PUSH	AF
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	CP		B
-	JR		C, LOC_B0F8
+	JR		C,LOC_B0F8
 	POP		AF
-	BIT		5, A
-	JR		Z, LOC_B0EE
-	LD		A, (IY+2)
-	ADD		A, 4
-	LD		(IY+2), A
+	BIT		5,A
+	JR		Z,LOC_B0EE
+	LD		A,(IY+2)
+	ADD		A,4
+	LD		(IY+2),A
 	JR		LOC_B105
 
 LOC_B0F8:
 	POP		AF
-	BIT		4, A
-	JR		Z, LOC_B126
-	LD		A, (IY+2)
+	BIT		4,A
+	JR		Z,LOC_B126
+	LD		A,(IY+2)
 	SUB		4
-	LD		(IY+2), A
+	LD		(IY+2),A
 LOC_B105:
 	PUSH	DE
-	LD		DE, 6
-	ADD		IY, DE
+	LD		DE,6
+	ADD		IY,DE
 	POP		DE
 	DEC		L
-	JP		NZ, LOC_B070
+	JP		NZ,LOC_B070
 	DEC		H
-	JR		Z, LOC_B123
-	LD		A, ($72BA)
-	BIT		6, A
-	JR		Z, LOC_B123
-	LD		IY, $72BD
-	LD		L, 1
+	JR		Z,LOC_B123
+	LD		A,($72BA)
+	BIT		6,A
+	JR		Z,LOC_B123
+	LD		IY,$72BD
+	LD		L,1
 	JP		LOC_B085
 LOC_B123:
 	XOR		A
 	JR		LOC_B128
 LOC_B0EE:
 	PUSH	AF
-	LD		A, (IY+2)
+	LD		A,(IY+2)
 	CP		B
-	JR		Z, LOC_B0F8
+	JR		Z,LOC_B0F8
 	POP		AF
 LOC_B126:
-	LD		A, 1
+	LD		A,1
 LOC_B128:
 	POP		HL
 	POP		IY
@@ -7445,83 +7440,83 @@ LOC_B128:
 RET
 
 SUB_B12D: ; Mr. Do sprite intersection with apples from above and below
-	LD		IX, APPLEDATA	; IX points to the first apple's sprite data
-	LD		E, 5		; Number of apples to check
+	LD		IX,APPLEDATA	; IX points to the first apple's sprite data
+	LD		E,5		; Number of apples to check
 	; Modified to offset the value used to detect a vertical collision
 	; with an apple so that Mr. Do doesn't get stuck in the apple from
 	; above or below.
 
-	JR    	NC, LOC_B133	; CF==0 -> monsters, CF==1 ->MrDo
+	JR    	NC,LOC_B133	; CF==0 -> monsters,CF==1 ->MrDo
 	
-	LD		A, (IY+3)		; Get Y position of Mr. Do
-	BIT		1, D		 	; Check if moving down
-	JR		Z, CHECK_UP
-	SUB		4		   		; Moving down, so sub 4 from Y position
+	LD		A,(IY+3)		; Get Y position of Mr. Do
+	BIT		1,D		 	; Check if moving down
+	JR		Z,CHECK_UP
+	SUB		4		   		; Moving down,so sub 4 from Y position
 	JR		START_CHECK
 CHECK_UP:
-	ADD		A, 4		   	; Moving up, so add 4 to Y position
+	ADD		A,4		   	; Moving up,so add 4 to Y position
 START_CHECK:
-	LD		B, A			; Store the new Y position in B for checks
+	LD		B,A			; Store the new Y position in B for checks
 
 LOC_B133:
-	BIT		7, (IX+0)		; Check if the apple is active
-	JR		Z, LOC_B163
-	LD		A, B
-	BIT		1, D
-	JR		Z, LOC_B149
+	BIT		7,(IX+0)		; Check if the apple is active
+	JR		Z,LOC_B163
+	LD		A,B
+	BIT		1,D
+	JR		Z,LOC_B149
 	SUB		(IX+1)
-	JR		C, LOC_B163
+	JR		C,LOC_B163
 	CP		0DH
-	JR		NC, LOC_B163
+	JR		NC,LOC_B163
 	JR		LOC_B156
 LOC_B149:
 	SUB		(IX+1)
-	JR		Z, LOC_B156
-	JR		NC, LOC_B163
+	JR		Z,LOC_B156
+	JR		NC,LOC_B163
 	CPL
 	INC		A
 	CP		0DH
-	JR		NC, LOC_B163
+	JR		NC,LOC_B163
 LOC_B156:
-	LD		A, (IX+2)
-	ADD		A, 9
+	LD		A,(IX+2)
+	ADD		A,9
 	CP		C
-	JR		C, LOC_B163
+	JR		C,LOC_B163
 	SUB		12H
 	CP		C
-	JR		C, LOC_B170
+	JR		C,LOC_B170
 LOC_B163:
-	EX		DE, HL
-	LD		DE, 5
-	ADD		IX, DE
-	EX		DE, HL
+	EX		DE,HL
+	LD		DE,5
+	ADD		IX,DE
+	EX		DE,HL
 	DEC		E
-	JR		NZ, LOC_B133
+	JR		NZ,LOC_B133
 	XOR		A
 	RET
 LOC_B170:
-	LD		A, 1
+	LD		A,1
 RET
 
 SUB_B173:
-	LD		A, D
+	LD		A,D
 	PUSH	AF
-	LD		HL, $7245
+	LD		HL,ENEMYINTERACT
 	CALL	SUB_AC0B
-	JR		Z, LOC_B198
+	JR		Z,LOC_B198
 	POP		AF
 	PUSH	AF
 	DEC		A
-	LD		C, A
-	LD		B, 0
-	LD		HL, GAMESTATE
-	ADD		HL, BC
-	LD		A, (HL)
+	LD		C,A
+	LD		B,0
+	LD		HL,GAMESTATE
+	ADD		HL,BC
+	LD		A,(HL)
 	AND		0FH
 	CP		0FH
-	JR		NZ, LOC_B198
+	JR		NZ,LOC_B198
 	POP		AF
-	LD		HL, $7245
+	LD		HL,ENEMYINTERACT
 	CALL	SUB_ABF6
 	SCF
 	RET
@@ -7533,103 +7528,103 @@ RET
 DISPLAY_PLAY_FIELD_PARTS:
 	PUSH	AF
 	CP		48H
-	JP		Z, LOC_B24E
+	JP		Z,LOC_B24E
 	DEC		A
-	LD		C, A
-	LD		B, 0
-	LD		IY, GAMESTATE
-	ADD		IY, BC
+	LD		C,A
+	LD		B,0
+	LD		IY,GAMESTATE
+	ADD		IY,BC
 	POP		AF
 	PUSH	AF
 	CALL	SUB_B591
-	LD		IX, TUNNEL_WALL_PATTERNS
-	LD		BC, 3
+	LD		IX,TUNNEL_WALL_PATTERNS
+	LD		BC,3
 DISPLAY_CHERRIES:
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		(IY+0)
-	JR		NZ, DISPLAY_TUNNELS
+	JR		NZ,DISPLAY_TUNNELS
 	POP		AF
 	PUSH	AF
 	PUSH	DE
 	PUSH	IX
 	PUSH	BC
-	LD		HL, $7245
+	LD		HL,ENEMYINTERACT
 	CALL	SUB_AC0B
 	POP		BC
 	POP		IX
 	POP		DE
-	JR		Z, DISPLAY_PLAYFIELD
-	LD		HL, CHERRIES_TXT
-	ADD		HL, BC
+	JR		Z,DISPLAY_PLAYFIELD
+	LD		HL,CHERRIES_TXT
+	ADD		HL,BC
 	JR		PLAYFIELD_TO_VRAM
 DISPLAY_PLAYFIELD:
 	PUSH	BC
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, LOC_B1E6
-	LD		A, (CURRENT_LEVEL_P2)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(CURRENT_LEVEL_P1)
+	JR		Z,LOC_B1E6
+	LD		A,(CURRENT_LEVEL_P2)
 LOC_B1E6:
 	CP		0BH
-	JR		C, LOC_B1EE
+	JR		C,LOC_B1EE
 	SUB		0AH
 	JR		LOC_B1E6
 LOC_B1EE:
 	DEC		A
-	LD		C, A
-	LD		B, 0
-	LD		HL, PLAYFIELD_PATTERNS
-	ADD		HL, BC
+	LD		C,A
+	LD		B,0
+	LD		HL,PLAYFIELD_PATTERNS
+	ADD		HL,BC
 	POP		BC
 	JR		PLAYFIELD_TO_VRAM
 DISPLAY_TUNNELS:
-	LD		HL, TUNNEL_PATTERNS
-	LD		A, (IY+0)
+	LD		HL,TUNNEL_PATTERNS
+	LD		A,(IY+0)
 	AND		(IX+1)
-	JR		Z, LOC_B20A
+	JR		Z,LOC_B20A
 	PUSH	BC
-	LD		BC, 8
-	ADD		HL, BC
+	LD		BC,8
+	ADD		HL,BC
 	POP		BC
 LOC_B20A:
-	LD		A, (IY+0)
+	LD		A,(IY+0)
 	AND		(IX+2)
-	JR		Z, LOC_B216
+	JR		Z,LOC_B216
 	INC		HL
 	INC		HL
 	INC		HL
 	INC		HL
 LOC_B216:
-	LD		A, (IY+0)
+	LD		A,(IY+0)
 	AND		(IX+3)
-	JR		Z, LOC_B220
+	JR		Z,LOC_B220
 	INC		HL
 	INC		HL
 LOC_B220:
-	LD		A, (IY+0)
+	LD		A,(IY+0)
 	AND		(IX+4)
-	JR		Z, PLAYFIELD_TO_VRAM
+	JR		Z,PLAYFIELD_TO_VRAM
 	INC		HL
 PLAYFIELD_TO_VRAM:
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
 	PUSH	IY
-	LD		IY, 1
-	LD		A, 2
+	LD		IY,1
+	LD		A,2
 	CALL	PUT_VRAM
 	POP		IY
 	POP		IX
 	POP		DE
-	LD		L, (IX+5)
-	LD		H, 0
-	ADD		HL, DE
-	EX		DE, HL
-	LD		BC, 6
-	ADD		IX, BC
+	LD		L,(IX+5)
+	LD		H,0
+	ADD		HL,DE
+	EX		DE,HL
+	LD		BC,6
+	ADD		IX,BC
 	POP		BC
 	DEC		C
-	JP		P, DISPLAY_CHERRIES
+	JP		P,DISPLAY_CHERRIES
 LOC_B24E:
 	POP		AF
 RET
@@ -7645,54 +7640,54 @@ PLAYFIELD_PATTERNS:
 
 SUB_B286:					; build level in A
 	CP		0BH
-	JR		C, LOC_B28E
+	JR		C,LOC_B28E
 	SUB		0AH
 	JR		SUB_B286
 LOC_B28E:
 	PUSH	AF
-	LD		HL, GAMESTATE
-	LD		(HL), 0
-	LD		DE, $718B
-	LD		BC, 9FH
+	LD		HL,GAMESTATE
+	LD		(HL),0
+	LD		DE,$718B
+	LD		BC,9FH
 	LDIR
-	LD		HL, GAMESTATE
+	LD		HL,GAMESTATE
 	CALL	INIT_PLAYFIELD_MAP
 	POP		AF
 	DEC		A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
+	ADD		A,A
+	LD		C,A
+	LD		B,0
 	PUSH	BC
-	LD		IX, CHERRY_PLACEMENT_TABLE
-	ADD		IX, BC
-	LD		L, (IX+0)
-	LD		H, (IX+1)
-	LD		DE, $7245
-	LD		BC, 14H
+	LD		IX,CHERRY_PLACEMENT_TABLE
+	ADD		IX,BC
+	LD		L,(IX+0)
+	LD		H,(IX+1)
+	LD		DE,ENEMYINTERACT
+	LD		BC,20
 	LDIR
 	CALL	RAND_GEN
-	LD		IX, EXTRA_BEHAVIOR
-	BIT		0, A
-	JR		Z, LOC_B2CC
-	LD		IX, APPLE_PLACEMENT_TABLE
+	LD		IX,EXTRA_BEHAVIOR
+	BIT		0,A
+	JR		Z,LOC_B2CC
+	LD		IX,APPLE_PLACEMENT_TABLE
 LOC_B2CC:
 	POP		BC
-	ADD		IX, BC
-	LD		L, (IX+0)
-	LD		H, (IX+1)
-	LD		B, 5
-	LD		IY, APPLEDATA
+	ADD		IX,BC
+	LD		L,(IX+0)
+	LD		H,(IX+1)
+	LD		B,5
+	LD		IY,APPLEDATA
 LOOP_B2DB:
-	LD		A, (HL)
+	LD		A,(HL)
 	PUSH	HL
 	PUSH	BC
 	CALL	SUB_ABB7
-	LD		(IY+0), 80H
-	LD		(IY+1), B
-	LD		(IY+2), C
-	LD		(IY+3), 0
-	LD		DE, 5
-	ADD		IY, DE
+	LD		(IY+0),80H
+	LD		(IY+1),B
+	LD		(IY+2),C
+	LD		(IY+3),0
+	LD		DE,5
+	ADD		IY,DE
 	POP		BC
 	POP		HL
 	INC		HL
@@ -7703,44 +7698,44 @@ SUB_B2FA:
 	PUSH	IY
 	PUSH	HL
 	CALL	SUB_AC3F
-	LD		D, A
-	LD		E, 0
-	LD		A, C
+	LD		D,A
+	LD		E,0
+	LD		A,C
 	AND		0FH
 	CP		8
-	JR		NZ, LOC_B32C
-	LD		A, (IX+0)
+	JR		NZ,LOC_B32C
+	LD		A,(IX+0)
 	AND		0AH
 	CP		0AH
-	JR		Z, LOC_B31D
-	LD		E, 1
-	SET		1, (IX+0)
-	SET		3, (IX+0)
+	JR		Z,LOC_B31D
+	LD		E,1
+	SET		1,(IX+0)
+	SET		3,(IX+0)
 LOC_B31D:
 	PUSH	IX
 	PUSH	DE
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
 	JR		LOC_B399
 LOC_B32C:
 	AND		A
-	JR		NZ, LOC_B370
-	LD		A, (IX+0)
+	JR		NZ,LOC_B370
+	LD		A,(IX+0)
 	AND		85H
 	CP		85H
-	JR		Z, LOC_B342
-	LD		E, 1
-	LD		A, (IX+0)
+	JR		Z,LOC_B342
+	LD		E,1
+	LD		A,(IX+0)
 	OR		85H
-	LD		(IX+0), A
+	LD		(IX+0),A
 LOC_B342:
 	PUSH	DE
 	PUSH	IX
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -7748,16 +7743,16 @@ LOC_B342:
 	PUSH	DE
 	DEC		IX
 	DEC		D
-	BIT		6, (IX+0)
-	JR		NZ, LOC_B360
+	BIT		6,(IX+0)
+	JR		NZ,LOC_B360
 	POP		DE
-	LD		E, 1
+	LD		E,1
 	PUSH	DE
 	DEC		D
 LOC_B360:
-	SET		6, (IX+0)
-	LD		A, D
-	LD		HL, $7259
+	SET		6,(IX+0)
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
@@ -7766,26 +7761,26 @@ LOC_B370:
 	POP		IY
 	PUSH	IY
 	CP		4
-	JR		Z, LOC_B38B
+	JR		Z,LOC_B38B
 	INC		IX
-	LD		C, 80H
-	LD		A, (IX+0)
+	LD		C,80H
+	LD		A,(IX+0)
 	DEC		IX
 	AND		5
 	CP		5
-	JR		Z, LOC_B399
-	LD		B, D
+	JR		Z,LOC_B399
+	LD		B,D
 	INC		B
 	JR		LOC_B397
 LOC_B38B:
-	LD		C, 84H
-	LD		A, (IX+0)
+	LD		C,84H
+	LD		A,(IX+0)
 	AND		0AH
 	CP		0AH
-	JR		Z, LOC_B399
-	LD		B, D
+	JR		Z,LOC_B399
+	LD		B,D
 LOC_B397:
-	LD		E, 1
+	LD		E,1
 LOC_B399:
 	POP		HL
 	POP		IY
@@ -7795,20 +7790,20 @@ SUB_B39D:
 	PUSH	IY
 	PUSH	HL
 	CALL	SUB_AC3F
-	LD		D, A
-	LD		E, 0
-	LD		A, C
+	LD		D,A
+	LD		E,0
+	LD		A,C
 	AND		0FH
-	JR		NZ, LOC_B3EC
-	BIT		7, (IX+0)
-	JR		NZ, LOC_B3B7
-	LD		E, 1
-	SET		7, (IX+0)
+	JR		NZ,LOC_B3EC
+	BIT		7,(IX+0)
+	JR		NZ,LOC_B3B7
+	LD		E,1
+	SET		7,(IX+0)
 LOC_B3B7:
 	PUSH	DE
 	PUSH	IX
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -7816,37 +7811,37 @@ LOC_B3B7:
 	PUSH	DE
 	DEC		IX
 	DEC		D
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		4AH
 	CP		4AH
-	JR		Z, LOC_B3E0
+	JR		Z,LOC_B3E0
 	POP		DE
-	LD		E, 1
+	LD		E,1
 	PUSH	DE
 	DEC		D
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	OR		4AH
-	LD		(IX+0), A
+	LD		(IX+0),A
 LOC_B3E0:
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
 	JR		LOC_B43B
 LOC_B3EC:
 	CP		8
-	JR		NZ, LOC_B412
-	LD		A, (IX+0)
+	JR		NZ,LOC_B412
+	LD		A,(IX+0)
 	AND		5
 	CP		5
-	JR		Z, LOC_B403
-	LD		E, 1
-	SET		0, (IX+0)
-	SET		2, (IX+0)
+	JR		Z,LOC_B403
+	LD		E,1
+	SET		0,(IX+0)
+	SET		2,(IX+0)
 LOC_B403:
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	PUSH	IX
 	PUSH	DE
 	CALL	SUB_ABE1
@@ -7857,26 +7852,26 @@ LOC_B412:
 	POP		IY
 	PUSH	IY
 	CP		4
-	JR		NZ, LOC_B428
-	LD		C, 85H
-	LD		A, (IX+0)
+	JR		NZ,LOC_B428
+	LD		C,85H
+	LD		A,(IX+0)
 	AND		5
 	CP		5
-	JR		Z, LOC_B43B
-	LD		B, D
+	JR		Z,LOC_B43B
+	LD		B,D
 	JR		LOC_B439
 LOC_B428:
-	LD		C, 81H
+	LD		C,81H
 	DEC		IX
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	INC		IX
 	AND		0AH
 	CP		0AH
-	JR		Z, LOC_B43B
-	LD		B, D
+	JR		Z,LOC_B43B
+	LD		B,D
 	DEC		B
 LOC_B439:
-	LD		E, 1
+	LD		E,1
 LOC_B43B:
 	POP		HL
 	POP		IY
@@ -7886,90 +7881,90 @@ SUB_B43F:
 	PUSH	IY
 	PUSH	HL
 	CALL	SUB_AC3F
-	LD		D, A
-	LD		E, 0
-	LD		A, B
+	LD		D,A
+	LD		E,0
+	LD		A,B
 	AND		0FH
 	CP		8
-	JR		NZ, LOC_B493
-	BIT		4, (IX+0)
-	JR		NZ, LOC_B45B
-	LD		E, 1
-	SET		4, (IX+0)
+	JR		NZ,LOC_B493
+	BIT		4,(IX+0)
+	JR		NZ,LOC_B45B
+	LD		E,1
+	SET		4,(IX+0)
 LOC_B45B:
 	PUSH	DE
 	PUSH	IX
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
 	PUSH	IX
 	PUSH	DE
-	LD		BC, 0FFF0H
-	ADD		IX, BC
-	LD		A, (IX+0)
+	LD		BC,0FFF0H
+	ADD		IX,BC
+	LD		A,(IX+0)
 	AND		2CH
 	CP		2CH
-	JR		Z, LOC_B485
+	JR		Z,LOC_B485
 	POP		DE
-	LD		E, 1
+	LD		E,1
 	PUSH	DE
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	OR		2CH
-	LD		(IX+0), A
+	LD		(IX+0),A
 LOC_B485:
-	LD		A, D
+	LD		A,D
 	SUB		10H
-	LD		HL, $7259
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
 	JR		LOC_B4E5
 LOC_B493:
 	AND		A
-	JR		NZ, LOC_B4B8
-	LD		A, (IX+0)
+	JR		NZ,LOC_B4B8
+	LD		A,(IX+0)
 	AND		3
 	CP		3
-	JR		Z, LOC_B4A9
-	LD		E, 1
-	SET		0, (IX+0)
-	SET		1, (IX+0)
+	JR		Z,LOC_B4A9
+	LD		E,1
+	SET		0,(IX+0)
+	SET		1,(IX+0)
 LOC_B4A9:
 	PUSH	IX
 	PUSH	DE
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
 	JR		LOC_B4E5
 LOC_B4B8:
 	CP		4
-	JR		NZ, LOC_B4CA
-	LD		A, (IX+0)
+	JR		NZ,LOC_B4CA
+	LD		A,(IX+0)
 	AND		3
 	CP		3
-	JR		Z, LOC_B4E5
-	LD		B, D
-	LD		C, 82H
+	JR		Z,LOC_B4E5
+	LD		B,D
+	LD		C,82H
 	JR		LOC_B4E3
 LOC_B4CA:
-	LD		BC, 0FFF0H
-	ADD		IX, BC
-	LD		A, (IX+0)
-	LD		BC, 10H
-	ADD		IX, BC
+	LD		BC,0FFF0H
+	ADD		IX,BC
+	LD		A,(IX+0)
+	LD		BC,10H
+	ADD		IX,BC
 	AND		0CH
 	CP		0CH
-	JR		Z, LOC_B4E5
-	LD		A, D
+	JR		Z,LOC_B4E5
+	LD		A,D
 	SUB		10H
-	LD		B, A
-	LD		C, 86H
+	LD		B,A
+	LD		C,86H
 LOC_B4E3:
-	LD		E, 1
+	LD		E,1
 LOC_B4E5:
 	POP		HL
 	POP		IY
@@ -7979,138 +7974,138 @@ SUB_B4E9:
 	PUSH	IY
 	PUSH	HL
 	CALL	SUB_AC3F
-	LD		D, A
-	LD		A, B
+	LD		D,A
+	LD		A,B
 	AND		0FH
 	CP		8
-	JR		NZ, LOC_B53B
-	LD		A, (IX+0)
+	JR		NZ,LOC_B53B
+	LD		A,(IX+0)
 	AND		13H
 	CP		13H
-	JR		Z, LOC_B50A
-	LD		E, 1
-	LD		A, (IX+0)
+	JR		Z,LOC_B50A
+	LD		E,1
+	LD		A,(IX+0)
 	OR		13H
-	LD		(IX+0), A
+	LD		(IX+0),A
 LOC_B50A:
 	PUSH	DE
 	PUSH	IX
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
 	PUSH	IX
 	PUSH	DE
-	LD		BC, 0FFF0H
-	ADD		IX, BC
-	BIT		5, (IX+0)
-	JR		NZ, LOC_B52D
+	LD		BC,0FFF0H
+	ADD		IX,BC
+	BIT		5,(IX+0)
+	JR		NZ,LOC_B52D
 	POP		DE
-	LD		E, 1
+	LD		E,1
 	PUSH	DE
-	SET		5, (IX+0)
+	SET		5,(IX+0)
 LOC_B52D:
-	LD		A, D
+	LD		A,D
 	SUB		10H
-	LD		HL, $7259
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
 	JR		LOC_B58D
 LOC_B53B:
 	AND		A
-	JR		NZ, LOC_B560
-	LD		A, (IX+0)
+	JR		NZ,LOC_B560
+	LD		A,(IX+0)
 	AND		0CH
 	CP		0CH
-	JR		Z, LOC_B551
-	LD		E, 1
-	SET		2, (IX+0)
-	SET		3, (IX+0)
+	JR		Z,LOC_B551
+	LD		E,1
+	SET		2,(IX+0)
+	SET		3,(IX+0)
 LOC_B551:
 	PUSH	IX
 	PUSH	DE
-	LD		A, D
-	LD		HL, $7259
+	LD		A,D
+	LD		HL,$7259
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
 	JR		LOC_B58D
 LOC_B560:
 	CP		4
-	JR		NZ, LOC_B57F
-	LD		BC, 10H
-	ADD		IX, BC
-	LD		A, (IX+0)
-	LD		BC, 0FFF0H
-	ADD		IX, BC
+	JR		NZ,LOC_B57F
+	LD		BC,10H
+	ADD		IX,BC
+	LD		A,(IX+0)
+	LD		BC,0FFF0H
+	ADD		IX,BC
 	AND		0CH
 	CP		0CH
-	JR		Z, LOC_B58D
-	LD		A, D
-	ADD		A, 10H
-	LD		B, A
-	LD		C, 87H
+	JR		Z,LOC_B58D
+	LD		A,D
+	ADD		A,10H
+	LD		B,A
+	LD		C,87H
 	JR		LOC_B58B
 LOC_B57F:
-	LD		A, (IX+0)
+	LD		A,(IX+0)
 	AND		3
 	CP		3
-	JR		Z, LOC_B58D
-	LD		B, D
-	LD		C, 83H
+	JR		Z,LOC_B58D
+	LD		B,D
+	LD		C,83H
 LOC_B58B:
-	LD		E, 1
+	LD		E,1
 LOC_B58D:
 	POP		HL
 	POP		IY
 RET
 
 SUB_B591:
-	LD		HL, 60H
-	LD		DE, 40H
+	LD		HL,60H
+	LD		DE,40H
 	DEC		A
 LOC_B598:
 	CP		10H
-	JR		C, LOC_B5A1
-	ADD		HL, DE
+	JR		C,LOC_B5A1
+	ADD		HL,DE
 	SUB		10H
 	JR		LOC_B598
 LOC_B5A1:
-	ADD		A, A
-	LD		E, A
-	ADD		HL, DE
-	EX		DE, HL
+	ADD		A,A
+	LD		E,A
+	ADD		HL,DE
+	EX		DE,HL
 RET
 
 PATTERNS_TO_VRAM:
-	ADD		A, A
-	ADD		A, A
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_B5D4
-	ADD		HL, BC
-	LD		E, (HL)
+	ADD		A,A
+	ADD		A,A
+	LD		C,A
+	LD		B,0
+	LD		HL,BYTE_B5D4
+	ADD		HL,BC
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
+	LD		D,(HL)
 	INC		HL
 	PUSH	HL
-	EX		DE, HL
-	LD		E, (HL)
+	EX		DE,HL
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
-	LD		HL, SCRATCH
+	LD		D,(HL)
+	LD		HL,SCRATCH
 	CALL	LOC_AE88
-	LD		A, 0D8H
-	LD		($72EC), A
-	LD		A, 2
+	LD		A,0D8H
+	LD		($72EC),A
+	LD		A,2
 	POP		HL
-	LD		E, (HL)
+	LD		E,(HL)
 	INC		HL
-	LD		D, (HL)
-	LD		HL, SCRATCH
-	LD		IY, 6
+	LD		D,(HL)
+	LD		HL,SCRATCH
+	LD		IY,6
 	CALL	PUT_VRAM
 RET
 
@@ -8118,43 +8113,43 @@ BYTE_B5D4:
 	DB 125,114,036,000,127,114,068,000,000
 
 SUB_B5DD:	; Ball collision detection
-	LD		A, B
+	LD		A,B
 	SUB		7
 	CP		(IY+1)
-	JR		NC, LOC_B5FF
-	ADD		A, 0EH
+	JR		NC,LOC_B5FF
+	ADD		A,0EH
 	CP		(IY+1)
-	JR		C, LOC_B5FF
-	LD		A, C
+	JR		C,LOC_B5FF
+	LD		A,C
 	SUB		7
 	CP		(IY+2)
-	JR		NC, LOC_B5FF
-	ADD		A, 0EH
+	JR		NC,LOC_B5FF
+	ADD		A,0EH
 	CP		(IY+2)
-	JR		C, LOC_B5FF
-	LD		A, 1
+	JR		C,LOC_B5FF
+	LD		A,1
 	RET
 LOC_B5FF:
 	XOR		A
 RET
 
 SUB_B601:							; add DE to the SCORE of the active player
-	LD		IX, SCORE_P1_RAM
-	LD		C, 80H
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	JR		Z, LOC_B614
-	LD		IX, SCORE_P2_RAM
-	LD		C, 40H
+	LD		IX,SCORE_P1_RAM
+	LD		C,80H
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	JR		Z,LOC_B614
+	LD		IX,SCORE_P2_RAM
+	LD		C,40H
 LOC_B614:
-	LD		L, (IX+0)
-	LD		H, (IX+1)
-	ADD		HL, DE
-	LD		(IX+0), L
-	LD		(IX+1), H
-	LD		A, ($727C)
+	LD		L,(IX+0)
+	LD		H,(IX+1)
+	ADD		HL,DE
+	LD		(IX+0),L
+	LD		(IX+1),H
+	LD		A,($727C)
 	OR		C
-	LD		($727C), A
+	LD		($727C),A
 RET
 
 
@@ -8166,45 +8161,45 @@ PUTSPRITE:
 
 		LD		E,A
 		LD		D,0
-		LD		HL, SPR_OBJ_ATTRB			; frame and color table (pointer)
-		ADD		HL, DE
+		LD		HL,SPR_OBJ_ATTRB			; frame and color table (pointer)
+		ADD		HL,DE
 
 		ADD		A,A
 		LD		E,A
 ;		LD		D,0				; already 0
-		LD		IX, SPRITE_NAME_TABLE
-		ADD		IX, DE
+		LD		IX,SPRITE_NAME_TABLE
+		ADD		IX,DE
 
-		LD		A, (HL)
+		LD		A,(HL)
 		INC		HL
-		LD		H, (HL)
+		LD		H,(HL)
 		LD		L,A				; HL -> frame list
 		
 		POP		AF				; restore frame number in A
 		ADD		A,A
 		LD		E,A
 		LD		D,0
-		ADD		HL, DE				; HL -> current frame
+		ADD		HL,DE				; HL -> current frame
 
-		LD		A, (GAMECONTROL)		; stop sprite update
-		SET		3, A
-		LD		(GAMECONTROL), A
+		LD		A,(GAMECONTROL)		; stop sprite update
+		SET		3,A
+		LD		(GAMECONTROL),A
 		
 		LD		A,B
 		SUB		8
-		LD		(IX+0), A				; Y
+		LD		(IX+0),A				; Y
 		LD		A,C
 		SUB		8
-		LD		(IX+1), A				; X
+		LD		(IX+1),A				; X
 		LD		A,(HL)
-		LD		(IX+2), A				; FRAME
+		LD		(IX+2),A				; FRAME
 		INC		HL
 		LD		A,(HL)
-		LD		(IX+3), A				; COLOR
+		LD		(IX+3),A				; COLOR
 
-		LD		A, (GAMECONTROL)		; enable sprite update
-		RES		3, A
-		LD		(GAMECONTROL), A
+		LD		A,(GAMECONTROL)		; enable sprite update
+		RES		3,A
+		LD		(GAMECONTROL),A
 RET
 		
 
@@ -8235,7 +8230,7 @@ BYTE_B6C3:
 	DB 000,000,184,015	  ; Ball Sprite pattern 184 uses White
 
 BYTE_B6C7:					; MrDo 
-	DB  176,6,132,015	  ; Patterns 176,148 use White
+	DB  176,6,132,015	  ; Patterns 176,132 use White
 
 BYTE_B6CF:			; EXTRA SPRITES!!
 	DB 000,000,096,011,116,011,116,011,100,011,104,011,116,011,116,011,108,011,112,011,116,011	; Series using Light Yellow
@@ -8246,69 +8241,69 @@ BYTE_B6FB:
 
 BYTE_B70B:
 	; 0 null
-	DB   0,  0  
+	DB   0,0  
 	; 1 - 12 Bad guys red
-	DB   0,  8,  4,  8,  8,  8, 12,  8, 16,  8, 20,  8, 24,  8, 28,  8, 32,  8, 36,  8, 40,  8, 44,  8	; Badguy sprites and colors (Red)
+	DB   0, 8, 4, 8, 8, 8,12, 8,16, 8,20, 8,24, 8,28, 8,32, 8,36, 8,40, 8,44, 8	; Badguy sprites and colors (Red)
 	; 13 - 24 Bad guys Transforming
-	DB   0,  7,  4,  7,  8,  7, 12,  7, 16,  7, 20,  7, 24,  7, 28,  7, 32,  7, 36,  7, 40,  7, 44,  7	; Badguy Transforming sprites and colors (cyan)
+	DB   0, 7, 4, 7, 8, 7,12, 7,16, 7,20, 7,24, 7,28, 7,32, 7,36, 7,40, 7,44, 7	; Badguy Transforming sprites and colors (cyan)
 	; 25 - 36 light blue digger
-	DB  48,  5, 52,  5, 56,  5, 60,  5, 64,  5, 68,  5, 72,  5, 76,  5, 80,  5, 84,  5, 88,  5, 92,  5	; Digger sprites and colors (Light Blue)
+	DB  48, 5,52, 5,56, 5,60, 5,64, 5,68, 5,72, 5,76, 5,80, 5,84, 5,88, 5,92, 5	; Digger sprites and colors (Light Blue)
 	; 37 enemy smashed (purple)
-	DB 132, 13	  
-	; 38 - 38 Bad guy pushing right
-	DB 240,  8,244,  8
+	DB 132,13	  
+	; 38 - 39 Bad guy pushing right
+	DB 240, 8,244, 8
 	; 40 - 41 Bad guy pushing left
-	DB 248,  8,252,  8
+	DB 248, 8,252, 8
 
 BYTE_B757:
-	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple sprite colors (Medium Red), ending with White diamond
+	DB 000,000,120,008,124,008,128,008,136,015	  ; Apple sprite colors (Medium Red),ending with White diamond
 
 BYTE_B761:		; Chomper animation
 	DB 000,000,192,005,196,005,200,005,204,005,132,005	  ; Series using Light Blue
-	DB 208,  5,212,  5		;  6, 7 upA
-	DB 216,  5,220,  5		;  8, 9 dwnA
-	DB 224,  5,228,  5		; 10,11 upB
-	DB 232,  5,236,  5		; 12,13 dwnB
+	DB 208, 5,212, 5		;  6,7 upA
+	DB 216, 5,220, 5		;  8,9 dwnA
+	DB 224, 5,228, 5		; 10,11 upB
+	DB 232, 5,236, 5		; 12,13 dwnB
 	
 SUB_B76D:
-	LD		A, 40H
-	LD		($72BD), A
-	LD		HL, $72C4
-	BIT		0, (HL)
-	JR		Z, LOC_B781
-	RES		0, (HL)
-	LD		A, (SCORE_P1_RAM)
+	LD		A,40H
+	LD		($72BD),A
+	LD		HL,$72C4
+	BIT		0,(HL)
+	JR		Z,LOC_B781
+	RES		0,(HL)
+	LD		A,(SCORE_P1_RAM)
 	CALL	FREE_SIGNAL
 LOC_B781:
 	CALL	SUB_CA24
-	LD		A, 1
-	LD		($72C2), A
-	LD		A, ($72BA)
-	RES		6, A
-	RES		5, A
-	LD		($72BA), A
+	LD		A,1
+	LD		($72C2),A
+	LD		A,($72BA)
+	RES		6,A
+	RES		5,A
+	LD		($72BA),A
 	AND		7
-	LD		C, A
-	LD		B, 0
-	LD		HL, BYTE_B7BC
-	ADD		HL, BC
-	LD		B, (HL)
-	LD		HL, $72B8
-	LD		A, (GAMECONTROL)
+	LD		C,A
+	LD		B,0
+	LD		HL,BYTE_B7BC
+	ADD		HL,BC
+	LD		B,(HL)
+	LD		HL,$72B8
+	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_B7AA
+	JR		NZ,LOC_B7AA
 	INC		HL
 LOC_B7AA:
-	LD		C, 0
-	LD		A, (HL)
+	LD		C,0
+	LD		A,(HL)
 	OR		B
-	LD		(HL), A
+	LD		(HL),A
 	CP		1FH
-	JR		NZ, LOC_B7B4
+	JR		NZ,LOC_B7B4
 	INC		C
 LOC_B7B4:
-	LD		A, C
+	LD		A,C
 	PUSH	AF
 	CALL	SUB_B809
 	POP		AF
@@ -8322,23 +8317,23 @@ SUB_B7C4:
 	PUSH	HL
 	PUSH	IX
 								
-	LD		(IX+4), $0C0		
+	LD		(IX+4),$0C0		
 								
 	CALL	SUB_B7EF
-	ADD		A, 5
-	LD		D, 0				; remove bad guy
+	ADD		A,5
+	LD		D,0				; remove bad guy
 	LD		BC,$D908
 	CALL	PUTSPRITE
-	LD		HL, ENEMY_NUM_P1
-	LD		A, (GAMECONTROL)
+	LD		HL,ENEMY_NUM_P1
+	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
-	JR		NZ, LOC_B7E7
+	JR		NZ,LOC_B7E7
 	INC		HL				; point to ENEMY_NUM_P2
 LOC_B7E7:
-	LD		A, (HL)
+	LD		A,(HL)
 	DEC		A
-	LD		(HL), A			; one enemy killed 
+	LD		(HL),A			; one enemy killed 
 	POP		IX				; This seems fine 
 	POP		HL				; maybe the problem is in the enemy generation ?
 	AND		A				; Needed -> ZF is tested from the caller
@@ -8349,90 +8344,90 @@ SUB_B7EF:
 	PUSH	HL
 	PUSH	IX
 	POP		HL
-	LD		DE, -ENEMY_DATA_ARRAY	
+	LD		DE,-ENEMY_DATA_ARRAY	
 	ADD		HL,DE			
-	LD		A, L
-	LD		H, 0
+	LD		A,L
+	LD		H,0
 	AND		A
-	JR		Z, LOC_B805
+	JR		Z,LOC_B805
 LOC_B800:
 	INC		H
 	SUB		6
-	JR		NZ, LOC_B800
+	JR		NZ,LOC_B800
 LOC_B805:
-	LD		A, H
+	LD		A,H
 	POP		HL
 	POP		DE
 RET
 
 SUB_B809:
-	LD		IX, CHOMPDATA
-	LD		B, 3
+	LD		IX,CHOMPDATA
+	LD		B,3
 LOC_B80F:
-	BIT		7, (IX+4)
-	JR		Z, LOC_B82A
-	BIT		7, (IX+0)
-	JR		NZ, LOC_B82A
+	BIT		7,(IX+4)
+	JR		Z,LOC_B82A
+	BIT		7,(IX+0)
+	JR		NZ,LOC_B82A
 	PUSH	BC
 	CALL	SUB_B832
 	PUSH	IX
-	LD		DE, 32H
+	LD		DE,32H
 	CALL	SUB_B601
 	POP		IX
 	POP		BC
 LOC_B82A:
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	DJNZ	LOC_B80F
 RET
 
 SUB_B832:
 	PUSH	IY
 	PUSH	IX
-	LD		(IX+4), 0
-	LD		A, (IX+3)
+	LD		(IX+4),0
+	LD		A,(IX+3)
 	CALL	FREE_SIGNAL
-	LD		BC, CHOMPDATA
-	LD		D, 11H
+	LD		BC,CHOMPDATA
+	LD		D,11H
 	AND		A
 	PUSH	IX
 	POP		HL
-	SBC		HL, BC
-	JR		Z, LOC_B856
-	LD		BC, 6
+	SBC		HL,BC
+	JR		Z,LOC_B856
+	LD		BC,6
 LOC_B850:
 	INC		D
 	AND		A
-	SBC		HL, BC
-	JR		NZ, LOC_B850
+	SBC		HL,BC
+	JR		NZ,LOC_B850
 LOC_B856:
-	LD		BC, $D908
-	LD		A, D			; remove chomper
-	LD		D, 0
+	LD		BC,$D908
+	LD		A,D			; remove chomper
+	LD		D,0
 	CALL	PUTSPRITE
-	LD		IX, CHOMPDATA
-	LD		B, 3
+	LD		IX,CHOMPDATA
+	LD		B,3
 LOC_B865:
-	BIT		7, (IX+4)
-	JR		NZ, LOC_B89E
-	LD		DE, 6
-	ADD		IX, DE
+	BIT		7,(IX+4)
+	JR		NZ,LOC_B89E
+	LD		DE,6
+	ADD		IX,DE
 	DJNZ	LOC_B865
 	JP		LOC_D345
 LOC_B875:
-	RES		4, (HL)
-	LD		A, (GAMEFLAGS)
-	BIT		0, A					; b0 in GAMEFLAGS ??
-	JR		NZ, LOC_B884
-	LD		A, (TIMERCHOMP1)
+	RES		4,(HL)
+	LD		A,(GAMEFLAGS)
+	BIT		0,A					; b0 in GAMEFLAGS ??
+	JR		NZ,LOC_B884
+	LD		A,(TIMERCHOMP1)
 	CALL	FREE_SIGNAL
 LOC_B884:
 	XOR		A
-	LD		(GAMEFLAGS), A
-	LD		A, ($72BA)
-	BIT		6, A
-	JR		Z, LOC_B89B
-	LD		HL, $72C4
+	LD		(GAMEFLAGS),A
+	LD		A,($72BA)
+	BIT		6,A
+	JR		Z,LOC_B89B
+	LD		HL,$72C4
 	JP		LOC_D300
 LOC_B895:
 	CALL	REQUEST_SIGNAL
@@ -8454,57 +8449,57 @@ SUB_B8A3:
 	JP		LOC_D326
 
 LOC_B8AB:
-	LD		IX, CHOMPDATA	; chomper data
-	LD		B, 3		; chomper number
+	LD		IX,CHOMPDATA	; chomper data
+	LD		B,3		; chomper number
 LOC_B8B1:
-	LD		(IX+0), 10H
-	LD		A, ($72BF)
-	LD		(IX+2), A
-	LD		A, ($72BE)
-	LD		(IX+1), A
-	LD		A, ($72C1)
+	LD		(IX+0),10H
+	LD		A,($72BF)
+	LD		(IX+2),A
+	LD		A,($72BE)
+	LD		(IX+1),A
+	LD		A,($72C1)
 	AND		7
 	OR		80H
-	LD		(IX+4), A
-	LD		(IX+5), 0
+	LD		(IX+4),A
+	LD		(IX+5),0
 	PUSH	BC
 	XOR		A
-	LD		HL, 1
+	LD		HL,1
 	CALL	REQUEST_SIGNAL
-	LD		(IX+3), A
+	LD		(IX+3),A
 	POP		BC
-	LD		DE, 6
-	ADD		IX, DE
+	LD		DE,6
+	ADD		IX,DE
 	DJNZ	LOC_B8B1
 	XOR		A
-	LD		HL, 78H
+	LD		HL,78H
 	CALL	REQUEST_SIGNAL
 	JP		LOC_D36D
 LOC_B8EC:
-	LD		A, 80H
-	LD		(GAMEFLAGS), A		; b7 in GAMEFLAGS -> chomper mode
+	LD		A,80H
+	LD		(GAMEFLAGS),A		; b7 in GAMEFLAGS -> chomper mode
 
 ; immediately return the ball when in chomper mode
 ; only if Mr. Do is in cool down mode (Bit 6 is SET)
-	LD 		IY, BALLDATA 			; Load ball state pointer
-	BIT   5, (IY+0)         ; Check if BIT 5 is SET
-	JR    Z, .skip_ball_return ; Skip ball return if not in cooldown phase
+	LD 		IY,BALLDATA 			; Load ball state pointer
+	BIT   5,(IY+0)         ; Check if BIT 5 is SET
+	JR    Z,.skip_ball_return ; Skip ball return if not in cooldown phase
 
-	LD		(IY+0),$20			; Set BIT 5, reset direction flags 
+	LD		(IY+0),$20			; Set BIT 5,reset direction flags 
 	LD		(IY+1),0			; reset ball's X
 	LD		(IY+2),0			; reset ball's Y
 
-	LD      HL, 1
+	LD      HL,1
 	XOR     A
 	CALL    REQUEST_SIGNAL
-	LD      (IY+3), A         ; Store signal result	
+	LD      (IY+3),A         ; Store signal result	
 	RES		5,(IY+0)
 	SET		3,(IY+0)	
 	LD		(IY+5),0	
 	CALL    PLAY_BALL_RETURN_SOUND
 .skip_ball_return:
 	; Ensure balls in flight are returned immediately after they strike an enemy
-	LD      (IY+4), 1  ; Set cooldown to 1
+	LD      (IY+4),1  ; Set cooldown to 1
 	POP		BC
 	POP		DE
 	POP		HL
@@ -8514,16 +8509,16 @@ RET
 
 SUB_B8F7:
 	PUSH	IY
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_B8FE:
-	BIT		7, (HL)
-	JR		NZ, LOC_B8FE
+	BIT		7,(HL)
+	JR		NZ,LOC_B8FE
 
 	LD	A,11
 	CALL SET_LEVEL_COLORS.RESTORE_COLORS
 
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 
 	POP		IY
@@ -8533,20 +8528,20 @@ RET
 RESTORE_PLAYFIELD_COLORS:
 	PUSH	IY					; Calculate correct level colors using original logic
 	CALL	SET_LEVEL_COLORS
-	LD		BC, 1E2H
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	POP		IY
 RET
 
 SET_LEVEL_COLORS:
-	LD		A, (GAMECONTROL)
-	BIT		1, A
-	LD		A, (CURRENT_LEVEL_P1)
-	JR		Z, .PLY1
-	LD		A, (CURRENT_LEVEL_P2)
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(CURRENT_LEVEL_P1)
+	JR		Z,.PLY1
+	LD		A,(CURRENT_LEVEL_P2)
 .PLY1:
 	CP		0BH
-	JR		C, .RESTORE_COLORS
+	JR		C,.RESTORE_COLORS
 	SUB		0AH
 	JR		.PLY1
 .RESTORE_COLORS:
@@ -8653,7 +8648,7 @@ SET_LEVEL_COLORS:
 	POP 	AF					; level number
 	LD		E,A
 	LD 		D,0
-	LD		HL, staticcolors
+	LD		HL,staticcolors
 	ADD		HL,DE
 	LD		A,(HL)
 	LD		DE,8*8
@@ -8876,14 +8871,14 @@ GAME_OVER_GEN:
 P2ND_GEN:
 	DB 069,070,071,255
 
-BLANK_SPACE_GEN:	DB   0,  0,254,030,  0,  0,255
-BADGUY_OUTLINE_GEN:	DB  76, 77,254,030,108,109,255
+BLANK_SPACE_GEN:	DB   0, 0,254,030, 0, 0,255
+BADGUY_OUTLINE_GEN:	DB  76,77,254,030,108,109,255
 
-PIE_SLICE_GEN:		DB  78, 79,254,030,110,111,255 
-WHEAT_SQUARE_GEN: 	DB  80, 81,254,030,112,113,255
-GUMDROP_GEN:		DB  82, 83,254,030,114,115,255
-SUNDAE_GEN:			DB  84, 85,254,030,116,117,255
-BURGER:				DB  86, 87,254,030,118,119,255
+PIE_SLICE_GEN:		DB  78,79,254,030,110,111,255 
+WHEAT_SQUARE_GEN: 	DB  80,81,254,030,112,113,255
+GUMDROP_GEN:		DB  82,83,254,030,114,115,255
+SUNDAE_GEN:			DB  84,85,254,030,116,117,255
+BURGER:				DB  86,87,254,030,118,119,255
 
 SANDWICH:			DB 150,151,254,030,182,183,255
 MILK:				DB 152,153,254,030,184,185,255
@@ -9314,166 +9309,166 @@ SUB_C952:
 	JP		SOUND_MAN
 
 INITIALIZE_THE_SOUND:
-	LD		HL, SOUND_TABLE
-	LD		B, 9
+	LD		HL,SOUND_TABLE
+	LD		B,9
 	JP		SOUND_INIT
 
 PLAY_OPENING_TUNE:
-	LD		B, OPENING_TUNE_SND_0A	  ; Play first part of opening tune
+	LD		B,OPENING_TUNE_SND_0A	  ; Play first part of opening tune
 	CALL	PLAY_IT
-	LD		B, OPENING_TUNE_SND_0B	  ; Play second part of opening tune
+	LD		B,OPENING_TUNE_SND_0B	  ; Play second part of opening tune
 	CALL	PLAY_IT
-	LD		A, (SOUND_BANK_01_RAM)
+	LD		A,(SOUND_BANK_01_RAM)
 	AND		0C0H
 	OR		2
-	LD		(SOUND_BANK_01_RAM), A
-	LD		A, (SOUND_BANK_02_RAM)
+	LD		(SOUND_BANK_01_RAM),A
+	LD		A,(SOUND_BANK_02_RAM)
 	AND		0C0H
 	OR		4
-	LD		(SOUND_BANK_02_RAM), A
+	LD		(SOUND_BANK_02_RAM),A
 	RET
 PLAY_BACKGROUND_TUNE:
-	LD		B, BACKGROUND_TUNE_0A ; Play first part of background tune
+	LD		B,BACKGROUND_TUNE_0A ; Play first part of background tune
 	CALL	PLAY_IT
-	LD		B, BACKGROUND_TUNE_0B ; Play second part of background tune
+	LD		B,BACKGROUND_TUNE_0B ; Play second part of background tune
 	CALL	PLAY_IT
 	RET
 
 SUB_C97F:
-	LD		A, 0FFH
-	LD		(SOUND_BANK_03_RAM), A
+	LD		A,0FFH
+	LD		(SOUND_BANK_03_RAM),A
 RET
 
 PLAY_GRAB_CHERRIES_SOUND:
-	LD		B, GRAB_CHERRIES_SND
+	LD		B,GRAB_CHERRIES_SND
 	JP		PLAY_IT
 
 SUB_C98A:
-	LD		A, 0FFH
-	LD		(SOUND_BANK_04_RAM), A
-	LD		(SOUND_BANK_05_RAM), A
+	LD		A,0FFH
+	LD		(SOUND_BANK_04_RAM),A
+	LD		(SOUND_BANK_05_RAM),A
 RET
 
 PLAY_BOUNCING_BALL_SOUND:
-	LD		B, BOUNCING_BALL_SND_0A
+	LD		B,BOUNCING_BALL_SND_0A
 	CALL	PLAY_IT
-	LD		A, (SOUND_BANK_05_RAM)
+	LD		A,(SOUND_BANK_05_RAM)
 	CP		0FFH
 	RET		NZ
-	LD		B, BOUNCING_BALL_SND_0B
+	LD		B,BOUNCING_BALL_SND_0B
 	JP		PLAY_IT
 
 PLAY_BALL_STUCK_SOUND_01:
-	LD		A, (SOUND_BANK_05_RAM)
+	LD		A,(SOUND_BANK_05_RAM)
 	AND		3FH
 	CP		7
-	JR		NZ, PLAY_BALL_STUCK_SOUND_02
-	LD		A, 0FFH
-	LD		(SOUND_BANK_05_RAM), A
+	JR		NZ,PLAY_BALL_STUCK_SOUND_02
+	LD		A,0FFH
+	LD		(SOUND_BANK_05_RAM),A
 PLAY_BALL_STUCK_SOUND_02:
-	LD		B, BALL_STUCK_SND
+	LD		B,BALL_STUCK_SND
 	JP		PLAY_IT
 
 PLAY_BALL_RETURN_SOUND:
-	LD		B, BALL_RETURN_SND
+	LD		B,BALL_RETURN_SND
 	JP		PLAY_IT
 
 PLAY_APPLE_FALLING_SOUND:
-	LD		B, APPLE_FALLING_SND
+	LD		B,APPLE_FALLING_SND
 	JP		PLAY_IT
 
 PLAY_APPLE_BREAKING_SOUND:
-	LD		B, APPLE_BREAK_SND_0A
+	LD		B,APPLE_BREAK_SND_0A
 	CALL	PLAY_IT
-	LD		A, (SOUND_BANK_05_RAM)
+	LD		A,(SOUND_BANK_05_RAM)
 	AND		3FH
 	CP		7
 	RET		Z
-	LD		B, APPLE_BREAK_SND_0B
+	LD		B,APPLE_BREAK_SND_0B
 	JP		PLAY_IT
 
 PLAY_NO_EXTRA_NO_CHOMPERS:
-	LD		B, NO_EXTRA_TUNE_0A
+	LD		B,NO_EXTRA_TUNE_0A
 	CALL	PLAY_IT
-	LD		B, NO_EXTRA_TUNE_0B
+	LD		B,NO_EXTRA_TUNE_0B
 	CALL	PLAY_IT
-	LD		B, NO_EXTRA_TUNE_0C
+	LD		B,NO_EXTRA_TUNE_0C
 	JP		LOC_D3DE
 
 PLAY_DESSERT_COLLECT_SOUND:
-	LD    B, NO_EXTRA_TUNE_0C
+	LD    B,NO_EXTRA_TUNE_0C
 	CALL    PLAY_IT
-	LD    B, NO_EXTRA_TUNE_0D
+	LD    B,NO_EXTRA_TUNE_0D
 	CALL    PLAY_IT
-	LD    B, NO_EXTRA_TUNE_0E
+	LD    B,NO_EXTRA_TUNE_0E
 	JP    PLAY_IT
 
 PLAY_DIAMOND_SOUND:
 	CALL	INITIALIZE_THE_SOUND
-	LD		B, DIAMOND_SND
+	LD		B,DIAMOND_SND
 	JP		PLAY_IT
 
 PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS:
-	LD		B, EXTRA_WALKING_TUNE_0A
+	LD		B,EXTRA_WALKING_TUNE_0A
 	CALL	PLAY_IT
-	LD		B, EXTRA_WALKING_TUNE_0B
+	LD		B,EXTRA_WALKING_TUNE_0B
 	JP		PLAY_IT
 
 PLAY_GAME_OVER_TUNE:
 	CALL	INITIALIZE_THE_SOUND
-	LD		B, GAME_OVER_TUNE_0A
+	LD		B,GAME_OVER_TUNE_0A
 	CALL	PLAY_IT
-	LD		B, GAME_OVER_TUNE_0B
+	LD		B,GAME_OVER_TUNE_0B
 	JP		PLAY_IT
 
 PLAY_WIN_EXTRA_DO_TUNE:
-	LD		B, WIN_EXTRA_DO_TUNE_0A
+	LD		B,WIN_EXTRA_DO_TUNE_0A
 	CALL	PLAY_IT
-	LD		B, WIN_EXTRA_DO_TUNE_0B
+	LD		B,WIN_EXTRA_DO_TUNE_0B
 	JP		PLAY_IT
 
 PLAY_VERY_GOOD_TUNE:
-	LD		B, VERY_GOOD_TUNE_0A
+	LD		B,VERY_GOOD_TUNE_0A
 	CALL	PLAY_IT
-	LD		B, VERY_GOOD_TUNE_0B
+	LD		B,VERY_GOOD_TUNE_0B
 	CALL	PLAY_IT
-	LD    B, VERY_GOOD_TUNE_0C
+	LD    B,VERY_GOOD_TUNE_0C
 	JP    PLAY_IT
 
 PLAY_COIN_INSERT_SFX:
-  LD    B, SFX_COIN_INSERT_SND
+  LD    B,SFX_COIN_INSERT_SND
   JP    PLAY_IT
 
 PLAY_END_OF_ROUND_TUNE:
 	CALL	INITIALIZE_THE_SOUND
-	LD		B, END_OF_ROUND_TUNE_0A
+	LD		B,END_OF_ROUND_TUNE_0A
 	CALL	PLAY_IT
-	LD		B, END_OF_ROUND_TUNE_0B
+	LD		B,END_OF_ROUND_TUNE_0B
 	JP		PLAY_IT
 
 PLAY_LOSE_LIFE_SOUND:
 	CALL	INITIALIZE_THE_SOUND
-	LD		B, LOSE_LIFE_TUNE_0A
+	LD		B,LOSE_LIFE_TUNE_0A
 	CALL	PLAY_IT
-	LD		B, LOSE_LIFE_TUNE_0B
+	LD		B,LOSE_LIFE_TUNE_0B
 	JP		PLAY_IT
 
 SUB_CA24:
-	LD		A, 0FFH
-	LD		(SOUND_BANK_07_RAM), A
-	LD		(SOUND_BANK_08_RAM), A
+	LD		A,0FFH
+	LD		(SOUND_BANK_07_RAM),A
+	LD		(SOUND_BANK_08_RAM),A
 RET
 
 SUB_CA2D:
-	LD		A, 0FFH
-	LD		(SOUND_BANK_08_RAM), A
-	LD		(SOUND_BANK_09_RAM), A
+	LD		A,0FFH
+	LD		(SOUND_BANK_08_RAM),A
+	LD		(SOUND_BANK_09_RAM),A
 RET
 
 PLAY_BLUE_CHOMPERS_SOUND:
-	LD		B, BLUE_CHOMPER_SND_0A
+	LD		B,BLUE_CHOMPER_SND_0A
 	CALL	PLAY_IT
-	LD		B, BLUE_CHOMPER_SND_0B
+	LD		B,BLUE_CHOMPER_SND_0B
 	JP		LOC_D3EA
 
 SOUND_TABLE:
@@ -9738,23 +9733,23 @@ BLUE_CHOMPER_SOUND_0B:
 	DB 002,018,004,020,017,002,080,012,083,019,024
 
 LOC_D300:
-	SET		0, (HL)
-	LD		HL, 5A0H
+	SET		0,(HL)
+	LD		HL,5A0H
 	XOR		A
 	JP		LOC_B895
 LOC_D309:
-	LD		HL, $7272
-	BIT		5, (HL)
-	JR		Z, LOC_D319
-	RES		5, (HL)
+	LD		HL,$7272
+	BIT		5,(HL)
+	JR		Z,LOC_D319
+	RES		5,(HL)
 	PUSH	IY
 	CALL	PLAY_NO_EXTRA_NO_CHOMPERS
 	POP		IY
 LOC_D319:
 	JP		LOC_A596
 LOC_D31C:
-	LD		A, ($7272)
-	BIT		5, A
+	LD		A,($7272)
+	BIT		5,A
 	RET		NZ
 	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 RET
@@ -9762,17 +9757,17 @@ LOC_D326:
 	CALL	SUB_B8F7
 	PUSH	IY
 	CALL	SUB_CA24
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_D333:
-	BIT		7, (HL)
-	JR		NZ, LOC_D333
-	LD		BC, 1E2H
+	BIT		7,(HL)
+	JR		NZ,LOC_D333
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	CALL  PLAY_DESSERT_COLLECT_SOUND
 
 	; Wait for dessert collect sound to finish
-	LD      HL, 1EH          ; Same duration as in COMPLETED_LEVEL
+	LD      HL,1EH          ; Same duration as in COMPLETED_LEVEL
 	XOR     A
 	CALL    REQUEST_SIGNAL
 	PUSH    AF
@@ -9781,7 +9776,7 @@ LOC_D333:
 	PUSH    AF
 	CALL    TEST_SIGNAL
 	AND     A
-	JR      Z, .wait
+	JR      Z,.wait
 	POP     AF
 	
 	CALL    PLAY_BLUE_CHOMPERS_SOUND
@@ -9789,17 +9784,17 @@ LOC_D333:
 	JP		LOC_B8AB
 LOC_D345:
 	CALL	SUB_CA2D
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 LOC_D34D:
-	BIT		7, (HL)
-	JR		NZ, LOC_D34D
-	LD		BC, 1E2H
+	BIT		7,(HL)
+	JR		NZ,LOC_D34D
+	LD		BC,1E2H
 	CALL	WRITE_REGISTER
-	LD		HL, $7272
+	LD		HL,$7272
 	JP		LOC_B875
 LOC_D35D:
-	LD		(GAMETIMER), A
+	LD		(GAMETIMER),A
 	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 	JP		LOC_B89B
 LOC_D366:
@@ -9807,74 +9802,74 @@ LOC_D366:
 	XOR		A
 	JP		LOC_9481
 LOC_D36D:
-	LD		(TIMERCHOMP1), A			; save signal timer for chomper mode
-	LD		HL, $72C4
-	BIT		0, (HL)
-	JP		Z, LOC_B8EC
-	RES		0, (HL)
-	LD		A, (GAMETIMER)
+	LD		(TIMERCHOMP1),A			; save signal timer for chomper mode
+	LD		HL,$72C4
+	BIT		0,(HL)
+	JP		Z,LOC_B8EC
+	RES		0,(HL)
+	LD		A,(GAMETIMER)
 	CALL	TEST_SIGNAL
 	JP		LOC_B8EC
 SUB_A83E:	
 LOC_D383:
-	LD		A, (TIMERCHOMP1)
+	LD		A,(TIMERCHOMP1)
 	CALL	TEST_SIGNAL
 	AND		A
-	JP		Z, LOC_D3A6
-	LD		A, (GAMEFLAGS)
+	JP		Z,LOC_D3A6
+	LD		A,(GAMEFLAGS)
 	XOR		1					; b0 in GAMEFLAGS ??
-	LD		(GAMEFLAGS), A
-	LD		HL, 78H
-	BIT		0, A
-	JR		Z, LOC_D39F
-	LD		HL, 3CH
+	LD		(GAMEFLAGS),A
+	LD		HL,78H
+	BIT		0,A
+	JR		Z,LOC_D39F
+	LD		HL,3CH
 LOC_D39F:
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		(TIMERCHOMP1), A
+	LD		(TIMERCHOMP1),A
 LOC_D3A6:
-	LD		A, (GAMEFLAGS)
-	BIT		0, A				; b0 in GAMEFLAGS ??
-	JP		Z, LOC_A853
+	LD		A,(GAMEFLAGS)
+	BIT		0,A				; b0 in GAMEFLAGS ??
+	JP		Z,LOC_A853
 	JP		LOC_A858
 
 LOC_D3D5:
 	AND		7
-	LD		C, 0C0H
+	LD		C,0C0H
 	CP		3
 	JP		LOC_A8AF
 LOC_D3DE:
 	CALL	PLAY_IT
-	LD		A, 0FFH
-	LD		(SOUND_BANK_01_RAM), A
-	LD		(SOUND_BANK_02_RAM), A
+	LD		A,0FFH
+	LD		(SOUND_BANK_01_RAM),A
+	LD		(SOUND_BANK_02_RAM),A
 RET
 LOC_D3EA:
 	CALL	PLAY_IT
-	LD		A, 0FFH
-	LD		(SOUND_BANK_01_RAM), A
-	LD		(SOUND_BANK_02_RAM), A
-	LD		(SOUND_BANK_07_RAM), A
+	LD		A,0FFH
+	LD		(SOUND_BANK_01_RAM),A
+	LD		(SOUND_BANK_02_RAM),A
+	LD		(SOUND_BANK_07_RAM),A
 RET
 
 LOC_D3F9:
-	LD		A, (SOUND_BANK_01_RAM)
+	LD		A,(SOUND_BANK_01_RAM)
 	AND		0FH
 	CP		2
-	JR		Z, LOC_D405
+	JR		Z,LOC_D405
 	CALL	RESTORE_PLAYFIELD_COLORS
 	CALL	PLAY_BACKGROUND_TUNE
 LOC_D405:
 	CALL	SUB_999F
 	JP		LOC_98A5
 LOC_D40B:
-	LD		A, (DIAMOND_RAM)
-	BIT		7, A
-	JP		Z, LOC_D3F9
-	LD		A, (SOUND_BANK_09_RAM)
+	LD		A,(DIAMOND_RAM)
+	BIT		7,A
+	JP		Z,LOC_D3F9
+	LD		A,(SOUND_BANK_09_RAM)
 	AND		0FFH
 	CP		0FFH
-	JP		NZ, LOC_D405
+	JP		NZ,LOC_D405
 	CALL	PLAY_DIAMOND_SOUND
 	JP		LOC_D405
 
@@ -10539,7 +10534,7 @@ nmi_handler:
 	PUSH AF
 	PUSH HL
 	LD HL,mode
-	BIT 0,(HL)				; B0==0 -> ISR Enabled, B0==1 -> ISR disabled
+	BIT 0,(HL)				; B0==0 -> ISR Enabled,B0==1 -> ISR disabled
 	JR z,.1
 					; here ISR is disabled
 							
@@ -10552,7 +10547,7 @@ nmi_handler:
 .0:	RES 1,(HL)				; ISR served
 .1:							; ISR enabled
 	BIT 7,(HL)
-	JR z,.2					; B7==0 -> game Mode, 	B7==1 -> intermission mode
+	JR z,.2					; B7==0 -> game Mode,	B7==1 -> intermission mode
 
 					; Intermission Mode
 	POP 	HL				
@@ -10563,7 +10558,7 @@ nmi_handler:
 	PUSH	BC
 	PUSH	DE
 	PUSH	HL
-	EX		AF, AF'
+	EX		AF,AF'
 	EXX
 	PUSH	AF
 	PUSH	BC
@@ -10581,7 +10576,7 @@ nmi_handler:
 	POP		BC
 	POP		AF
 	EXX
-	EX		AF, AF'
+	EX		AF,AF'
 	POP		HL
 	POP		DE
 	POP		BC
@@ -10637,51 +10632,51 @@ GET_GAME_OPTIONS:
 	CALL	ShowPlyrNum			; Show 1 or 2 Players
 .PlyrNumWait:
 	CALL	POLLER
-	LD		A, (KEYBOARD_P1)
+	LD		A,(KEYBOARD_P1)
 	DEC		A					; 0-1	valid range
 	CP		2
-	JR		C, .SetPlyrNum
-	LD		A, (KEYBOARD_P2)
+	JR		C,.SetPlyrNum
+	LD		A,(KEYBOARD_P2)
 	DEC		A
 	CP		2
-	JR		NC, .PlyrNumWait
+	JR		NC,.PlyrNumWait
 .SetPlyrNum:
 	PUSH AF
 	CALL PLAY_COIN_INSERT_SFX
 	POP  AF
-	LD		HL, GAMECONTROL
-	RES		0, (HL)
+	LD		HL,GAMECONTROL
+	RES		0,(HL)
 	DEC		A					; If A==1 -> SET 2 players
-	JR		NZ, .OnePlyr
-	SET		0, (HL)
+	JR		NZ,.OnePlyr
+	SET		0,(HL)
 .OnePlyr:
 
 .WaitKeyRelease:
 	CALL	POLLER
-	LD		A, (KEYBOARD_P1)
+	LD		A,(KEYBOARD_P1)
 	CP		15
 	JR		NZ,.WaitKeyRelease
-	LD		A, (KEYBOARD_P2)
+	LD		A,(KEYBOARD_P2)
 	CP		15
 	JR		NZ,.WaitKeyRelease
 
 	CALL	ShowSkill			; Show Select skill 1-4
 .SkillWait:
 	CALL	POLLER
-	LD		A, (KEYBOARD_P1)
+	LD		A,(KEYBOARD_P1)
 	DEC		A					; 0-3 valid range
 	CP		4
-	JR		C, .SetSkill
-	LD		A, (KEYBOARD_P2)
+	JR		C,.SetSkill
+	LD		A,(KEYBOARD_P2)
 	DEC		A
 	CP		4
-	JR		NC, .SkillWait
+	JR		NC,.SkillWait
 .SetSkill:
 	PUSH AF
 	CALL PLAY_COIN_INSERT_SFX
 	POP  AF
 	INC		A					; The game is expecting 1-4
-	LD		(SKILLLEVEL), A
+	LD		(SKILLLEVEL),A
 	RET
 
 StrINSERTCOIN: 	db "INSERT COIN"," " or 128
@@ -10759,7 +10754,7 @@ cvb_ANIMATEDLOGO:
 
 	CALL 	MYDISSCR
 	
-	LD		HL, SAT				; remove sprites in the new position of the SAT
+	LD		HL,SAT				; remove sprites in the new position of the SAT
 	LD		A,208
 	CALL MyNMI_off
 	CALL MYWRTVRM
@@ -10781,8 +10776,8 @@ NXTFRM:
 	CALL MyNMI_off
 	CALL MYLDIRVM
 	
-	LD		HL, $2000+6*32/8
-	LD		DE, 8
+	LD		HL,$2000+6*32/8
+	LD		DE,8
 	LD		A,$F1
 	CALL	FILL_VRAM
 	
@@ -10815,8 +10810,8 @@ cvb_EXTRASCREEN:
 	LD HL,cvb_IMAGE_SPRITES
 	CALL unpack						; 22 sprites
 
-	LD		HL, $1800
-	LD		DE, 3*256
+	LD		HL,$1800
+	LD		DE,3*256
 	LD		A,1						; black tile
 	CALL MyNMI_off	
 	CALL	FILL_VRAM
@@ -10886,15 +10881,15 @@ WONDERFUL:
 	CALL MYDISSCR
 
   ; Fill top half with blank tiles
-	LD		HL, $1800
-	LD		DE, 384
-	XOR   A
+	LD		HL,$1800
+	LD		DE,384
+	XOR   	A
 	CALL	FILL_VRAM
 
 	    ; Fill bottom half with brick pattern
-    LD      HL, $1800 + 384  ; Start halfway down screen
-    LD      DE, 384          ; Fill remaining 12 rows
-    LD      A, 105           ; brick pattern for level 10,20,30 etc
+    LD      HL,$1800 + 384  ; Start halfway down screen
+    LD      DE,384          ; Fill remaining 12 rows
+    LD      A,105           ; brick pattern for level 10,20,30 etc
     CALL    FILL_VRAM
 
     CALL    PRINT_WONDERFUL_STATS
@@ -10906,7 +10901,7 @@ WONDERFUL:
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_VERY_GOOD_TUNE
 
-	LD		HL, 200H				; music duration
+	LD		HL,200H				; music duration
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF						; wait for music to finish
@@ -10914,42 +10909,42 @@ WONDERFUL:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, .1
+	JR		Z,.1
 	POP		AF
 
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
 
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
-.3:	BIT		7, (HL)
-	JR		NZ, .3
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
+.3:	BIT		7,(HL)
+	JR		NZ,.3
 
 	CALL	RESET_LEVEL_TIMERS
 
-	LD		BC, 1C2H		 		; Original game state register (No NMI)
+	LD		BC,1C2H		 		; Original game state register (No NMI)
 	CALL	WRITE_REGISTER
 RET
 
 PRINT_WONDERFUL_STATS:
     ; Check which player is active
-    ld a, (GAMECONTROL)
-    bit 1, a                   
-    jr nz, .use_p2
+    ld a,(GAMECONTROL)
+    bit 1,a                   
+    jr nz,.use_p2
 
     ; Player 1 is active
-    ld a, (CURRENT_LEVEL_P1)
-    ld bc, (SCORE_P1_RAM)      ; Use BC instead of HL for initial load
+    ld a,(CURRENT_LEVEL_P1)
+    ld bc,(SCORE_P1_RAM)      ; Use BC instead of HL for initial load
     jr .continue
 .use_p2:
-    ld a, (CURRENT_LEVEL_P2)
-    ld bc, (SCORE_P2_RAM)
+    ld a,(CURRENT_LEVEL_P2)
+    ld bc,(SCORE_P2_RAM)
 .continue:
     ; Save score and level
     push bc                     ; Save score
     
     ; Print and calculate scores for only the current level
-    ld de, $1800 + 6 + 32*2   
+    ld de,$1800 + 6 + 32*2   
     push af                     
     call PRINT_SINGLE_SCORE
     pop af
@@ -10960,39 +10955,39 @@ PRINT_WONDERFUL_STATS:
     
     ; Convert score for display (needs HL)
 
-    ld h, b                     ; Move score to HL for conversion
-    ld l, c
+    ld h,b                     ; Move score to HL for conversion
+    ld l,c
     call CONVERT_TO_DECIMAL
 
     ; Print total score
-    ld de, $1800 + 6 + 32*4
-    ld hl, TOTAL_TEXT
+    ld de,$1800 + 6 + 32*4
+    ld hl,TOTAL_TEXT
     call MYPRINT
-    ld de, $1800 + 16 + 32*4
-    ld hl, TEXT_BUFFER
+    ld de,$1800 + 16 + 32*4
+    ld hl,TEXT_BUFFER
     call MYPRINT
 	
 ;  ; Print "AVERAGE" text
-;     ld de, $1800 + 6 + 32*6
+;     ld de,$1800 + 6 + 32*6
 ;     push de
-;     ld hl, AVERAGE_TEXT
+;     ld hl,AVERAGE_TEXT
 ;     call MYPRINT
 ;     pop de
 
 ;     ; Calculate average based on level
 ;     pop bc                  ; Get score back
 ;     push bc                 ; Keep a copy
-;     pop af                  ; Get level back (10, 20, 30, etc.)
+;     pop af                  ; Get level back (10,20,30,etc.)
 ;     push af                 ; Keep a copy
     
-;     ld h, b                 ; Move score to HL
-;     ld l, c
+;     ld h,b                 ; Move score to HL
+;     ld l,c
 
 ;     ; First divide level by 10 to get divisor
 ;     srl a                   ; Divide level by 10
 ;     srl a
-;     srl a                   ; A now has 1 for level 10, 2 for 20, etc.
-;     ld b, a                 ; B = divisor (1, 2, 3, etc.)
+;     srl a                   ; A now has 1 for level 10,2 for 20,etc.
+;     ld b,a                 ; B = divisor (1,2,3,etc.)
     
 ;     ; Shift HL right by 3 to remove one decimal digit
 ;     srl h
@@ -11003,49 +10998,49 @@ PRINT_WONDERFUL_STATS:
 ;     rr l
 
 ;     ; Now do the division
-;     ld de, 0               ; Initialize quotient
+;     ld de,0               ; Initialize quotient
 ; .divide_loop:
-;     ld a, l               ; Compare HL with B
+;     ld a,l               ; Compare HL with B
 ;     cp b
-;     ld a, h
-;     sbc a, 0
-;     jr c, .done           ; If HL < B, division done
+;     ld a,h
+;     sbc a,0
+;     jr c,.done           ; If HL < B,division done
 
 ;     ; Subtract B from HL
-;     ld a, l
+;     ld a,l
 ;     sub b
-;     ld l, a
-;     ld a, h
-;     sbc a, 0
-;     ld h, a
+;     ld l,a
+;     ld a,h
+;     sbc a,0
+;     ld h,a
 
 ;     inc de                ; DE = DE + 1
 ;     jr .divide_loop
 
 ; .done:
 ;     ; DE now holds the quotient
-;     ex de, hl             ; Put result in HL for CONVERT_TO_DECIMAL
+;     ex de,hl             ; Put result in HL for CONVERT_TO_DECIMAL
 
 ;     ; Convert to decimal and display
 ;     call CONVERT_TO_DECIMAL
 
 ;     ; Print average value
-;     ex de, hl
-;     ld bc, 10            ; Move right 10 positions
-;     add hl, bc
-;     ex de, hl
-;     ld hl, TEXT_BUFFER
+;     ex de,hl
+;     ld bc,10            ; Move right 10 positions
+;     add hl,bc
+;     ex de,hl
+;     ld hl,TEXT_BUFFER
 ;     call MYPRINT
 
     ; Print WONDERFUL text
-    ld de, PNT + 7 + 32*(16)
-    ld hl, WONDERFULTXT0
+    ld de,PNT + 7 + 32*(16)
+    ld hl,WONDERFULTXT0
     call MYPRINT
-    ld de, PNT + 7 + 32*(17)
-    ld hl, WONDERFULTXT1
+    ld de,PNT + 7 + 32*(17)
+    ld hl,WONDERFULTXT1
     call MYPRINT
-    ld de, PNT + 7 + 32*(18)
-    ld hl, WONDERFULTXT0
+    ld de,PNT + 7 + 32*(18)
+    ld hl,WONDERFULTXT0
     call MYPRINT
 	  
 ret
@@ -11060,7 +11055,7 @@ INTERMISSION:
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_VERY_GOOD_TUNE
 
-	LD		HL, 200H				; music duration
+	LD		HL,200H				; music duration
 	XOR		A
 	CALL	REQUEST_SIGNAL
 
@@ -11074,7 +11069,7 @@ INTERMISSION:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, .1
+	JR		Z,.1
 	POP		AF
 
 	CALL 	MYDISSCR
@@ -11085,43 +11080,43 @@ INTERMISSION:
 	CALL 	CURRTIMERINIT
 	CALL	RESET_LEVEL_TIMERS
 
-	LD		BC, 1C2H		 		; restore original game state register (No NMI)
+	LD		BC,1C2H		 		; restore original game state register (No NMI)
 	CALL	WRITE_REGISTER
 
 	CALL	REMOVESPRITES
 
-	LD		HL, 0000H			; do not delete player data in VRAM
-	LD		DE, 3000H		
+	LD		HL,0000H			; do not delete player data in VRAM
+	LD		DE,3000H		
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS	
 	
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
-.3:	BIT		7, (HL)
-	JR		NZ, .3
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
+.3:	BIT		7,(HL)
+	JR		NZ,.3
 
 RET 
 
 	
 RESET_LEVEL_TIMERS:
     ; Check which player's timers to reset
-    LD      A, (GAMECONTROL)
-    BIT     1, A               ; Test if Player 2 is active
-    JR      NZ, Reset_p2
+    LD      A,(GAMECONTROL)
+    BIT     1,A               ; Test if Player 2 is active
+    JR      NZ,Reset_p2
 
 Reset_p1:
-    LD      HL, P1_LEVEL1_SEC
+    LD      HL,P1_LEVEL1_SEC
 	JR		Reset_p2.0
 Reset_p2:
-    LD      HL, P2_LEVEL1_SEC
+    LD      HL,P2_LEVEL1_SEC
 .0:
     XOR     A                  ; A = 0
-    LD      B, 6              ; 6 bytes to clear (3 levels * 2 bytes each)
+    LD      B,6              ; 6 bytes to clear (3 levels * 2 bytes each)
 .1:
-    LD      (HL), A           ; Clear byte
+    LD      (HL),A           ; Clear byte
     INC     HL                ; Move to next byte
     DJNZ    .1
 RET
@@ -11130,35 +11125,35 @@ CURRTIMERINIT:
 	; set the pointer to the current timer
 	
     ; Check which player is active
-    LD      A, (GAMECONTROL)
-    BIT     1, A           
-    JR      Z, .setup_p1_timer
+    LD      A,(GAMECONTROL)
+    BIT     1,A           
+    JR      Z,.setup_p1_timer
     
 .setup_p2_timer:
-    LD      A, (CURRENT_LEVEL_P2)
-    LD      HL, P2_LEVEL1_SEC   
+    LD      A,(CURRENT_LEVEL_P2)
+    LD      HL,P2_LEVEL1_SEC   
     JR      .check_level_type
 
 .setup_p1_timer:
-    LD      A, (CURRENT_LEVEL_P1)
-    LD      HL, P1_LEVEL1_SEC   
+    LD      A,(CURRENT_LEVEL_P1)
+    LD      HL,P1_LEVEL1_SEC   
 
 .check_level_type:
     ; First check if it's a multiple of 10
-    LD      B, 10
+    LD      B,10
     CALL    MOD_B           ; Get level mod 10
     AND     A               ; Check if remainder is 0
-    JR      Z, .use_first_slot   ; If multiple of 10, use first slot
+    JR      Z,.use_first_slot   ; If multiple of 10,use first slot
     
-    ; Not a multiple of 10, calculate based on remainder
+    ; Not a multiple of 10,calculate based on remainder
     DEC     A               ; Convert to 0-based for the remainder (0-8)
-    LD      B, 3
+    LD      B,3
     CALL    MOD_B           ; Get mod 3 (0,1,2)
 							; NB: level 10,20 ecc will use the same slot of level 1,4,7
-    ADD     A, A            ; Multiply by 2 for offset
+    ADD     A,A            ; Multiply by 2 for offset
     ; Add offset to HL
-    LD      B, 0
-    LD      C, A
+    LD      B,0
+    LD      C,A
 	ADD		HL,BC
 
 .use_first_slot:
@@ -11213,27 +11208,27 @@ RET
 ;----------------------------------------------------------------------
 PRINT_LEVEL_STATS:
     ; Print "VERY GOOD !!"
-    ld de, $1800 + 12 + 32*12
-    ld hl, VERYGOOD
+    ld de,$1800 + 12 + 32*12
+    ld hl,VERYGOOD
     call MYPRINT
 
     ; Check which player is active
-    ld a, (GAMECONTROL)
-    bit 1, a                   ; Test if Player 2 is active
-    jr nz, .use_p2
+    ld a,(GAMECONTROL)
+    bit 1,a                   ; Test if Player 2 is active
+    jr nz,.use_p2
     
     ; Player 1 is active
-    ld a, (CURRENT_LEVEL_P1)
+    ld a,(CURRENT_LEVEL_P1)
     jr .continue
 .use_p2:
-    ld a, (CURRENT_LEVEL_P2)
+    ld a,(CURRENT_LEVEL_P2)
 .continue:
     ; A now contains the correct current level
 
     ; Print and calculate scores for all three levels
     ; First level (Current - 2)
-    ld de, $1800 + 3 + 32*2   	; First line position
-    push af                     ; Save current level and Player (ZF==0 for P1, ZF==1 for P2)
+    ld de,$1800 + 3 + 32*2   	; First line position
+    push af                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)
     sub 2                      	; Get first level number
     call PRINT_SINGLE_SCORE
     pop af
@@ -11247,7 +11242,7 @@ PRINT_LEVEL_STATS:
     pop af
 	
     ; Second level (Current - 1)
-    ld de, $1800 + 3 + 32*5   ; Next line down
+    ld de,$1800 + 3 + 32*5   ; Next line down
     push af
     dec a                      ; Get second level number
     call PRINT_SINGLE_SCORE
@@ -11262,7 +11257,7 @@ PRINT_LEVEL_STATS:
     call PRINT_ICON
     pop af
     ; Third level (Current)
-    ld de, $1800 + 3 + 32*8   ; Next line down
+    ld de,$1800 + 3 + 32*8   ; Next line down
     push af
     call PRINT_SINGLE_SCORE
     pop af
@@ -11278,76 +11273,76 @@ PRINT_LEVEL_STATS:
 ;----------------------------------------------------------------------
 ; GET_SLOT_OFFSET: Calculates the correct slot offset for level data
 ; Input: A = level number
-; Output: A = offset (0, 2, or 4), DE = offset as 16-bit value
-; Preserves: BC, HL
+; Output: A = offset (0,2,or 4),DE = offset as 16-bit value
+; Preserves: BC,HL
 ;----------------------------------------------------------------------
 GET_SLOT_OFFSET:
-    push bc                 ; Save BC
+    push 	bc                 	; Save BC
     
-    ; First check if it's exactly level 10, 20, 30, etc
-    ld b, 10
-    call MOD_B            ; A = level % 10
-    or a                  ; Check if remainder is 0
-    jr nz, .normalize
+    ; First check if it's exactly level 10,20,30,etc
+    ld 		b,10
+    call 	MOD_B            	; A = level % 10
+    or 		a                  	; Check if remainder is 0
+    jr nz,.normalize
     
     ; It's level 10/20/30
-    xor a                 ; Use first slot
-    ld e, a
-    ld d, a
-    pop bc
+    xor 	a                	; Use first slot
+    ld 		e,a
+    ld 		d,a
+    pop 	bc
     ret
 
 .normalize:
-    ; Now A is 1-9, do MOD_3
-	dec a               ; Convert to 0-8
-    ld b, 3
-    call MOD_B          ; Get mod 3 (0,1,2)
-    add a, a            ; Multiply by 2 for offset
-    ld e, a
-    ld d, 0
-    pop bc
+    ; Now A is 1-9,do MOD_3
+	dec 	a               	; Convert to 0-8
+    ld 		b,3
+    call 	MOD_B          		; Get mod 3 (0,1,2)
+    add 	a,a            		; Multiply by 2 for offset
+    ld 		e,a
+    ld 		d,0
+    pop 	bc
 ret
 ;----------------------------------------------------------------------
 ; PRINT_ICON: Prints completion icon for the level
-; Input: A = level number, DE = screen position
+; Input: A = level number,DE = screen position
 ; Uses: GAMECONTROL to determine active player
 ; Preserves: AF
 ;----------------------------------------------------------------------
 PRINT_ICON:
-    LD      HL, -32+5            ; Move one line up and 5 spaces to right
-    ADD     HL, DE
+    LD      HL,-32+5            ; Move one line up and 5 spaces to right
+    ADD     HL,DE
     PUSH    HL                  ; Save screen position 
 
     CALL    GET_SLOT_OFFSET
-    SRL     E                   ; Divide offset by 2 for single-byte slots, D==0 here
+    SRL     E                   ; Divide offset by 2 for single-byte slots,D==0 here
 
     ; Get completion type for this level
-    LD      A, (GAMECONTROL)
-    BIT     1, A               ; Test if Player 2 is active
-    LD      HL, P1_LEVEL_FINISH_BASE
-    JR      Z, .p1
-    LD      HL, P2_LEVEL_FINISH_BASE
+    LD      A,(GAMECONTROL)
+    BIT     1,A               ; Test if Player 2 is active
+    LD      HL,P1_LEVEL_FINISH_BASE
+    JR      Z,.p1
+    LD      HL,P2_LEVEL_FINISH_BASE
 .p1:
 
-    ADD     HL, DE              ; Point to completion type byte
+    ADD     HL,DE              ; Point to completion type byte
    
     ; Load completion type and select correct icon
-    LD      A, (HL)             ; Get icon type (1-4)
+    LD      A,(HL)             ; Get icon type (1-4)
     DEC     A                   ; Convert 1-4 to 0-3
-    ADD     A, A                ; Multiply by 2 for table lookup
-    LD      HL, ICON_TABLE
-    LD      E, A				; D==0 here
-    ADD     HL, DE
-    LD      A, (HL)             ; Get low byte of icon address
+    ADD     A,A                ; Multiply by 2 for table lookup
+    LD      HL,ICON_TABLE
+    LD      E,A				; D==0 here
+    ADD     HL,DE
+    LD      A,(HL)             ; Get low byte of icon address
     INC     HL
-    LD      H, (HL)             ; Get high byte of icon address
-    LD      L, A                ; HL now points to correct icon
+    LD      H,(HL)             ; Get high byte of icon address
+    LD      L,A                ; HL now points to correct icon
     
     POP     DE                  ; Restore screen position
 
     ; Copy the icon to screen 
-    LD      BC, 3*256+2         ; B = 3 (height), C = 2 (width)
-    LD      A, C                ; Source width is 2
+    LD      BC,3*256+2         ; B = 3 (height),C = 2 (width)
+    LD      A,C                ; Source width is 2
     CALL    CPYBLK_MxN
 	
 	; here you should put the sprites
@@ -11363,68 +11358,68 @@ ICON_TABLE:
 
 ;----------------------------------------------------------------------
 ; PRINT_SINGLE_TIME: Prints one level's completion time
-; Input: A = level number, DE = screen position
+; Input: A = level number,DE = screen position
 ;----------------------------------------------------------------------
 PRINT_SINGLE_TIME:
     push de                  ; Save screen position
     push af                  ; Save level number
     
     ; Check which player is active
-    ld a, (GAMECONTROL)
-    bit 1, a                   ; Test if Player 2 is active
-    ld hl, P1_LEVEL1_SEC      	; Default to Player 1 base
-    jr z, .got_base           	; ZF==0 for P1, ZF==1 for P2
-    ld hl, P2_LEVEL1_SEC      	; Otherwise use Player 2 base
+    ld a,(GAMECONTROL)
+    bit 1,a                   ; Test if Player 2 is active
+    ld hl,P1_LEVEL1_SEC      	; Default to Player 1 base
+    jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
+    ld hl,P2_LEVEL1_SEC      	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate which level's time to show
     pop af                   	; Get level number back
     call 	GET_SLOT_OFFSET		; Get the correct offset
-    add hl, de             		; HL now points to seconds          
+    add hl,de             		; HL now points to seconds          
     push hl                
     
 	; Get minutes first (it's the next byte)
     inc hl                    	; Point to minutes
-    ld a, (hl)                	; Get minutes
-    add a, "0"                	; Convert to ASCII
-    ld (TEXT_BUFFER), a       	; Store single minute digit
-    ld a, "'"                 	; Add space
-    ld (TEXT_BUFFER+1), a
+    ld a,(hl)                	; Get minutes
+    add a,"0"                	; Convert to ASCII
+    ld (TEXT_BUFFER),a       	; Store single minute digit
+    ld a,"'"                 	; Add space
+    ld (TEXT_BUFFER+1),a
     
     ; Now get seconds
     pop hl                    	; Restore pointer to seconds
-    ld l, (hl)                	; Get seconds
-    ld h, 0                   	; Put seconds in HL
+    ld l,(hl)                	; Get seconds
+    ld h,0                   	; Put seconds in HL
     
     ; Convert seconds to decimal
 	CALL DIV_HLby10
     
     ; Store seconds (always show both digits)
-    ld a, c
-    add a, "0"                	; Convert tens to ASCII
-    ld (TEXT_BUFFER+2), a
-    ld a, l
-    add a, "0" + $80            ; Convert ones to ASCII and add terminator
-    ld (TEXT_BUFFER+3), a
+    ld a,c
+    add a,"0"                	; Convert tens to ASCII
+    ld (TEXT_BUFFER+2),a
+    ld a,l
+    add a,"0" + $80            ; Convert ones to ASCII and add terminator
+    ld (TEXT_BUFFER+3),a
      ; Print time value
     pop hl                    ; Restore screen position in HL
-    ld de, 7                  ; Move 7 positions right
-    add hl, de
-    ex de, hl
-    ld hl, TEXT_BUFFER
+    ld de,7                  ; Move 7 positions right
+    add hl,de
+    ex de,hl
+    ld hl,TEXT_BUFFER
     call MYPRINT
 ret
 
 ;----------------------------------------------------------------------
 ; PRINT_SINGLE_SCORE: Prints one level's score
-; Input: A = level number, DE = screen position
+; Input: A = level number,DE = screen position
 ;----------------------------------------------------------------------
 PRINT_SINGLE_SCORE:
     push af                     ; Save level number
     
     ; Print "SCENE "
     push de                     ; Save screen position
-    ld hl, SCENE_TEXT
+    ld hl,SCENE_TEXT
     call MYPRINT
     pop de                      ; Restore screen position
 
@@ -11433,40 +11428,40 @@ PRINT_SINGLE_SCORE:
     push af                     ; Save it again
 
     ; Convert level to decimal
-    ld h, 0                    ; Clear H
-    ld l, a                    ; Put level in L (now HL = level)
+    ld h,0                    ; Clear H
+    ld l,a                    ; Put level in L (now HL = level)
     push de                    ; Save screen position
     
     ; Get tens and ones only
 	CALL DIV_HLby10
     
     ; Store tens digit
-    ld a, c
+    ld a,c
     or a                       ; Test if zero
-    jr z, .skip_tens          	; If zero, skip tens
+    jr z,.skip_tens          	; If zero,skip tens
 
-    add a, "0"                	; Convert to ASCII
-    ld (TEXT_BUFFER), a
-    ld a, l						; Store ones digit
-    add a, "0" + $80			; add terminator
-    ld (TEXT_BUFFER+1), a
+    add a,"0"                	; Convert to ASCII
+    ld (TEXT_BUFFER),a
+    ld a,l						; Store ones digit
+    add a,"0" + $80			; add terminator
+    ld (TEXT_BUFFER+1),a
 
     jr .print_level
 	
 .skip_tens:
 
-    ld a, l					    ; Just store ones for single digit
-    add a, "0" + $80
-    ld (TEXT_BUFFER), a
+    ld a,l					    ; Just store ones for single digit
+    add a,"0" + $80
+    ld (TEXT_BUFFER),a
 
 .print_level:
     POP HL                     	; Restore VRAM Address
     ; Print level number
     PUSH  HL					; screen position in HL
-    LD DE, 6                   	; Move 6 positions right
-    ADD HL, DE
-    ex de, hl                  	; Put back in DE
-    ld hl, TEXT_BUFFER
+    LD DE,6                   	; Move 6 positions right
+    ADD HL,DE
+    ex de,hl                  	; Put back in DE
+    ld hl,TEXT_BUFFER
     call MYPRINT
     pop de						; Restore screen position
 
@@ -11476,33 +11471,33 @@ PRINT_SINGLE_SCORE:
 
     push    af
     ; Check which player is active
-    ld a, (GAMECONTROL)
-    bit 1, a                   	; Test if Player 2 is active
-    ld hl, P1_LEVEL1_SCORE    	; Default to Player 1 base
-    jr z, .got_base           	; ZF==0 for P1, ZF==1 for P2
-    ld hl, P2_LEVEL1_SCORE    	; Otherwise use Player 2 base
+    ld a,(GAMECONTROL)
+    bit 1,a                   	; Test if Player 2 is active
+    ld hl,P1_LEVEL1_SCORE    	; Default to Player 1 base
+    jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
+    ld hl,P2_LEVEL1_SCORE    	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate score address
     pop     af                	; Get level number back
     call 	GET_SLOT_OFFSET     ; Get the correct offset
-    add hl, de                 	; HL now points to correct score
+    add hl,de                 	; HL now points to correct score
 
     ; Load score
-    ld e, (hl)
+    ld e,(hl)
     inc hl
-    ld d, (hl)
-    ex de, hl                  ; HL now contains score value
+    ld d,(hl)
+    ex de,hl                  ; HL now contains score value
 
     ; Convert to decimal digits
     call CONVERT_TO_DECIMAL
 
     ; Print score
     pop hl                      ; Restore screen position in HL
-    ld de, 10                  	; Move 10 positions right
-    add hl, de
-    ex de, hl                  	; Put  in DE
-    ld hl, TEXT_BUFFER
+    ld de,10                  	; Move 10 positions right
+    add hl,de
+    ex de,hl                  	; Put  in DE
+    ld hl,TEXT_BUFFER
     call MYPRINT
 ret
 
@@ -11511,83 +11506,83 @@ ret
 ;----------------------------------------------------------------------
 CONVERT_TO_DECIMAL:
     ; First get ten thousands
-    ld de, 10000
+    ld de,10000
 	CALL 	DIV_HLbyDE
     
     ; Store ten thousands digit
-    ld a, c
+    ld a,c
     or a                       ; Test if zero
-    jr nz, .not_zero1         ; If not zero, show digit
-    ld a, " "                 ; If zero, show space
+    jr nz,.not_zero1         ; If not zero,show digit
+    ld a," "                 ; If zero,show space
     jr .store1
 .not_zero1:
-    add a, "0"                ; Convert to ASCII
+    add a,"0"                ; Convert to ASCII
 .store1:
-    ld (TEXT_BUFFER), a
+    ld (TEXT_BUFFER),a
 
     ; Now get thousands
 
-    ld de, 1000
+    ld de,1000
 	CALL 	DIV_HLbyDE
     
     ; Store thousands digit
-    ld a, (TEXT_BUFFER)       ; Check if we had ten thousands
+    ld a,(TEXT_BUFFER)       ; Check if we had ten thousands
     cp " "                    ; Was it a space?
-    ld a, c                   ; digit value
-    jr nz, .not_zero2         ; If we had ten thousands, always show this digit
+    ld a,c                   ; digit value
+    jr nz,.not_zero2         ; If we had ten thousands,always show this digit
     or a                      ; Test if zero
-    jr nz, .not_zero2         ; If not zero, show digit
-    ld a, " "                 ; If zero, show space
+    jr nz,.not_zero2         ; If not zero,show digit
+    ld a," "                 ; If zero,show space
     jr .store2
 .not_zero2:
-    add a, "0"               ; Convert to ASCII
+    add a,"0"               ; Convert to ASCII
 .store2:
-    ld (TEXT_BUFFER+1), a
+    ld (TEXT_BUFFER+1),a
 
     ; Now get hundreds
-    ld de, 100
+    ld de,100
 	CALL 	DIV_HLbyDE
     
     ; Store hundreds digit
-    ld a, (TEXT_BUFFER+1)       ; Check if we had thousands
+    ld a,(TEXT_BUFFER+1)       ; Check if we had thousands
     cp " "                    	; Was it a space?
     ld a,c                   	; digit value
-    jr nz, .not_zero3        	; If we had thousands, always show this digit
+    jr nz,.not_zero3        	; If we had thousands,always show this digit
     or a                      	; Test if zero
-    jr nz, .not_zero3        	; If not zero, show digit
-    ld a, " "                	; If zero, show space
+    jr nz,.not_zero3        	; If not zero,show digit
+    ld a," "                	; If zero,show space
     jr .store3
 .not_zero3:
-    add a, "0"               ; Convert to ASCII
+    add a,"0"               ; Convert to ASCII
 .store3:
-    ld (TEXT_BUFFER+2), a
+    ld (TEXT_BUFFER+2),a
 
     ; Now get tens
-    ld de, 10
+    ld de,10
 	CALL 	DIV_HLbyDE
     
     ; Store tens digit
-    ld a, (TEXT_BUFFER+2)     	; Check if we had hundreds
+    ld a,(TEXT_BUFFER+2)     	; Check if we had hundreds
     cp " "                    	; Was it a space?
-    ld a, c                   	; Restore digit value
-    jr nz, .not_zero4        	; If we had hundreds, always show this digit
+    ld a,c                   	; Restore digit value
+    jr nz,.not_zero4        	; If we had hundreds,always show this digit
     or a                      	; Test if zero
-    jr nz, .not_zero4        	; If not zero, show digit
-    ld a, " "                	; If zero, show space
+    jr nz,.not_zero4        	; If not zero,show digit
+    ld a," "                	; If zero,show space
     jr .store4
 .not_zero4:
-    add a, "0"               ; Convert to ASCII
+    add a,"0"               ; Convert to ASCII
 .store4:
-    ld (TEXT_BUFFER+3), a
+    ld (TEXT_BUFFER+3),a
 
     ; Ones are what's left in HL (always show)
-    ld a, l
-    add a, "0"
-    ld (TEXT_BUFFER+4), a
+    ld a,l
+    add a,"0"
+    ld (TEXT_BUFFER+4),a
 
     ; Add literal "0" with terminator
-    ld a, "0" + $80
-    ld (TEXT_BUFFER+5), a
+    ld a,"0" + $80
+    ld (TEXT_BUFFER+5),a
 
 RET
 
@@ -11838,7 +11833,7 @@ CONGRATULATION:
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_VERY_GOOD_TUNE
 
-	LD		HL, 200H				; music duration
+	LD		HL,200H				; music duration
 	XOR		A
 	CALL	REQUEST_SIGNAL
 
@@ -11854,14 +11849,14 @@ CONGRATULATION:
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z, .1
+	JR		Z,.1
 	POP		AF
 
 	CALL 	MYDISSCR
 	CALL	REMOVESPRITES
 	
-	LD		HL, 0000H
-	LD		DE, 3000H			; do not delete the game data
+	LD		HL,0000H
+	LD		DE,3000H			; do not delete the game data
 	xor		a					; fill with space
 	CALL	FILL_VRAM
 
@@ -11871,13 +11866,13 @@ CONGRATULATION:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS	
 	
-	LD		HL, GAMECONTROL
-	SET		7, (HL)
+	LD		HL,GAMECONTROL
+	SET		7,(HL)
 .3:
-	BIT		7, (HL)
-	JR		NZ, .3
+	BIT		7,(HL)
+	JR		NZ,.3
 
-	LD		BC, 1E2H		 ; Original game state register
+	LD		BC,1E2H		 ; Original game state register
 	CALL	WRITE_REGISTER
 RET	
 
@@ -12035,7 +12030,7 @@ cvb_FSB:
 	DB 56,16,36,8
 	DB 208
 
-	; Width = 7, height = 10
+	; Width = 7,height = 10
 cvb_congratulation_pattern:
 	DB $00,$01,$02,$00,$00,$00,$00
 	DB $03,$04,$05,$00,$00,$00,$00
@@ -12221,22 +12216,22 @@ MyNMI_on:
 
 
 cvb_MYCLS:
-	LD BC,$0300
-	LD HL,$1800 
-	xor a
-.0:	CALL MyNMI_off
-	PUSH AF
-	LD  A,L
-	OUT (CTRL_PORT),A
-	LD A,H
-	OR	$40
-	OUT (CTRL_PORT),A		
-	POP AF
-	dec bc		; T-states (normal / M1)
-.1:	out (DATA_PORT),a	; 11 12
-	dec bc		;  6  7
-	BIT 7,b		;  8 10
-	JP z,.1		; 10 11
+	LD 		BC,$0300
+	LD 		HL,$1800 
+	XOR		A
+.0:	CALL 	MyNMI_off
+	PUSH 	AF
+	LD  	A,L
+	OUT 	(CTRL_PORT),A
+	LD 		A,H
+	OR		$40
+	OUT 	(CTRL_PORT),A		
+	POP 	AF
+	DEC 	BC		; T-states (normal / M1)
+.1:	OUT 	(DATA_PORT),A	; 11 12
+	DEC 	BC		;  6  7
+	BIT 	7,B		;  8 10
+	JP Z,.1		; 10 11
 
 	JP MyNMI_on
 
@@ -12280,14 +12275,14 @@ MYMODE1:				; screen 2 with mirror mode for patterns
 	LD HL,mode
 	SET 7,(HL)			; intermission mode
 	LD bc,$0200
-	LD de,$9F03	; $2000 for color table - Mirror Mode, $0000 for bitmaps  - Normal mode
+	LD de,$9F03	; $2000 for color table - Mirror Mode,$0000 for bitmaps  - Normal mode
 	JP vdp_chg_mode
 
 MYMODE2:				; screen 1 no mirroring
 	LD HL,mode
 	SET 7,(HL)			; intermission mode
 	LD bc,$0000
-	LD de,$8000	; $2000 for color table, $0000 for bitmaps.
+	LD de,$8000	; $2000 for color table,$0000 for bitmaps.
 
 vdp_chg_mode:
 	CALL MyNMI_off
@@ -12785,7 +12780,7 @@ cvb_IMAGE_COLOR:
 	DB $ff,$e7,$0e,$31,$9f,$13,$df,$17
 	DB $ff,$ff,$ff,$f8
 
-	; Width = 22, height = 24
+	; Width = 22,height = 24
 	; image_pattern:
 cvb_IMAGE_PATTERN_FR1:
 	DB $00,$00,$00,$00
