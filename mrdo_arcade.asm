@@ -115,7 +115,7 @@ NO_EXTRA_TUNE_0E:		EQU $22
 
 WORKBUFFER:				RB	16	;EQU $07000	; work ram
 
-SAT_BUFFER:				RB	4	;EQU $7000	; FREE RAM
+SAT_BUFFER:				RB	4	;EQU $7000	; work buffer for sprites
 
 TIMER_DATA_BLOCK:		RB	12	;EQU $7014
 STATESTART:				RB	11	;EQU $7020 	; OS Sound Buffer Start
@@ -220,8 +220,6 @@ P2_LEVEL_FINISH_BASE: 	RB 3 ;
 
 ENDUSEDRAM:				RB 1
 
-L_SEC:					EQU	P1_LEVEL1_SEC
-L_MIN:					EQU	P1_LEVEL1_MIN
 
 
 ; ALLOCATED IN THE TIMER TABLE
@@ -929,9 +927,11 @@ LOC_84FE:
 	CALL	NZ,CLEAR_SCREEN_AND_SPRITES_01
 	CALL	CLEAR_SCREEN_AND_SPRITES_02
 	CALL	SUB_87F4
+	
+	CALL 	CURRTIMERINIT
 RET
 
-SUB_851C:	; If we're here,the game just started
+SUB_851C:					; If we're here,the game just started
 	LD		HL,0
 	LD		(SCORE_P1_RAM),HL
 	LD		(SCORE_P2_RAM),HL
@@ -939,8 +939,6 @@ SUB_851C:	; If we're here,the game just started
 	LD		(P2_PREV_SCORE),HL
 	CALL 	Reset_p1		; reset min and sec for the two players
 	CALL 	Reset_p2		
-	
-	CALL 	CURRTIMERINIT
 	
 	LD		A,1			; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1),A
@@ -958,8 +956,9 @@ LOC_853F:
 	LD		(LIVES_LEFT_P2_RAM),A
 	
 	LD		A,(GAMECONTROL)
-	AND		1
-	LD		(GAMECONTROL),A
+	AND		1					; save B0 == number of players
+	LD		(GAMECONTROL),A		; reset B1 == current player
+	
 	LD		A,1
 	CALL	SUB_B286		; build level 1
 	LD		HL,GAMESTATE
@@ -1147,7 +1146,7 @@ LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
 	CALL	PATTERNS_TO_VRAM
 	LD		A,(GAMECONTROL)
 	BIT		0,A
-	JR		Z,LOC_8709
+	JR		Z,LOC_8709			; B0 == one player
 	LD		A,0FH
 	CALL	DEAL_WITH_PLAYFIELD
 	LD		A,1
@@ -3808,7 +3807,6 @@ LOC_9AA0:
 	AND		0C7H
 	LD		(IY+4),A
 	CALL	SUB_9FC8
-LOC_9AB1:
 	POP		IX
 	AND		A
 RET
@@ -6123,7 +6121,7 @@ RET
 ; Output: Stores completion type to correct player's slot
 ; Preserves: BC,AF
 STORE_COMPLETION_TYPE:    
-    PUSH	AF
+	PUSH	AF
     ; Get current level based on active player
     LD      A,(GAMECONTROL)
     BIT     1,A           ; Test if Player 2 is active
@@ -6134,12 +6132,12 @@ STORE_COMPLETION_TYPE:
     LD      A,(CURRENT_LEVEL_P2)		   	; Player 2
     LD      HL,P2_LEVEL_FINISH_BASE	
 .p1:
-    CALL    GET_SLOT_OFFSET   ; Get offset in A and DE
-    SRL      E                ; Divide offset by 2
-
-    ADD     HL,DE             ; Add offset to base
-    LD      (HL),C            ; Store completion type in correct slot
-    POP     AF
+    CALL    GET_SLOT_OFFSET  	; Get offset in A and DE
+	SRL     E               	; Divide offset by 2
+    
+    ADD     HL,DE         	; Add offset to base
+    LD      (HL),C       	; Store completion type in correct slot
+	POP		AF
     RET
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
@@ -11184,20 +11182,20 @@ cvb_INTERMISSION:
 	LD HL,intermission_sprites
 	CALL unpack
 
-  ; Print Very Good + Level stats
+	; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-  ; Add terminator in slot 13
-  LD A, 208                ; Terminator Y value
-  LD (SAT_BUFFER), A       ; Store in buffer
-
-  LD BC, 1                 ; Just one byte (Y value only)
-  LD DE, $1B00+52          ; Slot 13 (icons are in slots 10-12)
-  LD HL, SAT_BUFFER
-  CALL MYLDIRVM
-  CALL MyNMI_on
-
-  CALL MYENASCR
+	; Add terminator in slot 13
+	LD A, 208                ; Terminator Y value
+	LD (SAT_BUFFER), A       ; Store in buffer
+	
+	LD BC, 1                 ; Just one byte (Y value only)
+	LD DE, $1B00+13*4      	 ; Slot 13 (icons are in slots 10-12)
+	LD HL, SAT_BUFFER
+	CALL MYLDIRVM
+	CALL MyNMI_on
+	
+	CALL MYENASCR
 
 RET
 
@@ -11217,10 +11215,10 @@ PRINT_LEVEL_STATS:
     
     ; Player 1 is active
     ld a,(CURRENT_LEVEL_P1)
-    jr .continue
+    jr .cont
 .use_p2:
     ld a,(CURRENT_LEVEL_P2)
-.continue:
+.cont:
     ; A now contains the correct current level
 
     ; Print and calculate scores for all three levels
@@ -11266,7 +11264,7 @@ PRINT_LEVEL_STATS:
     call PRINT_ICON
     pop af
 
-    ret
+ret
 
 ;----------------------------------------------------------------------
 ; GET_SLOT_OFFSET: Calculates the correct slot offset for level data
@@ -11308,12 +11306,12 @@ ret
 ; Preserves: AF
 ;----------------------------------------------------------------------
 PRINT_ICON:
-    LD      C, A
-    LD      HL, -32+5            ; Move one line up and 5 spaces to right
-    ADD     HL, DE
+    LD      C, A		; Save level in C
+    
+    LD      HL,-32+5            ; Move one line up and 5 spaces to right
+    ADD     HL,DE
     PUSH    HL                  ; Save screen position 
 
-    LD A, C
     CALL    GET_SLOT_OFFSET
     SRL     E                   ; Divide offset by 2 for single-byte slots,D==0 here
 
@@ -11325,51 +11323,54 @@ PRINT_ICON:
     LD      HL,P2_LEVEL_FINISH_BASE
 .p1:
 
-    ADD     HL, DE              ; Point to completion type byte
-
+    ADD     HL,DE              ; Point to completion type byte
+   
     ; Load completion type and select correct icon
-    LD      A, (HL)             ; Get icon type (1-4)
-    LD      B, A                ; Save it in B
+    LD      A,(HL)             ; Get icon type (1-4)
+    LD      B, A                ; Save icon type in B
     DEC     A                   ; Convert 1-4 to 0-3
     ADD     A,A                ; Multiply by 2 for table lookup
     LD      HL,ICON_TABLE
-    LD      E,A        ; D==0 here
+    LD      E,A				; D==0 here
     ADD     HL,DE
     LD      A,(HL)             ; Get low byte of icon address
     INC     HL
-    LD      H, (HL)             ; Get high byte of icon address
-    LD      L, A                ; HL now points to correct icon
+    LD      H,(HL)             ; Get high byte of icon address
+    LD      L,A                ; HL now points to correct icon
 
+    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
+	
     ; Check completion type for sprite
     LD      A, B              ; Get completion type
     CP      1                 ; Is it cherry?
     JR      NZ, .try_monster
     
-    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
-    LD      A, C              ; Get level number
-    CALL    PRINT_CHERRY_SPRITE
+	LD 		HL, CHERRY_Y_POS
+	LD		B,80
+    CALL    PRINT_ICON_SPRITE
     JR      .finish_sprite
+    
 .try_monster:
     CP      2                 ; Is it monster?
     JR      NZ, .print_blank
-    
-    LD      A, C              ; Get level number
-    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
-    CALL    PRINT_MONSTER_SPRITE
+
+	LD 		HL, MONSTER_Y_POS
+	LD		B,84
+    CALL    PRINT_ICON_SPRITE
     JR      .finish_sprite
+    
+	; any other icon
 .print_blank:
-    LD      A, C
-    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
     CALL    PRINT_BLANK_SPRITE
+    
 .finish_sprite:
-    POP     HL                ; Get icon address [STACK: level, screen_pos]
+    POP     HL                	; Restore icon address [STACK: level, screen_pos]
     POP     DE                  ; Restore screen position
 
     ; Copy the icon to screen 
     LD      BC,3*256+2         ; B = 3 (height),C = 2 (width)
     LD      A,C                ; Source width is 2
     CALL    CPYBLK_MxN
-
     
 RET
 
@@ -11382,146 +11383,63 @@ ICON_TABLE:
 
 
 ;----------------------------------------------------------------------
-; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
-; Input: A = level number (1-3)
-;----------------------------------------------------------------------
-PRINT_CHERRY_SPRITE:
-  PUSH BC
-  CALL GET_SLOT_OFFSET
-  SRL A
-  ; A is now 0, 1 or 2
-
-  LD HL, CHERRY_Y_POS
-  LD      E, A
-  LD      D, 0 
-  ADD     HL, DE
-  LD      A, (HL)           ; Get Y position
-
-  ; Set up sprite in buffer
-  LD      (SAT_BUFFER), A    ; Y position
-  LD      A, 200             ; X position (always 200)
-  LD      (SAT_BUFFER+1), A
-  LD      A, 80              ; Cherry pattern (always 80)
-  LD      (SAT_BUFFER+2), A
-  LD      A, 1               ; Color
-  LD      (SAT_BUFFER+3), A
-    
-    ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-  POP   BC         ; Get level number back
-  LD A, C
-  CALL GET_SLOT_OFFSET
-  SRL A  
-  ADD   A, A         ; Multiply by 4
-  ADD   A, A
-  ADD   A, 40       ; Add base offset
-  
-  ; Copy to SAT
-  LD    BC, 4
-  LD    H, 0
-  LD    L, A
-  LD    DE, $1B00
-  ADD   HL, DE      ; HL = $1B00 + offset
-  EX    DE, HL      ; Put result in DE
-  LD    HL, SAT_BUFFER
-  CALL  MyNMI_off
-  CALL  MYLDIRVM
-  CALL  MyNMI_on
-  RET
-
-;----------------------------------------------------------------------
-; PRINT_MONSTER_SPRITE: Prints monster sprite for given level
-; Input: A = level number (1-3)
-;----------------------------------------------------------------------
-PRINT_MONSTER_SPRITE:
-  PUSH BC
-  CALL GET_SLOT_OFFSET
-  SRL A
-  ; E is now 0, 1 or 2
-  ; Get Y position from table
-  LD    HL, MONSTER_Y_POS
-  LD    E, A
-  LD    D, 0
-  ADD   HL, DE
-  LD    A, (HL)    ; Get Y position
-  
-  ; Set up sprite in buffer
-  LD    (SAT_BUFFER), A         ; Y position
-  LD    A, 200                  ; X position
-  LD    (SAT_BUFFER+1), A
-  LD    A, 84                   ; Monster pattern
-  LD    (SAT_BUFFER+2), A
-  LD    A, 1                    ; Color
-  LD    (SAT_BUFFER+3), A
-
-  ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-  POP   BC                  ; Get level number back
-  LD    A, C
-  CALL GET_SLOT_OFFSET
-  SRL A                     ; A is now 0, 1 or 2
-  ADD   A, A                ; Multiply by 4
-  ADD   A, A
-  ADD   A, 40               ; Add base offset
-  
-  ; Copy to SAT
-  LD    BC, 4
-  LD    H, 0
-  LD    L, A
-  LD    DE, $1B00
-  ADD   HL, DE              ; HL = $1B00 + offset
-  EX    DE, HL              ; Put result in DE
-  LD    HL, SAT_BUFFER
-  CALL  MyNMI_off
-  CALL  MYLDIRVM
-  CALL  MyNMI_on
-  RET
-
-
-;----------------------------------------------------------------------
 ; PRINT_BLANK_SPRITE: Prints blank sprite for given level
-; Input: A = level number (1-3)
+; Input: C = level number (1-3)
 ;----------------------------------------------------------------------
 PRINT_BLANK_SPRITE:
-  PUSH BC
-  CALL GET_SLOT_OFFSET
-  SRL A
-
-    ; Get Y position from table
-  LD    HL, MONSTER_Y_POS
-  LD    E, A
-  LD    D, 0
-  ADD   HL, DE
-  LD    A, (HL)             ; Get Y position
-  
-  ; Set up sprite in buffer
+    
+  LD    A, 209				; put sprite offscreen
   LD    (SAT_BUFFER), A     ; Y position
-  LD    A, 200              ; X position
-  LD    (SAT_BUFFER+1), A
-  LD    A, 252              ; BLANK pattern
-  LD    (SAT_BUFFER+2), A
-  LD    A, 0                ; Color (invisible)
-  LD    (SAT_BUFFER+3), A
 
     ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-  POP     BC                 ; Get level number back
-  LD    A, C
-  CALL GET_SLOT_OFFSET
-  SRL   A
-  ADD   A, A         ; Multiply by 4
-  ADD   A, A
-  ADD   A, 40       ; Add base offset
 
-  ; Copy to SAT
-  LD    BC, 4
-  LD    H, 0
-  LD    L, A
-  LD    DE, $1B00
-  ADD   HL, DE      ; HL = $1B00 + offset
-  EX    DE, HL      ; Put result in DE
-  LD    HL, SAT_BUFFER
-  CALL  MyNMI_off
-  CALL  MYLDIRVM
-  CALL  MyNMI_on
-  RET
+  LD    A, C
+  CALL 	GET_SLOT_OFFSET
+
+  JP 	PRINT_ICON_SPRITE.CpySAT
+
+;----------------------------------------------------------------------
+; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
+; Input: C = level number (1-3), HL = Y TABLE, B = Sprite pattern
+;----------------------------------------------------------------------
+PRINT_ICON_SPRITE:
+    LD      A, C              	; Get level number
+	CALL 	GET_SLOT_OFFSET		; bc and hl preserved
+	PUSH	AF					; save 2*slot number
+	SRL A						; A is now 0, 1 or 2
+	
+	LD      E, A
+	LD      D, 0 
+	ADD     HL, DE
+	LD      A, (HL)           	; Get Y position
+	
+	; Set up sprite in buffer
+	LD      (SAT_BUFFER), A    	; Y position
+	LD      A, 200             	; X position (always 200)
+	LD      (SAT_BUFFER+1), A
+	LD      A, B              	; Cherry pattern = 80, Monster Patter = 84
+	LD      (SAT_BUFFER+2), A
+	LD      A, 1               	; Color
+	LD      (SAT_BUFFER+3), A
+	
+	; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+	
+	POP   AF         	; Get 2*slot number back
+.CpySAT:
+ 	ADD   A, A         	; Multiply by 4
+	
+	LD    H, 0			; Copy to SAT
+	LD    L, A
+	LD    DE, $1B00 + 4*10
+	ADD   HL, DE      	; HL = $1B00 + offset
+	EX    DE, HL      	; Put result in DE
+	LD    HL, SAT_BUFFER
+	LD    BC, 4
+	CALL  MyNMI_off
+	CALL  MYLDIRVM
+	CALL  MyNMI_on
+RET
+
 
 ; Y position tables
 CHERRY_Y_POS:
@@ -11540,43 +11458,43 @@ PRINT_SINGLE_TIME:
     ; Check which player is active
     ld a,(GAMECONTROL)
     bit 1,a                   ; Test if Player 2 is active
-    ld hl,P1_LEVEL1_SEC       ; Default to Player 1 base
-    jr z,.got_base            ; ZF==0 for P1,ZF==1 for P2
-    ld hl,P2_LEVEL1_SEC       ; Otherwise use Player 2 base
+    ld hl,P1_LEVEL1_SEC      	; Default to Player 1 base
+    jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
+    ld hl,P2_LEVEL1_SEC      	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate which level's time to show
     pop af                   	; Get level number back
-    call 	GET_SLOT_OFFSET     ; Get the correct offset
-    add hl,de                 ; HL now points to seconds          
+    call 	GET_SLOT_OFFSET		; Get the correct offset
+    add hl,de             		; HL now points to seconds          
     push hl                
     
 	; Get minutes first (it's the next byte)
-    inc hl                    ; Point to minutes
-    ld a,(hl)                 ; Get minutes
-    add a,"0"                 ; Convert to ASCII
-    ld (TEXT_BUFFER),a        ; Store single minute digit
-    ld a,"'"                  ; Add space
+    inc hl                    	; Point to minutes
+    ld a,(hl)                	; Get minutes
+    add a,"0"                	; Convert to ASCII
+    ld (TEXT_BUFFER),a       	; Store single minute digit
+    ld a,"'"                 	; Add space
     ld (TEXT_BUFFER+1),a
     
     ; Now get seconds
-    pop hl                    ; Restore pointer to seconds
-    ld l,(hl)                 ; Get seconds
-    ld h,0                    ; Put seconds in HL
+    pop hl                    	; Restore pointer to seconds
+    ld l,(hl)                	; Get seconds
+    ld h,0                   	; Put seconds in HL
     
     ; Convert seconds to decimal
 	CALL DIV_HLby10
     
     ; Store seconds (always show both digits)
     ld a,c
-    add a,"0"                 ; Convert tens to ASCII
+    add a,"0"                	; Convert tens to ASCII
     ld (TEXT_BUFFER+2),a
     ld a,l
-    add a,"0" + $80           ; Convert ones to ASCII and add terminator
+    add a,"0" + $80            ; Convert ones to ASCII and add terminator
     ld (TEXT_BUFFER+3),a
      ; Print time value
     pop hl                    ; Restore screen position in HL
-    ld de,7                   ; Move 7 positions right
+    ld de,7                  ; Move 7 positions right
     add hl,de
     ex de,hl
     ld hl,TEXT_BUFFER
@@ -12146,7 +12064,7 @@ cvb_FS1:
 	DB 123-40,11,68,3
 	DB 126-40,12,72,2
 	DB 125-40,8,76,1
-  DB 208
+	DB 208
 cvb_FS2:
 	DB 159-80,7,80,3
 	DB 161-80,21,84,4
