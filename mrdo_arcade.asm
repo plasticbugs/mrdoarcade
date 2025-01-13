@@ -4586,8 +4586,8 @@ UNK_9FB3:
 
 SUB_9FC8:
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	XOR		A    ; (Uncomment for invincibility)
-	RET        ; (Uncomment for invincibility)
+	; XOR		A    ; (Uncomment for invincibility)
+	; RET        ; (Uncomment for invincibility)
 	PUSH	IY
 	LD		B,(IY+2)
 	LD		A,(MRDO_DATA.Y)
