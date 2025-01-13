@@ -6123,7 +6123,7 @@ RET
 ; Output: Stores completion type to correct player's slot
 ; Preserves: BC,AF
 STORE_COMPLETION_TYPE:    
-	PUSH	AF
+    PUSH	AF
     ; Get current level based on active player
     LD      A,(GAMECONTROL)
     BIT     1,A           ; Test if Player 2 is active
@@ -6134,12 +6134,12 @@ STORE_COMPLETION_TYPE:
     LD      A,(CURRENT_LEVEL_P2)		   	; Player 2
     LD      HL,P2_LEVEL_FINISH_BASE	
 .p1:
-    CALL    GET_SLOT_OFFSET  	; Get offset in A and DE
-		SRL     E               	; Divide offset by 2
-    
-    ADD     HL,DE         	; Add offset to base
-    LD      (HL),C       	; Store completion type in correct slot
-	POP		AF
+    CALL    GET_SLOT_OFFSET   ; Get offset in A and DE
+    SRL      E                ; Divide offset by 2
+
+    ADD     HL,DE             ; Add offset to base
+    LD      (HL),C            ; Store completion type in correct slot
+    POP     AF
     RET
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
