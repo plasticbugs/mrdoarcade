@@ -11310,12 +11310,12 @@ ret
 ; Preserves: AF
 ;----------------------------------------------------------------------
 PRINT_ICON:
-		LD      C, A
+    LD      C, A
     LD      HL, -32+5            ; Move one line up and 5 spaces to right
     ADD     HL, DE
     PUSH    HL                  ; Save screen position 
 
-		LD A, C
+    LD A, C
     CALL    GET_SLOT_OFFSET
     SRL     E                   ; Divide offset by 2 for single-byte slots,D==0 here
 
@@ -11331,11 +11331,11 @@ PRINT_ICON:
 
     ; Load completion type and select correct icon
     LD      A, (HL)             ; Get icon type (1-4)
-		LD      B, A                ; Save it in B
+    LD      B, A                ; Save it in B
     DEC     A                   ; Convert 1-4 to 0-3
     ADD     A,A                ; Multiply by 2 for table lookup
     LD      HL,ICON_TABLE
-    LD      E,A				; D==0 here
+    LD      E,A        ; D==0 here
     ADD     HL,DE
     LD      A,(HL)             ; Get low byte of icon address
     INC     HL
@@ -11348,7 +11348,7 @@ PRINT_ICON:
     JR      NZ, .try_monster
     
     PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
-		LD      A, C              ; Get level number
+    LD      A, C              ; Get level number
     CALL    PRINT_CHERRY_SPRITE
     JR      .finish_sprite
 .try_monster:
@@ -11360,7 +11360,7 @@ PRINT_ICON:
     CALL    PRINT_MONSTER_SPRITE
     JR      .finish_sprite
 .print_blank:
-		LD      A, C
+    LD      A, C
     PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
     CALL    PRINT_BLANK_SPRITE
 .finish_sprite:
@@ -11377,10 +11377,10 @@ RET
 
 ; Table of icon addresses
 ICON_TABLE:
-    DW CHERRY_ICON            	; Type 1
-    DW MONSTER_ICON           	; Type 2
-    DW DIAMOND_ICON           	; Type 3
-    DW EXTRA_ICON            	; Type 4
+    DW CHERRY_ICON              ; Type 1
+    DW MONSTER_ICON             ; Type 2
+    DW DIAMOND_ICON             ; Type 3
+    DW EXTRA_ICON               ; Type 4
 
 
 ;----------------------------------------------------------------------
@@ -11388,94 +11388,94 @@ ICON_TABLE:
 ; Input: A = level number (1-3)
 ;----------------------------------------------------------------------
 PRINT_CHERRY_SPRITE:
-	PUSH BC
-	CALL GET_SLOT_OFFSET
-	SRL A
+  PUSH BC
+  CALL GET_SLOT_OFFSET
+  SRL A
   ; A is now 0, 1 or 2
 
-	LD HL, CHERRY_Y_POS
-	LD      E, A
-	LD      D, 0
-	ADD     HL, DE
-	LD      A, (HL)        ; Get Y position
+  LD HL, CHERRY_Y_POS
+  LD      E, A
+  LD      D, 0 
+  ADD     HL, DE
+  LD      A, (HL)           ; Get Y position
 
-	; Set up sprite in buffer
-	LD      (SAT_BUFFER), A    ; Y position
-	LD      A, 200             ; X position (always 200)
-	LD      (SAT_BUFFER+1), A
-	LD      A, 80              ; Cherry pattern (always 80)
-	LD      (SAT_BUFFER+2), A
-	LD      A, 1               ; Color
-	LD      (SAT_BUFFER+3), A
+  ; Set up sprite in buffer
+  LD      (SAT_BUFFER), A    ; Y position
+  LD      A, 200             ; X position (always 200)
+  LD      (SAT_BUFFER+1), A
+  LD      A, 80              ; Cherry pattern (always 80)
+  LD      (SAT_BUFFER+2), A
+  LD      A, 1               ; Color
+  LD      (SAT_BUFFER+3), A
     
     ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-    POP     BC                 ; Get level number back
-		LD A, C
-		CALL GET_SLOT_OFFSET
-		SRL A    
-    ADD     A, A               ; Multiply by 4
-    ADD     A, A
-    ADD     A, 40             ; Add base offset
-    
-    ; Copy to SAT
-    LD      BC, 4
-    LD      H, 0
-    LD      L, A
-    LD      DE, $1B00
-    ADD     HL, DE            ; HL = $1B00 + offset
-    EX      DE, HL            ; Put result in DE
-    LD      HL, SAT_BUFFER
-    CALL    MyNMI_off
-    CALL    MYLDIRVM
-    CALL    MyNMI_on
-    RET
+  POP   BC         ; Get level number back
+  LD A, C
+  CALL GET_SLOT_OFFSET
+  SRL A  
+  ADD   A, A         ; Multiply by 4
+  ADD   A, A
+  ADD   A, 40       ; Add base offset
+  
+  ; Copy to SAT
+  LD    BC, 4
+  LD    H, 0
+  LD    L, A
+  LD    DE, $1B00
+  ADD   HL, DE      ; HL = $1B00 + offset
+  EX    DE, HL      ; Put result in DE
+  LD    HL, SAT_BUFFER
+  CALL  MyNMI_off
+  CALL  MYLDIRVM
+  CALL  MyNMI_on
+  RET
 
 ;----------------------------------------------------------------------
 ; PRINT_MONSTER_SPRITE: Prints monster sprite for given level
 ; Input: A = level number (1-3)
 ;----------------------------------------------------------------------
 PRINT_MONSTER_SPRITE:
-    PUSH BC
-		CALL GET_SLOT_OFFSET
-		SRL A
-		; E is now 0, 1 or 2
-    ; Get Y position from table
-    LD      HL, MONSTER_Y_POS
-    LD      E, A
-    LD      D, 0
-    ADD     HL, DE
-    LD      A, (HL)        ; Get Y position
-    
-    ; Set up sprite in buffer
-    LD      (SAT_BUFFER), A    ; Y position
-    LD      A, 200             ; X position
-    LD      (SAT_BUFFER+1), A
-    LD      A, 84              ; Monster pattern
-    LD      (SAT_BUFFER+2), A
-    LD      A, 1              ; Color
-    LD      (SAT_BUFFER+3), A
+  PUSH BC
+  CALL GET_SLOT_OFFSET
+  SRL A
+  ; E is now 0, 1 or 2
+  ; Get Y position from table
+  LD    HL, MONSTER_Y_POS
+  LD    E, A
+  LD    D, 0
+  ADD   HL, DE
+  LD    A, (HL)    ; Get Y position
+  
+  ; Set up sprite in buffer
+  LD    (SAT_BUFFER), A         ; Y position
+  LD    A, 200                  ; X position
+  LD    (SAT_BUFFER+1), A
+  LD    A, 84                   ; Monster pattern
+  LD    (SAT_BUFFER+2), A
+  LD    A, 1                    ; Color
+  LD    (SAT_BUFFER+3), A
 
-    ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-    POP     BC                 ; Get level number back
-		LD      A, C
-		CALL GET_SLOT_OFFSET
-		SRL A											; A is now 0, 1 or 2
-    ADD     A, A               ; Multiply by 4
-    ADD     A, A
-    ADD     A, 40             ; Add base offset
-    
-    ; Copy to SAT
-    LD      BC, 4
-    LD      H, 0
-    LD      L, A
-    LD      DE, $1B00
-    ADD     HL, DE            ; HL = $1B00 + offset
-    EX      DE, HL            ; Put result in DE
-    LD      HL, SAT_BUFFER
-    CALL    MyNMI_off
-    CALL    MYLDIRVM
-    CALL    MyNMI_on
-    RET
+  ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+  POP   BC                  ; Get level number back
+  LD    A, C
+  CALL GET_SLOT_OFFSET
+  SRL A                     ; A is now 0, 1 or 2
+  ADD   A, A                ; Multiply by 4
+  ADD   A, A
+  ADD   A, 40               ; Add base offset
+  
+  ; Copy to SAT
+  LD    BC, 4
+  LD    H, 0
+  LD    L, A
+  LD    DE, $1B00
+  ADD   HL, DE              ; HL = $1B00 + offset
+  EX    DE, HL              ; Put result in DE
+  LD    HL, SAT_BUFFER
+  CALL  MyNMI_off
+  CALL  MYLDIRVM
+  CALL  MyNMI_on
+  RET
 
 
 ;----------------------------------------------------------------------
@@ -11483,47 +11483,47 @@ PRINT_MONSTER_SPRITE:
 ; Input: A = level number (1-3)
 ;----------------------------------------------------------------------
 PRINT_BLANK_SPRITE:
-    PUSH BC
-		CALL GET_SLOT_OFFSET
-		SRL A
+  PUSH BC
+  CALL GET_SLOT_OFFSET
+  SRL A
 
     ; Get Y position from table
-    LD      HL, MONSTER_Y_POS
-    LD      E, A
-    LD      D, 0
-    ADD     HL, DE
-    LD      A, (HL)        ; Get Y position
-    
-    ; Set up sprite in buffer
-    LD      (SAT_BUFFER), A    ; Y position
-    LD      A, 200             ; X position
-    LD      (SAT_BUFFER+1), A
-    LD      A, 252              ; BLANK pattern
-    LD      (SAT_BUFFER+2), A
-    LD      A, 0              ; Color
-    LD      (SAT_BUFFER+3), A
+  LD    HL, MONSTER_Y_POS
+  LD    E, A
+  LD    D, 0
+  ADD   HL, DE
+  LD    A, (HL)             ; Get Y position
+  
+  ; Set up sprite in buffer
+  LD    (SAT_BUFFER), A     ; Y position
+  LD    A, 200              ; X position
+  LD    (SAT_BUFFER+1), A
+  LD    A, 252              ; BLANK pattern
+  LD    (SAT_BUFFER+2), A
+  LD    A, 0                ; Color (invisible)
+  LD    (SAT_BUFFER+3), A
 
     ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-    POP     BC                 ; Get level number back
-		LD A, C
-		CALL GET_SLOT_OFFSET
-		SRL A
-    ADD     A, A               ; Multiply by 4
-    ADD     A, A
-    ADD     A, 40             ; Add base offset
+  POP     BC                 ; Get level number back
+  LD    A, C
+  CALL GET_SLOT_OFFSET
+  SRL   A
+  ADD   A, A         ; Multiply by 4
+  ADD   A, A
+  ADD   A, 40       ; Add base offset
 
-    ; Copy to SAT
-    LD      BC, 4
-    LD      H, 0
-    LD      L, A
-    LD      DE, $1B00
-    ADD     HL, DE            ; HL = $1B00 + offset
-    EX      DE, HL            ; Put result in DE
-    LD      HL, SAT_BUFFER
-    CALL    MyNMI_off
-    CALL    MYLDIRVM
-    CALL    MyNMI_on
-    RET
+  ; Copy to SAT
+  LD    BC, 4
+  LD    H, 0
+  LD    L, A
+  LD    DE, $1B00
+  ADD   HL, DE      ; HL = $1B00 + offset
+  EX    DE, HL      ; Put result in DE
+  LD    HL, SAT_BUFFER
+  CALL  MyNMI_off
+  CALL  MYLDIRVM
+  CALL  MyNMI_on
+  RET
 
 ; Y position tables
 CHERRY_Y_POS:
@@ -11542,15 +11542,15 @@ PRINT_SINGLE_TIME:
     ; Check which player is active
     ld a,(GAMECONTROL)
     bit 1,a                   ; Test if Player 2 is active
-    ld hl,P1_LEVEL1_SEC      	; Default to Player 1 base
+    ld hl,P1_LEVEL1_SEC       ; Default to Player 1 base
     jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
     ld hl,P2_LEVEL1_SEC      	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate which level's time to show
     pop af                   	; Get level number back
-    call 	GET_SLOT_OFFSET		; Get the correct offset
-    add hl,de             		; HL now points to seconds          
+    call 	GET_SLOT_OFFSET  		; Get the correct offset
+    add hl,de               	; HL now points to seconds          
     push hl                
     
 	; Get minutes first (it's the next byte)
