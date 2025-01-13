@@ -11187,21 +11187,19 @@ cvb_INTERMISSION:
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
+  ; Add terminator in slot 13
+  LD A, 208                ; Terminator Y value
+  LD (SAT_BUFFER), A       ; Store in buffer
 
-		; Add terminator in slot 13
-    LD A, 208                ; Terminator Y value
-    LD (SAT_BUFFER), A       ; Store in buffer
+  LD BC, 1                 ; Just one byte (Y value only)
+  LD DE, $1B00+52          ; Slot 13 (icons are in slots 10-12)
+  LD HL, SAT_BUFFER
+  CALL MYLDIRVM
+  CALL MyNMI_on
 
-    LD BC, 1                 ; Just one byte (Y value only)
-    LD DE, $1B00+52          ; Slot 13 (icons are in slots 10-12)
-    LD HL, SAT_BUFFER
-    CALL MYLDIRVM
-    CALL MyNMI_on
-
-	CALL MYENASCR
+  CALL MYENASCR
 
 RET
-
 
 ;----------------------------------------------------------------------
 ; PRINT_LEVEL_STATS: Shows scores for current and previous two levels
@@ -11543,42 +11541,42 @@ PRINT_SINGLE_TIME:
     ld a,(GAMECONTROL)
     bit 1,a                   ; Test if Player 2 is active
     ld hl,P1_LEVEL1_SEC       ; Default to Player 1 base
-    jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
-    ld hl,P2_LEVEL1_SEC      	; Otherwise use Player 2 base
+    jr z,.got_base            ; ZF==0 for P1,ZF==1 for P2
+    ld hl,P2_LEVEL1_SEC       ; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate which level's time to show
     pop af                   	; Get level number back
-    call 	GET_SLOT_OFFSET  		; Get the correct offset
-    add hl,de               	; HL now points to seconds          
+    call 	GET_SLOT_OFFSET     ; Get the correct offset
+    add hl,de                 ; HL now points to seconds          
     push hl                
     
 	; Get minutes first (it's the next byte)
-    inc hl                    	; Point to minutes
-    ld a,(hl)                	; Get minutes
-    add a,"0"                	; Convert to ASCII
-    ld (TEXT_BUFFER),a       	; Store single minute digit
-    ld a,"'"                 	; Add space
+    inc hl                    ; Point to minutes
+    ld a,(hl)                 ; Get minutes
+    add a,"0"                 ; Convert to ASCII
+    ld (TEXT_BUFFER),a        ; Store single minute digit
+    ld a,"'"                  ; Add space
     ld (TEXT_BUFFER+1),a
     
     ; Now get seconds
-    pop hl                    	; Restore pointer to seconds
-    ld l,(hl)                	; Get seconds
-    ld h,0                   	; Put seconds in HL
+    pop hl                    ; Restore pointer to seconds
+    ld l,(hl)                 ; Get seconds
+    ld h,0                    ; Put seconds in HL
     
     ; Convert seconds to decimal
 	CALL DIV_HLby10
     
     ; Store seconds (always show both digits)
     ld a,c
-    add a,"0"                	; Convert tens to ASCII
+    add a,"0"                 ; Convert tens to ASCII
     ld (TEXT_BUFFER+2),a
     ld a,l
-    add a,"0" + $80            ; Convert ones to ASCII and add terminator
+    add a,"0" + $80           ; Convert ones to ASCII and add terminator
     ld (TEXT_BUFFER+3),a
      ; Print time value
     pop hl                    ; Restore screen position in HL
-    ld de,7                  ; Move 7 positions right
+    ld de,7                   ; Move 7 positions right
     add hl,de
     ex de,hl
     ld hl,TEXT_BUFFER
@@ -12156,12 +12154,14 @@ cvb_FS0:
 	DB 83,18,48,3
 	DB 86,8,52,1
 	DB 85,8,56,2
+	DB 208
 cvb_FS1:
 	DB 119-40,9,60,3
 	DB 121-40,1,64,4
 	DB 123-40,11,68,3
 	DB 126-40,12,72,2
 	DB 125-40,8,76,1
+  DB 208
 cvb_FS2:
 	DB 159-80,7,80,3
 	DB 161-80,21,84,4
