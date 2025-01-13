@@ -115,7 +115,7 @@ NO_EXTRA_TUNE_0E:		EQU $22
 
 WORKBUFFER:				RB	16	;EQU $07000	; work ram
 
-SAT_BUFFER:				RB	4	;EQU $7000	; FREE RAM
+SAT_BUFFER:				RB	4	;EQU $7000	; work buffer for sprites
 
 TIMER_DATA_BLOCK:		RB	12	;EQU $7014
 STATESTART:				RB	11	;EQU $7020 	; OS Sound Buffer Start
@@ -172,7 +172,11 @@ MRDO_DATA.X:			RB	 1  ;EQU $7285 ;+4
 MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1  ;EQU $7287 ;+6
 						RB   1  ;EQU $7288 ;+7
-						RB   5	;EQU $7289	; ??
+						RB   1	;EQU $7289	; ??
+						RB   1	;EQU $728A	; ??
+						RB   1	;EQU $728B	; 
+CURRBADGUY:					RB   1	;EQU $728C	; Current bad guy 0-6 
+						RB   1	;EQU $728D
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
 						RB   4	;EQU $72BF	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
@@ -220,8 +224,6 @@ P2_LEVEL_FINISH_BASE: 	RB 3 ;
 
 ENDUSEDRAM:				RB 1
 
-L_SEC:					EQU	P1_LEVEL1_SEC
-L_MIN:					EQU	P1_LEVEL1_MIN
 
 
 ; ALLOCATED IN THE TIMER TABLE
@@ -615,7 +617,7 @@ LOC_8310:
 	BIT		7,(HL)
 	RET		Z
 	LD		IX,APPLEDATA
-	LD		B,(IX+1)
+	LD		B,(IX+1)		; B = Y-1,C=X
 	LD		C,(IX+2)
 	LD		D,0
 	BIT		0,(HL)
@@ -914,11 +916,7 @@ RET
 
 SUB_84F8:	 ; Disables NMI,sets up the game
 	PUSH	AF
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_84FE:
-	BIT		7,(HL)
-	JR		NZ,LOC_84FE
+	CALL 	WAIT_NMI
 	POP		AF
 	PUSH	AF
 	AND		A
@@ -929,9 +927,11 @@ LOC_84FE:
 	CALL	NZ,CLEAR_SCREEN_AND_SPRITES_01
 	CALL	CLEAR_SCREEN_AND_SPRITES_02
 	CALL	SUB_87F4
+	
+	CALL 	CURRTIMERINIT
 RET
 
-SUB_851C:	; If we're here,the game just started
+SUB_851C:					; If we're here,the game just started
 	LD		HL,0
 	LD		(SCORE_P1_RAM),HL
 	LD		(SCORE_P2_RAM),HL
@@ -939,8 +939,6 @@ SUB_851C:	; If we're here,the game just started
 	LD		(P2_PREV_SCORE),HL
 	CALL 	Reset_p1		; reset min and sec for the two players
 	CALL 	Reset_p2		
-	
-	CALL 	CURRTIMERINIT
 	
 	LD		A,1			; Set the starting level to 1
 	LD		(CURRENT_LEVEL_P1),A
@@ -958,8 +956,9 @@ LOC_853F:
 	LD		(LIVES_LEFT_P2_RAM),A
 	
 	LD		A,(GAMECONTROL)
-	AND		1
-	LD		(GAMECONTROL),A
+	AND		1					; save B0 == number of players
+	LD		(GAMECONTROL),A		; reset B1 == current player
+	
 	LD		A,1
 	CALL	SUB_B286		; build level 1
 	LD		HL,GAMESTATE
@@ -1117,11 +1116,7 @@ LOC_86B2:
 	AND		A
 	JR		Z,LOC_86B2
 	POP		AF
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_86C0:
-	BIT		7,(HL)
-	JR		NZ,LOC_86C0
+	CALL	WAIT_NMI
 RET
 
 CLEAR_SCREEN_AND_SPRITES_02:
@@ -1147,7 +1142,7 @@ LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
 	CALL	PATTERNS_TO_VRAM
 	LD		A,(GAMECONTROL)
 	BIT		0,A
-	JR		Z,LOC_8709
+	JR		Z,LOC_8709			; B0 == one player
 	LD		A,0FH
 	CALL	DEAL_WITH_PLAYFIELD
 	LD		A,1
@@ -1314,7 +1309,7 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	CP		0AH
 	RET		NZ
 	
-	CALL 	waitoneframe
+	CALL 	WAIT_NMI
 	
 	SET		3,(HL)					; stop sprite update
 	
@@ -1351,7 +1346,7 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	
 	CALL	INITIALIZE_THE_SOUND
 	
-	CALL 	waitoneframe
+	CALL 	WAIT_NMI
 
 	; SET		4,(HL)
 
@@ -1367,7 +1362,7 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	
 	CALL 	DELAY
 	
-	CALL 	waitoneframe
+	CALL 	WAIT_NMI
 	
 	; RES		4,(HL)
 
@@ -1392,12 +1387,12 @@ DELAY:
 	DJNZ	.wait_ext
 ret
 
-waitoneframe:
+WAIT_NMI:
 	LD		HL,GAMECONTROL
 	SET		7,(HL)
-.wait_isr:
+.1:
 	BIT		7,(HL)
-	JR		NZ,.wait_isr
+	JR		NZ,.1
 RET
 
 DEAL_WITH_APPLE_FALLING:
@@ -1619,7 +1614,7 @@ DEAL_WITH_APPLE_HITTING_SOMETHING:
 	LD		C,A
 LOC_8A67:
 	CALL	SUB_8AD9
-	LD		A,(IY+1)
+	LD		A,(IY+1)		; push apple ?
 	ADD		A,4
 	LD		(IY+1),A
 	LD		A,(IY+0)
@@ -1630,10 +1625,10 @@ LOC_8A67:
 	JR		NC,LOC_8A80
 	LD		(IY+0),B
 LOC_8A80:
-	CALL	SUB_8BF6
-	CALL	SUB_8C3A
-	CALL	SUB_8C96
-	CALL	SUB_8BC0
+	CALL	SUB_8BF6	; letter interaction
+	CALL	SUB_8C3A	; bad guy interaction
+	CALL	SUB_8C96	; chomper interaction
+	CALL	SUB_8BC0	; MrDo interaction
 	LD		A,(IY+1)
 	AND		7
 	JR		NZ,LOC_8AD7
@@ -1883,7 +1878,7 @@ LOC_8C68:
 	SET		7,(IX+0)
 	LD		A,(CURRAPPL)
 	LD		(IX+5),A
-	INC		(IY+4)
+	INC		(IY+4)			;  apple counter
 LOC_8C7A:
 	LD		(IX+2),D
 	LD		B,D
@@ -1926,7 +1921,7 @@ LOC_8CBE:
 	SET		7,(IX+0)
 	LD		A,(CURRAPPL)
 	LD		(IX+5),A
-	INC		(IY+4)
+	INC		(IY+4)			; apple timer
 LOC_8CD0:
 	LD		(IX+2),D
 	LD		B,D
@@ -3332,7 +3327,7 @@ SUB_96E4:
 	OR		32H
 	LD		(HL),A
 	LD		A,0AH
-	LD		($728C),A
+	LD		(CURRBADGUY),A
 
 	LD		A,(GAMECONTROL)
 	LD		C,A
@@ -3514,9 +3509,9 @@ SUB_9842:						; TEST MRDO COLLISION AGAINST ENEMIES
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	LD		($728B),A
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	DEC		A
-	LD		($728C),A
+	LD		(CURRBADGUY),A
 	JR		Z,LOC_9892
 LOC_986C:
 	LD		IY,ENEMY_DATA_ARRAY
@@ -3548,7 +3543,7 @@ LOC_98A2:
 	JP		LOC_D40B
 LOC_98A5:
 	CALL	SUB_98CE
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	LD		C,A
 	LD		B,0
 	LD		HL,BYTE_9A24
@@ -3567,10 +3562,10 @@ LOC_98A5:
 	CALL	SUB_9A2C
 	LD		L,A
 LOC_98C2:
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	INC		A
 	AND		7
-	LD		($728C),A
+	LD		(CURRBADGUY),A
 LOC_98CB:
 	LD		A,L
 	AND		A				; return L=A=1 if collison
@@ -3766,7 +3761,7 @@ LOC_9A50:
 	CALL	SUB_9C76		; IX unchanged
 	JR		NZ,LOC_9A75
 LOC_9A59:
-	CALL	SUB_A460		; digger interact with apples
+	CALL	SUB_A460		; digger interact with apples, IX changes
 	JR		LOC_9AA0
 LOC_9A5E:
 	CALL	SUB_A1DF
@@ -3808,7 +3803,6 @@ LOC_9AA0:
 	AND		0C7H
 	LD		(IY+4),A
 	CALL	SUB_9FC8
-LOC_9AB1:
 	POP		IX
 	AND		A
 RET
@@ -3841,19 +3835,18 @@ LOC_9AD8:
 	POP		DE
 RET
 
+
 SUB_9AE2:
 	PUSH	IX
-	PUSH	IY
-	
-	LD		D,1				; Bad guy (right)
+	PUSH	IY	
+							
 	BIT		6,(IY+0)		; B6==0,Transform
-	JR		NZ,LOC_9B07
+	JR		NZ,BADGUY		; Manage Bad guy 
 	
 	LD		D,13			; Bad guys Transforming (right)
 	BIT		5,(IY+0)		
-	JR		NZ,LOC_9B07
+	JR		NZ,WALK
 							; B5==0,Digger
-
 	CALL	SUB_9B4F
 	LD		B,(IY+2)
 	LD		C,(IY+1)
@@ -3862,47 +3855,90 @@ SUB_9AE2:
 	CALL	SUB_B173
 	
 	LD		D,25			; Digger (right)
-LOC_9B07:
+WALK:
 	LD		A,(IY+4)		; direction
 	AND		7
-	LD		L,0				; 1 == rigth	L=0
-	DEC		A
-	JR		Z,LOC_9B28
-	LD		L,2
-	DEC		A				; 2 == left		L=2
-	JR		Z,LOC_9B28
+	DEC		A				; 1 == rigth	D+=0
+	JR		Z,BADGUYANIM
+	INC		D
+	INC		D
+	DEC		A				; 2 == left		D+=2
+	JR		Z,BADGUYANIM
 
-	LD		L,4				; FootLeft
+	INC		D				; FootLeft
+	INC		D
 	BIT     7,(IY+1)		; test if x<128
 	JR 		NZ,.FootRight
-	LD		L,8
+	INC		D
+	INC		D
+	INC		D
+	INC		D
 .FootRight:
 	DEC 	A
-	JR		Z,LOC_9B28		; 3 == down		L=4 or 8
+	JR		Z,BADGUYANIM		; 3 == down		L=4 or 8
 
-	INC		L				; 4 == up 		L=6 or 10	
-	INC		L
+	INC		D					; 4 == up 		L=6 or 10	
+	INC		D
 
-LOC_9B28:
-
+BADGUYANIM:
 	LD		A,(IY+5)
 	XOR		$80
 	JR		Z,.odd
-	INC 	L
+	INC 	D
 .odd:
 	LD		(IY+5),A
 	
-	LD		A,D
-	ADD		A,L
-	LD		D,A
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	ADD		A,5
-	LD		B,(IY+2)
+	LD		B,(IY+2)		; B=Y, C=X, A=Object, D=Frame
 	LD		C,(IY+1)		
 	CALL	PUTSPRITE		; show bad guy
 	POP		IY
 	POP		IX
 RET
+
+BADGUY:
+	CALL 	PUSHTEST
+	JP 		Z,BADGUYANIM		; pushing
+	LD		D,1				; normal walk
+	JP		WALK		; walking	
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; test if the current bad guy pointed by IY is next to an active apple
+; return Z is pushing NZ is waking and in D the animation frame
+
+PUSHTEST:
+	LD		IX,APPLEDATA
+	LD		B,5
+.loop:	
+	BIT		7,(IX+0)
+	JR		Z,.next
+	LD		A,(IX+1)		;Y apple
+	CP		(IY+2)		;Y bad buy
+	JR		NZ,.next		;on the same line
+.sameline:	
+	LD		A,(IX+2)		;X apple
+	SUB		(IY+1)		;X bad guy (WTF !! THEY ARE INVERTED!!!)
+	JR		NC,.pos
+	NEG
+.pos:
+	CP		17
+	JP		NC,.next
+	LD		A,(IY+4)		; direction
+	AND		7
+	LD		D,38			; pushing apple 38 39 right, A==1
+	DEC		A
+	RET		Z
+	LD		D,40
+	DEC		A				; pushing apple 40 41 left, A==2
+	RET						; Z if A==2, NZ otherwise
+.next:
+	LD		DE,5
+	ADD		IX,DE
+	DJNZ	.loop
+	OR		E				; NZ
+RET	
+
 
 SUB_9B4F:
 	PUSH	BC
@@ -6077,11 +6113,7 @@ LOC_A973:
 	AND		A
 	JR		Z,LOC_A984
 	PUSH	AF
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AAE2:
-	BIT		7,(HL)
-	JR		NZ,LOC_AAE2
+	CALL 	WAIT_NMI
 	LD		HL,PNT
 	LD		DE,300H
 	XOR		A
@@ -6123,7 +6155,7 @@ RET
 ; Output: Stores completion type to correct player's slot
 ; Preserves: BC,AF
 STORE_COMPLETION_TYPE:    
-    PUSH	AF
+	PUSH	AF
     ; Get current level based on active player
     LD      A,(GAMECONTROL)
     BIT     1,A           ; Test if Player 2 is active
@@ -6134,20 +6166,16 @@ STORE_COMPLETION_TYPE:
     LD      A,(CURRENT_LEVEL_P2)		   	; Player 2
     LD      HL,P2_LEVEL_FINISH_BASE	
 .p1:
-    CALL    GET_SLOT_OFFSET   ; Get offset in A and DE
-    SRL      E                ; Divide offset by 2
-
-    ADD     HL,DE             ; Add offset to base
-    LD      (HL),C            ; Store completion type in correct slot
-    POP     AF
+    CALL    GET_SLOT_OFFSET  	; Get offset in A and DE
+	SRL     E               	; Divide offset by 2
+    
+    ADD     HL,DE         	; Add offset to base
+    LD      (HL),C       	; Store completion type in correct slot
+	POP		AF
     RET
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_A9A1:
-	BIT		7,(HL)
-	JR		NZ,LOC_A9A1
+	CALL 	WAIT_NMI
 
 	XOR		A
 	LD		($72BC),A
@@ -6211,13 +6239,9 @@ LOC_A9F2:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS
 	
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AA14:
-	BIT		7,(HL)
-	JR		NZ,LOC_AA14
+	CALL 	WAIT_NMI
 
-;	; Original code's final register writes
+;	Original code's final register writes
 	LD		BC,1E2H		 ; Original game state register
 	CALL	WRITE_REGISTER
 RET
@@ -6230,11 +6254,7 @@ RET
 
 
 GO_NEXT_LEVEL: ; Level complete,load next level
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AA2A:
-	BIT		7,(HL)
-	JR		NZ,LOC_AA2A
+	CALL 	WAIT_NMI
 
 ; CALCULATE_LEVEL_SCORE
 	
@@ -6392,11 +6412,7 @@ RET
 
 
 SUB_AA69:
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AA6E:
-	BIT		7,(HL)
-	JR		NZ,LOC_AA6E
+	CALL 	WAIT_NMI
 	LD		DE,3400H
 	BIT		1,(HL)
 	JR		Z,LOC_AA7C
@@ -6453,11 +6469,7 @@ RET
 
 
 SUB_AB28:
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AB2D:
-	BIT		7,(HL)
-	JR		NZ,LOC_AB2D
+	CALL 	WAIT_NMI
 	LD		HL,SAT
 	LD		DE,80H
 	XOR		A
@@ -6501,11 +6513,7 @@ LOC_AB6C:
 	CALL	TEST_SIGNAL
 	AND		A
 	JR		Z,LOC_AB6C
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AB8F:
-	BIT		7,(HL)
-	JR		NZ,LOC_AB8F
+	CALL 	WAIT_NMI
 	LD		HL,PNT
 	LD		DE,300H
 	XOR		A
@@ -6518,11 +6526,7 @@ LOC_ABA5:
 	XOR		A
 	RET
 LOC_ABA9:
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_ABAE:
-	BIT		7,(HL)
-	JR		NZ,LOC_ABAE
+	CALL 	WAIT_NMI
 	POP		AF
 	LD		A,3
 RET
@@ -8143,7 +8147,7 @@ LOC_B614:
 RET
 
 
-PUTSPRITE:
+PUTSPRITE:		; B=Y, C=X, A=Object, D=Frame
 		PUSH	DE			; Save FRAME NUMBER in D
 
 		AND		7FH			; SAT position
@@ -8499,11 +8503,7 @@ RET
 
 SUB_B8F7:
 	PUSH	IY
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_B8FE:
-	BIT		7,(HL)
-	JR		NZ,LOC_B8FE
+	CALL 	WAIT_NMI
 
 	LD	A,11
 	CALL SET_LEVEL_COLORS.RESTORE_COLORS
@@ -9747,11 +9747,7 @@ LOC_D326:
 	CALL	SUB_B8F7
 	PUSH	IY
 	CALL	SUB_CA24
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_D333:
-	BIT		7,(HL)
-	JR		NZ,LOC_D333
+	CALL 	WAIT_NMI
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	CALL  PLAY_DESSERT_COLLECT_SOUND
@@ -9774,11 +9770,7 @@ LOC_D333:
 	JP		LOC_B8AB
 LOC_D345:
 	CALL	SUB_CA2D
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_D34D:
-	BIT		7,(HL)
-	JR		NZ,LOC_D34D
+	CALL 	WAIT_NMI
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	LD		HL,$7272
@@ -10905,10 +10897,7 @@ WONDERFUL:
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
 
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-.3:	BIT		7,(HL)
-	JR		NZ,.3
+	CALL 	WAIT_NMI
 
 	CALL	RESET_LEVEL_TIMERS
 
@@ -11083,10 +11072,7 @@ INTERMISSION:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS	
 	
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-.3:	BIT		7,(HL)
-	JR		NZ,.3
+	CALL 	WAIT_NMI
 
 RET 
 
@@ -11184,20 +11170,20 @@ cvb_INTERMISSION:
 	LD HL,intermission_sprites
 	CALL unpack
 
-  ; Print Very Good + Level stats
+	; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-  ; Add terminator in slot 13
-  LD A, 208                ; Terminator Y value
-  LD (SAT_BUFFER), A       ; Store in buffer
-
-  LD BC, 1                 ; Just one byte (Y value only)
-  LD DE, $1B00+52          ; Slot 13 (icons are in slots 10-12)
-  LD HL, SAT_BUFFER
-  CALL MYLDIRVM
-  CALL MyNMI_on
-
-  CALL MYENASCR
+	; Add terminator in slot 13
+	LD A, 208                ; Terminator Y value
+	LD (SAT_BUFFER), A       ; Store in buffer
+	
+	LD BC, 1                 ; Just one byte (Y value only)
+	LD DE, $1B00+13*4      	 ; Slot 13 (icons are in slots 10-12)
+	LD HL, SAT_BUFFER
+	CALL MYLDIRVM
+	CALL MyNMI_on
+	
+	CALL MYENASCR
 
 RET
 
@@ -11217,10 +11203,10 @@ PRINT_LEVEL_STATS:
     
     ; Player 1 is active
     ld a,(CURRENT_LEVEL_P1)
-    jr .continue
+    jr .cont
 .use_p2:
     ld a,(CURRENT_LEVEL_P2)
-.continue:
+.cont:
     ; A now contains the correct current level
 
     ; Print and calculate scores for all three levels
@@ -11266,7 +11252,7 @@ PRINT_LEVEL_STATS:
     call PRINT_ICON
     pop af
 
-    ret
+ret
 
 ;----------------------------------------------------------------------
 ; GET_SLOT_OFFSET: Calculates the correct slot offset for level data
@@ -11308,12 +11294,12 @@ ret
 ; Preserves: AF
 ;----------------------------------------------------------------------
 PRINT_ICON:
-    LD      C, A
-    LD      HL, -32+5            ; Move one line up and 5 spaces to right
-    ADD     HL, DE
+    LD      C, A		; Save level in C
+    
+    LD      HL,-32+5            ; Move one line up and 5 spaces to right
+    ADD     HL,DE
     PUSH    HL                  ; Save screen position 
 
-    LD A, C
     CALL    GET_SLOT_OFFSET
     SRL     E                   ; Divide offset by 2 for single-byte slots,D==0 here
 
@@ -11325,51 +11311,53 @@ PRINT_ICON:
     LD      HL,P2_LEVEL_FINISH_BASE
 .p1:
 
-    ADD     HL, DE              ; Point to completion type byte
-
+    ADD     HL,DE              ; Point to completion type byte
+   
     ; Load completion type and select correct icon
-    LD      A, (HL)             ; Get icon type (1-4)
-    LD      B, A                ; Save it in B
+    LD      A,(HL)             ; Get icon type (1-4)
+    LD      B, A                ; Save icon type in B
     DEC     A                   ; Convert 1-4 to 0-3
     ADD     A,A                ; Multiply by 2 for table lookup
     LD      HL,ICON_TABLE
-    LD      E,A        ; D==0 here
+    LD      E,A				; D==0 here
     ADD     HL,DE
     LD      A,(HL)             ; Get low byte of icon address
     INC     HL
-    LD      H, (HL)             ; Get high byte of icon address
-    LD      L, A                ; HL now points to correct icon
+    LD      H,(HL)             ; Get high byte of icon address
+    LD      L,A                ; HL now points to correct icon
 
+    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
+	
     ; Check completion type for sprite
-    LD      A, B              ; Get completion type
-    CP      1                 ; Is it cherry?
+    DEC 	B                ;  cherry  B==1
     JR      NZ, .try_monster
     
-    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
-    LD      A, C              ; Get level number
-    CALL    PRINT_CHERRY_SPRITE
+	LD 		HL, CHERRY_Y_POS
+	LD		B,80
+    CALL    PRINT_ICON_SPRITE
     JR      .finish_sprite
-.try_monster:
-    CP      2                 ; Is it monster?
-    JR      NZ, .print_blank
     
-    LD      A, C              ; Get level number
-    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
-    CALL    PRINT_MONSTER_SPRITE
+.try_monster:
+    DEC 	B                 ; monster  B==2
+    JR      NZ, .print_blank
+
+	LD 		HL, MONSTER_Y_POS
+	LD		B,84
+    CALL    PRINT_ICON_SPRITE
     JR      .finish_sprite
+    
+	; any other icon
 .print_blank:
-    LD      A, C
-    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
     CALL    PRINT_BLANK_SPRITE
+    
 .finish_sprite:
-    POP     HL                ; Get icon address [STACK: level, screen_pos]
+    POP     HL                	; Restore icon address [STACK: level, screen_pos]
     POP     DE                  ; Restore screen position
 
     ; Copy the icon to screen 
     LD      BC,3*256+2         ; B = 3 (height),C = 2 (width)
     LD      A,C                ; Source width is 2
     CALL    CPYBLK_MxN
-
     
 RET
 
@@ -11382,146 +11370,63 @@ ICON_TABLE:
 
 
 ;----------------------------------------------------------------------
-; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
-; Input: A = level number (1-3)
-;----------------------------------------------------------------------
-PRINT_CHERRY_SPRITE:
-  PUSH BC
-  CALL GET_SLOT_OFFSET
-  SRL A
-  ; A is now 0, 1 or 2
-
-  LD HL, CHERRY_Y_POS
-  LD      E, A
-  LD      D, 0 
-  ADD     HL, DE
-  LD      A, (HL)           ; Get Y position
-
-  ; Set up sprite in buffer
-  LD      (SAT_BUFFER), A    ; Y position
-  LD      A, 200             ; X position (always 200)
-  LD      (SAT_BUFFER+1), A
-  LD      A, 80              ; Cherry pattern (always 80)
-  LD      (SAT_BUFFER+2), A
-  LD      A, 1               ; Color
-  LD      (SAT_BUFFER+3), A
-    
-    ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-  POP   BC         ; Get level number back
-  LD A, C
-  CALL GET_SLOT_OFFSET
-  SRL A  
-  ADD   A, A         ; Multiply by 4
-  ADD   A, A
-  ADD   A, 40       ; Add base offset
-  
-  ; Copy to SAT
-  LD    BC, 4
-  LD    H, 0
-  LD    L, A
-  LD    DE, $1B00
-  ADD   HL, DE      ; HL = $1B00 + offset
-  EX    DE, HL      ; Put result in DE
-  LD    HL, SAT_BUFFER
-  CALL  MyNMI_off
-  CALL  MYLDIRVM
-  CALL  MyNMI_on
-  RET
-
-;----------------------------------------------------------------------
-; PRINT_MONSTER_SPRITE: Prints monster sprite for given level
-; Input: A = level number (1-3)
-;----------------------------------------------------------------------
-PRINT_MONSTER_SPRITE:
-  PUSH BC
-  CALL GET_SLOT_OFFSET
-  SRL A
-  ; E is now 0, 1 or 2
-  ; Get Y position from table
-  LD    HL, MONSTER_Y_POS
-  LD    E, A
-  LD    D, 0
-  ADD   HL, DE
-  LD    A, (HL)    ; Get Y position
-  
-  ; Set up sprite in buffer
-  LD    (SAT_BUFFER), A         ; Y position
-  LD    A, 200                  ; X position
-  LD    (SAT_BUFFER+1), A
-  LD    A, 84                   ; Monster pattern
-  LD    (SAT_BUFFER+2), A
-  LD    A, 1                    ; Color
-  LD    (SAT_BUFFER+3), A
-
-  ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-  POP   BC                  ; Get level number back
-  LD    A, C
-  CALL GET_SLOT_OFFSET
-  SRL A                     ; A is now 0, 1 or 2
-  ADD   A, A                ; Multiply by 4
-  ADD   A, A
-  ADD   A, 40               ; Add base offset
-  
-  ; Copy to SAT
-  LD    BC, 4
-  LD    H, 0
-  LD    L, A
-  LD    DE, $1B00
-  ADD   HL, DE              ; HL = $1B00 + offset
-  EX    DE, HL              ; Put result in DE
-  LD    HL, SAT_BUFFER
-  CALL  MyNMI_off
-  CALL  MYLDIRVM
-  CALL  MyNMI_on
-  RET
-
-
-;----------------------------------------------------------------------
 ; PRINT_BLANK_SPRITE: Prints blank sprite for given level
-; Input: A = level number (1-3)
+; Input: C = level number (1-3)
 ;----------------------------------------------------------------------
 PRINT_BLANK_SPRITE:
-  PUSH BC
-  CALL GET_SLOT_OFFSET
-  SRL A
-
-    ; Get Y position from table
-  LD    HL, MONSTER_Y_POS
-  LD    E, A
-  LD    D, 0
-  ADD   HL, DE
-  LD    A, (HL)             ; Get Y position
-  
-  ; Set up sprite in buffer
+    
+  LD    A, 209				; put sprite offscreen
   LD    (SAT_BUFFER), A     ; Y position
-  LD    A, 200              ; X position
-  LD    (SAT_BUFFER+1), A
-  LD    A, 252              ; BLANK pattern
-  LD    (SAT_BUFFER+2), A
-  LD    A, 0                ; Color (invisible)
-  LD    (SAT_BUFFER+3), A
 
     ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
-  POP     BC                 ; Get level number back
-  LD    A, C
-  CALL GET_SLOT_OFFSET
-  SRL   A
-  ADD   A, A         ; Multiply by 4
-  ADD   A, A
-  ADD   A, 40       ; Add base offset
 
-  ; Copy to SAT
-  LD    BC, 4
-  LD    H, 0
-  LD    L, A
-  LD    DE, $1B00
-  ADD   HL, DE      ; HL = $1B00 + offset
-  EX    DE, HL      ; Put result in DE
-  LD    HL, SAT_BUFFER
-  CALL  MyNMI_off
-  CALL  MYLDIRVM
-  CALL  MyNMI_on
-  RET
+  LD    A, C
+  CALL 	GET_SLOT_OFFSET
+
+  JP 	PRINT_ICON_SPRITE.CpySAT
+
+;----------------------------------------------------------------------
+; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
+; Input: C = level number (1-3), HL = Y TABLE, B = Sprite pattern
+;----------------------------------------------------------------------
+PRINT_ICON_SPRITE:
+    LD      A, C              	; Get level number
+	CALL 	GET_SLOT_OFFSET		; bc and hl preserved
+	PUSH	AF					; save 2*slot number
+	SRL A						; A is now 0, 1 or 2
+	
+	LD      E, A
+	LD      D, 0 
+	ADD     HL, DE
+	LD      A, (HL)           	; Get Y position
+	
+	; Set up sprite in buffer
+	LD      (SAT_BUFFER), A    	; Y position
+	LD      A, 200             	; X position (always 200)
+	LD      (SAT_BUFFER+1), A
+	LD      A, B              	; Cherry pattern = 80, Monster Patter = 84
+	LD      (SAT_BUFFER+2), A
+	LD      A, 1               	; Color
+	LD      (SAT_BUFFER+3), A
+	
+	; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+	
+	POP   AF         	; Get 2*slot number back
+.CpySAT:
+ 	ADD   A, A         	; Multiply by 4
+	
+	LD    H, 0			; Copy to SAT
+	LD    L, A
+	LD    DE, $1B00 + 4*10
+	ADD   HL, DE      	; HL = $1B00 + offset
+	EX    DE, HL      	; Put result in DE
+	LD    HL, SAT_BUFFER
+	LD    BC, 4
+	CALL  MyNMI_off
+	CALL  MYLDIRVM
+	CALL  MyNMI_on
+RET
+
 
 ; Y position tables
 CHERRY_Y_POS:
@@ -11540,43 +11445,43 @@ PRINT_SINGLE_TIME:
     ; Check which player is active
     ld a,(GAMECONTROL)
     bit 1,a                   ; Test if Player 2 is active
-    ld hl,P1_LEVEL1_SEC       ; Default to Player 1 base
-    jr z,.got_base            ; ZF==0 for P1,ZF==1 for P2
-    ld hl,P2_LEVEL1_SEC       ; Otherwise use Player 2 base
+    ld hl,P1_LEVEL1_SEC      	; Default to Player 1 base
+    jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
+    ld hl,P2_LEVEL1_SEC      	; Otherwise use Player 2 base
 .got_base:
 
     ; Calculate which level's time to show
     pop af                   	; Get level number back
-    call 	GET_SLOT_OFFSET     ; Get the correct offset
-    add hl,de                 ; HL now points to seconds          
+    call 	GET_SLOT_OFFSET		; Get the correct offset
+    add hl,de             		; HL now points to seconds          
     push hl                
     
 	; Get minutes first (it's the next byte)
-    inc hl                    ; Point to minutes
-    ld a,(hl)                 ; Get minutes
-    add a,"0"                 ; Convert to ASCII
-    ld (TEXT_BUFFER),a        ; Store single minute digit
-    ld a,"'"                  ; Add space
+    inc hl                    	; Point to minutes
+    ld a,(hl)                	; Get minutes
+    add a,"0"                	; Convert to ASCII
+    ld (TEXT_BUFFER),a       	; Store single minute digit
+    ld a,"'"                 	; Add space
     ld (TEXT_BUFFER+1),a
     
     ; Now get seconds
-    pop hl                    ; Restore pointer to seconds
-    ld l,(hl)                 ; Get seconds
-    ld h,0                    ; Put seconds in HL
+    pop hl                    	; Restore pointer to seconds
+    ld l,(hl)                	; Get seconds
+    ld h,0                   	; Put seconds in HL
     
     ; Convert seconds to decimal
 	CALL DIV_HLby10
     
     ; Store seconds (always show both digits)
     ld a,c
-    add a,"0"                 ; Convert tens to ASCII
+    add a,"0"                	; Convert tens to ASCII
     ld (TEXT_BUFFER+2),a
     ld a,l
-    add a,"0" + $80           ; Convert ones to ASCII and add terminator
+    add a,"0" + $80            ; Convert ones to ASCII and add terminator
     ld (TEXT_BUFFER+3),a
      ; Print time value
     pop hl                    ; Restore screen position in HL
-    ld de,7                   ; Move 7 positions right
+    ld de,7                  ; Move 7 positions right
     add hl,de
     ex de,hl
     ld hl,TEXT_BUFFER
@@ -11953,7 +11858,7 @@ cvb_SP1:
 	DB 64+56+32,161,28,8
 	DB 64+58+32,112,32,1
 	DB 64+60+32,80,36,1
-	DB 208
+
 cvb_FR1:
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 	DB $05,$06,$07,$08,$09,$0a,$0b,$0c,$00,$00,$0d,$0e,$0f,$10
@@ -11972,7 +11877,7 @@ cvb_SP2:
 	DB 124+32,166,68,12
 	DB 122+32,112,72,1
 	DB 122+32,176,76,8
-	DB 208
+
 	
 cvb_FR2:	
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00	
@@ -12025,11 +11930,7 @@ CONGRATULATION:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS	
 	
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-.3:
-	BIT		7,(HL)
-	JR		NZ,.3
+	CALL 	WAIT_NMI
 
 	LD		BC,1E2H		 ; Original game state register
 	CALL	WRITE_REGISTER
@@ -12146,7 +12047,7 @@ cvb_FS1:
 	DB 123-40,11,68,3
 	DB 126-40,12,72,2
 	DB 125-40,8,76,1
-  DB 208
+	DB 208
 cvb_FS2:
 	DB 159-80,7,80,3
 	DB 161-80,21,84,4
