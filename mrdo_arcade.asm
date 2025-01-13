@@ -11816,21 +11816,6 @@ DIAMOND_ICON:
     DB $4b,$4c     ; Middle row of diamond icon
     DB $4f,$00     ; Bottom row of diamond icon
 
-ItemsSAT:					; USE THESE SPRITES FOR ITEMS
-	DB 141,240,80,15			; cherry mask
-	DB 164,240,84,15			; bad buy mask
-	DB 208					; use as last item in the sat after the last used sprite
-	
-	
-; ; USE THESE TILES FOR ITEMS
-;ItemsPNT:
-;	DB $3c,$3d,$00,$00,$3e
-;	DB $3f,$40,$00,$41,$42
-;	DB $43,$44,$00,$45,$46
-;	
-;	DB $47,$48,$00,$49,$4a
-;	DB $4b,$4c,$00,$4d,$4e
-;	DB $4f,$00,$00,$50,$51
 	
 	; Start tile = 0. Total_tiles = 82
 intermission_char:
