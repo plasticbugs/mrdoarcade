@@ -115,7 +115,7 @@ NO_EXTRA_TUNE_0E:		EQU $22
 
 WORKBUFFER:				RB	16	;EQU $07000	; work ram
 
-FREERAM2:				RB	4	;EQU $7000	; FREE RAM
+SAT_BUFFER:				RB	4	;EQU $7000	; FREE RAM
 
 TIMER_DATA_BLOCK:		RB	12	;EQU $7014
 STATESTART:				RB	11	;EQU $7020 	; OS Sound Buffer Start
@@ -4593,8 +4593,8 @@ UNK_9FB3:
 
 SUB_9FC8:
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	; XOR		A    ; (Uncomment for invincibility)
-	; RET        ; (Uncomment for invincibility)
+	XOR		A    ; (Uncomment for invincibility)
+	RET        ; (Uncomment for invincibility)
 	PUSH	IY
 	LD		B, (IY+2)
 	LD		A, (MRDO_DATA.Y)
@@ -6143,7 +6143,7 @@ STORE_COMPLETION_TYPE:
     LD      HL, P2_LEVEL_FINISH_BASE	
 .p1:
     CALL    GET_SLOT_OFFSET  	; Get offset in A and DE
-	SRL     E               	; Divide offset by 2
+		SRL     E               	; Divide offset by 2
     
     ADD     HL, DE         	; Add offset to base
     LD      (HL), C       	; Store completion type in correct slot
@@ -11168,7 +11168,17 @@ cvb_INTERMISSION:
   ; Print Very Good + Level stats
 	CALL PRINT_LEVEL_STATS
 
-		
+
+		; Add terminator in slot 13
+    LD A, 208                ; Terminator Y value
+    LD (SAT_BUFFER), A       ; Store in buffer
+
+    LD BC, 1                 ; Just one byte (Y value only)
+    LD DE, $1B00+52          ; Slot 13 (icons are in slots 10-12)
+    LD HL, SAT_BUFFER
+    CALL MYLDIRVM
+    CALL MyNMI_on
+
 	CALL MYENASCR
 
 RET
@@ -11241,6 +11251,115 @@ PRINT_LEVEL_STATS:
 
     ret
 
+
+; ;----------------------------------------------------------------------
+; ; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
+; ; Input: A = level number (1-3)
+; ;----------------------------------------------------------------------
+; PRINT_CHERRY_SPRITE:
+;     DEC     A               ; Convert 1-3 to 0-2 for table lookup
+    
+;     ; Get Y position from table
+;     LD      HL, CHERRY_Y_POS
+;     LD      E, A
+;     LD      D, 0
+;     ADD     HL, DE
+;     LD      A, (HL)        ; Get Y position
+    
+;     ; Set up sprite in buffer
+;     LD      (SAT_BUFFER), A    ; Y position
+;     LD      A, 200             ; X position
+;     LD      (SAT_BUFFER+1), A
+;     LD      A, 80              ; Cherry pattern
+;     LD      (SAT_BUFFER+2), A
+;     LD      A, 12              ; Color
+;     LD      (SAT_BUFFER+3), A
+    
+;     ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+;     POP     AF                 ; Get level number back
+;     DEC     A                  ; Level 1 = 0
+;     ADD     A, A               ; Multiply by 4
+;     ADD     A, A
+;     ADD     A, 40             ; Add base offset
+    
+;     ; Copy to SAT
+;     LD      BC, 4
+;     LD      H, 0
+;     LD      L, A
+;     LD      DE, $1B00
+;     ADD     HL, DE            ; HL = $1B00 + offset
+;     EX      DE, HL            ; Put result in DE
+;     LD      HL, SAT_BUFFER
+;     CALL    MyNMI_off
+;     CALL    MYLDIRVM
+;     CALL    MyNMI_on
+;     RET
+
+PRINT_ICON_SPRITES:
+    ; First, set up the sprite data in our RAM buffer
+
+		; LEVEL 1 Cherry Y
+    ; LD A, 5                   ; Y position
+    ; LD (SAT_BUFFER), A
+
+		; ; LEVEL 2 Cherry Y
+    ; LD A, 29                   ; Y position
+    ; LD (SAT_BUFFER), A
+
+		; ; LEVEL 3 Cherry Y
+    ; LD A, 53                 ; Y position
+    ; LD (SAT_BUFFER), A
+
+
+
+		; LEVEL 1 Monster Y
+    ; LD A, 4                   ; Y position
+    ; LD (SAT_BUFFER), A
+
+		; LEVEL 2 Monster Y
+    ; LD A, 28                   ; Y position
+    ; LD (SAT_BUFFER), A
+
+		; ; LEVEL 3 Monster Y
+    ; LD A, 52                 ; Y position
+    ; LD (SAT_BUFFER), A
+
+
+    
+    LD A, 200                 ; X position
+    LD (SAT_BUFFER+1), A
+    
+    ; LD A, 80                 ; Pattern number (cherry)
+    ; LD (SAT_BUFFER+2), A
+
+    ; LD A, 84                 ; Pattern number (monster)
+    ; LD (SAT_BUFFER+2), A
+    
+    LD A, 12                 ; Color
+    LD (SAT_BUFFER+3), A
+    
+    ; Now copy from buffer to VRAM at sprite slot 20
+    LD BC, 4                 ; 4 bytes (one sprite)
+    LD DE, $1B00+40          ; SAT + (19 * 4) for slot 20
+    LD HL, SAT_BUFFER        ; Our RAM buffer
+    CALL MyNMI_off
+    CALL MYLDIRVM
+
+		    ; Add terminator in slot 13
+    LD A, 208                ; Terminator Y value
+    LD (SAT_BUFFER), A       ; Store in buffer
+
+    LD BC, 1                 ; Just one byte (Y value only)
+    LD DE, $1B00+44          ; Next slot (13)
+    LD HL, SAT_BUFFER
+    CALL MYLDIRVM
+
+    CALL MyNMI_on
+    RET
+; CHERRY_SAT:
+;     DB 100,80,88,13       ; Y, X, Pattern 80, Color 13
+    ; DB 208               ; Terminator
+
 ;----------------------------------------------------------------------
 ; GET_SLOT_OFFSET: Calculates the correct slot offset for level data
 ; Input: A = level number
@@ -11273,6 +11392,7 @@ GET_SLOT_OFFSET:
     ld d, 0
     pop bc
 ret
+
 ;----------------------------------------------------------------------
 ; PRINT_ICON: Prints completion icon for the level
 ; Input: A = level number, DE = screen position
@@ -11280,10 +11400,12 @@ ret
 ; Preserves: AF
 ;----------------------------------------------------------------------
 PRINT_ICON:
+		LD      C, A
     LD      HL, -32+5            ; Move one line up and 5 spaces to right
     ADD     HL, DE
     PUSH    HL                  ; Save screen position 
 
+		LD A, C
     CALL    GET_SLOT_OFFSET
     SRL     E                   ; Divide offset by 2 for single-byte slots, D==0 here
 
@@ -11296,9 +11418,10 @@ PRINT_ICON:
 .p1:
 
     ADD     HL, DE              ; Point to completion type byte
-   
+
     ; Load completion type and select correct icon
     LD      A, (HL)             ; Get icon type (1-4)
+		LD      B, A                ; Save it in B
     DEC     A                   ; Convert 1-4 to 0-3
     ADD     A, A                ; Multiply by 2 for table lookup
     LD      HL, ICON_TABLE
@@ -11308,15 +11431,37 @@ PRINT_ICON:
     INC     HL
     LD      H, (HL)             ; Get high byte of icon address
     LD      L, A                ; HL now points to correct icon
+
+    ; Check completion type for sprite
+    LD      A, B              ; Get completion type
+    CP      1                 ; Is it cherry?
+    JR      NZ, .try_monster
     
+    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
+		LD      A, C              ; Get level number
+    CALL    PRINT_CHERRY_SPRITE
+    JR      .finish_sprite
+.try_monster:
+    CP      2                 ; Is it monster?
+    JR      NZ, .print_blank
+    
+    LD      A, C              ; Get level number
+    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
+    CALL    PRINT_MONSTER_SPRITE
+    JR      .finish_sprite
+.print_blank:
+		LD      A, C
+    PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
+    CALL    PRINT_BLANK_SPRITE
+.finish_sprite:
+    POP     HL                ; Get icon address [STACK: level, screen_pos]
     POP     DE                  ; Restore screen position
 
     ; Copy the icon to screen 
     LD      BC, 3*256+2         ; B = 3 (height), C = 2 (width)
     LD      A, C                ; Source width is 2
     CALL    CPYBLK_MxN
-	
-	; here you should put the sprites
+
     
 RET
 
@@ -11326,6 +11471,155 @@ ICON_TABLE:
     DW MONSTER_ICON           	; Type 2
     DW DIAMOND_ICON           	; Type 3
     DW EXTRA_ICON            	; Type 4
+
+
+;----------------------------------------------------------------------
+; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
+; Input: A = level number (1-3)
+;----------------------------------------------------------------------
+PRINT_CHERRY_SPRITE:
+	PUSH BC
+	CALL GET_SLOT_OFFSET
+	SRL A
+  ; A is now 0, 1 or 2
+
+	LD HL, CHERRY_Y_POS
+	LD      E, A
+	LD      D, 0
+	ADD     HL, DE
+	LD      A, (HL)        ; Get Y position
+
+	; Set up sprite in buffer
+	LD      (SAT_BUFFER), A    ; Y position
+	LD      A, 200             ; X position (always 200)
+	LD      (SAT_BUFFER+1), A
+	LD      A, 80              ; Cherry pattern (always 80)
+	LD      (SAT_BUFFER+2), A
+	LD      A, 1               ; Color
+	LD      (SAT_BUFFER+3), A
+    
+    ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+    POP     BC                 ; Get level number back
+		LD A, C
+		CALL GET_SLOT_OFFSET
+		SRL A    
+    ADD     A, A               ; Multiply by 4
+    ADD     A, A
+    ADD     A, 40             ; Add base offset
+    
+    ; Copy to SAT
+    LD      BC, 4
+    LD      H, 0
+    LD      L, A
+    LD      DE, $1B00
+    ADD     HL, DE            ; HL = $1B00 + offset
+    EX      DE, HL            ; Put result in DE
+    LD      HL, SAT_BUFFER
+    CALL    MyNMI_off
+    CALL    MYLDIRVM
+    CALL    MyNMI_on
+    RET
+
+;----------------------------------------------------------------------
+; PRINT_MONSTER_SPRITE: Prints monster sprite for given level
+; Input: A = level number (1-3)
+;----------------------------------------------------------------------
+PRINT_MONSTER_SPRITE:
+    PUSH BC
+		CALL GET_SLOT_OFFSET
+		SRL A
+		; E is now 0, 1 or 2
+    ; Get Y position from table
+    LD      HL, MONSTER_Y_POS
+    LD      E, A
+    LD      D, 0
+    ADD     HL, DE
+    LD      A, (HL)        ; Get Y position
+    
+    ; Set up sprite in buffer
+    LD      (SAT_BUFFER), A    ; Y position
+    LD      A, 200             ; X position
+    LD      (SAT_BUFFER+1), A
+    LD      A, 84              ; Monster pattern
+    LD      (SAT_BUFFER+2), A
+    LD      A, 1              ; Color
+    LD      (SAT_BUFFER+3), A
+
+    ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+    POP     BC                 ; Get level number back
+		LD      A, C
+		CALL GET_SLOT_OFFSET
+		SRL A											; A is now 0, 1 or 2
+    ADD     A, A               ; Multiply by 4
+    ADD     A, A
+    ADD     A, 40             ; Add base offset
+    
+    ; Copy to SAT
+    LD      BC, 4
+    LD      H, 0
+    LD      L, A
+    LD      DE, $1B00
+    ADD     HL, DE            ; HL = $1B00 + offset
+    EX      DE, HL            ; Put result in DE
+    LD      HL, SAT_BUFFER
+    CALL    MyNMI_off
+    CALL    MYLDIRVM
+    CALL    MyNMI_on
+    RET
+
+
+;----------------------------------------------------------------------
+; PRINT_BLANK_SPRITE: Prints blank sprite for given level
+; Input: A = level number (1-3)
+;----------------------------------------------------------------------
+PRINT_BLANK_SPRITE:
+    PUSH BC
+		CALL GET_SLOT_OFFSET
+		SRL A
+
+    ; Get Y position from table
+    LD      HL, MONSTER_Y_POS
+    LD      E, A
+    LD      D, 0
+    ADD     HL, DE
+    LD      A, (HL)        ; Get Y position
+    
+    ; Set up sprite in buffer
+    LD      (SAT_BUFFER), A    ; Y position
+    LD      A, 200             ; X position
+    LD      (SAT_BUFFER+1), A
+    LD      A, 252              ; BLANK pattern
+    LD      (SAT_BUFFER+2), A
+    LD      A, 0              ; Color
+    LD      (SAT_BUFFER+3), A
+
+    ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+    POP     BC                 ; Get level number back
+		LD A, C
+		CALL GET_SLOT_OFFSET
+		SRL A
+    ADD     A, A               ; Multiply by 4
+    ADD     A, A
+    ADD     A, 40             ; Add base offset
+
+    ; Copy to SAT
+    LD      BC, 4
+    LD      H, 0
+    LD      L, A
+    LD      DE, $1B00
+    ADD     HL, DE            ; HL = $1B00 + offset
+    EX      DE, HL            ; Put result in DE
+    LD      HL, SAT_BUFFER
+    CALL    MyNMI_off
+    CALL    MYLDIRVM
+    CALL    MyNMI_on
+    RET
+
+; Y position tables
+CHERRY_Y_POS:
+    DB 5, 29, 53           ; Y positions for levels 1-3
+MONSTER_Y_POS:
+    DB 4, 28, 52           ; Y positions for levels 1-3
 
 ;----------------------------------------------------------------------
 ; PRINT_SINGLE_TIME: Prints one level's completion time
@@ -11565,7 +11859,7 @@ SCENE_TEXT:  DC "SCENE "
 
 
 cvb_INTERMISSION_FRM1:
-	LD BC,4*10+1
+	LD BC,4*10
 	LD DE,$1B00
 	LD HL,cvb_SP1
 	CALL MyNMI_off
@@ -11580,7 +11874,7 @@ cvb_INTERMISSION_FRM1:
 	RET
 	
 cvb_INTERMISSION_FRM2:
-	LD BC,4*10+1
+	LD BC,4*10
 	LD DE,$1B00
 	LD HL,cvb_SP2
 	CALL MyNMI_off
@@ -11615,9 +11909,10 @@ DIAMOND_ICON:
     DB $4f,$00     ; Bottom row of diamond icon
 
 ItemsSAT:					; USE THESE SPRITES FOR ITEMS
-	DB 141,240,80,1			; cherry mask
-	DB 164,240,84,1			; bad buy mask
+	DB 141,240,80,15			; cherry mask
+	DB 164,240,84,15			; bad buy mask
 	DB 208					; use as last item in the sat after the last used sprite
+	
 	
 ; ; USE THESE TILES FOR ITEMS
 ;ItemsPNT:
@@ -11951,14 +12246,12 @@ cvb_FS0:
 	DB 83,18,48,3
 	DB 86,8,52,1
 	DB 85,8,56,2
-	DB 208
 cvb_FS1:
 	DB 119-40,9,60,3
 	DB 121-40,1,64,4
 	DB 123-40,11,68,3
 	DB 126-40,12,72,2
 	DB 125-40,8,76,1
-	DB 208
 cvb_FS2:
 	DB 159-80,7,80,3
 	DB 161-80,21,84,4
