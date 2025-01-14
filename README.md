@@ -26,4 +26,6 @@ Changes:
     
 Wish list/To do list:
 - Wonderful screen every 10th level that shows average score per level and average time to complete each level along with score and time data for the previous level.
+- display 500 and 1000 signs after a set of cherries has been collected and after an enemy has been smashed by an apple
+- Add a credits croller to be activated by a secret combo of keys
 
