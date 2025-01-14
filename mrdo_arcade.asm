@@ -202,17 +202,17 @@ P1_LEVEL2_MIN:    		RB 1 	; Player 1 level 2 minutes
 P1_LEVEL3_SEC:    		RB 1 	; Player 1 level 3 seconds
 P1_LEVEL3_MIN:    		RB 1 	; Player 1 level 3 minutes
 
-P1_PREV_SCORE:    		RB 2 	; 2 bytes - Previous total score for P1
+P1_PREV_SCORE:    		RB 2 	; 2 bytes - Previous total score for P1  ; equ 072F8h
 P1_LEVEL1_SCORE:  		RB 2 	; 2 bytes - Level 1 score
 P1_LEVEL2_SCORE:  		RB 2 	; 2 bytes - Level 2 score
 P1_LEVEL3_SCORE:  		RB 2 	; 2 bytes - Level 3 score
 
-P2_LEVEL1_SEC:    		RB 1    ; Player 1 level 1 seconds
-P2_LEVEL1_MIN:    		RB 1    ; Player 1 level 1 minutes
-P2_LEVEL2_SEC:    		RB 1    ; Player 1 level 2 seconds
-P2_LEVEL2_MIN:    		RB 1    ; Player 1 level 2 minutes
-P2_LEVEL3_SEC:    		RB 1    ; Player 1 level 3 seconds
-P2_LEVEL3_MIN:    		RB 1    ; Player 1 level 3 minutes
+P2_LEVEL1_SEC:    		RB 1    ; Player 2 level 1 seconds  ; equ 07300h
+P2_LEVEL1_MIN:    		RB 1    ; Player 2 level 1 minutes
+P2_LEVEL2_SEC:    		RB 1    ; Player 2 level 2 seconds
+P2_LEVEL2_MIN:    		RB 1    ; Player 2 level 2 minutes
+P2_LEVEL3_SEC:    		RB 1    ; Player 2 level 3 seconds
+P2_LEVEL3_MIN:    		RB 1    ; Player 2 level 3 minutes
 
 P2_PREV_SCORE:    		RB 2    ; 2 bytes - Previous total score for P2
 P2_LEVEL1_SCORE:  		RB 2    ; 2 bytes - Level 1 score
@@ -4622,8 +4622,8 @@ UNK_9FB3:
 
 SUB_9FC8:
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	; XOR		A    ; (Uncomment for invincibility)
-	; RET        ; (Uncomment for invincibility)
+	XOR		A    ; (Uncomment for invincibility)
+	RET        ; (Uncomment for invincibility)
 	PUSH	IY
 	LD		B,(IY+2)
 	LD		A,(MRDO_DATA.Y)
@@ -6096,6 +6096,7 @@ LOC_A969:
 
 	LD    C,4
 	CALL	STORE_COMPLETION_TYPE
+  ; Stop all sounds
 
 	CALL	ExtraMrDo
 	JR		LOC_A96C
@@ -6175,6 +6176,7 @@ STORE_COMPLETION_TYPE:
     RET
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
+  CALL  TURN_OFF_SOUND
 	CALL 	WAIT_NMI
 
 	XOR		A
@@ -9581,37 +9583,76 @@ NO_EXTRA_TUNE_P5:
 	DB 129,060,000,002,102,016,128,050,032,006,129,101,048,002,102,231,144
 
 LOSE_LIFE_TUNE_P1:
-	; High B
-	DB 064,056,080,007,099
-	; High C
-	DB 064,053,090,007,107
-	; Sec F
-	DB 064,160,080,004,099
-	; Sec G
-	DB 064,142,080,007,107
-	; SEcond Highest G#
-	DB 064,067,080,007,099
-	; B Flat (B5)
-	DB 064,119,080,007,107
-	; D# (low)
-	DB 064,206,082,007,099
-	; C (low)
-	DB 064,086,083,007,080
+  DB 064,$11,080,007,097
+  DB 064,$0E,080,007,097
+
+  DB 064,$50,080,007,097
+  DB 064,$47,080,007,097
+
+  DB 064,$21,080,007,097
+  DB 064,$2C,080,007,097
+
+  DB 064,$59,080,007,097
+
+
+
+
+; 	; High B
+; 	DB 064,056,080,007,099
+; 	; High C
+; 	DB 064,053,090,007,107
+; 	; Sec F
+; 	DB 064,160,080,004,099
+; 	; Sec G
+; 	DB 064,142,080,007,107
+; 	; SEcond Highest G#
+; 	DB 064,067,080,007,099
+; 	; B Flat (B5)
+; 	DB 064,119,080,007,107
+; 	; D# (low)
+; 	DB 064,206,082,007,099
+; 	; C (low)
+; 	DB 064,086,083,007,080
 LOSE_LIFE_TUNE_P2:
-	DB 128,056,096,007,162
-	DB 128,053,096,007,170
-	; Middle G#
-	DB 128,134,096,004,162
-	; Middle B (B4)
-	DB 192,142,096,007,235
-	; D# (D5)
-	DB 192,089,096,007,227
-	; F# (middle)
-	DB 192,119,096,007,235
-	; D# (low)
-	DB 192,206,098,007,227
-	; C (low)
-	DB 192,086,099,007,144
+  DB 128,$15,080,007,161
+  DB 128,$11,080,007,161
+
+  DB 128,$64,080,007,161
+  DB 128,$5F,080,007,161
+
+  DB 128,$28,080,007,161
+  DB 128,$3B,080,007,161
+
+  DB 128,$B3,080,007,161
+
+
+; 	DB 128,056,096,007,162
+; 	DB 128,053,096,007,170
+; 	; Middle G#
+; 	DB 128,134,096,004,162
+; 	; Middle B (B4)
+; 	DB 192,142,096,007,235
+; 	; D# (D5)
+; 	DB 192,089,096,007,227
+; 	; F# (middle)
+; 	DB 192,119,096,007,235
+; 	; D# (low)
+; 	DB 192,206,098,007,227
+; 	; C (low)
+; 	DB 192,086,099,007,144
+LOSE_LIFE_TUNE_P3:
+  DB 192,$1A,080,007,225
+  DB 192,$15,080,007,225
+
+  DB 192,$86,080,007,225
+  DB 192,$71,080,007,225
+
+  DB 192,$2F,080,007,225
+  DB 232 ; 8 REST
+
+  DB 192,
+
+
 DIAMOND_SOUND:
 	DB 130,023,080,008,027,017,152
 
@@ -11085,10 +11126,10 @@ RESET_LEVEL_TIMERS:
 
 Reset_p1:
     LD      HL,P1_LEVEL1_SEC
-	JR		Reset_p2.0
+	  JR		  continue_reset
 Reset_p2:
     LD      HL,P2_LEVEL1_SEC
-.0:
+continue_reset:
     XOR     A                  ; A = 0
     LD      B,6              ; 6 bytes to clear (3 levels * 2 bytes each)
 .1:
