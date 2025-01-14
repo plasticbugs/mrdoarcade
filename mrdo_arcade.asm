@@ -147,7 +147,7 @@ CURRAPPL:				RB   1	;EQU $722A
 						RB   1	;EQU $722B
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
 ENEMYINTERACT:			RB  20	;EQU $7245 ; enemy interaction data
-						RB  20	;EQU $7259 ; enemy interaction data
+ENEMYINTERACT2:			RB  20	;EQU $7259 ; enemy interaction data
 SPRITEROTFLAG:			RB	 1	;EQU $726D
 GAMECONTROL:			RB	 1	;EQU $726E ; GAME CONTROL BYTE (All bits have a meaning!) B0->1/2 Players B5-> Pause/Game
 GAMETIMER:				RB	 1	;EQU $726F  ??
@@ -175,7 +175,7 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1	;EQU $7289	; ??
 						RB   1	;EQU $728A	; ??
 						RB   1	;EQU $728B	; 
-CURRBADGUY:					RB   1	;EQU $728C	; Current bad guy 0-6 
+CURRBADGUY:				RB   1	;EQU $728C	; Current bad guy 0-6 
 						RB   1	;EQU $728D
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
 						RB   4	;EQU $72BF	??
@@ -191,8 +191,8 @@ TEXT_BUFFER:      		RB   8	;EQU $72DF	; 8 bytes - Text buffer for printing
 SCRATCH:						;Scratch ram 
 SPTBUFF2:				RB   8	;EQU $72E7	; ?? SPT buffer
 
-ADDCURRTIMER:			RB 2 	; EQU $072EF	; 2 bytes used to remove overhead in the NMI
-FRAME_COUNT:      		RB 1    ; EQU $072F1 	Shared frame counter (0-59)
+ADDCURRTIMER:			RB 2 	;EQU $072EF	; 2 bytes used to remove overhead in the NMI
+FRAME_COUNT:      		RB 1    ;EQU $072F1 	Shared frame counter (0-59)
 
 
 P1_LEVEL1_SEC:    		RB 1 	; Player 1 level 1 seconds		; equ 072F2h
@@ -219,25 +219,23 @@ P2_LEVEL1_SCORE:  		RB 2    ; 2 bytes - Level 1 score
 P2_LEVEL2_SCORE:  		RB 2    ; 2 bytes - Level 2 score
 P2_LEVEL3_SCORE:  		RB 2    ; 2 bytes - Level 3 score		; equ 0730Ch
 
-P1_LEVEL_FINISH_BASE: 	RB 3 ;
-P2_LEVEL_FINISH_BASE: 	RB 3 ;
+P1_LEVEL_FINISH_BASE: 	RB 3 	;
+P2_LEVEL_FINISH_BASE: 	RB 3 	;
 
 ENDUSEDRAM:				RB 1
 
 
+; FREE RAM ALLOCATED IN THE TIMER TABLE
+; NB they are reset at game start by INIT_TIMER
 
-; ALLOCATED IN THE TIMER TABLE
-
-
-; Allocated in the TIMER BUFFER: NB ther are reset at game start by INIT_TIMER
-SAFEROOM0:				EQU $07018	; apparentely unused RAM in the timer buffer
-SAFEROOM1:				EQU $07019	; apparentely unused RAM in the timer buffer
-SAFEROOM2:				EQU $0701A	; apparentely unused RAM in the timer buffer
-SAFEROOM3:				EQU $0701B	; apparentely unused RAM in the timer buffer
-SAFEROOM4:				EQU $0701C	; apparentely unused RAM in the timer buffer
-SAFEROOM5:				EQU $0701D	; apparentely unused RAM in the timer buffer
-SAFEROOM6:				EQU $0701E	; apparentely unused RAM in the timer buffer
-SAFEROOM7:				EQU $0701F	; apparentely unused RAM in the timer buffer
+SAFEROOM0:				EQU $07018	; free RAM in the timer buffer
+SAFEROOM1:				EQU $07019	; free RAM in the timer buffer
+SAFEROOM2:				EQU $0701A	; free RAM in the timer buffer
+SAFEROOM3:				EQU $0701B	; free RAM in the timer buffer
+SAFEROOM4:				EQU $0701C	; free RAM in the timer buffer
+SAFEROOM5:				EQU $0701D	; free RAM in the timer buffer
+SAFEROOM6:				EQU $0701E	; free RAM in the timer buffer
+SAFEROOM7:				EQU $0701F	; free RAM in the timer buffer
 
 
 
@@ -337,51 +335,47 @@ FINISH_NMI:
 	POP		AF
 	RETN
 
+
 NEW_SPRITE_ROTATION:
 	LD		A,SAT and 255		; Send LSB of address
 	OUT		(CTRL_PORT),A
-	
 	LD		A,$40  + (SAT / 256)
 	OUT		(CTRL_PORT),A		; Send MSB of address
 
+	LD		DE,$1005			; copy 20 sprites 4 at time (5*4=20 and 4*4=16)
+	
 	LD		A,(SPRITEROTFLAG)
-	ADD		A,4
-	CP		20
+	ADD		A,D
+	CP		20*4
 	JR		C,.nores
 	XOR		A
 .nores:	
 	LD		(SPRITEROTFLAG),A
+
 	LD		C,A
 	LD		B,0
-	LD		HL,SEQUENCE
-	ADD		HL,BC
-	EX		DE,HL
-
-	LD		IXL,20
-
-	LD		B,0
-.2:		
 	LD		HL,SPRITE_NAME_TABLE
-	LD		A,(DE)				
-	INC		DE
-	ADD		A,A
-	ADD		A,A
-	LD		C,A
-	ADD 	HL,BC
-	LD		BC,4*256+DATA_PORT	; B = count for 4 bytes of data,C = output port
-.1:	OUTI					; Output a byte of data
-	JP		NZ,.1				; Loop until 4 bytes copied
-	DEC		IXL
-	JR		NZ,.2				; Loop until all sprites copied
+	ADD		HL,BC
+	
+	LD		C,DATA_PORT			; C = output port
+	
+.2:	LD		B,D					; B = count for 4*4 bytes, i.e. 4 sprites
+.1:	OUTI						; Output a byte of data
+	JP		NZ,.1				; Loop until 4*4 bytes copied
+	
+	ADD		A,D
+	CP		20*4				; start from the top if reach the end of the table
+	JR		C,.3
+	
+	LD		HL,SPRITE_NAME_TABLE
+	XOR		A
+
+.3:	DEC		E
+	JR		NZ,.2
 	
 	LD		A,208
 	OUT 	(DATA_PORT),A
-RET
-
-SEQUENCE:
-	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
-	DB 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
-	
+RET	
 
 
 	
@@ -413,7 +407,7 @@ DEAL_WITH_TIMER:
     RET
     
 SUB_80D1:
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	LD		BC,1401H			; B = 20 sprites
 LOC_80D7:
 	LD		A,(HL)
@@ -424,13 +418,13 @@ LOC_80D7:
 LOC_80DD:
 	PUSH	HL
 	PUSH	DE
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	LD		A,E
 	CALL	SUB_AC0B
 	JR		Z,LOC_80F7
 	POP		DE
 	PUSH	DE
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	LD		A,E
 	CALL	SUB_ABF6
 	POP		DE
@@ -1778,7 +1772,7 @@ SUB_8BB1:
 	PUSH	BC
 	PUSH	DE
 	PUSH	IX
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -3865,7 +3859,7 @@ WALK:
 	DEC		A				; 2 == left		D+=2
 	JR		Z,BADGUYANIM
 
-	INC		D				; FootLeft
+	INC		D				; 3/4 = down/up      FootLeft
 	INC		D
 	BIT     7,(IY+1)		; test if x<128
 	JR 		NZ,.FootRight
@@ -5634,7 +5628,6 @@ BYTE_A617:
 	DB 001,002,004,008,016,008,004,002
 
 SUB_A61F:
-						;    LD      HL,$727A ; duplicated
 	LD		BC,(SCORE_P1_RAM)
 	LD		HL,$727A
 	LD		A,(GAMECONTROL)
@@ -7709,7 +7702,7 @@ LOC_B31D:
 	PUSH	IX
 	PUSH	DE
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
@@ -7729,7 +7722,7 @@ LOC_B342:
 	PUSH	DE
 	PUSH	IX
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -7746,7 +7739,7 @@ LOC_B342:
 LOC_B360:
 	SET		6,(IX+0)
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
@@ -7797,7 +7790,7 @@ LOC_B3B7:
 	PUSH	DE
 	PUSH	IX
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -7818,7 +7811,7 @@ LOC_B3B7:
 	LD		(IX+0),A
 LOC_B3E0:
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
@@ -7835,7 +7828,7 @@ LOC_B3EC:
 	SET		2,(IX+0)
 LOC_B403:
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	PUSH	IX
 	PUSH	DE
 	CALL	SUB_ABE1
@@ -7889,7 +7882,7 @@ LOC_B45B:
 	PUSH	DE
 	PUSH	IX
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -7910,7 +7903,7 @@ LOC_B45B:
 LOC_B485:
 	LD		A,D
 	SUB		10H
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
@@ -7929,7 +7922,7 @@ LOC_B4A9:
 	PUSH	IX
 	PUSH	DE
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
@@ -7985,7 +7978,7 @@ LOC_B50A:
 	PUSH	DE
 	PUSH	IX
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		IX
 	POP		DE
@@ -8002,7 +7995,7 @@ LOC_B50A:
 LOC_B52D:
 	LD		A,D
 	SUB		10H
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
@@ -8021,7 +8014,7 @@ LOC_B551:
 	PUSH	IX
 	PUSH	DE
 	LD		A,D
-	LD		HL,$7259
+	LD		HL,ENEMYINTERACT2
 	CALL	SUB_ABE1
 	POP		DE
 	POP		IX
