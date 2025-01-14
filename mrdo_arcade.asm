@@ -130,9 +130,10 @@ SOUND_BANK_08_RAM:		RB	10	;EQU $7071
 SOUND_BANK_09_RAM:		RB	10	;EQU $707B
 						RB	 1	; ??
 
-CONTROLLER_BUFFER:		RB	 6	;EQU $7086
+CONTROLLER_BUFFER:		RB	 2	;EQU $7086
+						RB	 4	;EQU $7088 ?? some kind of struct used in SUB_94A9 for Player1
 KEYBOARD_P1:			RB	 1	;EQU $708C
-						RB	 4	;EQU $708D ?? some kind of struct used in SUB_94A9
+						RB	 4	;EQU $708D ?? some kind of struct used in SUB_94A9 for Player2
 KEYBOARD_P2:			RB	 1	;EQU $7091
 						RB	 4	;EQU $7092	; <- not sure if used by controller 2
 						RB	 8	;EQU $7096
@@ -166,7 +167,9 @@ ENEMY_NUM_P2:			RB	 1	;EQU $7279 Initialised at 7 by LOC_8573
 
 SCORE_P1_RAM:			RB	 2	;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
 SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
-MRDO_DATA:				RB   3	;EQU $7281 ;+0	; Mr. Do's sprite data
+MRDO_DATA:				RB   1	;EQU $7281 ;+0	; Mr. Do's flags
+MRDO_DATA.unkn:			RB   1	;EQU $7282 ;+1	; Mr. Do's ?
+MRDO_DATA.Timer:		RB   1	;EQU $7283 ;+2	; Mr. Do's timer
 MRDO_DATA.Y:			RB	 1  ;EQU $7284 ;+3
 MRDO_DATA.X:			RB	 1  ;EQU $7285 ;+4
 MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
@@ -223,6 +226,11 @@ P1_LEVEL_FINISH_BASE: 	RB 3 	;
 P2_LEVEL_FINISH_BASE: 	RB 3 	;
 
 ENDUSEDRAM:				RB 1
+
+; strange reused ram for letter monsters
+LETTERMON_FLAG:		EQU		$72BD
+LETTERMON_X:		EQU		$72BE
+LETTERMON_Y:		EQU		$72BF
 
 
 ; FREE RAM ALLOCATED IN THE TIMER TABLE
@@ -1543,7 +1551,7 @@ SUB_89D1:
 	LD		E,(HL)
 	INC		HL
 	LD		D,(HL)
-	CALL	SUB_B601
+	CALL	SUB_B601		; score for apples smashed
 LOC_89E9:
 	POP		IY
 RET
@@ -1814,7 +1822,7 @@ SUB_8BF6:	; Falling apple
 	LD		A,1
 	BIT		7,B
 	JR		Z,LOC_8C38
-	LD		A,($72BF)
+	LD		A,(LETTERMON_Y)
 	LD		D,A
 	BIT		6,(IY+4)
 	JR		Z,LOC_8C0F
@@ -1822,20 +1830,20 @@ SUB_8BF6:	; Falling apple
 	LD		D,A
 	JR		LOC_8C28
 LOC_8C0F:
-	LD		A,($72BE)
+	LD		A,(LETTERMON_X)
 	LD		E,A
 	CALL	SUB_8CFE
 	JR		NZ,LOC_8C38
-	LD		A,($72BD)
+	LD		A,(LETTERMON_FLAG)
 	SET		7,A
-	LD		($72BD),A
+	LD		(LETTERMON_FLAG),A
 	SET		6,(IY+4)
 	INC		(IY+4)
 	LD		A,D
 LOC_8C28:
-	LD		($72BF),A
+	LD		(LETTERMON_Y),A
 	LD		B,D
-	LD		A,($72BE)
+	LD		A,(LETTERMON_X)
 	LD		C,A
 	LD		D,0BH
 	LD		A,3			; smashed letter
@@ -2790,7 +2798,7 @@ LOC_92F8:
 	PUSH	IX
 	LD		B,(IX+2)
 	LD		C,(IX+1)
-	CALL	SUB_B5DD
+	CALL	SUB_B5DD			; Ball collision detection
 	POP		IX
 	POP		BC
 	AND		A
@@ -2807,7 +2815,7 @@ LOC_9316:
 LOC_9324:
 	CALL	SUB_B7C4			; outupt = ZF and A 
 	PUSH	AF
-	LD		DE,32H
+	LD		DE,32H				; 500 points if bad guy is hit by a ball
 	CALL	SUB_B601
 	POP		AF
 						;	AND	A			; already in AF
@@ -2826,7 +2834,7 @@ LOC_933D:
 	PUSH	IX
 	LD		B,(IX+2)
 	LD		C,(IX+1)
-	CALL	SUB_B5DD
+	CALL	SUB_B5DD			; Ball collision detection
 	POP		IX
 	POP		BC
 	AND		A
@@ -2842,27 +2850,27 @@ LOC_9355:
 	RET
 LOC_9363:
 	CALL	SUB_B832
-	LD		DE,32H
+	LD		DE,32H				; 500 points if chomper is hit by a ball
 	CALL	SUB_B601
 	LD		A,1
 RET
 
 SUB_936F:
-	LD		A,($72BD)
+	LD		A,(LETTERMON_FLAG)
 	BIT		6,A
 	RET		Z
-	LD		A,($72BF)
+	LD		A,(LETTERMON_Y)
 	LD		B,A
-	LD		A,($72BE)
+	LD		A,(LETTERMON_X)
 	LD		C,A
-	CALL	SUB_B5DD
+	CALL	SUB_B5DD			; Ball collision detection
 	AND		A
 	RET		Z
 	LD		BC,$D908
 	LD		D,0
-	LD		A,3				; remove extra letter 
+	LD		A,3					; remove extra letter 
 	CALL	PUTSPRITE
-	LD		DE,32H
+	LD		DE,32H				; 500 points if Letter is hit by a ball
 	CALL	SUB_B601
 	CALL	SUB_B76D
 	INC		A
@@ -2964,7 +2972,7 @@ LEADS_TO_CHERRY_STUFF:
 	XOR		A
 	RET
 LOC_9463:
-	LD		IY,MRDO_DATA  ; IY points to Mr. Do's sprite data
+	LD		IY,MRDO_DATA  ; IY points to Mr. Do's data
 	LD		A,(IY+2)
 	CALL	TEST_SIGNAL
 	AND		A
@@ -3046,7 +3054,7 @@ LOC_94ED:
 	LD		($72DA),A
 	JR		LOC_9524
 LOC_94FD:
-	CP		3
+;	CP		3		; redundant
 	LD		A,B
 	JR		NZ,LOC_9514
 	SUB		6
@@ -3289,7 +3297,7 @@ GRAB_SOME_CHERRIES:
 	JR		C,LOC_96D5
 	LD		(IY+7),0
 	LD		DE,2DH 			; final cherry scores 500 not 550
-	CALL	SUB_B601
+	CALL	SUB_B601		; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
 	RES		1,(IY+0)
 	RET
 LOC_96CA:
@@ -3328,13 +3336,12 @@ SUB_96E4:
 	LD		A,(CURRENT_LEVEL_P1)
 	BIT		1,C
 	JR		Z,LOC_971B
-
 	LD		A,(CURRENT_LEVEL_P2)
 LOC_971B:
 	LD		HL,0
-	LD		DE,32H
+	LD		DE,32H				; score for bonus item! add 500 points per each level 
 LOC_9721:
-	ADD		HL,DE
+	ADD		HL,DE				
 	DEC		A
 	JP		P,LOC_9721
 	EX		DE,HL
@@ -5511,10 +5518,10 @@ SUB_A53E:
 	SET		7,A
 	LD		($72BA),A
 	LD		A,40H
-	LD		($72BD),A
+	LD		(LETTERMON_FLAG),A
 	JR		LOC_A5A6
 LOC_A551:
-	LD		A,($72BD)
+	LD		A,(LETTERMON_FLAG)
 	BIT		7,A
 	LD		A,0
 	JR		NZ,LOC_A5BB
@@ -5585,9 +5592,9 @@ SUB_A5BD:
 	LD		B,0
 	ADD		HL,BC
 	LD		A,(HL)
-	LD		($72BE),A
+	LD		(LETTERMON_X),A
 	LD		A,0CH
-	LD		($72BF),A
+	LD		(LETTERMON_Y),A
 	LD		HL,BYTE_A616
 	ADD		HL,BC
 	LD		A,(HL)
@@ -5687,9 +5694,9 @@ LOC_A677:
 LOC_A67F:
 	LD		A,78H
 LOC_A681:
-	LD		($72BE),A
+	LD		(LETTERMON_X),A
 	LD		A,20H
-	LD		($72BF),A
+	LD		(LETTERMON_Y),A
 	LD		A,0CH
 	LD		($72C2),A
 	LD		A,($72BA)
@@ -5726,7 +5733,7 @@ SUB_A6BB:
 	LD		HL,$72C4
 	RES		0,(HL)
 	LD		A,40H
-	LD		($72BD),A
+	LD		(LETTERMON_FLAG),A
 	LD		A,1
 	LD		($72C2),A
 	LD		A,($72BA)
@@ -5737,7 +5744,7 @@ SUB_A6BB:
 	XOR		A
 	JP		LOC_A77E
 LOC_A6F2:
-	LD		IY,$72BD
+	LD		IY,LETTERMON_FLAG
 	SET		4,(IY+0)
 	CALL	SUB_9F29
 	LD		D,A
@@ -5781,9 +5788,9 @@ LOC_A72F:
 	JR		Z,LOC_A77B
 	JR		LOC_A76B
 LOC_A74B:
-	LD		A,($72BF)
+	LD		A,(LETTERMON_Y)
 	LD		B,A
-	LD		A,($72BE)
+	LD		A,(LETTERMON_X)
 	LD		C,A
 	PUSH	DE
 	CALL	SUB_AC3F
@@ -5853,9 +5860,9 @@ LOC_A7C8:
 	INC		D
 LOC_A7CB:
 	LD		($72BA),A
-	LD		A,($72BF)
+	LD		A,(LETTERMON_Y)
 	LD		B,A
-	LD		A,($72BE)
+	LD		A,(LETTERMON_X)
 	LD		C,A
 	LD		A,3			; extra letter
 	CALL	PUTSPRITE
@@ -7407,7 +7414,7 @@ LOC_B105:
 	LD		A,($72BA)
 	BIT		6,A
 	JR		Z,LOC_B123
-	LD		IY,$72BD
+	LD		IY,LETTERMON_FLAG
 	LD		L,1
 	JP		LOC_B085
 LOC_B123:
@@ -8254,7 +8261,7 @@ BYTE_B761:		; Chomper animation
 	
 SUB_B76D:
 	LD		A,40H
-	LD		($72BD),A
+	LD		(LETTERMON_FLAG),A
 	LD		HL,$72C4
 	BIT		0,(HL)
 	JR		Z,LOC_B781
@@ -8358,7 +8365,7 @@ LOC_B80F:
 	PUSH	BC
 	CALL	SUB_B832
 	PUSH	IX
-	LD		DE,32H
+	LD		DE,32H				; killed chomper ??
 	CALL	SUB_B601
 	POP		IX
 	POP		BC
@@ -8420,9 +8427,6 @@ LOC_B895:
 	CALL	REQUEST_SIGNAL
 	JP		LOC_D35D
 LOC_B89B:
-;	NOP
-;	NOP
-;	NOP
 LOC_B89E:
 	POP		IX
 	POP		IY
@@ -8440,9 +8444,9 @@ LOC_B8AB:
 	LD		B,3		; chomper number
 LOC_B8B1:
 	LD		(IX+0),10H
-	LD		A,($72BF)
+	LD		A,(LETTERMON_Y)
 	LD		(IX+2),A
-	LD		A,($72BE)
+	LD		A,(LETTERMON_X)
 	LD		(IX+1),A
 	LD		A,($72C1)
 	AND		7
