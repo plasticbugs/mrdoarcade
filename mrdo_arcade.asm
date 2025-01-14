@@ -172,7 +172,11 @@ MRDO_DATA.X:			RB	 1  ;EQU $7285 ;+4
 MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1  ;EQU $7287 ;+6
 						RB   1  ;EQU $7288 ;+7
-						RB   5	;EQU $7289	; ??
+						RB   1	;EQU $7289	; ??
+						RB   1	;EQU $728A	; ??
+						RB   1	;EQU $728B	; 
+CURRBADGUY:					RB   1	;EQU $728C	; Current bad guy 0-6 
+						RB   1	;EQU $728D
 ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
 						RB   4	;EQU $72BF	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
@@ -613,7 +617,7 @@ LOC_8310:
 	BIT		7,(HL)
 	RET		Z
 	LD		IX,APPLEDATA
-	LD		B,(IX+1)
+	LD		B,(IX+1)		; B = Y-1,C=X
 	LD		C,(IX+2)
 	LD		D,0
 	BIT		0,(HL)
@@ -912,11 +916,7 @@ RET
 
 SUB_84F8:	 ; Disables NMI,sets up the game
 	PUSH	AF
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_84FE:
-	BIT		7,(HL)
-	JR		NZ,LOC_84FE
+	CALL 	WAIT_NMI
 	POP		AF
 	PUSH	AF
 	AND		A
@@ -1116,11 +1116,7 @@ LOC_86B2:
 	AND		A
 	JR		Z,LOC_86B2
 	POP		AF
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_86C0:
-	BIT		7,(HL)
-	JR		NZ,LOC_86C0
+	CALL	WAIT_NMI
 RET
 
 CLEAR_SCREEN_AND_SPRITES_02:
@@ -1313,7 +1309,7 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	CP		0AH
 	RET		NZ
 	
-	CALL 	waitoneframe
+	CALL 	WAIT_NMI
 	
 	SET		3,(HL)					; stop sprite update
 	
@@ -1350,7 +1346,7 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	
 	CALL	INITIALIZE_THE_SOUND
 	
-	CALL 	waitoneframe
+	CALL 	WAIT_NMI
 
 	; SET		4,(HL)
 
@@ -1366,7 +1362,7 @@ CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
 	
 	CALL 	DELAY
 	
-	CALL 	waitoneframe
+	CALL 	WAIT_NMI
 	
 	; RES		4,(HL)
 
@@ -1391,12 +1387,12 @@ DELAY:
 	DJNZ	.wait_ext
 ret
 
-waitoneframe:
+WAIT_NMI:
 	LD		HL,GAMECONTROL
 	SET		7,(HL)
-.wait_isr:
+.1:
 	BIT		7,(HL)
-	JR		NZ,.wait_isr
+	JR		NZ,.1
 RET
 
 DEAL_WITH_APPLE_FALLING:
@@ -1618,7 +1614,7 @@ DEAL_WITH_APPLE_HITTING_SOMETHING:
 	LD		C,A
 LOC_8A67:
 	CALL	SUB_8AD9
-	LD		A,(IY+1)
+	LD		A,(IY+1)		; push apple ?
 	ADD		A,4
 	LD		(IY+1),A
 	LD		A,(IY+0)
@@ -1629,10 +1625,10 @@ LOC_8A67:
 	JR		NC,LOC_8A80
 	LD		(IY+0),B
 LOC_8A80:
-	CALL	SUB_8BF6
-	CALL	SUB_8C3A
-	CALL	SUB_8C96
-	CALL	SUB_8BC0
+	CALL	SUB_8BF6	; letter interaction
+	CALL	SUB_8C3A	; bad guy interaction
+	CALL	SUB_8C96	; chomper interaction
+	CALL	SUB_8BC0	; MrDo interaction
 	LD		A,(IY+1)
 	AND		7
 	JR		NZ,LOC_8AD7
@@ -1882,7 +1878,7 @@ LOC_8C68:
 	SET		7,(IX+0)
 	LD		A,(CURRAPPL)
 	LD		(IX+5),A
-	INC		(IY+4)
+	INC		(IY+4)			;  apple counter
 LOC_8C7A:
 	LD		(IX+2),D
 	LD		B,D
@@ -1925,7 +1921,7 @@ LOC_8CBE:
 	SET		7,(IX+0)
 	LD		A,(CURRAPPL)
 	LD		(IX+5),A
-	INC		(IY+4)
+	INC		(IY+4)			; apple timer
 LOC_8CD0:
 	LD		(IX+2),D
 	LD		B,D
@@ -3331,7 +3327,7 @@ SUB_96E4:
 	OR		32H
 	LD		(HL),A
 	LD		A,0AH
-	LD		($728C),A
+	LD		(CURRBADGUY),A
 
 	LD		A,(GAMECONTROL)
 	LD		C,A
@@ -3513,9 +3509,9 @@ SUB_9842:						; TEST MRDO COLLISION AGAINST ENEMIES
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	LD		($728B),A
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	DEC		A
-	LD		($728C),A
+	LD		(CURRBADGUY),A
 	JR		Z,LOC_9892
 LOC_986C:
 	LD		IY,ENEMY_DATA_ARRAY
@@ -3547,7 +3543,7 @@ LOC_98A2:
 	JP		LOC_D40B
 LOC_98A5:
 	CALL	SUB_98CE
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	LD		C,A
 	LD		B,0
 	LD		HL,BYTE_9A24
@@ -3566,10 +3562,10 @@ LOC_98A5:
 	CALL	SUB_9A2C
 	LD		L,A
 LOC_98C2:
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	INC		A
 	AND		7
-	LD		($728C),A
+	LD		(CURRBADGUY),A
 LOC_98CB:
 	LD		A,L
 	AND		A				; return L=A=1 if collison
@@ -3765,7 +3761,7 @@ LOC_9A50:
 	CALL	SUB_9C76		; IX unchanged
 	JR		NZ,LOC_9A75
 LOC_9A59:
-	CALL	SUB_A460		; digger interact with apples
+	CALL	SUB_A460		; digger interact with apples, IX changes
 	JR		LOC_9AA0
 LOC_9A5E:
 	CALL	SUB_A1DF
@@ -3839,19 +3835,18 @@ LOC_9AD8:
 	POP		DE
 RET
 
+
 SUB_9AE2:
 	PUSH	IX
-	PUSH	IY
-	
-	LD		D,1				; Bad guy (right)
+	PUSH	IY	
+							
 	BIT		6,(IY+0)		; B6==0,Transform
-	JR		NZ,LOC_9B07
+	JR		NZ,BADGUY		; Manage Bad guy 
 	
 	LD		D,13			; Bad guys Transforming (right)
 	BIT		5,(IY+0)		
-	JR		NZ,LOC_9B07
+	JR		NZ,WALK
 							; B5==0,Digger
-
 	CALL	SUB_9B4F
 	LD		B,(IY+2)
 	LD		C,(IY+1)
@@ -3860,47 +3855,90 @@ SUB_9AE2:
 	CALL	SUB_B173
 	
 	LD		D,25			; Digger (right)
-LOC_9B07:
+WALK:
 	LD		A,(IY+4)		; direction
 	AND		7
-	LD		L,0				; 1 == rigth	L=0
-	DEC		A
-	JR		Z,LOC_9B28
-	LD		L,2
-	DEC		A				; 2 == left		L=2
-	JR		Z,LOC_9B28
+	DEC		A				; 1 == rigth	D+=0
+	JR		Z,BADGUYANIM
+	INC		D
+	INC		D
+	DEC		A				; 2 == left		D+=2
+	JR		Z,BADGUYANIM
 
-	LD		L,4				; FootLeft
+	INC		D				; FootLeft
+	INC		D
 	BIT     7,(IY+1)		; test if x<128
 	JR 		NZ,.FootRight
-	LD		L,8
+	INC		D
+	INC		D
+	INC		D
+	INC		D
 .FootRight:
 	DEC 	A
-	JR		Z,LOC_9B28		; 3 == down		L=4 or 8
+	JR		Z,BADGUYANIM		; 3 == down		L=4 or 8
 
-	INC		L				; 4 == up 		L=6 or 10	
-	INC		L
+	INC		D					; 4 == up 		L=6 or 10	
+	INC		D
 
-LOC_9B28:
-
+BADGUYANIM:
 	LD		A,(IY+5)
 	XOR		$80
 	JR		Z,.odd
-	INC 	L
+	INC 	D
 .odd:
 	LD		(IY+5),A
 	
-	LD		A,D
-	ADD		A,L
-	LD		D,A
-	LD		A,($728C)
+	LD		A,(CURRBADGUY)
 	ADD		A,5
-	LD		B,(IY+2)
+	LD		B,(IY+2)		; B=Y, C=X, A=Object, D=Frame
 	LD		C,(IY+1)		
 	CALL	PUTSPRITE		; show bad guy
 	POP		IY
 	POP		IX
 RET
+
+BADGUY:
+	CALL 	PUSHTEST
+	JP 		Z,BADGUYANIM		; pushing
+	LD		D,1				; normal walk
+	JP		WALK		; walking	
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; test if the current bad guy pointed by IY is next to an active apple
+; return Z is pushing NZ is waking and in D the animation frame
+
+PUSHTEST:
+	LD		IX,APPLEDATA
+	LD		B,5
+.loop:	
+	BIT		7,(IX+0)
+	JR		Z,.next
+	LD		A,(IX+1)		;Y apple
+	CP		(IY+2)		;Y bad buy
+	JR		NZ,.next		;on the same line
+.sameline:	
+	LD		A,(IX+2)		;X apple
+	SUB		(IY+1)		;X bad guy (WTF !! THEY ARE INVERTED!!!)
+	JR		NC,.pos
+	NEG
+.pos:
+	CP		17
+	JP		NC,.next
+	LD		A,(IY+4)		; direction
+	AND		7
+	LD		D,38			; pushing apple 38 39 right, A==1
+	DEC		A
+	RET		Z
+	LD		D,40
+	DEC		A				; pushing apple 40 41 left, A==2
+	RET						; Z if A==2, NZ otherwise
+.next:
+	LD		DE,5
+	ADD		IX,DE
+	DJNZ	.loop
+	OR		E				; NZ
+RET	
+
 
 SUB_9B4F:
 	PUSH	BC
@@ -6075,11 +6113,7 @@ LOC_A973:
 	AND		A
 	JR		Z,LOC_A984
 	PUSH	AF
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AAE2:
-	BIT		7,(HL)
-	JR		NZ,LOC_AAE2
+	CALL 	WAIT_NMI
 	LD		HL,PNT
 	LD		DE,300H
 	XOR		A
@@ -6141,11 +6175,7 @@ STORE_COMPLETION_TYPE:
     RET
 
 ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_A9A1:
-	BIT		7,(HL)
-	JR		NZ,LOC_A9A1
+	CALL 	WAIT_NMI
 
 	XOR		A
 	LD		($72BC),A
@@ -6209,13 +6239,9 @@ LOC_A9F2:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS
 	
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AA14:
-	BIT		7,(HL)
-	JR		NZ,LOC_AA14
+	CALL 	WAIT_NMI
 
-;	; Original code's final register writes
+;	Original code's final register writes
 	LD		BC,1E2H		 ; Original game state register
 	CALL	WRITE_REGISTER
 RET
@@ -6228,11 +6254,7 @@ RET
 
 
 GO_NEXT_LEVEL: ; Level complete,load next level
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AA2A:
-	BIT		7,(HL)
-	JR		NZ,LOC_AA2A
+	CALL 	WAIT_NMI
 
 ; CALCULATE_LEVEL_SCORE
 	
@@ -6390,11 +6412,7 @@ RET
 
 
 SUB_AA69:
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AA6E:
-	BIT		7,(HL)
-	JR		NZ,LOC_AA6E
+	CALL 	WAIT_NMI
 	LD		DE,3400H
 	BIT		1,(HL)
 	JR		Z,LOC_AA7C
@@ -6451,11 +6469,7 @@ RET
 
 
 SUB_AB28:
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AB2D:
-	BIT		7,(HL)
-	JR		NZ,LOC_AB2D
+	CALL 	WAIT_NMI
 	LD		HL,SAT
 	LD		DE,80H
 	XOR		A
@@ -6499,11 +6513,7 @@ LOC_AB6C:
 	CALL	TEST_SIGNAL
 	AND		A
 	JR		Z,LOC_AB6C
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_AB8F:
-	BIT		7,(HL)
-	JR		NZ,LOC_AB8F
+	CALL 	WAIT_NMI
 	LD		HL,PNT
 	LD		DE,300H
 	XOR		A
@@ -6516,11 +6526,7 @@ LOC_ABA5:
 	XOR		A
 	RET
 LOC_ABA9:
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_ABAE:
-	BIT		7,(HL)
-	JR		NZ,LOC_ABAE
+	CALL 	WAIT_NMI
 	POP		AF
 	LD		A,3
 RET
@@ -8141,7 +8147,7 @@ LOC_B614:
 RET
 
 
-PUTSPRITE:
+PUTSPRITE:		; B=Y, C=X, A=Object, D=Frame
 		PUSH	DE			; Save FRAME NUMBER in D
 
 		AND		7FH			; SAT position
@@ -8497,11 +8503,7 @@ RET
 
 SUB_B8F7:
 	PUSH	IY
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_B8FE:
-	BIT		7,(HL)
-	JR		NZ,LOC_B8FE
+	CALL 	WAIT_NMI
 
 	LD	A,11
 	CALL SET_LEVEL_COLORS.RESTORE_COLORS
@@ -9745,11 +9747,7 @@ LOC_D326:
 	CALL	SUB_B8F7
 	PUSH	IY
 	CALL	SUB_CA24
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_D333:
-	BIT		7,(HL)
-	JR		NZ,LOC_D333
+	CALL 	WAIT_NMI
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	CALL  PLAY_DESSERT_COLLECT_SOUND
@@ -9772,11 +9770,7 @@ LOC_D333:
 	JP		LOC_B8AB
 LOC_D345:
 	CALL	SUB_CA2D
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-LOC_D34D:
-	BIT		7,(HL)
-	JR		NZ,LOC_D34D
+	CALL 	WAIT_NMI
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	LD		HL,$7272
@@ -10903,10 +10897,7 @@ WONDERFUL:
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
 
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-.3:	BIT		7,(HL)
-	JR		NZ,.3
+	CALL 	WAIT_NMI
 
 	CALL	RESET_LEVEL_TIMERS
 
@@ -11081,10 +11072,7 @@ INTERMISSION:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS	
 	
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-.3:	BIT		7,(HL)
-	JR		NZ,.3
+	CALL 	WAIT_NMI
 
 RET 
 
@@ -11341,8 +11329,7 @@ PRINT_ICON:
     PUSH    HL                ; Save icon address [STACK: icon_addr, level, screen_pos]
 	
     ; Check completion type for sprite
-    LD      A, B              ; Get completion type
-    CP      1                 ; Is it cherry?
+    DEC 	B                ;  cherry  B==1
     JR      NZ, .try_monster
     
 	LD 		HL, CHERRY_Y_POS
@@ -11351,7 +11338,7 @@ PRINT_ICON:
     JR      .finish_sprite
     
 .try_monster:
-    CP      2                 ; Is it monster?
+    DEC 	B                 ; monster  B==2
     JR      NZ, .print_blank
 
 	LD 		HL, MONSTER_Y_POS
@@ -11871,7 +11858,7 @@ cvb_SP1:
 	DB 64+56+32,161,28,8
 	DB 64+58+32,112,32,1
 	DB 64+60+32,80,36,1
-	DB 208
+
 cvb_FR1:
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 	DB $05,$06,$07,$08,$09,$0a,$0b,$0c,$00,$00,$0d,$0e,$0f,$10
@@ -11890,7 +11877,7 @@ cvb_SP2:
 	DB 124+32,166,68,12
 	DB 122+32,112,72,1
 	DB 122+32,176,76,8
-	DB 208
+
 	
 cvb_FR2:	
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00	
@@ -11943,11 +11930,7 @@ CONGRATULATION:
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS	
 	
-	LD		HL,GAMECONTROL
-	SET		7,(HL)
-.3:
-	BIT		7,(HL)
-	JR		NZ,.3
+	CALL 	WAIT_NMI
 
 	LD		BC,1E2H		 ; Original game state register
 	CALL	WRITE_REGISTER
