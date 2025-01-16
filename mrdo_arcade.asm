@@ -180,7 +180,8 @@ MRDO_DATA.Frame:		RB	 1  ;EQU $7286 ;+5
 						RB   1	;EQU $728B	; 
 CURRBADGUY:				RB   1	;EQU $728C	; Current bad guy 0-6 
 						RB   1	;EQU $728D
-ENEMY_DATA_ARRAY:		RB  49	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
+ENEMY_DATA_ARRAY:		RB  42	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
+						RB   7	;EQU $72B8
 						RB   4	;EQU $72BF	??
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
 						RB	 1	;??
@@ -280,13 +281,68 @@ FNAME "mrdo_arcade.rom"
 	; RST 38H vector
 	DS 20,0
 	RET 
-	JP		nmi_handler
+;	JP		nmi_handler		; nmi has to start here
 	
-GAME_NAME:
+;GAME_NAME:
 ;	DB "MR. DO!",1EH,1FH
 ;	DB "/PRESENTS UNIVERSAL'S/1983"
 
-NMI:
+nmi_handler:				; do not move from here (!!!)
+	PUSH AF
+	PUSH HL
+	LD HL,mode
+	BIT 0,(HL)				; B0==0 -> ISR Enabled,B0==1 -> ISR disabled
+	JR z,.1
+					; here ISR is disabled
+							
+	SET 1,(HL)				; ISR pending
+							; B1==0 -> ISR served 	B1==1 -> ISR pending
+	POP HL
+	POP AF
+	retn
+
+.0:	RES 1,(HL)				; ISR served
+.1:							; ISR enabled
+	BIT 7,(HL)
+	JR z,.2					; B7==0 -> game Mode,	B7==1 -> intermission mode
+
+					; Intermission Mode
+	POP 	HL				
+	IN 		A,(CTRL_PORT)
+	POP 	AF
+	
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	EX		AF,AF'
+	EXX
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	PUSH	IX
+	PUSH	IY
+	CALL	TIME_MGR		; udate timers
+	CALL	POLLER			; update controllers
+	CALL	SUB_C952		; PLAY MUSIC
+	POP		IY
+	POP		IX
+	POP		HL
+	POP		DE
+	POP		BC
+	POP		AF
+	EXX
+	EX		AF,AF'
+	POP		HL
+	POP		DE
+	POP		BC
+	POP		AF
+	RETN
+
+.2:	POP HL					; Game Mode
+	POP AF
+
 	PUSH	AF
 	PUSH	BC
 	PUSH	DE
@@ -412,7 +468,7 @@ DEAL_WITH_TIMER:
     LD      (HL),0     	; Reset seconds
 	INC 	HL
     INC     (HL)			; increment minutes
-    RET
+RET
     
 SUB_80D1:
 	LD		HL,ENEMYINTERACT2
@@ -669,7 +725,7 @@ LOC_8372:
 	CALL	INIT_VRAM
 
 	XOR		A
-LOC_8375:									; GAME MAIN LOOP
+LOC_8375:						; GAME MAIN LOOP
 	CALL	SUB_84F8
 	
 	; DEBUGGER! COMMENT
@@ -1018,11 +1074,11 @@ LOC_85B6:
 	LD		A,(CURRENT_LEVEL_P2)
 LOC_85C7:
 	CP		0BH
-	JR		C,DEAL_WITH_BADGUY_BEHAVIOR
+	JR		C,LOC_BADGUY_BEHAVIOR
 	SUB		0AH
 	JR		LOC_85C7
 
-DEAL_WITH_BADGUY_BEHAVIOR:
+LOC_BADGUY_BEHAVIOR:
 	DEC		A
 	ADD		A,A
 	LD		E,A
@@ -1068,10 +1124,10 @@ LOC_8652:
 	LD		A,(HL)
 	CP		7
 	RET		NC
-	LD		IY,$72B2
+	LD		IY,ENEMY_DATA_ARRAY+6*6	; last enemy
 LOC_865C:
 	LD		(IY+4),0C0H
-	LD		DE,0FFFAH
+	LD		DE,-6
 	ADD		IY,DE
 	INC		A
 	CP		7
@@ -2055,7 +2111,7 @@ LOC_8DA1:
 	LD		A,(CURRAPPL)
 	CP		B
 	JR		NZ,LOC_8DC5
-	CALL	SUB_B7C4	; outupt = ZF and A 
+	CALL	SUB_B7C4		; outupt = ZF 
 	POP		BC
 	LD		L,2
 	JR		Z,LOC_8E05
@@ -2813,7 +2869,7 @@ LOC_9316:
 	XOR		A
 	RET
 LOC_9324:
-	CALL	SUB_B7C4			; outupt = ZF and A 
+	CALL	SUB_B7C4			; outupt = ZF
 	PUSH	AF
 	LD		DE,32H				; 500 points if bad guy is hit by a ball
 	CALL	SUB_B601
@@ -2985,8 +3041,8 @@ LOC_9463:
 LOC_947A:
 	CP		5
 	JR		NZ,LOC_9483
-	JP		LOC_D366
-LOC_9481:
+	CALL	SUB_9577
+	XOR		A
 	JR		LOC_9491
 LOC_9483:
 	LD		(IY+1),A
@@ -3100,7 +3156,6 @@ LOC_9538:
 	JR		NZ,LOC_9558
 	XOR		A
 	RET
-
 LOC_9566:
 	LD		A,(IY+4)
 	AND		0FH
@@ -3572,12 +3627,16 @@ LOC_98CB:
 	AND		A				; return L=A=1 if collison
 RET
 
+
+BYTE_9A24:
+	DB 000,006,012,018,024,030,036,042
+
 SUB_98CE:
 	PUSH	IX
 	LD		A,($728A)
 	BIT		3,A
 	JR		NZ,LOC_9928
-	LD		IX,$72B2
+	LD		IX,ENEMY_DATA_ARRAY+6*6	; last enemy
 	LD		A,(IX+3)
 	CALL	TEST_SIGNAL
 	AND		A
@@ -3685,7 +3744,7 @@ SUB_999F:
 	LD		HL,3CH
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		IX,$72B2
+	LD		IX,ENEMY_DATA_ARRAY+6*6	; last enemy
 	LD		(IX+3),A
 	JR		LOC_9A07
 LOC_99BB:
@@ -3735,9 +3794,6 @@ LOC_9A07:
 	LD		($728B),A
 RET
 
-
-BYTE_9A24:
-	DB 000,006,012,018,024,030,036,042
 
 SUB_9A2C:					; Bad guy logic
 	LD		A,(IY+3)
@@ -3842,11 +3898,11 @@ SUB_9AE2:
 	PUSH	IY	
 							
 	BIT		6,(IY+0)		; B6==0,Transform
-	JR		NZ,BADGUY		; Manage Bad guy 
+	JR		NZ,.LOC_BADGUY		; Manage Bad guy 
 	
 	LD		D,13			; Bad guys Transforming (right)
 	BIT		5,(IY+0)		
-	JR		NZ,WALK
+	JR		NZ,.WALK
 							; B5==0,Digger
 	CALL	SUB_9B4F
 	LD		B,(IY+2)
@@ -3856,15 +3912,15 @@ SUB_9AE2:
 	CALL	SUB_B173
 	
 	LD		D,25			; Digger (right)
-WALK:
+.WALK:
 	LD		A,(IY+4)		; direction
 	AND		7
 	DEC		A				; 1 == rigth	D+=0
-	JR		Z,BADGUYANIM
+	JR		Z,.BADGUYANIM
 	INC		D
 	INC		D
 	DEC		A				; 2 == left		D+=2
-	JR		Z,BADGUYANIM
+	JR		Z,.BADGUYANIM
 
 	INC		D				; 3/4 = down/up      FootLeft
 	INC		D
@@ -3876,12 +3932,12 @@ WALK:
 	INC		D
 .FootRight:
 	DEC 	A
-	JR		Z,BADGUYANIM		; 3 == down		L=4 or 8
+	JR		Z,.BADGUYANIM		; 3 == down		L=4 or 8
 
 	INC		D					; 4 == up 		L=6 or 10	
 	INC		D
 
-BADGUYANIM:
+.BADGUYANIM:
 	LD		A,(IY+5)
 	XOR		$80
 	JR		Z,.odd
@@ -3898,11 +3954,11 @@ BADGUYANIM:
 	POP		IX
 RET
 
-BADGUY:
+.LOC_BADGUY:
 	CALL 	PUSHTEST
-	JP 		Z,BADGUYANIM		; pushing
+	JP 		Z,.BADGUYANIM		; pushing
 	LD		D,1				; normal walk
-	JP		WALK		; walking	
+	JP		.WALK		; walking	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; test if the current bad guy pointed by IY is next to an active apple
@@ -6093,7 +6149,7 @@ LOC_A992:
 	POP		AF
 	JR		LOC_A96C
 LOC_A969:
-  CALL  INITIALIZE_THE_SOUND
+	CALL  INITIALIZE_THE_SOUND
 	LD    C,4
 	CALL	STORE_COMPLETION_TYPE
 
@@ -7016,7 +7072,7 @@ LOC_AE76:
 	INC		DE
 	INC		HL
 	JR		LOC_AE47
-RET
+;RET
 
 LOC_AE88:
 	LD		IX,BYTE_AEAD
@@ -7222,7 +7278,7 @@ LOC_AFD0:
 LOC_AFD2:
 	LD		E,3
 	JP		LOC_B063
-LOC_AFD7:						; BADGUY Pushes APPLE
+LOC_AFD7:						; BADGUY Pushes APPLE (?)
 	LD		A,(MRDO_DATA.Y)
 	SUB		0CH
 	CP		B
@@ -8323,12 +8379,10 @@ SUB_B7C4:
 	JR		NZ,LOC_B7E7
 	INC		HL				; point to ENEMY_NUM_P2
 LOC_B7E7:
-	LD		A,(HL)
-	DEC		A
-	LD		(HL),A			; one enemy killed 
-	POP		IX				; This seems fine 
-	POP		HL				; maybe the problem is in the enemy generation ?
-	AND		A				; Needed -> ZF is tested from the caller
+	DEC		(HL)			; one enemy killed 
+	POP		IX				
+	POP		HL				
+							; ZF is tested from the caller
 RET
 
 SUB_B7EF:
@@ -8405,8 +8459,11 @@ LOC_B865:
 	LD		DE,6
 	ADD		IX,DE
 	DJNZ	LOC_B865
-	JP		LOC_D345
-LOC_B875:
+	CALL	SUB_CA2D
+	CALL 	WAIT_NMI
+	LD		BC,1E2H
+	CALL	WRITE_REGISTER
+	LD		HL,GAMEFLAGSBONUSITEM
 	RES		4,(HL)
 	LD		A,(GAMEFLAGS)
 	BIT		0,A					; b0 in GAMEFLAGS ??
@@ -8418,13 +8475,15 @@ LOC_B884:
 	LD		(GAMEFLAGS),A
 	LD		A,($72BA)
 	BIT		6,A
-	JR		Z,LOC_B89B
+	JR		Z,LOC_B89E
 	LD		HL,$72C4
 	JP		LOC_D300
 LOC_B895:
 	CALL	REQUEST_SIGNAL
-	JP		LOC_D35D
-LOC_B89B:
+
+	LD		(GAMETIMER),A
+	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
+
 LOC_B89E:
 	POP		IX
 	POP		IY
@@ -8435,9 +8494,29 @@ SUB_B8A3:
 	PUSH	HL
 	PUSH	DE
 	PUSH	BC
-	JP		LOC_D326
+	CALL	SUB_B8F7
+	PUSH	IY
+	CALL	SUB_CA24
+	CALL 	WAIT_NMI
+	LD		BC,1E2H
+	CALL	WRITE_REGISTER
+	CALL  PLAY_DESSERT_COLLECT_SOUND
 
-LOC_B8AB:
+	; Wait for dessert collect sound to finish
+	LD      HL,1EH          ; Same duration as in COMPLETED_LEVEL
+	XOR     A
+	CALL    REQUEST_SIGNAL
+	PUSH    AF
+.wait:
+	POP     AF
+	PUSH    AF
+	CALL    TEST_SIGNAL
+	AND     A
+	JR      Z,.wait
+	POP     AF
+	
+	CALL    PLAY_BLUE_CHOMPERS_SOUND
+	POP		IY
 	LD		IX,CHOMPDATA	; chomper data
 	LD		B,3		; chomper number
 LOC_B8B1:
@@ -8463,7 +8542,15 @@ LOC_B8B1:
 	XOR		A
 	LD		HL,78H
 	CALL	REQUEST_SIGNAL
-	JP		LOC_D36D
+
+	LD		(TIMERCHOMP1),A			; save signal timer for chomper mode
+	LD		HL,$72C4
+	BIT		0,(HL)
+	JP		Z,LOC_B8EC
+	RES		0,(HL)
+	LD		A,(GAMETIMER)
+	CALL	TEST_SIGNAL
+	
 LOC_B8EC:
 	LD		A,80H
 	LD		(GAMEFLAGS),A		; b7 in GAMEFLAGS -> chomper mode
@@ -9738,55 +9825,10 @@ LOC_D31C:
 	RET		NZ
 	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 RET
-LOC_D326:
-	CALL	SUB_B8F7
-	PUSH	IY
-	CALL	SUB_CA24
-	CALL 	WAIT_NMI
-	LD		BC,1E2H
-	CALL	WRITE_REGISTER
-	CALL  PLAY_DESSERT_COLLECT_SOUND
 
-	; Wait for dessert collect sound to finish
-	LD      HL,1EH          ; Same duration as in COMPLETED_LEVEL
-	XOR     A
-	CALL    REQUEST_SIGNAL
-	PUSH    AF
-.wait:
-	POP     AF
-	PUSH    AF
-	CALL    TEST_SIGNAL
-	AND     A
-	JR      Z,.wait
-	POP     AF
+
+
 	
-	CALL    PLAY_BLUE_CHOMPERS_SOUND
-	POP		IY
-	JP		LOC_B8AB
-LOC_D345:
-	CALL	SUB_CA2D
-	CALL 	WAIT_NMI
-	LD		BC,1E2H
-	CALL	WRITE_REGISTER
-	LD		HL,GAMEFLAGSBONUSITEM
-	JP		LOC_B875
-LOC_D35D:
-	LD		(GAMETIMER),A
-	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
-	JP		LOC_B89B
-LOC_D366:
-	CALL	SUB_9577
-	XOR		A
-	JP		LOC_9481
-LOC_D36D:
-	LD		(TIMERCHOMP1),A			; save signal timer for chomper mode
-	LD		HL,$72C4
-	BIT		0,(HL)
-	JP		Z,LOC_B8EC
-	RES		0,(HL)
-	LD		A,(GAMETIMER)
-	CALL	TEST_SIGNAL
-	JP		LOC_B8EC
 SUB_A83E:	
 LOC_D383:
 	LD		A,(TIMERCHOMP1)
@@ -10507,62 +10549,6 @@ SFX_COIN_INSERT:
 
   DB 0x50
 
-nmi_handler:
-	PUSH AF
-	PUSH HL
-	LD HL,mode
-	BIT 0,(HL)				; B0==0 -> ISR Enabled,B0==1 -> ISR disabled
-	JR z,.1
-					; here ISR is disabled
-							
-	SET 1,(HL)				; ISR pending
-							; B1==0 -> ISR served 	B1==1 -> ISR pending
-	POP HL
-	POP AF
-	retn
-
-.0:	RES 1,(HL)				; ISR served
-.1:							; ISR enabled
-	BIT 7,(HL)
-	JR z,.2					; B7==0 -> game Mode,	B7==1 -> intermission mode
-
-					; Intermission Mode
-	POP 	HL				
-	IN 		A,(CTRL_PORT)
-	POP 	AF
-	
-	PUSH	AF
-	PUSH	BC
-	PUSH	DE
-	PUSH	HL
-	EX		AF,AF'
-	EXX
-	PUSH	AF
-	PUSH	BC
-	PUSH	DE
-	PUSH	HL
-	PUSH	IX
-	PUSH	IY
-	CALL	TIME_MGR		; udate timers
-	CALL	POLLER			; update controllers
-	CALL	SUB_C952		; PLAY MUSIC
-	POP		IY
-	POP		IX
-	POP		HL
-	POP		DE
-	POP		BC
-	POP		AF
-	EXX
-	EX		AF,AF'
-	POP		HL
-	POP		DE
-	POP		BC
-	POP		AF
-	RETN
-
-.2:	POP HL					; Game Mode
-	POP AF
-	JP NMI
 
 
 ; select 1/2 players
@@ -10857,7 +10843,7 @@ WONDERFUL:
 	CALL MYMODE1					; switch to intermission  mode
 	CALL MYDISSCR
 
-  LD DE,$0000 
+	LD DE,$0000 
 	LD HL,intermission_char
 	CALL unpack
 	LD DE,$0800 
@@ -10874,7 +10860,6 @@ WONDERFUL:
 	LD DE,$2800
 	LD HL,intermission_sprites
 	CALL unpack
-
   ; Fill top half with blank tiles
 	LD		HL,$1800
 	LD		DE,384
@@ -10888,7 +10873,6 @@ WONDERFUL:
     CALL    FILL_VRAM
 
     CALL    PRINT_WONDERFUL_STATS
-
 	; Add terminator in slot 1
 	LD A, 208                ; Terminator Y value
 	LD (SAT_BUFFER), A       ; Store in buffer
@@ -10896,8 +10880,10 @@ WONDERFUL:
 	LD BC, 1                 ; Just one byte (Y value only)
 	LD DE, $1B00+1*4      	 ; Slot 1 (icon is in slot 0)
 	LD HL, SAT_BUFFER
+	CALL MyNMI_off	
 	CALL MYLDIRVM
-	CALL MyNMI_on
+    CALL    MyNMI_on    
+
 
 	CALL	MYENASCR
 
@@ -10920,10 +10906,8 @@ WONDERFUL:
 	LD		DE,3000H			
 	xor		a					; fill with space
 	CALL	FILL_VRAM
-
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
-
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS
 
@@ -10951,19 +10935,18 @@ PRINT_WONDERFUL_STATS:
 .continue:
     ; Save score and level
     push bc                     ; Save score
-
+    
     ; Print and calculate scores for only the current level
     ld de,$1800 + 6 + 32*2   
     push af                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)
-                                ; Get current level number
     call PRINT_SINGLE_SCORE
-    pop af
-    push af                 ; Get current level number again
+    pop af                      ; Get current level number
+    push af                 	; Save current level number again
     call PRINT_SINGLE_TIME
     pop af
-    push af
+
     call PRINT_ICON
-    pop af
+
     ; Get score back and preserve it
     pop bc                      ; Get original score back
     
@@ -11150,25 +11133,28 @@ CURRTIMERINIT:
     LD      HL,P1_LEVEL1_SEC   
 
 .check_level_type:
-    ; First check if it's a multiple of 10
-    LD      B,10
-    CALL    MOD_B           ; Get level mod 10
-    AND     A               ; Check if remainder is 0
-    JR      Z,.use_first_slot   ; If multiple of 10,use first slot
-    
-    ; Not a multiple of 10,calculate based on remainder
-    DEC     A               ; Convert to 0-based for the remainder (0-8)
-    LD      B,3
-    CALL    MOD_B           ; Get mod 3 (0,1,2)
-							; NB: level 10,20 ecc will use the same slot of level 1,4,7
-    ADD     A,A            ; Multiply by 2 for offset
-    ; Add offset to HL
-    LD      B,0
-    LD      C,A
-	ADD		HL,BC
+;    ; First check if it's a multiple of 10
+;    LD      B,10
+;    CALL    MOD_B           ; Get level mod 10
+;    AND     A               ; Check if remainder is 0
+;    JR      Z,.use_first_slot   ; If multiple of 10,use first slot
+;    
+;    ; Not a multiple of 10,calculate based on remainder
+;    DEC     A               ; Convert to 0-based for the remainder (0-8)
+;    LD      B,3
+;    CALL    MOD_B           ; Get mod 3 (0,1,2)
+;							; NB: level 10,20 ecc will use the same slot of level 1,4,7
+;    ADD     A,A            ; Multiply by 2 for offset
+;    ; Add offset to HL
+;    LD      B,0
+;    LD      C,A
+;	ADD		HL,BC
+;
+;.use_first_slot:
+;    ; HL is already pointing to first slot
 
-.use_first_slot:
-    ; HL is already pointing to first slot
+	CALL GET_SLOT_OFFSET
+	ADD		HL,DE
 
 	LD (ADDCURRTIMER),HL
 RET
@@ -11283,10 +11269,7 @@ PRINT_LEVEL_STATS:
     push af
     call PRINT_SINGLE_TIME
     pop af
-    push af
     call PRINT_ICON
-    pop af
-
 ret
 
 ;----------------------------------------------------------------------
@@ -11326,7 +11309,7 @@ ret
 ; PRINT_ICON: Prints completion icon for the level
 ; Input: A = level number,DE = screen position
 ; Uses: GAMECONTROL to determine active player
-; Preserves: AF
+; 
 ;----------------------------------------------------------------------
 PRINT_ICON:
     LD      C, A		; Save level in C
@@ -11421,66 +11404,57 @@ PRINT_BLANK_SPRITE:
   JP 	PRINT_ICON_SPRITE.CpySAT
 
 
-PRINT_WONDERFUL_SPRITE:
-  POP     BC   ; clean up stack
-  LD    A, (HL)
-	; Set up sprite in buffer
-	LD      (SAT_BUFFER), A    	; Y position
-	LD      A, 224             	; X position (always 224 for "WONDERFUL")
-	LD      (SAT_BUFFER+1), A
-	LD      A, B              	; Cherry pattern = 80, Monster Pattern = 84
-	LD      (SAT_BUFFER+2), A
-	LD      A, 1               	; Color
-	LD      (SAT_BUFFER+3), A
-  LD    H, 0
-  LD    L, 0
-  LD    DE, $1B00
-  JP    FINISH_COPY_SAT
-
 ;----------------------------------------------------------------------
 ; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
-; Input: C = level number (1-3), HL = Y TABLE, B = Sprite pattern
+; Input: C = level number (>=1), HL = Y TABLE, B = Sprite pattern
 ;----------------------------------------------------------------------
 PRINT_ICON_SPRITE:
-  LD      A, C              	; Get level number
+    LD      A, C              	; Get level number
 	CALL 	GET_SLOT_OFFSET		; bc and hl preserved
 	PUSH	AF					; save 2*slot number
 	SRL A						; A is now 0, 1 or 2
 	
 	LD      E, A
-	LD      D, 0 
+;	LD      D, 0 				; D is 0 from get_slot_offset
 	ADD     HL, DE
-  ; Check if level is a multiple of 10 (if yes, print sprite using wonderful positioning)
-  PUSH    BC
-  LD      A,C
-  LD      B,10
-  CALL    MOD_B
-  AND     A                          		; Check if remainder is 0
-  JP      Z, PRINT_WONDERFUL_SPRITE   	; If multiple of 10, use wonderful positioning
-	POP     BC
-  LD      A, (HL)           	; Get Y position
-
-	; Set up sprite in buffer
+	LD    	A, (HL)				; Set up sprite in buffer
 	LD      (SAT_BUFFER), A    	; Y position
+
+  	; Check if level is a multiple of 10 (if yes, print sprite using wonderful positioning)
+  	PUSH    BC
+  	LD      A,C
+  	LD      B,10
+  	CALL    MOD_B				; ZF Set by MOD_B, check if remainder is 0
+	POP     BC
+  	JP      Z, .WONDERFUL   	; If multiple of 10, use wonderful positioning
+
 	LD      A, 200             	; X position (always 200)
 	LD      (SAT_BUFFER+1), A
-	LD      A, B              	; Cherry pattern = 80, Monster Patter = 84
-	LD      (SAT_BUFFER+2), A
-	LD      A, 1               	; Color
-	LD      (SAT_BUFFER+3), A
-
+	
 	; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
 	
 	POP   AF         	; Get 2*slot number back
+	
 .CpySAT:
  	ADD   A, A         	; Multiply by 4
-	
 	LD    H, 0			; Copy to SAT
 	LD    L, A
 	LD    DE, $1B00 + 4*10
-FINISH_COPY_SAT:
 	ADD   HL, DE      	; HL = $1B00 + offset
 	EX    DE, HL      	; Put result in DE
+	JR	.PRINT
+	
+.WONDERFUL:
+	POP   	AF					; clear the stack
+	LD      A, 224             	; X position (always 224 for "WONDERFUL")
+	LD      (SAT_BUFFER+1), A
+	LD    	DE, $1B00
+	
+.PRINT:	
+	LD      A, B              	; Cherry pattern = 80, Monster Pattern = 84
+	LD      (SAT_BUFFER+2), A
+	LD      A, 1               	; Color
+	LD      (SAT_BUFFER+3), A
 	LD    HL, SAT_BUFFER
 	LD    BC, 4
 	CALL  MyNMI_off
