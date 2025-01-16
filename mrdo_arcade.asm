@@ -10889,7 +10889,7 @@ WONDERFUL:
 
     CALL    PRINT_WONDERFUL_STATS
 
-	; Add terminator in slot 13
+	; Add terminator in slot 1
 	LD A, 208                ; Terminator Y value
 	LD (SAT_BUFFER), A       ; Store in buffer
 	
