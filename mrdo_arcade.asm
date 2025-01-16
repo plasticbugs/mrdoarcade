@@ -6093,7 +6093,7 @@ LOC_A992:
 	POP		AF
 	JR		LOC_A96C
 LOC_A969:
-
+  CALL  INITIALIZE_THE_SOUND
 	LD    C,4
 	CALL	STORE_COMPLETION_TYPE
 
@@ -10857,6 +10857,24 @@ WONDERFUL:
 	CALL MYMODE1					; switch to intermission  mode
 	CALL MYDISSCR
 
+  LD DE,$0000 
+	LD HL,intermission_char
+	CALL unpack
+	LD DE,$0800 
+	LD HL,intermission_char
+	CALL unpack
+	LD DE,$1000 
+	LD HL,intermission_char
+	CALL unpack
+
+	LD DE,$2000 
+	LD HL,intermission_color
+	CALL unpack
+
+	LD DE,$2800
+	LD HL,intermission_sprites
+	CALL unpack
+
   ; Fill top half with blank tiles
 	LD		HL,$1800
 	LD		DE,384
@@ -10870,8 +10888,16 @@ WONDERFUL:
     CALL    FILL_VRAM
 
     CALL    PRINT_WONDERFUL_STATS
-    CALL    MyNMI_on    
 
+	; Add terminator in slot 13
+	LD A, 208                ; Terminator Y value
+	LD (SAT_BUFFER), A       ; Store in buffer
+	
+	LD BC, 1                 ; Just one byte (Y value only)
+	LD DE, $1B00+1*4      	 ; Slot 1 (icon is in slot 0)
+	LD HL, SAT_BUFFER
+	CALL MYLDIRVM
+	CALL MyNMI_on
 
 	CALL	MYENASCR
 
@@ -10889,8 +10915,17 @@ WONDERFUL:
 	JR		Z,.1
 	POP		AF
 
+	CALL	REMOVESPRITES
+	LD		HL,0000H			; do not delete player data in VRAM
+	LD		DE,3000H			
+	xor		a					; fill with space
+	CALL	FILL_VRAM
+
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
+
+	CALL	INIT_VRAM
+	CALL	RESTORE_PLAYFIELD_COLORS
 
 	CALL 	WAIT_NMI
 
@@ -10916,14 +10951,18 @@ PRINT_WONDERFUL_STATS:
 .continue:
     ; Save score and level
     push bc                     ; Save score
-    
+
     ; Print and calculate scores for only the current level
     ld de,$1800 + 6 + 32*2   
-    push af                     
+    push af                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)                 	; Get first level number
     call PRINT_SINGLE_SCORE
     pop af
+    push af                 ; Get first level number again
     call PRINT_SINGLE_TIME
-
+    pop af
+    push af
+    call PRINT_ICON
+    pop af
     ; Get score back and preserve it
     pop bc                      ; Get original score back
     
@@ -11380,12 +11419,29 @@ PRINT_BLANK_SPRITE:
 
   JP 	PRINT_ICON_SPRITE.CpySAT
 
+
+PRINT_WONDERFUL_SPRITE:
+  POP     BC   ; clean up stack
+  LD    A, (HL)
+	; Set up sprite in buffer
+	LD      (SAT_BUFFER), A    	; Y position
+	LD      A, 224             	; X position (always 224 for "WONDERFUL")
+	LD      (SAT_BUFFER+1), A
+	LD      A, B              	; Cherry pattern = 80, Monster Pattern = 84
+	LD      (SAT_BUFFER+2), A
+	LD      A, 1               	; Color
+	LD      (SAT_BUFFER+3), A
+  LD    H, 0
+  LD    L, 0
+  LD    DE, $1B00
+  JP    FINISH_COPY_SAT
+
 ;----------------------------------------------------------------------
 ; PRINT_CHERRY_SPRITE: Prints cherry sprite for given level
 ; Input: C = level number (1-3), HL = Y TABLE, B = Sprite pattern
 ;----------------------------------------------------------------------
 PRINT_ICON_SPRITE:
-    LD      A, C              	; Get level number
+  LD      A, C              	; Get level number
 	CALL 	GET_SLOT_OFFSET		; bc and hl preserved
 	PUSH	AF					; save 2*slot number
 	SRL A						; A is now 0, 1 or 2
@@ -11393,8 +11449,16 @@ PRINT_ICON_SPRITE:
 	LD      E, A
 	LD      D, 0 
 	ADD     HL, DE
-	LD      A, (HL)           	; Get Y position
-	
+  ; Check if level is a multiple of 10 (if yes, print sprite using wonderful positioning)
+  PUSH    BC
+  LD      A,C
+  LD      B,10
+  CALL    MOD_B
+  AND     A                          		; Check if remainder is 0
+  JP      Z, PRINT_WONDERFUL_SPRITE   	; If multiple of 10, use wonderful positioning
+	POP     BC
+  LD      A, (HL)           	; Get Y position
+
 	; Set up sprite in buffer
 	LD      (SAT_BUFFER), A    	; Y position
 	LD      A, 200             	; X position (always 200)
@@ -11403,7 +11467,7 @@ PRINT_ICON_SPRITE:
 	LD      (SAT_BUFFER+2), A
 	LD      A, 1               	; Color
 	LD      (SAT_BUFFER+3), A
-	
+
 	; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
 	
 	POP   AF         	; Get 2*slot number back
@@ -11413,6 +11477,7 @@ PRINT_ICON_SPRITE:
 	LD    H, 0			; Copy to SAT
 	LD    L, A
 	LD    DE, $1B00 + 4*10
+FINISH_COPY_SAT:
 	ADD   HL, DE      	; HL = $1B00 + offset
 	EX    DE, HL      	; Put result in DE
 	LD    HL, SAT_BUFFER
