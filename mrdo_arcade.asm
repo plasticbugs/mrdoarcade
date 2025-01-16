@@ -10954,10 +10954,11 @@ PRINT_WONDERFUL_STATS:
 
     ; Print and calculate scores for only the current level
     ld de,$1800 + 6 + 32*2   
-    push af                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)                 	; Get first level number
+    push af                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)
+                                ; Get current level number
     call PRINT_SINGLE_SCORE
     pop af
-    push af                 ; Get first level number again
+    push af                 ; Get current level number again
     call PRINT_SINGLE_TIME
     pop af
     push af
