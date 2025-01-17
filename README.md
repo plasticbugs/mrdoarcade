@@ -1,6 +1,8 @@
 # Mr. Do Arcade ColecoVision Rom Hack
 
-This work is based on the original Mr. Do game for the ColecoVision and was made possible by the disassembly work done by Captain Cosmos on the Atari Age forums.
+This work is based on the original Mr. Do game for the ColecoVision and was made possible by the disassembly work done by Captain Cosmos on the Atari Age forums. HUGE shout out to @artrag and @TIX for lending their time and their talents to this project!
+
+![Image](https://github.com/user-attachments/assets/a61487c0-2615-482a-aa27-a5e45f052400)
 
 Changes:
 - Arcade Title screen
