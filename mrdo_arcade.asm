@@ -11053,68 +11053,6 @@ _loop:
    djnz	_loop
    
    ret
- 
-
-;     ; Calculate average based on level
-;     pop bc                  ; Get score back
-;     push bc                 ; Keep a copy
-;     pop af                  ; Get level back (10,20,30,etc.)
-;     push af                 ; Keep a copy
-    
-;     ld h,b                 ; Move score to HL
-;     ld l,c
-
-;     ; First divide level by 10 to get divisor
-;     srl a                   ; Divide level by 10
-;     srl a
-;     srl a                   ; A now has 1 for level 10,2 for 20,etc.
-;     ld b,a                 ; B = divisor (1,2,3,etc.)
-    
-;     ; Shift HL right by 3 to remove one decimal digit
-;     srl h
-;     rr l
-;     srl h
-;     rr l
-;     srl h
-;     rr l
-
-;     ; Now do the division
-;     ld de,0               ; Initialize quotient
-; .divide_loop:
-;     ld a,l               ; Compare HL with B
-;     cp b
-;     ld a,h
-;     sbc a,0
-;     jr c,.done           ; If HL < B,division done
-
-;     ; Subtract B from HL
-;     ld a,l
-;     sub b
-;     ld l,a
-;     ld a,h
-;     sbc a,0
-;     ld h,a
-
-;     inc de                ; DE = DE + 1
-;     jr .divide_loop
-
-; .done:
-;     ; DE now holds the quotient
-;     ex de,hl             ; Put result in HL for CONVERT_TO_DECIMAL
-
-;     ; Convert to decimal and display
-;     call CONVERT_TO_DECIMAL
-
-;     ; Print average value
-;     ex de,hl
-;     ld bc,10            ; Move right 10 positions
-;     add hl,bc
-;     ex de,hl
-;     ld hl,TEXT_BUFFER
-;     call MYPRINT
-
-
-
 
 INTERMISSION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
