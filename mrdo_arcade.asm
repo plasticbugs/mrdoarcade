@@ -1067,18 +1067,7 @@ LOC_85B6:
 	LD		(HL),A
 	INC		HL
 	DJNZ	LOC_85B6
-	LD		A,(GAMECONTROL)
-	BIT		1,A
-	LD		A,(CURRENT_LEVEL_P1)
-	JR		Z,LOC_85C7
-	LD		A,(CURRENT_LEVEL_P2)
-LOC_85C7:
-	CP		0BH
-	JR		C,LOC_BADGUY_BEHAVIOR
-	SUB		0AH
-	JR		LOC_85C7
-
-LOC_BADGUY_BEHAVIOR:
+	CALL	GET_LEVEL
 	DEC		A
 	ADD		A,A
 	LD		E,A
@@ -4636,7 +4625,7 @@ LOC_9F82:
 	JR		Z,LOC_9F8C
 	SET		5,A
 LOC_9F8C:
-	LD		BC,0FFF0H
+	LD		BC,-16
 	ADD		HL,BC
 	BIT		0,(HL)
 	JR		Z,LOC_9FAF
@@ -5244,7 +5233,7 @@ SUB_A316:
 	CP		D
 	JR		Z,LOC_A341
 	PUSH	BC
-	LD		BC,0FFF0H
+	LD		BC,-16
 	ADD		IX,BC
 	POP		BC
 	BIT		4,(IX+0)
@@ -5336,7 +5325,7 @@ LOC_A394:
 	LD		D,E
 LOC_A3C1:
 	PUSH	BC
-	LD		BC,0FFF0H
+	LD		BC,-16
 	ADD		IX,BC
 	POP		BC
 	LD		A,D
@@ -5405,9 +5394,7 @@ LOC_A412:
 LOC_A433:
 	CP		11H
 	JR		NC,LOC_A44D
-	; LD		H,0
 	LD		A,(IY+1)
-	; LD		L,0E0H
 	LD		HL,00E0H
 	CP		(IX+2)
 	JR		Z,LOC_A459
@@ -5732,17 +5719,8 @@ LOC_A65F:
 RET
 
 SUB_A662:
-	LD		A,(GAMECONTROL)
-	BIT		1,A
-	LD		A,(CURRENT_LEVEL_P1)
-	JR		Z,LOC_A66F
-	LD		A,(CURRENT_LEVEL_P2)
-LOC_A66F:
-	CP		0BH
-	JR		C,LOC_A677
-	SUB		0AH
-	JR		LOC_A66F
-LOC_A677:
+	CALL 	GET_LEVEL
+
 	CP		4
 	JR		NZ,LOC_A67F
 	LD		A,98H
@@ -6044,7 +6022,7 @@ BYTE_A8C7:
 	DB 064,128,016,032
 
 SUB_A8CB:
-	CALL	SUB_9B4F
+	CALL	SUB_9B4F			; comment here to make chopers not dig (but they will pass everywhere)
 	LD		B,(IY+2)
 	LD		C,(IY+1)
 	CALL	PEEKMAP
@@ -6053,26 +6031,26 @@ SUB_A8CB:
 
 	LD		A,(IY+4)
 	AND		7
-	CP		1						; right
+	DEC		A						; 1 = right
 	JR		Z,CHMPRIGHT
-	CP		2						; left
+	DEC		A						; 2 = left
 	JR		Z,CHMPLEFT
-	CP		4						; down
-	JR		Z,CHMPDOWN
-	CP		3						; up
+	DEC		A						; 3 = up
 	JR		Z,CHMPUP
+	DEC		A						; 4 = down
+	JR		Z,CHMPDOWN
 									; ANY OTHER VALUE (??)
 CHMPLEFT:
 	LD		D,3
 	JR		LOC_A905
 CHMPDOWN:
-	LD		D,8			; left side
+	LD		D,8				; left side
 	BIT		7,(IY+1)		; test if X<128
 	JR		NZ,LOC_A905
 	LD		D,12			; right side
 	JR		LOC_A905
 CHMPUP:
-	LD		D,6			; left side
+	LD		D,6				; left side
 	BIT		7,(IY+1)		; test if X<128
 	JR		NZ,LOC_A905
 	LD		D,10			; right side
@@ -6105,7 +6083,7 @@ GOT_DIAMOND:
 	LD		HL,DIAMOND_RAM
 	LD		(HL),0
 	CP		1
-	JR		NZ,COMPLETED_LEVEL
+	JR		NZ,.COMPLETED_LEVEL
 	LD		HL,78H
 	XOR		A
 	CALL	REQUEST_SIGNAL
@@ -6118,18 +6096,18 @@ GOT_DIAMOND:
 	JR		Z,.wait
 	POP		AF
 	JR		LOC_A973
-COMPLETED_LEVEL:
+.COMPLETED_LEVEL:
 	PUSH	AF
 	LD		HL,1EH
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
-.wait:
+.wait2:
 	POP		AF
 	PUSH	AF
 	CALL	TEST_SIGNAL
 	AND		A
-	JR		Z,.wait
+	JR		Z,.wait2
 	POP		AF
 	POP		AF
 	CP      $82   				; I chose this value so I know a diamond was collected
@@ -6439,6 +6417,18 @@ LOC_AA5C:
 	CALL	WRITE_REGISTER
 RET
 
+GET_LEVEL:
+	LD		A,(GAMECONTROL)
+	BIT		1,A
+	LD		A,(CURRENT_LEVEL_P1)
+	JR		Z,.MOD
+	LD		A,(CURRENT_LEVEL_P2)
+.MOD:
+	CP		0BH
+	RET		C
+	SUB		0AH
+	JR		.MOD
+
 ; Get A modulo B
 MOD_B:
     SUB     A,B			; Subtract B
@@ -6551,8 +6541,6 @@ LOC_AB5B:
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
-	
-	
 LOC_AB6C:
 	LD		A,(KEYBOARD_P1)
 	CP		0AH
@@ -6742,7 +6730,7 @@ LOC_ACF6:
 	INC		HL
 	INC		IX
 	JR		LOC_ACD5
-RET
+;RET
 
 ; in IY the number of 8x8 tiles to process
 ; in IX the entry in the sprite generator list
@@ -6755,12 +6743,12 @@ UPDATE_SPT:
 	LD		L,(IX+3)			; pointer to sprite pattern
 	LD		H,(IX+4)
 	AND		A
-	JP		NZ,ROTATION
-NOROTATION:
+	JP		NZ,.ROTATION
+.NOROTATION:
 	LD		A,1				; write the SPT
 	CALL	PUT_VRAM			; IY = #of chars,DE = SPT pos,HL = ROM addr
 	RET
-ROTATION:
+.ROTATION:
 
 	PUSH de
 	exx 
@@ -6916,18 +6904,7 @@ SUB_ADAB:					; rotate face down
 LOC_ADB0:
 	POP		HL
 	PUSH	HL
-	LD		B,8
-LOC_ADB4:
-	LD		A,(HL)
-	AND		D
-	JR		Z,LOC_ADB9
-	SCF
-LOC_ADB9:
-	RL		E
-	INC		HL
-	DJNZ	LOC_ADB4
-	LD		(IY+0),E
-	INC		IY
+	CALL 	SUBMIRDWN
 	RLC		D
 	DEC		C
 	JR		NZ,LOC_ADB0
@@ -6941,18 +6918,7 @@ SUB_ADCA:						; rotate face up
 LOC_ADCF:
 	POP		HL
 	PUSH	HL
-	LD		B,8
-LOC_ADD3:
-	LD		A,(HL)
-	AND		D
-	JR		Z,LOC_ADD8
-	SCF
-LOC_ADD8:
-	RL		E
-	INC		HL
-	DJNZ	LOC_ADD3
-	LD		(IY+0),E
-	INC		IY
+	CALL 	SUBMIRDWN
 	RRC		D
 	DEC		C
 	JR		NZ,LOC_ADCF
@@ -6968,18 +6934,7 @@ SUB_ADE9:						; rotate face up-mirror
 LOC_ADF2:
 	POP		HL
 	PUSH	HL
-	LD		B,8
-LOC_ADF6:
-	LD		A,(HL)
-	AND		D
-	JR		Z,LOC_ADFB
-	SCF
-LOC_ADFB:
-	RL		E
-	DEC		HL
-	DJNZ	LOC_ADF6
-	LD		(IY+0),E
-	INC		IY
+	CALL 	SUBMIRDUP
 	RLC		D
 	DEC		C
 	JR		NZ,LOC_ADF2
@@ -6995,22 +6950,43 @@ SUB_AE0C:							; rotate face DOWN-mirror
 LOC_AE15:
 	POP		HL
 	PUSH	HL
-	LD		B,8
-LOC_AE19:
-	LD		A,D
-	AND		(HL)						; use A instead of D (?)
-	JR		Z,LOC_AE1E
-	SCF
-LOC_AE1E:
-	RL		E
-	DEC		HL
-	DJNZ	LOC_AE19
-	LD		(IY+0),E
-	INC		IY
+	CALL 	SUBMIRDUP
 	RRC		D
 	DEC		C
 	JR		NZ,LOC_AE15
 	POP		HL
+RET
+
+
+SUBMIRDWN:
+	LD		B,8
+.loop:
+	LD		A,(HL)
+	AND		D
+	JR		Z,.zero
+	SCF
+.zero:
+	RL		E
+	INC		HL
+	DJNZ	.loop
+	LD		(IY+0),E
+	INC		IY
+RET
+
+
+SUBMIRDUP:
+	LD		B,8
+.loop:
+	LD		A,(HL)
+	AND		D
+	JR		Z,.zero
+	SCF
+.zero:
+	RL		E
+	DEC		HL
+	DJNZ	.loop
+	LD		(IY+0),E
+	INC		IY
 RET
 
 DEAL_WITH_PLAYFIELD:			; Print strings to the playfield
@@ -7607,17 +7583,7 @@ DISPLAY_CHERRIES:
 	JR		PLAYFIELD_TO_VRAM
 DISPLAY_PLAYFIELD:
 	PUSH	BC
-	LD		A,(GAMECONTROL)
-	BIT		1,A
-	LD		A,(CURRENT_LEVEL_P1)
-	JR		Z,LOC_B1E6
-	LD		A,(CURRENT_LEVEL_P2)
-LOC_B1E6:
-	CP		0BH
-	JR		C,LOC_B1EE
-	SUB		0AH
-	JR		LOC_B1E6
-LOC_B1EE:
+	CALL	GET_LEVEL
 	DEC		A
 	LD		C,A
 	LD		B,0
@@ -7687,11 +7653,8 @@ PLAYFIELD_PATTERNS:
 	DB 10,10,10,10,10,10,10,10,10,10
 
 SUB_B286:					; build level in A
-	CP		0BH
-	JR		C,LOC_B28E
-	SUB		0AH
-	JR		SUB_B286
-LOC_B28E:
+	CALL	GET_LEVEL.MOD
+	
 	PUSH	AF
 	LD		HL,GAMESTATE
 	LD		(HL),0
@@ -7949,7 +7912,7 @@ LOC_B45B:
 	POP		DE
 	PUSH	IX
 	PUSH	DE
-	LD		BC,0FFF0H
+	LD		BC,-16
 	ADD		IX,BC
 	LD		A,(IX+0)
 	AND		2CH
@@ -7999,7 +7962,7 @@ LOC_B4B8:
 	LD		C,82H
 	JR		LOC_B4E3
 LOC_B4CA:
-	LD		BC,0FFF0H
+	LD		BC,-16
 	ADD		IX,BC
 	LD		A,(IX+0)
 	LD		BC,10H
@@ -8045,7 +8008,7 @@ LOC_B50A:
 	POP		DE
 	PUSH	IX
 	PUSH	DE
-	LD		BC,0FFF0H
+	LD		BC,-16
 	ADD		IX,BC
 	BIT		5,(IX+0)
 	JR		NZ,LOC_B52D
@@ -8086,7 +8049,7 @@ LOC_B560:
 	LD		BC,10H
 	ADD		IX,BC
 	LD		A,(IX+0)
-	LD		BC,0FFF0H
+	LD		BC,-16
 	ADD		IX,BC
 	AND		0CH
 	CP		0CH
@@ -8558,8 +8521,8 @@ LOC_B8EC:
 ; immediately return the ball when in chomper mode
 ; only if Mr. Do is in cool down mode (Bit 6 is SET)
 	LD 		IY,BALLDATA 			; Load ball state pointer
-	BIT   5,(IY+0)         ; Check if BIT 5 is SET
-	JR    Z,.skip_ball_return ; Skip ball return if not in cooldown phase
+	BIT   5,(IY+0)         		; Check if BIT 5 is SET
+	JR    Z,.skip_ball_return 	; Skip ball return if not in cooldown phase
 
 	LD		(IY+0),$20			; Set BIT 5,reset direction flags 
 	LD		(IY+1),0			; reset ball's X
@@ -8606,16 +8569,7 @@ RESTORE_PLAYFIELD_COLORS:
 RET
 
 SET_LEVEL_COLORS:
-	LD		A,(GAMECONTROL)
-	BIT		1,A
-	LD		A,(CURRENT_LEVEL_P1)
-	JR		Z,.PLY1
-	LD		A,(CURRENT_LEVEL_P2)
-.PLY1:
-	CP		0BH
-	JR		C,.RESTORE_COLORS
-	SUB		0AH
-	JR		.PLY1
+	CALL	GET_LEVEL
 .RESTORE_COLORS:
 	DEC		A
 	PUSH	AF
@@ -10823,10 +10777,8 @@ WONDERFULTXT0:	DC "                "
 WONDERFULTXT1:	DC "   WONDERFUL !! "
 TOTAL_TEXT:     DC "TOTAL "
 
-AVERAGE_TEXT:   dc "AVERAGE "
+AVERAGE_TEXT:   DC "AVERAGE "
 
-
-DummySAT:		DB 208
 
 	;% place here the other intermission each 10xN levels
 WONDERFUL:
@@ -10834,11 +10786,10 @@ WONDERFUL:
 	; Show the intermission screen 
 	;
 
-	LD	BC,1
-	LD 	DE,SAT
-	LD 	HL,DummySAT
+	LD HL,SAT
+	LD	A,208
 	CALL MyNMI_off
-	CALL MYLDIRVM
+	CALL MYWRTVRM
 
 	CALL MYMODE1					; switch to intermission  mode
 	CALL MYDISSCR
@@ -10867,23 +10818,19 @@ WONDERFUL:
 	CALL	FILL_VRAM
 
 	    ; Fill bottom half with brick pattern
-    LD      HL,$1800 + 384  ; Start halfway down screen
-    LD      DE,384          ; Fill remaining 12 rows
-    LD      A,105           ; brick pattern for level 10,20,30 etc
+    LD      HL,$1800 + 32*10 ; Start halfway down screen
+    LD      DE,32*14         ; Fill remaining 12 rows
+    LD      A,105            ; brick pattern for level 10,20,30 etc
     CALL    FILL_VRAM
 
     CALL    PRINT_WONDERFUL_STATS
-	; Add terminator in slot 1
-	LD A, 208                ; Terminator Y value
-	LD (SAT_BUFFER), A       ; Store in buffer
-	
-	LD BC, 1                 ; Just one byte (Y value only)
-	LD DE, $1B00+1*4      	 ; Slot 1 (icon is in slot 0)
-	LD HL, SAT_BUFFER
-	CALL MyNMI_off	
-	CALL MYLDIRVM
-    CALL    MyNMI_on    
 
+	; Add terminator in slot 1
+	LD 		HL,SAT+4	
+	LD		A,208
+	CALL 	MyNMI_off
+	CALL 	MYWRTVRM
+    CALL    MyNMI_on    
 
 	CALL	MYENASCR
 
@@ -10947,13 +10894,12 @@ PRINT_WONDERFUL_STATS:
     push af
     call PRINT_ICON
     pop af                ; get level back
-    pop bc                ; Get original score back
+	
+    pop hl                ; Get in HL original score 
     push af                 ; save level
-    push bc                ; save score
-    ; Convert score for display (needs HL)
+    push hl                ; save score
 
-    ld h,b                     ; Move score to HL for conversion
-    ld l,c
+    ; Convert score for display (needs HL)
     call CONVERT_TO_DECIMAL
 
     ; Print total score
@@ -10969,11 +10915,9 @@ PRINT_WONDERFUL_STATS:
     ld hl,AVERAGE_TEXT
     call MYPRINT
 
-    pop bc   ; get score back
+    pop DE   ; get score back
     ld a, 10
-    ld d, b
-    ld e, c
-    call DE_Times_10
+    call DE_Times_A
     ld d, 0
     ld e, a
     pop af   ; get level back
@@ -10990,8 +10934,8 @@ PRINT_WONDERFUL_STATS:
     ld a,(TEXT_BUFFER+4)     ; Get the ones digit
     or $80                   ; Set the high bit (add terminator)
     ld (TEXT_BUFFER+4),a     ; Put it back
-    xor a                    ; A = 0
-    ld (TEXT_BUFFER+4+1),a   ; Clear zero
+ ;   xor a                    ; A = 0
+ ;   ld (TEXT_BUFFER+4+1),a   ; Clear zero
 
  ; Print average score
     ld de,$1800 + 17 + 32*6
@@ -11010,12 +10954,12 @@ PRINT_WONDERFUL_STATS:
     call MYPRINT
 ret
 
-DE_Times_10: ; multiply DE by 10 (24 bit output)
+; multiply DE by A (24 bit output)
 ;Inputs: DE,A
 ;Outputs: A:HL is product, BC=0,DE preserved
 ;343cc~423cc, avg= 383cc
 ;size: 14 bytes
-
+DE_Times_A: 
     ld bc,0800h
     ld h,c
     ld l,c
@@ -11026,7 +10970,7 @@ times_loop:
     add hl,de
     adc a,c
     djnz times_loop
-    ret
+ret
 
    ;Inputs:
    ;     DEHL is a 32 bit value where DE is the upper 16 bits
@@ -11052,7 +10996,7 @@ _loop:
    
    djnz	_loop
    
-   ret
+ret
 
 INTERMISSION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -11143,25 +11087,6 @@ CURRTIMERINIT:
     LD      HL,P1_LEVEL1_SEC   
 
 .check_level_type:
-;    ; First check if it's a multiple of 10
-;    LD      B,10
-;    CALL    MOD_B           ; Get level mod 10
-;    AND     A               ; Check if remainder is 0
-;    JR      Z,.use_first_slot   ; If multiple of 10,use first slot
-;    
-;    ; Not a multiple of 10,calculate based on remainder
-;    DEC     A               ; Convert to 0-based for the remainder (0-8)
-;    LD      B,3
-;    CALL    MOD_B           ; Get mod 3 (0,1,2)
-;							; NB: level 10,20 ecc will use the same slot of level 1,4,7
-;    ADD     A,A            ; Multiply by 2 for offset
-;    ; Add offset to HL
-;    LD      B,0
-;    LD      C,A
-;	ADD		HL,BC
-;
-;.use_first_slot:
-;    ; HL is already pointing to first slot
 
 	CALL GET_SLOT_OFFSET
 	ADD		HL,DE
@@ -11173,11 +11098,10 @@ cvb_INTERMISSION:
 	CALL MYMODE1				; switch to intermission  mode
 	CALL MYDISSCR	
 
-	LD	BC,1
-	LD 	DE,SAT
-	LD 	HL,DummySAT
+	LD HL,SAT
+	LD	A,208
 	CALL MyNMI_off
-	CALL MYLDIRVM
+	CALL MYWRTVRM	
 	
 	CALL cvb_MYCLS
 
@@ -11205,13 +11129,10 @@ cvb_INTERMISSION:
 	CALL PRINT_LEVEL_STATS
 
 	; Add terminator in slot 13
-	LD A, 208                ; Terminator Y value
-	LD (SAT_BUFFER), A       ; Store in buffer
-	
-	LD BC, 1                 ; Just one byte (Y value only)
-	LD DE, $1B00+13*4      	 ; Slot 13 (icons are in slots 10-12)
-	LD HL, SAT_BUFFER
-	CALL MYLDIRVM
+	LD HL,SAT+13*4      	 ; Slot 13 (icons are in slots 10-12)
+	LD	A,208
+	CALL MyNMI_off
+	CALL MYWRTVRM	
 	CALL MyNMI_on
 	
 	CALL MYENASCR
@@ -11271,6 +11192,7 @@ PRINT_LEVEL_STATS:
     dec a
     call PRINT_ICON
     pop af
+
     ; Third level (Current)
     ld de,$1800 + 3 + 32*8   ; Next line down
     push af
@@ -12959,7 +12881,7 @@ cvb_IMAGE_SPRITES:
 	; sprite_overlay:
 cvb_SPRITE_OVERLAY:
 ;	DB 2+17*8,24+13*8,0,3
-	DB 208,24+13*8,0,3		; hide
+	DB 208,24+13*8,0,3		; hide (??)
 	DB 74,165,4,12
 	DB 70,149,8,5
 	DB 70,136,12,5
