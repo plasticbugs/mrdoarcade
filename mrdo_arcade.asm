@@ -4679,8 +4679,8 @@ UNK_9FB3:
 
 SUB_9FC8:
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	XOR		A    ; (Uncomment for invincibility)
-	RET        ; (Uncomment for invincibility)
+	; XOR		A    ; (Uncomment for invincibility)
+	; RET        ; (Uncomment for invincibility)
 	PUSH	IY
 	LD		B,(IY+2)
 	LD		A,(MRDO_DATA.Y)
@@ -10944,9 +10944,12 @@ PRINT_WONDERFUL_STATS:
     push af                 	; Save current level number again
     call PRINT_SINGLE_TIME
     pop af
+    push af
     call PRINT_ICON
-    ; Get score back and preserve it
-    pop bc                      ; Get original score back
+    pop af                ; get level back
+    pop bc                ; Get original score back
+    push af                 ; save level
+    push bc                ; save score
     ; Convert score for display (needs HL)
 
     ld h,b                     ; Move score to HL for conversion
@@ -10966,21 +10969,7 @@ PRINT_WONDERFUL_STATS:
     ld hl,AVERAGE_TEXT
     call MYPRINT
 
-  ; Stack is messed up here, so getting the level & score again :(
-    ; Check which player is active
-    ld a,(GAMECONTROL)
-    bit 1,a                   
-    jr nz,.use_p2
-
-    ; Player 1 is active
-    ld a,(CURRENT_LEVEL_P1)
-    ld bc,(SCORE_P1_RAM)      ; Use BC instead of HL for initial load
-    jr .continue_b
-.use_p2_b:
-    ld a,(CURRENT_LEVEL_P2)
-    ld bc,(SCORE_P2_RAM)
-.continue_b:
-    push af
+    pop bc   ; get score back
     ld a, 10
     ld d, b
     ld e, c
@@ -11516,7 +11505,7 @@ PRINT_ICON_SPRITE:
 	LD      A, 200             	; X position (always 200)
 	LD      (SAT_BUFFER+1), A
 	
-	; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
+	; Calculate SAT possition (level 1 = 40, level 2 = 44, level 3 = 48)
 	
 	POP   AF         	; Get 2*slot number back
 	
