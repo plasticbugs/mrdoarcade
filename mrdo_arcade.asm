@@ -4679,8 +4679,8 @@ UNK_9FB3:
 
 SUB_9FC8:
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	; XOR		A    ; (Uncomment for invincibility)
-	; RET        ; (Uncomment for invincibility)
+	XOR		A    ; (Uncomment for invincibility)
+	RET        ; (Uncomment for invincibility)
 	PUSH	IY
 	LD		B,(IY+2)
 	LD		A,(MRDO_DATA.Y)
@@ -10823,7 +10823,7 @@ WONDERFULTXT0:	DC "                "
 WONDERFULTXT1:	DC "   WONDERFUL !! "
 TOTAL_TEXT:     DC "TOTAL "
 
-; AVERAGE_TEXT:   dc "AVERAGE "
+AVERAGE_TEXT:   dc "AVERAGE "
 
 
 DummySAT:		DB 208
@@ -10944,12 +10944,9 @@ PRINT_WONDERFUL_STATS:
     push af                 	; Save current level number again
     call PRINT_SINGLE_TIME
     pop af
-
     call PRINT_ICON
-
     ; Get score back and preserve it
     pop bc                      ; Get original score back
-    
     ; Convert score for display (needs HL)
 
     ld h,b                     ; Move score to HL for conversion
@@ -10963,13 +10960,113 @@ PRINT_WONDERFUL_STATS:
     ld de,$1800 + 16 + 32*4
     ld hl,TEXT_BUFFER
     call MYPRINT
-	
-;  ; Print "AVERAGE" text
-;     ld de,$1800 + 6 + 32*6
-;     push de
-;     ld hl,AVERAGE_TEXT
-;     call MYPRINT
-;     pop de
+
+;  Print "AVERAGE" text
+    ld de,$1800 + 6 + 32*6
+    ld hl,AVERAGE_TEXT
+    call MYPRINT
+
+  ; Stack is messed up here, so getting the level & score again :(
+    ; Check which player is active
+    ld a,(GAMECONTROL)
+    bit 1,a                   
+    jr nz,.use_p2
+
+    ; Player 1 is active
+    ld a,(CURRENT_LEVEL_P1)
+    ld bc,(SCORE_P1_RAM)      ; Use BC instead of HL for initial load
+    jr .continue_b
+.use_p2_b:
+    ld a,(CURRENT_LEVEL_P2)
+    ld bc,(SCORE_P2_RAM)
+.continue_b:
+    push af
+    ld a, 10
+    ld d, b
+    ld e, c
+    call DE_Times_10
+    ld d, 0
+    ld e, a
+    pop af   ; get level back
+    ld c, a
+    call DEHL_Div_C
+
+    ; DEHL is the result of the division
+    ; we can ignore the remainder and the 0s in DE
+    ; NB: game scoring makes it impossible to get above 32k average
+    ; HL is the result of the division
+    call CONVERT_TO_DECIMAL
+
+    ; Add terminator bit to the ones digit
+    ld a,(TEXT_BUFFER+4)     ; Get the ones digit
+    or $80                   ; Set the high bit (add terminator)
+    ld (TEXT_BUFFER+4),a     ; Put it back
+    xor a                    ; A = 0
+    ld (TEXT_BUFFER+4+1),a   ; Clear zero
+
+ ; Print average score
+    ld de,$1800 + 17 + 32*6
+    ld hl,TEXT_BUFFER
+    call MYPRINT
+
+    ; Print WONDERFUL text
+    ld de,PNT + 8 + 32*(16)
+    ld hl,WONDERFULTXT0
+    call MYPRINT
+    ld de,PNT + 8 + 32*(17)
+    ld hl,WONDERFULTXT1
+    call MYPRINT
+    ld de,PNT + 8 + 32*(18)
+    ld hl,WONDERFULTXT0
+    call MYPRINT
+ret
+
+DE_Times_10: ; multiply DE by 10 (24 bit output)
+;Inputs: DE,A
+;Outputs: A:HL is product, BC=0,DE preserved
+;343cc~423cc, avg= 383cc
+;size: 14 bytes
+
+    ld bc,0800h
+    ld h,c
+    ld l,c
+times_loop:
+    add hl,hl
+    rla
+    jp nc,$+4
+    add hl,de
+    adc a,c
+    djnz times_loop
+    ret
+
+   ;Inputs:
+   ;     DEHL is a 32 bit value where DE is the upper 16 bits
+   ;     C is the value to divide DEHL by
+   ;Outputs:
+   ;    A is the remainder
+   ;    B is 0
+   ;    C is not changed
+   ;    DEHL is the result of the division
+   ;
+DEHL_Div_C:
+   xor	a
+   ld	b, 32
+_loop:
+   add	hl, hl
+   rl	e
+   rl	d
+   rla
+   jr	c, $+5
+   cp	c
+   jr	c, $+4
+
+   sub	c
+   inc	l
+   
+   djnz	_loop
+   
+   ret
+ 
 
 ;     ; Calculate average based on level
 ;     pop bc                  ; Get score back
@@ -11029,18 +11126,6 @@ PRINT_WONDERFUL_STATS:
 ;     ld hl,TEXT_BUFFER
 ;     call MYPRINT
 
-    ; Print WONDERFUL text
-    ld de,PNT + 7 + 32*(16)
-    ld hl,WONDERFULTXT0
-    call MYPRINT
-    ld de,PNT + 7 + 32*(17)
-    ld hl,WONDERFULTXT1
-    call MYPRINT
-    ld de,PNT + 7 + 32*(18)
-    ld hl,WONDERFULTXT0
-    call MYPRINT
-	  
-ret
 
 
 
