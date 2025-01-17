@@ -10983,7 +10983,7 @@ PRINT_WONDERFUL_STATS:
     ; DEHL is the result of the division
     ; we can ignore the remainder and the 0s in DE
     ; NB: game scoring makes it impossible to get above 32k average
-    ; HL is the result of the division
+    ; HL is passed to CONVERT_TO_DECIMAL
     call CONVERT_TO_DECIMAL
 
     ; Add terminator bit to the ones digit
@@ -11033,8 +11033,6 @@ times_loop:
    ;     C is the value to divide DEHL by
    ;Outputs:
    ;    A is the remainder
-   ;    B is 0
-   ;    C is not changed
    ;    DEHL is the result of the division
    ;
 DEHL_Div_C:
