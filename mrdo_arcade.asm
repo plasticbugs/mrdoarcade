@@ -11503,7 +11503,7 @@ PRINT_ICON_SPRITE:
 	LD      A, 200             	; X position (always 200)
 	LD      (SAT_BUFFER+1), A
 	
-	; Calculate SAT possition (level 1 = 40, level 2 = 44, level 3 = 48)
+	; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
 	
 	POP   AF         	; Get 2*slot number back
 	
