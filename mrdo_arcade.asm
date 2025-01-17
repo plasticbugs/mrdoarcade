@@ -10823,7 +10823,7 @@ WONDERFULTXT0:	DC "                "
 WONDERFULTXT1:	DC "   WONDERFUL !! "
 TOTAL_TEXT:     DC "TOTAL "
 
-; AVERAGE_TEXT:   dc "AVERAGE "
+AVERAGE_TEXT:   dc "AVERAGE "
 
 
 DummySAT:		DB 208
@@ -10944,12 +10944,12 @@ PRINT_WONDERFUL_STATS:
     push af                 	; Save current level number again
     call PRINT_SINGLE_TIME
     pop af
-
+    push af
     call PRINT_ICON
-
-    ; Get score back and preserve it
-    pop bc                      ; Get original score back
-    
+    pop af                ; get level back
+    pop bc                ; Get original score back
+    push af                 ; save level
+    push bc                ; save score
     ; Convert score for display (needs HL)
 
     ld h,b                     ; Move score to HL for conversion
@@ -10963,86 +10963,96 @@ PRINT_WONDERFUL_STATS:
     ld de,$1800 + 16 + 32*4
     ld hl,TEXT_BUFFER
     call MYPRINT
-	
-;  ; Print "AVERAGE" text
-;     ld de,$1800 + 6 + 32*6
-;     push de
-;     ld hl,AVERAGE_TEXT
-;     call MYPRINT
-;     pop de
 
-;     ; Calculate average based on level
-;     pop bc                  ; Get score back
-;     push bc                 ; Keep a copy
-;     pop af                  ; Get level back (10,20,30,etc.)
-;     push af                 ; Keep a copy
-    
-;     ld h,b                 ; Move score to HL
-;     ld l,c
+;  Print "AVERAGE" text
+    ld de,$1800 + 6 + 32*6
+    ld hl,AVERAGE_TEXT
+    call MYPRINT
 
-;     ; First divide level by 10 to get divisor
-;     srl a                   ; Divide level by 10
-;     srl a
-;     srl a                   ; A now has 1 for level 10,2 for 20,etc.
-;     ld b,a                 ; B = divisor (1,2,3,etc.)
-    
-;     ; Shift HL right by 3 to remove one decimal digit
-;     srl h
-;     rr l
-;     srl h
-;     rr l
-;     srl h
-;     rr l
+    pop bc   ; get score back
+    ld a, 10
+    ld d, b
+    ld e, c
+    call DE_Times_10
+    ld d, 0
+    ld e, a
+    pop af   ; get level back
+    ld c, a
+    call DEHL_Div_C
 
-;     ; Now do the division
-;     ld de,0               ; Initialize quotient
-; .divide_loop:
-;     ld a,l               ; Compare HL with B
-;     cp b
-;     ld a,h
-;     sbc a,0
-;     jr c,.done           ; If HL < B,division done
+    ; DEHL is the result of the division
+    ; we can ignore the remainder and the 0s in DE
+    ; NB: game scoring makes it impossible to get above 32k average
+    ; HL is passed to CONVERT_TO_DECIMAL
+    call CONVERT_TO_DECIMAL
 
-;     ; Subtract B from HL
-;     ld a,l
-;     sub b
-;     ld l,a
-;     ld a,h
-;     sbc a,0
-;     ld h,a
+    ; Add terminator bit to the ones digit
+    ld a,(TEXT_BUFFER+4)     ; Get the ones digit
+    or $80                   ; Set the high bit (add terminator)
+    ld (TEXT_BUFFER+4),a     ; Put it back
+    xor a                    ; A = 0
+    ld (TEXT_BUFFER+4+1),a   ; Clear zero
 
-;     inc de                ; DE = DE + 1
-;     jr .divide_loop
-
-; .done:
-;     ; DE now holds the quotient
-;     ex de,hl             ; Put result in HL for CONVERT_TO_DECIMAL
-
-;     ; Convert to decimal and display
-;     call CONVERT_TO_DECIMAL
-
-;     ; Print average value
-;     ex de,hl
-;     ld bc,10            ; Move right 10 positions
-;     add hl,bc
-;     ex de,hl
-;     ld hl,TEXT_BUFFER
-;     call MYPRINT
+ ; Print average score
+    ld de,$1800 + 17 + 32*6
+    ld hl,TEXT_BUFFER
+    call MYPRINT
 
     ; Print WONDERFUL text
-    ld de,PNT + 7 + 32*(16)
+    ld de,PNT + 8 + 32*(16)
     ld hl,WONDERFULTXT0
     call MYPRINT
-    ld de,PNT + 7 + 32*(17)
+    ld de,PNT + 8 + 32*(17)
     ld hl,WONDERFULTXT1
     call MYPRINT
-    ld de,PNT + 7 + 32*(18)
+    ld de,PNT + 8 + 32*(18)
     ld hl,WONDERFULTXT0
     call MYPRINT
-	  
 ret
 
+DE_Times_10: ; multiply DE by 10 (24 bit output)
+;Inputs: DE,A
+;Outputs: A:HL is product, BC=0,DE preserved
+;343cc~423cc, avg= 383cc
+;size: 14 bytes
 
+    ld bc,0800h
+    ld h,c
+    ld l,c
+times_loop:
+    add hl,hl
+    rla
+    jp nc,$+4
+    add hl,de
+    adc a,c
+    djnz times_loop
+    ret
+
+   ;Inputs:
+   ;     DEHL is a 32 bit value where DE is the upper 16 bits
+   ;     C is the value to divide DEHL by
+   ;Outputs:
+   ;    A is the remainder
+   ;    DEHL is the result of the division
+   ;
+DEHL_Div_C:
+   xor	a
+   ld	b, 32
+_loop:
+   add	hl, hl
+   rl	e
+   rl	d
+   rla
+   jr	c, $+5
+   cp	c
+   jr	c, $+4
+
+   sub	c
+   inc	l
+   
+   djnz	_loop
+   
+   ret
 
 INTERMISSION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
