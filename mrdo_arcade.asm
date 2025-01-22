@@ -240,7 +240,7 @@ LETTERMON_Y:		EQU		$72BF
 ; FREE RAM ALLOCATED IN THE TIMER TABLE
 ; NB they are reset at game start by INIT_TIMER
 
-SAFEROOM0:				EQU $07018	; free RAM in the timer buffer
+CHERRYTIMER:				EQU $07018	; free RAM in the timer buffer
 SAFEROOM1:				EQU $07019	; free RAM in the timer buffer
 SAFEROOM2:				EQU $0701A	; free RAM in the timer buffer
 SAFEROOM3:				EQU $0701B	; free RAM in the timer buffer
@@ -368,13 +368,14 @@ nmi_handler:				; do not move from here (!!!)
 	PUSH	AF
 	CALL	Z,NEW_SPRITE_ROTATION		; call only if sprites are not disabled
 	POP		AF
-	CALL	Z,DEAL_WITH_TIMER			; level timiers active only if not in pause mode
+	CALL	Z,DEAL_WITH_TIMER			; level timers active only if not in pause mode
 
 	CALL	SUB_80D1					; enemy interaction with the play field
 	CALL	MRDO_SPT_UPDATE				; UPDATE MR DO SPRITE
 	CALL	SUB_8251					; update play field
 	CALL	DISPLAY_EXTRA_01			; update Extra Letters
 	CALL	SETBONUS					; Set bonus items and diamonds
+	CALL  PROCESS_CHERRY_TIMER
 	CALL	TIME_MGR
 	CALL	POLLER
 	CALL	SUB_C952			; PLAY MUSIC
@@ -402,7 +403,35 @@ FINISH_NMI:
 	POP		AF
 	RETN
 
+PROCESS_CHERRY_TIMER:
+        LD      A,(CHERRYTIMER)   ; Get stored signal ID
+				; Check if A is equal to 255
+				CP      255
+				; If yes, we should request a signal
+				CALL    Z,REQUEST_CHERRY_TIMER
+				; Check if timer is active (non-zero)
+        AND     A              ; Check if timer is active (non-zero)
+        JR      Z,.skip_cherry_timer
+        
+        CALL    TEST_SIGNAL
+        AND     A
+        JR      Z,.skip_cherry_timer
+        
+        ; Timer elapsed, clear it
+        XOR     A
+        LD      (CHERRYTIMER),A
+.skip_cherry_timer:
+RET
 
+
+REQUEST_CHERRY_TIMER:
+        LD      HL,0B4H       ; 180 frames = 3 seconds
+        LD      A,1           ; Non-repeating timer
+        CALL    REQUEST_SIGNAL
+        LD      (CHERRYTIMER),A
+        POP     HL            ; Remove return address from stack
+RET    
+        
 NEW_SPRITE_ROTATION:
 	LD		A,SAT and 255		; Send LSB of address
 	OUT		(CTRL_PORT),A
@@ -3343,8 +3372,12 @@ GRAB_SOME_CHERRIES:
 	JR		C,LOC_96D5
 	LD		(IY+7),0
 	LD		DE,2DH 			; final cherry scores 500 not 550
-	CALL	SUB_B601		; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
-	RES		1,(IY+0)
+
+; Set the cherry timer to 3 seconds
+	LD      A,255
+	LD      (CHERRYTIMER),A  ; Store signal ID in separate variable
+	CALL    SUB_B601      ; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
+	RES     1,(IY+0)
 	RET
 LOC_96CA:
 	LD		(IY+7),1
@@ -4692,8 +4725,8 @@ UNK_9FB3:
 
 SUB_9FC8:							; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	; XOR		A    ; (Uncomment for invincibility)
-	; RET        ; (Uncomment for invincibility)
+	XOR		A    ; (Uncomment for invincibility)
+	RET        ; (Uncomment for invincibility)
 	LD		A,(MRDO_DATA.Y)
 	SUB		(IY+2)
 	JR		NC,.ypos
