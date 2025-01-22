@@ -25,7 +25,7 @@ Changes:
 - Add animations for vertical movements of chompers
 - Add pushing animations for bad guys
 - Icon marker for "how" level was completed on "Very Good" screen
-- Wonderful screen every 10th level that shows average score per level and average time to complete each level along with score and time data for the previous level.
+- Wonderful screen every 10th level that shows average score per level along with score and time data for the previous level.
       
 Wish list/To do list:
 - display a 500 sign after a set of cherries has been collected 
@@ -35,5 +35,6 @@ Wish list/To do list:
 - cap chomper's max speed after level 11 (or make them walk in tunnels only)
 - add patterns to leftover tiles to match those of the play field
 - add an alternative version of MrDo's sprites as Snowman to be activated by a secret combo of keys
+- average time to complete each level displayed on Wonderful screen
   
 
