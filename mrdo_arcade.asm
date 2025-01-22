@@ -235,7 +235,7 @@ P2_LEVEL3_SCORE:  		RB 2    ; 2 bytes - Level 3 score		; equ 0730Ch
 P1_LEVEL_FINISH_BASE: 	RB 3 	;
 P2_LEVEL_FINISH_BASE: 	RB 3 	;
 
-SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area
+SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area (07314h)
 SIGNPOSITION:		RB 1	; offeset in the game map (16x10)
 
 ENDUSEDRAM:				RB 1
@@ -3030,7 +3030,7 @@ LOC_9463:
 
 	LD 		A,(SIGNPOSITION)
 	AND 	A
-	JR		Z,no_sign_on the screen			; skip if no sign is on the screen
+	JR		Z,no_sign_on_the_screen			; skip if no sign is on the screen
 
 TEST2:
 
@@ -3063,8 +3063,8 @@ TEST3:
 	XOR		A
 	LD 		(SIGNPOSITION),A 	; no sign on the screen
 
-timer_still_runningtimer_still_running:
-no_sign_on the screen:
+timer_still_running:
+no_sign_on_the_screen:
 
 	LD		IY,MRDO_DATA  ; IY points to Mr. Do's data
 	LD		A,(IY+2)
@@ -3395,7 +3395,7 @@ GRAB_SOME_CHERRIES:
 	
 ; allocate  500 sign timer	here
 	XOR		A			; A = 0 if one-shot, else free-running
-	LD		HL,3*60		; time lenght	
+	LD		HL,3*60		; time length	
 	CALL	REQUEST_SIGNAL
 	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
