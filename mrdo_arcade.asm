@@ -404,34 +404,32 @@ FINISH_NMI:
 	RETN
 
 PROCESS_CHERRY_TIMER:
-        LD      A,(CHERRYTIMER)   ; Get stored signal ID
-				; Check if A is equal to 255
-				CP      255
-				; If yes, we should request a signal
-				CALL    Z,REQUEST_CHERRY_TIMER
-				; Check if timer is active (non-zero)
-        AND     A              ; Check if timer is active (non-zero)
-        JR      Z,.skip_cherry_timer
-        
-        CALL    TEST_SIGNAL
-        AND     A
-        JR      Z,.skip_cherry_timer
-        
-        ; Timer elapsed, clear it
-        XOR     A
-        LD      (CHERRYTIMER),A
+  LD      A,(CHERRYTIMER)   ; Get stored signal ID
+  ; Check if A is equal to 255
+  CP      255
+  ; If yes, we should request a signal
+  CALL    Z,REQUEST_CHERRY_TIMER
+  ; Check if timer is active (non-zero)
+  AND     A              ; Check if timer is active (non-zero)
+  JR      Z,.skip_cherry_timer
+
+  CALL    TEST_SIGNAL
+  AND     A
+  JR      Z,.skip_cherry_timer
+	; Timer elapsed, clear it
+  XOR     A
+  LD      (CHERRYTIMER),A
 .skip_cherry_timer:
 RET
 
-
 REQUEST_CHERRY_TIMER:
-        LD      HL,0B4H       ; 180 frames = 3 seconds
-        LD      A,1           ; Non-repeating timer
-        CALL    REQUEST_SIGNAL
-        LD      (CHERRYTIMER),A
-        POP     HL            ; Remove return address from stack
-RET    
-        
+  LD      HL,0B4H       ; 180 frames = 3 seconds
+  LD      A,1           ; Non-repeating timer
+  CALL    REQUEST_SIGNAL
+  LD      (CHERRYTIMER),A
+  POP     HL            ; Remove return address from stack
+RET
+
 NEW_SPRITE_ROTATION:
 	LD		A,SAT and 255		; Send LSB of address
 	OUT		(CTRL_PORT),A
