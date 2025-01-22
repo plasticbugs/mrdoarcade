@@ -25,9 +25,15 @@ Changes:
 - Add animations for vertical movements of chompers
 - Add pushing animations for bad guys
 - Icon marker for "how" level was completed on "Very Good" screen
-    
-Wish list/To do list:
 - Wonderful screen every 10th level that shows average score per level and average time to complete each level along with score and time data for the previous level.
-- display 500 and 1000 signs after a set of cherries has been collected and after an enemy has been smashed by an apple
-- Add a credits croller to be activated by a secret combo of keys
+      
+Wish list/To do list:
+- display a 500 sign after a set of cherries has been collected 
+- display a 1000 signs after an enemy has been smashed by an apple
+- add a credits screen to be activated by a secret combo of keys
+- extend to 24 bits the score (now at 16 bit)
+- cap chomper's max speed after level 11 (or make them walk in tunnels only)
+- add patterns to leftover tiles to match those of the play field
+- add an alternative version of MrDo's sprites as Snowman to be activated by a secret combo of keys
+  
 
