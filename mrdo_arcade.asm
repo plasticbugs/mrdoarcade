@@ -4723,8 +4723,8 @@ UNK_9FB3:
 
 SUB_9FC8:							; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	XOR		A    ; (Uncomment for invincibility)
-	RET        ; (Uncomment for invincibility)
+	; XOR		A    ; (Uncomment for invincibility)
+	; RET        ; (Uncomment for invincibility)
 	LD		A,(MRDO_DATA.Y)
 	SUB		(IY+2)
 	JR		NC,.ypos
