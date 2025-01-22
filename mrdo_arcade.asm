@@ -184,8 +184,14 @@ BADGUYTIMER:			RB   1	;EQU $728B	;
 CURRBADGUY:				RB   1	;EQU $728C	; Current bad guy 0-6
 						RB   1	;EQU $728D
 ENEMY_DATA_ARRAY:		RB  42	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
-						RB   7	;EQU $72B8
-						RB   4	;EQU $72BF	??
+						RB   1	;EQU $72B8
+						RB   1	;EQU $72B9
+						RB   1	;EQU $72BA
+						RB   1	;EQU $72BB
+						RB   1	;EQU $72BC
+LETTERMON_FLAG:			RB   1	;EQU $72BD	; ram for letter monsters
+LETTERMON_X:			RB   1	;EQU $72BE
+LETTERMON_Y:			RB   4	;EQU $72BF	
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
 						RB	 1	;??
 CHOMPNUMBER:			RB	 1	;EQU $72C5  store the current chomper 0-2
@@ -229,20 +235,16 @@ P2_LEVEL3_SCORE:  		RB 2    ; 2 bytes - Level 3 score		; equ 0730Ch
 P1_LEVEL_FINISH_BASE: 	RB 3 	;
 P2_LEVEL_FINISH_BASE: 	RB 3 	;
 
-SNOWFLAG:				RB 1
+SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area
+SIGNPOSITION:		RB 1	; offeset in the game map (16x10)
 
 ENDUSEDRAM:				RB 1
-
-; strange reused ram for letter monsters
-LETTERMON_FLAG:		EQU		$72BD
-LETTERMON_X:		EQU		$72BE
-LETTERMON_Y:		EQU		$72BF
 
 
 ; FREE RAM ALLOCATED IN THE TIMER TABLE
 ; NB they are reset at game start by INIT_TIMER
 
-CHERRYTIMER:				EQU $07018	; free RAM in the timer buffer
+SAFEROOM0:				EQU $07018	; free RAM in the timer buffer
 SAFEROOM1:				EQU $07019	; free RAM in the timer buffer
 SAFEROOM2:				EQU $0701A	; free RAM in the timer buffer
 SAFEROOM3:				EQU $0701B	; free RAM in the timer buffer
@@ -370,14 +372,13 @@ nmi_handler:				; do not move from here (!!!)
 	PUSH	AF
 	CALL	Z,NEW_SPRITE_ROTATION		; call only if sprites are not disabled
 	POP		AF
-	CALL	Z,DEAL_WITH_TIMER			; level timers active only if not in pause mode
+	CALL	Z,DEAL_WITH_TIMER			; level timiers active only if not in pause mode
 
 	CALL	SUB_80D1					; enemy interaction with the play field
 	CALL	MRDO_SPT_UPDATE				; UPDATE MR DO SPRITE
 	CALL	SUB_8251					; update play field
 	CALL	DISPLAY_EXTRA_01			; update Extra Letters
 	CALL	SETBONUS					; Set bonus items and diamonds
-	CALL  PROCESS_CHERRY_TIMER
 	CALL	TIME_MGR
 	CALL	POLLER
 	CALL	SUB_C952			; PLAY MUSIC
@@ -405,32 +406,6 @@ FINISH_NMI:
 	POP		AF
 	RETN
 
-PROCESS_CHERRY_TIMER:
-  ; Check if bit 7 is set, if it is, we should request a timer
-  LD      A,(CHERRYTIMER)
-  BIT     7,A
-  CALL    NZ,REQUEST_CHERRY_TIMER
-
-  ; Check if timer is active (non-zero)
-  AND     A              ; Check if timer is active (non-zero)
-  JR      Z,.skip_cherry_timer
-
-  CALL    TEST_SIGNAL
-  AND     A
-  JR      Z,.skip_cherry_timer
-	; Timer elapsed, clear it
-  XOR     A
-  LD      (CHERRYTIMER),A
-.skip_cherry_timer:
-RET
-
-REQUEST_CHERRY_TIMER:
-  LD      HL,0B4H       ; 180 frames = 3 seconds
-  LD      A,1           ; Non-repeating timer
-  CALL    REQUEST_SIGNAL
-  LD      (CHERRYTIMER),A
-  POP     HL            ; Remove return address from stack
-RET
 
 NEW_SPRITE_ROTATION:
 	LD		A,SAT and 255		; Send LSB of address
@@ -542,6 +517,7 @@ LOC_80FF:
 	INC		HL
 	DJNZ	LOC_80D7
 RET
+
 
 ; in A the frame number in MRDOGENERATOR
 SETMRDOFRAME:
@@ -948,7 +924,6 @@ INIT_VRAM:
 	LD 		DE,SPT+24*32
 	LD 		HL,EXTRA_SPRITE_COMP
 	CALL 	unpack
-
 
 	LD		IX,ENEMY_GENERATOR		; Load chompers and bad guys pushing in the SPT
 	LD		B,24+12+4				; 24 frames for badguys/diggers + 12  for chompers + 4 bad guys pushing
@@ -3050,6 +3025,47 @@ LEADS_TO_CHERRY_STUFF:
 	XOR		A
 	RET
 LOC_9463:
+
+; test is the 500 sign is on the screen
+
+	LD 		A,(SIGNPOSITION)
+	AND 	A
+	JR		Z,no_sign_on the screen			; skip if no sign is on the screen
+
+TEST2:
+
+; test the 500 sign timer	
+
+	LD		A,(SIGNTIMER)
+	CALL	TEST_SIGNAL		; A = 1 if timer expired, else 0, Z-flag = set according to A
+	JR		Z,timer_still_running
+
+TEST3:
+	
+; timer is expired, free it
+	LD		A,(SIGNTIMER)
+	CALL	FREE_SIGNAL
+;	
+; 	retrive here the offset in the GAMEMAP saved in SIGNPOSITION 
+; 	convert it to a VRAM address 
+;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
+;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
+	
+; plot a blank block of 2x2  using OS7 calls
+
+;
+;	LD 		DE,VRAM_address
+;	LD 		HL,ROM_address
+;	LD		A,2
+;	LD		IY,Num_of_tiles
+;	CALL	PUT_VRAM
+
+	XOR		A
+	LD 		(SIGNPOSITION),A 	; no sign on the screen
+
+timer_still_runningtimer_still_running:
+no_sign_on the screen:
+
 	LD		IY,MRDO_DATA  ; IY points to Mr. Do's data
 	LD		A,(IY+2)
 	CALL	TEST_SIGNAL
@@ -3355,6 +3371,7 @@ DEAL_WITH_CHERRIES:
 	CALL	SUB_C97F
 	POP		IY
 	RET
+	
 GRAB_SOME_CHERRIES:
 	LD		DE,5
 	CALL	SUB_B601
@@ -3371,14 +3388,47 @@ GRAB_SOME_CHERRIES:
 	JR		C,LOC_96D5
 	LD		(IY+7),0
 	LD		DE,2DH 			; final cherry scores 500 not 550
+	CALL	SUB_B601		; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
+	RES		1,(IY+0)
+	
+	PUSH    IY
+	
+; allocate  500 sign timer	here
+	XOR		A			; A = 0 if one-shot, else free-running
+	LD		HL,3*60		; time lenght	
+	CALL	REQUEST_SIGNAL
+	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
-; Set bit seven as a flag in the cherry timer
-  XOR     A
-  SET     7,A
-  LD      (CHERRYTIMER),A
-	CALL    SUB_B601      ; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
-	RES     1,(IY+0)
+; here compute vram address for 500 sign (divide Y by 8, mutiply by 32 add X/8, add the PNT address)
+; put in VRAM the tiles for the 500 sign (now 120,121 upper half, 122,123, lower half)
+
+; use OS7 calls
+;
+;	LD 		DE,VRAM_address
+;	LD 		HL,ROM_address
+;	LD		A,2
+;	LD		IY,Num_of_tiles
+;	CALL	PUT_VRAM
+
+;   Use PEEKMAP to compute the location of the player in the game map 
+;   store OFFSET=D-1 (offset in the GAMEMAP computed by PEEKMAP) to remember where to remove the 500 sign
+; 	you can use SIGNPOSITION
+;
+;	LD	A,D
+;	DEC A 
+;	LD (SIGNPOSITION),A 		; note any value of SIGNPOSITION>0 means that the sign is on the screen
+
+;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
+;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
+TEST1:
+	LD	A,-1					; any value>0 will tell to the MrDo code to test the SIGN timers
+	LD (SIGNPOSITION),A 		; we use the fact that 0 cannot be a valid position for the 500 sign
+
+
+	POP 	IY
 	RET
+	
+	
 LOC_96CA:
 	LD		(IY+7),1
 	PUSH	IY
@@ -8586,7 +8636,6 @@ LOC_B8B1:
 	LD		DE,6
 	ADD		IX,DE
 	DJNZ	LOC_B8B1			; init the 3 chompers
-	
 	XOR		A
 	LD		HL,78H
 	CALL	REQUEST_SIGNAL
@@ -9351,8 +9400,6 @@ CHOMPER_RIGHT_OPEN_PAT:
    DB 048,048,050,056,063,036,000,000
    DB 056,100,100,184,192,252,000,084
    DB 000,000,168,000,252,036,000,000
-   
-
 	; Total sprites: 18
 EXTRA_SPRITE_COMP:
 	db $00,$1e,$39,$39,$60,$47,$44,$80
@@ -11133,11 +11180,9 @@ cvb_EXTRASCREEN:
 ;	LD DE,$1800+5
 ;	LD BC,24*256+22
 ;	CALL CPYBLK_MxN
-
 	LD DE,$1800
 	LD HL,cvb_IMAGE_PATTERN_plt
 	CALL unpack
-
 
 	LD BC,128
 	LD DE,$1B00
@@ -12175,7 +12220,6 @@ cvb_FR1:
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 	DB $05,$06,$07,$08,$09,$0a,$0b,$0c,$00,$00,$0d,$0e,$0f,$10
 	DB $11,$12,$13,$14,$15,$16,$17,$18,$00,$00,$19,$1a,$1b,$1c
-	
 	DB $1d,$1e,$1f,$20,$21,$22,$23,$24,$00,$00,$25,$26,$27,$28
 	DB $29,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$30,$31,$32,$33
 
