@@ -404,11 +404,11 @@ FINISH_NMI:
 	RETN
 
 PROCESS_CHERRY_TIMER:
-  LD      A,(CHERRYTIMER)   ; Get stored signal ID
-  ; Check if A is equal to 255
-  CP      255
-  ; If yes, we should request a signal
-  CALL    Z,REQUEST_CHERRY_TIMER
+  ; Check if bit 7 is set, if it is, we should request a timer
+  LD      A,(CHERRYTIMER)
+  BIT     7,A
+  CALL    NZ,REQUEST_CHERRY_TIMER
+
   ; Check if timer is active (non-zero)
   AND     A              ; Check if timer is active (non-zero)
   JR      Z,.skip_cherry_timer
@@ -3371,9 +3371,10 @@ GRAB_SOME_CHERRIES:
 	LD		(IY+7),0
 	LD		DE,2DH 			; final cherry scores 500 not 550
 
-; Set the cherry timer to 3 seconds
-	LD      A,255
-	LD      (CHERRYTIMER),A  ; Store signal ID in separate variable
+; Set bit seven as a flag in the cherry timer
+  XOR     A
+  SET     7,A
+  LD      (CHERRYTIMER),A
 	CALL    SUB_B601      ; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
 	RES     1,(IY+0)
 	RET
