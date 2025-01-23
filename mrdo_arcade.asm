@@ -379,7 +379,7 @@ nmi_handler:				; do not move from here (!!!)
 	PUSH	AF
 	CALL	Z,NEW_SPRITE_ROTATION		; call only if sprites are not disabled
 	POP		AF
-	CALL	Z,DEAL_WITH_TIMER			; level timiers active only if not in pause mode
+	CALL	Z,DEAL_WITH_TIMER			; level timers active only if not in pause mode
 
 	CALL	SUB_80D1					; enemy interaction with the play field
 	CALL	MRDO_SPT_UPDATE				; UPDATE MR DO SPRITE
