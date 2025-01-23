@@ -146,7 +146,7 @@ SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT (4*20)
 BADGUY_BHVR_CNT_RAM:	RB	 1	;EQU $7139 ; HOW MANY BYTES IN TABLE
 BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 						RB 	52	; ??
-GAMESTATE:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
+LEVELMAP:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 CURRAPPL:				RB   1	;EQU $722A
 						RB   1	;EQU $722B
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
@@ -191,7 +191,8 @@ ENEMY_DATA_ARRAY:		RB  42	;EQU $728E	; enemy data starts here = 7*6 bytes (7 ene
 						RB   1	;EQU $72BC
 LETTERMON_FLAG:			RB   1	;EQU $72BD	; ram for letter monsters
 LETTERMON_X:			RB   1	;EQU $72BE
-LETTERMON_Y:			RB   4	;EQU $72BF	
+LETTERMON_Y:			RB   1	;EQU $72BF
+						RB	 3	;EQU $72C0
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
 						RB	 1	;??
 CHOMPNUMBER:			RB	 1	;EQU $72C5  store the current chomper 0-2
@@ -235,10 +236,15 @@ P2_LEVEL3_SCORE:  		RB 2    ; 2 bytes - Level 3 score		; equ 0730Ch
 P1_LEVEL_FINISH_BASE: 	RB 3 	;
 P2_LEVEL_FINISH_BASE: 	RB 3 	;
 
-SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area (07314h)
+SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area
 SIGNPOSITION:		RB 1	; offeset in the game map (16x10)
 
 ENDUSEDRAM:				RB 1
+
+; ram for letter monsters
+;LETTERMON_FLAG:		EQU		$72BD
+;LETTERMON_X:		EQU		$72BE
+;LETTERMON_Y:		EQU		$72BF
 
 
 ; FREE RAM ALLOCATED IN THE TIMER TABLE
@@ -517,7 +523,6 @@ LOC_80FF:
 	INC		HL
 	DJNZ	LOC_80D7
 RET
-
 
 ; in A the frame number in MRDOGENERATOR
 SETMRDOFRAME:
@@ -925,6 +930,7 @@ INIT_VRAM:
 	LD 		HL,EXTRA_SPRITE_COMP
 	CALL 	unpack
 
+
 	LD		IX,ENEMY_GENERATOR		; Load chompers and bad guys pushing in the SPT
 	LD		B,24+12+4				; 24 frames for badguys/diggers + 12  for chompers + 4 bad guys pushing
 .1:	PUSH	BC
@@ -1034,11 +1040,11 @@ LOC_853F:
 
 	LD		A,1
 	CALL	SUB_B286		; build level 1
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		DE,3400H		; VRAM area for P1 data
 	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P1
 	CALL	WRITE_VRAM
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		DE,3600H		; VRAM area for P2 data
 	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P2
 	CALL	WRITE_VRAM
@@ -1071,7 +1077,7 @@ SUB_8585:
 	JR		Z,LOC_85A4
 	LD		DE,3600H
 LOC_85A4:
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		BC,0D4H
 	CALL	READ_VRAM
 	XOR		A
@@ -3054,11 +3060,16 @@ TEST3:
 ; plot a blank block of 2x2  using OS7 calls
 
 ;
-;	LD 		DE,VRAM_address
-;	LD 		HL,ROM_address
-;	LD		A,2
-;	LD		IY,Num_of_tiles
-;	CALL	PUT_VRAM
+	LD 		DE,30+21*32
+	LD 		HL,DmmyLfovr
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
+	LD 		DE,30+22*32
+	LD 		HL,DmmyLfovr+2
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
 
 	XOR		A
 	LD 		(SIGNPOSITION),A 	; no sign on the screen
@@ -3245,7 +3256,7 @@ SUB_95A1:  ; Mr. Do Sprite intersection logic
 	LD		C,(IY+4)
 	LD		A,(IY+1)
 	CP		3
-	JR		NC,LOC_95CE
+	JP		NC,LOC_95CE
 	LD		D,A
 	LD		A,1
 	CALL	SUB_AEE1 ; Mr do is pushing an apple
@@ -3286,7 +3297,34 @@ LOC_9606:
 	LD		C,(IY+4)
 	PUSH	DE
 	CALL	PEEKMAP
-	CALL	SUB_AEB7
+
+	LD		B,A		;***
+	LD		A,(BADGUY_BHVR_CNT_RAM)
+	DEC		A
+	JP		P,LOC_AEC1
+	LD		A,4FH
+LOC_AEC1:
+	LD		E,A
+	LD		D,0
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	ADD		HL,DE
+	LD		A,(HL)
+	CP		B
+	JR		Z,SKIP
+	LD		A,(BADGUY_BHVR_CNT_RAM)
+	LD		E,A
+;	LD		D,0					; already 0
+	LD		HL,BADGUY_BEHAVIOR_RAM
+	ADD		HL,DE
+	LD		(HL),B
+	INC		A
+	CP		50H
+	JR		C,LOC_AEDD
+	XOR		A
+LOC_AEDD:
+	LD		(BADGUY_BHVR_CNT_RAM),A
+SKIP:
+
 	POP		DE
 	XOR		A
 	RET
@@ -3371,7 +3409,6 @@ DEAL_WITH_CHERRIES:
 	CALL	SUB_C97F
 	POP		IY
 	RET
-	
 GRAB_SOME_CHERRIES:
 	LD		DE,5
 	CALL	SUB_B601
@@ -3390,12 +3427,17 @@ GRAB_SOME_CHERRIES:
 	LD		DE,2DH 			; final cherry scores 500 not 550
 	CALL	SUB_B601		; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
 	RES		1,(IY+0)
+
+; NB: this safety test avoids signs not being removed  when a second one is placed
+	LD 		A,(SIGNPOSITION)
+	AND 	A
+	RET		NZ			; don't allocate a 500 sign if another 500 sign is already on the screen
 	
 	PUSH    IY
 	
 ; allocate  500 sign timer	here
 	XOR		A			; A = 0 if one-shot, else free-running
-	LD		HL,3*60		; time length	
+	LD		HL,3*60		; time lenght	(3 secs)
 	CALL	REQUEST_SIGNAL
 	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
@@ -3404,11 +3446,16 @@ GRAB_SOME_CHERRIES:
 
 ; use OS7 calls
 ;
-;	LD 		DE,VRAM_address
-;	LD 		HL,ROM_address
-;	LD		A,2
-;	LD		IY,Num_of_tiles
-;	CALL	PUT_VRAM
+	LD 		DE,30+21*32
+	LD 		HL,TestSign
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
+	LD 		DE,30+22*32
+	LD 		HL,TestSign+2
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
 
 ;   Use PEEKMAP to compute the location of the player in the game map 
 ;   store OFFSET=D-1 (offset in the GAMEMAP computed by PEEKMAP) to remember where to remove the 500 sign
@@ -3428,6 +3475,8 @@ TEST1:
 	POP 	IY
 	RET
 	
+TestSign:	DB 120,121,122,123
+DmmyLfovr:	DB   0,	 0,  0,  0 
 	
 LOC_96CA:
 	LD		(IY+7),1
@@ -6498,7 +6547,7 @@ GO_NEXT_LEVEL: ; Level complete,load next level
 
 	CALL 	CURRTIMERINIT	;	update pointer to timer
 
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		DE,3400H		; VRAM address to store P1 data
 	LD		A,(GAMECONTROL)
 	BIT		1,A
@@ -6601,7 +6650,7 @@ SUB_AA69:
 	JR		Z,LOC_AA7C
 	LD		DE,3600H
 LOC_AA7C:
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		BC,0D4H
 	CALL	WRITE_VRAM
 	LD		BC,1E2H
@@ -6820,13 +6869,13 @@ PEEKMAP:
 	PUSH	BC
 	LD		B,0
 	LD		C,A
-	LD		IX,GAMESTATE
+	LD		IX,LEVELMAP
 	ADD		IX,BC
 	POP 	BC
 
 	INC		A				; odd (?) offeset fixed elsewhere in the code	;***
 	LD		D,A
-							; IX  = GAMESTATE + ((Y-24)/16)*16+X/16
+							; IX  = LEVELMAP + ((Y-24)/16)*16+X/16
 							; A = D = ((Y-24)/16)*16+X/16 + 1
 RET
 
@@ -7185,63 +7234,63 @@ LOC_AE76:
 	JR		LOC_AE47
 ;RET
 
-LOC_AE88:
-	LD		IX,BYTE_AEAD
-	LD		B,5
-LOOP_AE8E:
-	PUSH	BC
-	XOR		A
-	EX		DE,HL
-	LD		C,(IX+0)
-	LD		B,(IX+1)
-LOC_AE97:
-	AND		A
-	SBC		HL,BC
-	JR		C,LOC_AE9F
-	INC		A
-	JR		LOC_AE97
-LOC_AE9F:
-	ADD		HL,BC
-	EX		DE,HL
-	ADD		A,0D8H
-	LD		(HL),A
-	INC		HL
-	INC		IX
-	INC		IX
-	POP		BC
-	DJNZ	LOOP_AE8E
-RET
+;LOC_AE88:
+;	LD		IX,BYTE_AEAD
+;	LD		B,5
+;LOOP_AE8E:
+;	PUSH	BC
+;	XOR		A
+;	EX		DE,HL
+;	LD		C,(IX+0)
+;	LD		B,(IX+1)
+;LOC_AE97:
+;	AND		A
+;	SBC		HL,BC
+;	JR		C,LOC_AE9F
+;	INC		A
+;	JR		LOC_AE97
+;LOC_AE9F:
+;	ADD		HL,BC
+;	EX		DE,HL
+;	ADD		A,0D8H
+;	LD		(HL),A
+;	INC		HL
+;	INC		IX
+;	INC		IX
+;	POP		BC
+;	DJNZ	LOOP_AE8E
+;RET
 
-BYTE_AEAD:
-	DB 016,039,232,003,100,000,010,000,001,000
+;BYTE_AEAD:
+;	DB 016,039,232,003,100,000,010,000,001,000
 
-SUB_AEB7:
-	LD		B,A		;***
-	LD		A,(BADGUY_BHVR_CNT_RAM)
-	DEC		A
-	JP		P,LOC_AEC1
-	LD		A,4FH
-LOC_AEC1:
-	LD		E,A
-	LD		D,0
-	LD		HL,BADGUY_BEHAVIOR_RAM
-	ADD		HL,DE
-	LD		A,(HL)
-	CP		B
-	RET		Z
-	LD		A,(BADGUY_BHVR_CNT_RAM)
-	LD		D,0
-	LD		E,A
-	LD		HL,BADGUY_BEHAVIOR_RAM
-	ADD		HL,DE
-	LD		(HL),B
-	INC		A
-	CP		50H
-	JR		C,LOC_AEDD
-	XOR		A
-LOC_AEDD:
-	LD		(BADGUY_BHVR_CNT_RAM),A
-RET
+;SUB_AEB7:
+;	LD		B,A		;***
+;	LD		A,(BADGUY_BHVR_CNT_RAM)
+;	DEC		A
+;	JP		P,LOC_AEC1
+;	LD		A,4FH
+;LOC_AEC1:
+;	LD		E,A
+;	LD		D,0
+;	LD		HL,BADGUY_BEHAVIOR_RAM
+;	ADD		HL,DE
+;	LD		A,(HL)
+;	CP		B
+;	RET		Z
+;	LD		A,(BADGUY_BHVR_CNT_RAM)
+;	LD		D,0
+;	LD		E,A
+;	LD		HL,BADGUY_BEHAVIOR_RAM
+;	ADD		HL,DE
+;	LD		(HL),B
+;	INC		A
+;	CP		50H
+;	JR		C,LOC_AEDD
+;	XOR		A
+;LOC_AEDD:
+;	LD		(BADGUY_BHVR_CNT_RAM),A
+;RET
 
 SUB_AEE1:	; Apple Pushing/Intersection logic
 	PUSH	AF
@@ -7668,7 +7717,7 @@ SUB_B173:
 	DEC		A
 	LD		C,A
 	LD		B,0
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	ADD		HL,BC
 	LD		A,(HL)
 	AND		0FH
@@ -7691,11 +7740,29 @@ DISPLAY_PLAY_FIELD_PARTS:
 	DEC		A
 	LD		C,A
 	LD		B,0
-	LD		IY,GAMESTATE
+	LD		IY,LEVELMAP
 	ADD		IY,BC
 	POP		AF
 	PUSH	AF
-	CALL	SUB_B591
+	
+;	CALL	SUB_B591
+;SUB_B591:
+	LD		HL,60H
+	LD		DE,40H
+	DEC		A
+LOC_B598:
+	CP		10H
+	JR		C,LOC_B5A1
+	ADD		HL,DE
+	SUB		10H
+	JR		LOC_B598
+LOC_B5A1:
+	ADD		A,A
+	LD		E,A
+	ADD		HL,DE
+	EX		DE,HL
+;RET (was subroutine)
+
 	LD		IX,TUNNEL_WALL_PATTERNS
 	LD		BC,3
 DISPLAY_CHERRIES:
@@ -7791,12 +7858,12 @@ SUB_B286:					; build level in A
 	CALL	GET_LEVEL.MOD
 
 	PUSH	AF
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		(HL),0
 	LD		DE,$718B
 	LD		BC,9FH
 	LDIR
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	CALL	INIT_PLAYFIELD_MAP
 	POP		AF
 	DEC		A
@@ -8208,22 +8275,22 @@ LOC_B58D:
 	POP		IY
 RET
 
-SUB_B591:
-	LD		HL,60H
-	LD		DE,40H
-	DEC		A
-LOC_B598:
-	CP		10H
-	JR		C,LOC_B5A1
-	ADD		HL,DE
-	SUB		10H
-	JR		LOC_B598
-LOC_B5A1:
-	ADD		A,A
-	LD		E,A
-	ADD		HL,DE
-	EX		DE,HL
-RET
+;SUB_B591:
+;	LD		HL,60H
+;	LD		DE,40H
+;	DEC		A
+;LOC_B598:
+;	CP		10H
+;	JR		C,LOC_B5A1
+;	ADD		HL,DE
+;	SUB		10H
+;	JR		LOC_B598
+;LOC_B5A1:
+;	ADD		A,A
+;	LD		E,A
+;	ADD		HL,DE
+;	EX		DE,HL
+;RET
 
 PATTERNS_TO_VRAM:
 	ADD		A,A
@@ -8242,7 +8309,33 @@ PATTERNS_TO_VRAM:
 	INC		HL
 	LD		D,(HL)
 	LD		HL,SCRATCH
-	CALL	LOC_AE88
+;	CALL	LOC_AE88
+;LOC_AE88:
+	LD		IX,BYTE_AEAD
+	LD		B,5
+LOOP_AE8E:
+	PUSH	BC
+	XOR		A
+	EX		DE,HL
+	LD		C,(IX+0)
+	LD		B,(IX+1)
+LOC_AE97:
+	AND		A
+	SBC		HL,BC
+	JR		C,LOC_AE9F
+	INC		A
+	JR		LOC_AE97
+LOC_AE9F:
+	ADD		HL,BC
+	EX		DE,HL
+	ADD		A,0D8H
+	LD		(HL),A
+	INC		HL
+	INC		IX
+	INC		IX
+	POP		BC
+	DJNZ	LOOP_AE8E
+; ret	(was a subroutine)
 	LD		A,0D8H
 	LD		($72EC),A
 	LD		A,2
@@ -8257,6 +8350,9 @@ RET
 
 BYTE_B5D4:
 	DB 125,114,036,000,127,114,068,000,000
+
+BYTE_AEAD:
+	DB 016,039,232,003,100,000,010,000,001,000
 
 SUB_B5DD:	; Ball collision detection
 	LD		A,B
@@ -8636,6 +8732,7 @@ LOC_B8B1:
 	LD		DE,6
 	ADD		IX,DE
 	DJNZ	LOC_B8B1			; init the 3 chompers
+	
 	XOR		A
 	LD		HL,78H
 	CALL	REQUEST_SIGNAL
@@ -9400,6 +9497,8 @@ CHOMPER_RIGHT_OPEN_PAT:
    DB 048,048,050,056,063,036,000,000
    DB 056,100,100,184,192,252,000,084
    DB 000,000,168,000,252,036,000,000
+   
+
 	; Total sprites: 18
 EXTRA_SPRITE_COMP:
 	db $00,$1e,$39,$39,$60,$47,$44,$80
@@ -11180,9 +11279,11 @@ cvb_EXTRASCREEN:
 ;	LD DE,$1800+5
 ;	LD BC,24*256+22
 ;	CALL CPYBLK_MxN
+
 	LD DE,$1800
 	LD HL,cvb_IMAGE_PATTERN_plt
 	CALL unpack
+
 
 	LD BC,128
 	LD DE,$1B00
@@ -12220,6 +12321,7 @@ cvb_FR1:
 	DB $01,$02,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 	DB $05,$06,$07,$08,$09,$0a,$0b,$0c,$00,$00,$0d,$0e,$0f,$10
 	DB $11,$12,$13,$14,$15,$16,$17,$18,$00,$00,$19,$1a,$1b,$1c
+	
 	DB $1d,$1e,$1f,$20,$21,$22,$23,$24,$00,$00,$25,$26,$27,$28
 	DB $29,$2a,$2b,$00,$2c,$2d,$2e,$2f,$00,$00,$30,$31,$32,$33
 
