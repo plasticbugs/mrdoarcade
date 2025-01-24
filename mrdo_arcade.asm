@@ -146,7 +146,7 @@ SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT (4*20)
 BADGUY_BHVR_CNT_RAM:	RB	 1	;EQU $7139 ; HOW MANY BYTES IN TABLE
 BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
 						RB 	52	; ??
-GAMESTATE:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
+LEVELMAP:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 CURRAPPL:				RB   1	;EQU $722A
 						RB   1	;EQU $722B
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
@@ -184,8 +184,15 @@ BADGUYTIMER:			RB   1	;EQU $728B	;
 CURRBADGUY:				RB   1	;EQU $728C	; Current bad guy 0-6
 						RB   1	;EQU $728D
 ENEMY_DATA_ARRAY:		RB  42	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
-						RB   7	;EQU $72B8
-						RB   4	;EQU $72BF	??
+						RB   1	;EQU $72B8
+						RB   1	;EQU $72B9
+						RB   1	;EQU $72BA
+						RB   1	;EQU $72BB
+						RB   1	;EQU $72BC
+LETTERMON_FLAG:			RB   1	;EQU $72BD	; ram for letter monsters
+LETTERMON_X:			RB   1	;EQU $72BE
+LETTERMON_Y:			RB   1	;EQU $72BF
+						RB	 3	;EQU $72C0
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
 						RB	 1	;??
 CHOMPNUMBER:			RB	 1	;EQU $72C5  store the current chomper 0-2
@@ -229,20 +236,22 @@ P2_LEVEL3_SCORE:  		RB 2    ; 2 bytes - Level 3 score		; equ 0730Ch
 P1_LEVEL_FINISH_BASE: 	RB 3 	;
 P2_LEVEL_FINISH_BASE: 	RB 3 	;
 
-SNOWFLAG:				RB 1
+
+SIGNPOSITION:		RB 1	; offeset in the game map (16x10)
+SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area
 
 ENDUSEDRAM:				RB 1
 
-; strange reused ram for letter monsters
-LETTERMON_FLAG:		EQU		$72BD
-LETTERMON_X:		EQU		$72BE
-LETTERMON_Y:		EQU		$72BF
+; ram for letter monsters
+;LETTERMON_FLAG:		EQU		$72BD
+;LETTERMON_X:		EQU		$72BE
+;LETTERMON_Y:		EQU		$72BF
 
 
 ; FREE RAM ALLOCATED IN THE TIMER TABLE
 ; NB they are reset at game start by INIT_TIMER
 
-CHERRYTIMER:				EQU $07018	; free RAM in the timer buffer
+SAFEROOM0:				EQU $07018	; free RAM in the timer buffer
 SAFEROOM1:				EQU $07019	; free RAM in the timer buffer
 SAFEROOM2:				EQU $0701A	; free RAM in the timer buffer
 SAFEROOM3:				EQU $0701B	; free RAM in the timer buffer
@@ -377,7 +386,6 @@ nmi_handler:				; do not move from here (!!!)
 	CALL	SUB_8251					; update play field
 	CALL	DISPLAY_EXTRA_01			; update Extra Letters
 	CALL	SETBONUS					; Set bonus items and diamonds
-	CALL  PROCESS_CHERRY_TIMER
 	CALL	TIME_MGR
 	CALL	POLLER
 	CALL	SUB_C952			; PLAY MUSIC
@@ -405,32 +413,6 @@ FINISH_NMI:
 	POP		AF
 	RETN
 
-PROCESS_CHERRY_TIMER:
-  ; Check if bit 7 is set, if it is, we should request a timer
-  LD      A,(CHERRYTIMER)
-  BIT     7,A
-  CALL    NZ,REQUEST_CHERRY_TIMER
-
-  ; Check if timer is active (non-zero)
-  AND     A              ; Check if timer is active (non-zero)
-  JR      Z,.skip_cherry_timer
-
-  CALL    TEST_SIGNAL
-  AND     A
-  JR      Z,.skip_cherry_timer
-	; Timer elapsed, clear it
-  XOR     A
-  LD      (CHERRYTIMER),A
-.skip_cherry_timer:
-RET
-
-REQUEST_CHERRY_TIMER:
-  LD      HL,0B4H       ; 180 frames = 3 seconds
-  LD      A,1           ; Non-repeating timer
-  CALL    REQUEST_SIGNAL
-  LD      (CHERRYTIMER),A
-  POP     HL            ; Remove return address from stack
-RET
 
 NEW_SPRITE_ROTATION:
 	LD		A,SAT and 255		; Send LSB of address
@@ -761,18 +743,32 @@ LOC_8372:
 	CALL	cvb_ANIMATEDLOGO
 	CALL	INIT_VRAM
 
+		; GAME START
 	XOR		A
-LOC_8375:						; GAME MAIN LOOP
-	CALL	SUB_84F8
+LOC_8375:						
+	PUSH	AF			; Disables NMI,sets up the game
+	CALL 	WAIT_NMI
+	POP		AF
+	PUSH	AF
+	AND		A
+	CALL	Z,SUB_851C
+	CALL	SUB_8585
+	POP		AF
+	CP		2
+	CALL	NZ,CLEAR_SCREEN_AND_SPRITES_01
+	CALL	CLEAR_SCREEN_AND_SPRITES_02
+	CALL	SUB_87F4
+
+	CALL 	CURRTIMERINIT
+	CALL	FREESIGNTIMER		; avoid lost timers (??)
 
 	; DEBUGGER! COMMENT
 ;	CALL	ExtraMrDo		; TEST EXTRA MRDO SCREEN
 ;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 ;	CALL	INTERMISSION
-;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 ;	CALL	CONGRATULATION
-;	CALL 	WONDERFUL		; TEST WONDERFUL SCREEN
 
+		; GAME MAIN LOOP
 LOC_8378:
 	CALL	CHECK_FOR_PAUSE
 	CALL	DEAL_WITH_APPLE_FALLING
@@ -848,6 +844,7 @@ LOC_83C5: ; Mr. Do finished the round
 	JR		NZ,ADVANCE_TO_NEXT_LEVEL
 	LD		A,1
 ADVANCE_TO_NEXT_LEVEL:
+	
 	CALL	GOT_DIAMOND			; this is dealing with more than Diamonds
 	CP		3
 	JP		Z,LOC_8372
@@ -1012,22 +1009,7 @@ RET
 
 
 
-SUB_84F8:	 ; Disables NMI,sets up the game
-	PUSH	AF
-	CALL 	WAIT_NMI
-	POP		AF
-	PUSH	AF
-	AND		A
-	CALL	Z,SUB_851C
-	CALL	SUB_8585
-	POP		AF
-	CP		2
-	CALL	NZ,CLEAR_SCREEN_AND_SPRITES_01
-	CALL	CLEAR_SCREEN_AND_SPRITES_02
-	CALL	SUB_87F4
 
-	CALL 	CURRTIMERINIT
-RET
 
 SUB_851C:					; If we're here,the game just started
 	LD		HL,0
@@ -1059,11 +1041,11 @@ LOC_853F:
 
 	LD		A,1
 	CALL	SUB_B286		; build level 1
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		DE,3400H		; VRAM area for P1 data
 	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P1
 	CALL	WRITE_VRAM
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		DE,3600H		; VRAM area for P2 data
 	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P2
 	CALL	WRITE_VRAM
@@ -1096,7 +1078,7 @@ SUB_8585:
 	JR		Z,LOC_85A4
 	LD		DE,3600H
 LOC_85A4:
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		BC,0D4H
 	CALL	READ_VRAM
 	XOR		A
@@ -3042,6 +3024,16 @@ RET
 
 BYTE_944E:
 	db 60,0,120,0,240,0,104,1,224,1,0
+	
+FREESIGNTIMER:
+	LD 		A,(SIGNPOSITION)
+	AND 	A
+	RET 	Z
+	LD		A,(SIGNTIMER)
+	CALL	FREE_SIGNAL
+	XOR     A			; any value>0 will tell to the MrDo code to test the SIGN timers
+	LD 		(SIGNPOSITION),A
+	RET
 
 LEADS_TO_CHERRY_STUFF:
 	LD		A,(GAMECONTROL)
@@ -3050,6 +3042,54 @@ LEADS_TO_CHERRY_STUFF:
 	XOR		A
 	RET
 LOC_9463:
+
+; test is the 500 sign is on the screen
+
+	LD 		A,(SIGNPOSITION)
+	AND 	A
+	JR		Z,no_sign_on_the_screen			; skip if no sign is on the screen
+
+TEST2:
+
+; test the 500 sign timer	
+
+	LD		A,(SIGNTIMER)
+	CALL	TEST_SIGNAL		; A = 1 if timer expired, else 0, Z-flag = set according to A
+	JR		Z,timer_still_running
+
+TEST3:
+	
+; timer is expired, free it
+	LD		A,(SIGNTIMER)
+	CALL	FREE_SIGNAL
+;	
+; 	retrive here the offset in the GAMEMAP saved in SIGNPOSITION 
+; 	convert it to a VRAM address 
+;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
+;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
+	
+; plot a blank block of 2x2  using OS7 calls
+
+	CALL PLOTLEFTOVERS
+
+;
+	LD 		DE,30+21*32
+	LD 		HL,SAT_BUFFER
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
+	LD 		DE,30+22*32
+	LD 		HL,SAT_BUFFER+2
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
+
+	XOR		A
+	LD 		(SIGNPOSITION),A 	; no sign on the screen
+
+timer_still_running:
+no_sign_on_the_screen:
+
 	LD		IY,MRDO_DATA  ; IY points to Mr. Do's data
 	LD		A,(IY+2)
 	CALL	TEST_SIGNAL
@@ -3229,7 +3269,7 @@ SUB_95A1:  ; Mr. Do Sprite intersection logic
 	LD		C,(IY+4)
 	LD		A,(IY+1)
 	CP		3
-	JR		NC,LOC_95CE
+	JP		NC,LOC_95CE
 	LD		D,A
 	LD		A,1
 	CALL	SUB_AEE1 ; Mr do is pushing an apple
@@ -3270,10 +3310,38 @@ LOC_9606:
 	LD		C,(IY+4)
 	PUSH	DE
 	CALL	PEEKMAP
-	CALL	SUB_AEB7
+
+	LD		B,A		;***
+	LD		A,(BADGUY_BHVR_CNT_RAM)
+	DEC		A
+	JP		P,LOC_AEC1
+	LD		A,4FH
+LOC_AEC1:
+	LD		L,A
+	LD		H,0
+	LD		DE,BADGUY_BEHAVIOR_RAM
+	ADD		HL,DE
+	LD		A,(HL)
+	CP		B
+	JR		Z,SKIP
+	LD		A,(BADGUY_BHVR_CNT_RAM)
+	LD		L,A
+	LD		H,0					
+;	LD		DE,BADGUY_BEHAVIOR_RAM
+	ADD		HL,DE
+	LD		(HL),B
+	INC		A
+	CP		50H
+	JR		C,LOC_AEDD
+	XOR		A
+LOC_AEDD:
+	LD		(BADGUY_BHVR_CNT_RAM),A
+SKIP:
+
 	POP		DE
 	XOR		A
 	RET
+	
 LOC_9617:
 	SET		5,(IY+0)
 	POP		BC
@@ -3371,14 +3439,57 @@ GRAB_SOME_CHERRIES:
 	JR		C,LOC_96D5
 	LD		(IY+7),0
 	LD		DE,2DH 			; final cherry scores 500 not 550
+	CALL	SUB_B601		; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
+	RES		1,(IY+0)
 
-; Set bit seven as a flag in the cherry timer
-  XOR     A
-  SET     7,A
-  LD      (CHERRYTIMER),A
-	CALL    SUB_B601      ; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
-	RES     1,(IY+0)
+; NB: this safety test avoids signs not being removed  when a second one is placed
+	LD 		A,(SIGNPOSITION)
+	AND 	A
+	RET		NZ			; don't allocate a 500 sign if another 500 sign is already on the screen
+	
+	PUSH    IY
+	
+; allocate  500 sign timer	here
+	XOR		A			; A = 0 if one-shot, else free-running
+	LD		HL,3*60		; time lenght	(3 secs)
+	CALL	REQUEST_SIGNAL
+	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
+
+; here compute vram address for 500 sign (divide Y by 8, mutiply by 32 add X/8, add the PNT address)
+; put in VRAM the tiles for the 500 sign (now 120,121 upper half, 122,123, lower half)
+
+; use OS7 calls
+;
+	LD 		DE,30+21*32
+	LD 		HL,TestSign
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
+	LD 		DE,30+22*32
+	LD 		HL,TestSign+2
+	LD		A,2
+	LD		IY,2
+	CALL	PUT_VRAM
+
+;   Use PEEKMAP to compute the location of the player in the game map 
+;   store OFFSET=D-1 (offset in the GAMEMAP computed by PEEKMAP) to remember where to remove the 500 sign
+; 	you can use SIGNPOSITION
+;
+;	LD	A,D
+;	DEC A 
+;	LD (SIGNPOSITION),A 		; note any value of SIGNPOSITION>0 means that the sign is on the screen
+
+;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
+;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
+TEST1:
+	LD	A,-1					; any value>0 will tell to the MrDo code to test the SIGN timers
+	LD (SIGNPOSITION),A 		; we use the fact that 0 cannot be a valid position for the 500 sign
+
+
+	POP 	IY
 	RET
+
+	
 LOC_96CA:
 	LD		(IY+7),1
 	PUSH	IY
@@ -3391,6 +3502,63 @@ LOC_96D5:
 	LD		(IY+8),A
 	SET		1,(IY+0)
 RET
+
+
+	
+TestSign:	DB 120,121,122,123
+
+
+PLOTLEFTOVERS:
+	LD		A,$1F	; test value
+	RRCA
+	RRCA
+	RRCA
+	RRCA
+	AND 	15		; divide by 16
+					; range 1-14
+	ADD 	A,A
+	LD		E,A
+	LD  	D,0
+	LD 		HL,LfovrConf-2
+	ADD		HL,DE
+	LD		DE,SAT_BUFFER+2
+	CALL 	EXPAND
+	INC		HL
+	LD		DE,SAT_BUFFER+0
+;	CALL 	EXPAND
+;	RET
+EXPAND:
+	XOR 	A
+	RLD				; upper nibble
+	CALL 	.0
+	INC		DE
+	XOR 	A
+	RRD				; lower nibble
+;	CALL 	.0
+;	RET
+.0:	CP		$F
+	JR 		Z,.1
+	ADD		A,88	
+.1:	LD 		(DE),A
+	RET
+
+	
+LfovrConf:
+	DW	$0167	;1F
+	DW	$4501	;2F
+	DW	$0101	;3F
+	DW	$4263	;4F
+	DW	$0F63	;5F
+	DW	$420F	;6F
+	DW  $0F0F	;7F
+	DW	$F1F1	;8F
+	DW	$F137	;9F
+	DW	$25F1	;AF
+	DW	$F1F1	;BF
+	DW	$2233	;CF
+	DW	$FF33	;DF
+	DW	$22FF	;EF
+
 
 SUB_96E4:
 	LD		A,(GAMEFLAGSBONUSITEM)
@@ -6448,7 +6616,7 @@ GO_NEXT_LEVEL: ; Level complete,load next level
 
 	CALL 	CURRTIMERINIT	;	update pointer to timer
 
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		DE,3400H		; VRAM address to store P1 data
 	LD		A,(GAMECONTROL)
 	BIT		1,A
@@ -6484,13 +6652,13 @@ RET
 ; Quotient in C,reminder in HL
 DIV_HLby10:
 	; Get tens and ones only
-	ld de,10
+	LD de,10
 
 ; Divide HL by DE
 ; Quotient in C,reminder in HL
 
 DIV_HLbyDE:
-	ld  c,0                   ; Counter for tens
+	LD  c,0                   ; Counter for tens
 .1: or a                       ; Clear carry
 	sbc hl,de
 	jr c,.2
@@ -6505,9 +6673,9 @@ RET
 ;343cc~423cc, avg= 383cc
 ;size: 14 bytes
 DE_Times_A:
-	ld bc,0800h
-	ld h,c
-	ld l,c
+	LD bc,0800h
+	LD h,c
+	LD l,c
 times_loop:
 	add hl,hl
 	rla
@@ -6526,7 +6694,7 @@ ret
    ;
 DEHL_Div_C:
    xor	a
-   ld	b, 32
+   LD	b, 32
 _loop:
    add	hl, hl
    rl	e
@@ -6551,7 +6719,7 @@ SUB_AA69:
 	JR		Z,LOC_AA7C
 	LD		DE,3600H
 LOC_AA7C:
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		BC,0D4H
 	CALL	WRITE_VRAM
 	LD		BC,1E2H
@@ -6770,13 +6938,13 @@ PEEKMAP:
 	PUSH	BC
 	LD		B,0
 	LD		C,A
-	LD		IX,GAMESTATE
+	LD		IX,LEVELMAP
 	ADD		IX,BC
 	POP 	BC
 
 	INC		A				; odd (?) offeset fixed elsewhere in the code	;***
 	LD		D,A
-							; IX  = GAMESTATE + ((Y-24)/16)*16+X/16
+							; IX  = LEVELMAP + ((Y-24)/16)*16+X/16
 							; A = D = ((Y-24)/16)*16+X/16 + 1
 RET
 
@@ -7135,63 +7303,63 @@ LOC_AE76:
 	JR		LOC_AE47
 ;RET
 
-LOC_AE88:
-	LD		IX,BYTE_AEAD
-	LD		B,5
-LOOP_AE8E:
-	PUSH	BC
-	XOR		A
-	EX		DE,HL
-	LD		C,(IX+0)
-	LD		B,(IX+1)
-LOC_AE97:
-	AND		A
-	SBC		HL,BC
-	JR		C,LOC_AE9F
-	INC		A
-	JR		LOC_AE97
-LOC_AE9F:
-	ADD		HL,BC
-	EX		DE,HL
-	ADD		A,0D8H
-	LD		(HL),A
-	INC		HL
-	INC		IX
-	INC		IX
-	POP		BC
-	DJNZ	LOOP_AE8E
-RET
+;LOC_AE88:
+;	LD		IX,BYTE_AEAD
+;	LD		B,5
+;LOOP_AE8E:
+;	PUSH	BC
+;	XOR		A
+;	EX		DE,HL
+;	LD		C,(IX+0)
+;	LD		B,(IX+1)
+;LOC_AE97:
+;	AND		A
+;	SBC		HL,BC
+;	JR		C,LOC_AE9F
+;	INC		A
+;	JR		LOC_AE97
+;LOC_AE9F:
+;	ADD		HL,BC
+;	EX		DE,HL
+;	ADD		A,0D8H
+;	LD		(HL),A
+;	INC		HL
+;	INC		IX
+;	INC		IX
+;	POP		BC
+;	DJNZ	LOOP_AE8E
+;RET
 
-BYTE_AEAD:
-	DB 016,039,232,003,100,000,010,000,001,000
+;BYTE_AEAD:
+;	DB 016,039,232,003,100,000,010,000,001,000
 
-SUB_AEB7:
-	LD		B,A		;***
-	LD		A,(BADGUY_BHVR_CNT_RAM)
-	DEC		A
-	JP		P,LOC_AEC1
-	LD		A,4FH
-LOC_AEC1:
-	LD		E,A
-	LD		D,0
-	LD		HL,BADGUY_BEHAVIOR_RAM
-	ADD		HL,DE
-	LD		A,(HL)
-	CP		B
-	RET		Z
-	LD		A,(BADGUY_BHVR_CNT_RAM)
-	LD		D,0
-	LD		E,A
-	LD		HL,BADGUY_BEHAVIOR_RAM
-	ADD		HL,DE
-	LD		(HL),B
-	INC		A
-	CP		50H
-	JR		C,LOC_AEDD
-	XOR		A
-LOC_AEDD:
-	LD		(BADGUY_BHVR_CNT_RAM),A
-RET
+;SUB_AEB7:
+;	LD		B,A		;***
+;	LD		A,(BADGUY_BHVR_CNT_RAM)
+;	DEC		A
+;	JP		P,LOC_AEC1
+;	LD		A,4FH
+;LOC_AEC1:
+;	LD		E,A
+;	LD		D,0
+;	LD		HL,BADGUY_BEHAVIOR_RAM
+;	ADD		HL,DE
+;	LD		A,(HL)
+;	CP		B
+;	RET		Z
+;	LD		A,(BADGUY_BHVR_CNT_RAM)
+;	LD		D,0
+;	LD		E,A
+;	LD		HL,BADGUY_BEHAVIOR_RAM
+;	ADD		HL,DE
+;	LD		(HL),B
+;	INC		A
+;	CP		50H
+;	JR		C,LOC_AEDD
+;	XOR		A
+;LOC_AEDD:
+;	LD		(BADGUY_BHVR_CNT_RAM),A
+;RET
 
 SUB_AEE1:	; Apple Pushing/Intersection logic
 	PUSH	AF
@@ -7618,7 +7786,7 @@ SUB_B173:
 	DEC		A
 	LD		C,A
 	LD		B,0
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	ADD		HL,BC
 	LD		A,(HL)
 	AND		0FH
@@ -7641,11 +7809,29 @@ DISPLAY_PLAY_FIELD_PARTS:
 	DEC		A
 	LD		C,A
 	LD		B,0
-	LD		IY,GAMESTATE
+	LD		IY,LEVELMAP
 	ADD		IY,BC
 	POP		AF
 	PUSH	AF
-	CALL	SUB_B591
+	
+;	CALL	SUB_B591
+;SUB_B591:
+	LD		HL,60H
+	LD		DE,40H
+	DEC		A
+LOC_B598:
+	CP		10H
+	JR		C,LOC_B5A1
+	ADD		HL,DE
+	SUB		10H
+	JR		LOC_B598
+LOC_B5A1:
+	ADD		A,A
+	LD		E,A
+	ADD		HL,DE
+	EX		DE,HL
+;RET (was subroutine)
+
 	LD		IX,TUNNEL_WALL_PATTERNS
 	LD		BC,3
 DISPLAY_CHERRIES:
@@ -7741,12 +7927,12 @@ SUB_B286:					; build level in A
 	CALL	GET_LEVEL.MOD
 
 	PUSH	AF
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	LD		(HL),0
 	LD		DE,$718B
 	LD		BC,9FH
 	LDIR
-	LD		HL,GAMESTATE
+	LD		HL,LEVELMAP
 	CALL	INIT_PLAYFIELD_MAP
 	POP		AF
 	DEC		A
@@ -8158,22 +8344,22 @@ LOC_B58D:
 	POP		IY
 RET
 
-SUB_B591:
-	LD		HL,60H
-	LD		DE,40H
-	DEC		A
-LOC_B598:
-	CP		10H
-	JR		C,LOC_B5A1
-	ADD		HL,DE
-	SUB		10H
-	JR		LOC_B598
-LOC_B5A1:
-	ADD		A,A
-	LD		E,A
-	ADD		HL,DE
-	EX		DE,HL
-RET
+;SUB_B591:
+;	LD		HL,60H
+;	LD		DE,40H
+;	DEC		A
+;LOC_B598:
+;	CP		10H
+;	JR		C,LOC_B5A1
+;	ADD		HL,DE
+;	SUB		10H
+;	JR		LOC_B598
+;LOC_B5A1:
+;	ADD		A,A
+;	LD		E,A
+;	ADD		HL,DE
+;	EX		DE,HL
+;RET
 
 PATTERNS_TO_VRAM:
 	ADD		A,A
@@ -8192,7 +8378,33 @@ PATTERNS_TO_VRAM:
 	INC		HL
 	LD		D,(HL)
 	LD		HL,SCRATCH
-	CALL	LOC_AE88
+;	CALL	LOC_AE88
+;LOC_AE88:
+	LD		IX,BYTE_AEAD
+	LD		B,5
+LOOP_AE8E:
+	PUSH	BC
+	XOR		A
+	EX		DE,HL
+	LD		C,(IX+0)
+	LD		B,(IX+1)
+LOC_AE97:
+	AND		A
+	SBC		HL,BC
+	JR		C,LOC_AE9F
+	INC		A
+	JR		LOC_AE97
+LOC_AE9F:
+	ADD		HL,BC
+	EX		DE,HL
+	ADD		A,0D8H
+	LD		(HL),A
+	INC		HL
+	INC		IX
+	INC		IX
+	POP		BC
+	DJNZ	LOOP_AE8E
+; ret	(was a subroutine)
 	LD		A,0D8H
 	LD		($72EC),A
 	LD		A,2
@@ -8207,6 +8419,9 @@ RET
 
 BYTE_B5D4:
 	DB 125,114,036,000,127,114,068,000,000
+
+BYTE_AEAD:
+	DB 016,039,232,003,100,000,010,000,001,000
 
 SUB_B5DD:	; Ball collision detection
 	LD		A,B
@@ -11263,23 +11478,23 @@ RET
 
 PRINT_WONDERFUL_STATS:
 	; Check which player is active
-	ld a,(GAMECONTROL)
+	LD a,(GAMECONTROL)
 	bit 1,a
 	jr nz,.use_p2
 
 	; Player 1 is active
-	ld a,(CURRENT_LEVEL_P1)
-	ld bc,(SCORE_P1_RAM)      ; Use BC instead of HL for initial load
+	LD a,(CURRENT_LEVEL_P1)
+	LD bc,(SCORE_P1_RAM)      ; Use BC instead of HL for initial load
 	jr .continue
 .use_p2:
-	ld a,(CURRENT_LEVEL_P2)
-	ld bc,(SCORE_P2_RAM)
+	LD a,(CURRENT_LEVEL_P2)
+	LD bc,(SCORE_P2_RAM)
 .continue:
 	; Save score and level
 	push bc                     ; Save score
 
 	; Print and calculate scores for only the current level
-	ld de,$1800 + 6 + 32*2
+	LD de,$1800 + 6 + 32*2
 	push af                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)
 	call PRINT_SINGLE_SCORE
 	pop af                      ; Get current level number
@@ -11288,35 +11503,38 @@ PRINT_WONDERFUL_STATS:
 	pop af
 	push af
 	call PRINT_ICON
-	pop af                ; get level back
 
-	pop hl                ; Get in HL original score
-	push af                 ; save level
+	POP  HL					; get level back
+	EX (SP),HL				; Get in HL original score and save level on the satck
+
+;	pop af                ; get level back
+;	pop hl                ; Get in HL original score
+;	push af                 ; save level
 	push hl                ; save score
 
 	; Convert score for display (needs HL)
 	call CONVERT_TO_DECIMAL
 
 	; Print total score
-	ld de,$1800 + 6 + 32*4
-	ld hl,TOTAL_TEXT
+	LD de,$1800 + 6 + 32*4
+	LD hl,TOTAL_TEXT
 	call MYPRINT
-	ld de,$1800 + 16 + 32*4
-	ld hl,TEXT_BUFFER
+	LD de,$1800 + 16 + 32*4
+	LD hl,TEXT_BUFFER
 	call MYPRINT
 
 	; Print "AVERAGE" text
-	ld de,$1800 + 6 + 32*6
-	ld hl,AVERAGE_TEXT
+	LD de,$1800 + 6 + 32*6
+	LD hl,AVERAGE_TEXT
 	call MYPRINT
 
 	pop DE   ; get score back
-	ld a, 10
+	LD a, 10
 	call DE_Times_A
-	ld d, 0
-	ld e, a
+	LD d, 0
+	LD e, a
 	pop af   ; get level back
-	ld c, a
+	LD c, a
 	call DEHL_Div_C
 
 	; DEHL is the result of the division
@@ -11326,26 +11544,26 @@ PRINT_WONDERFUL_STATS:
 	call CONVERT_TO_DECIMAL
 
 	; Add terminator bit to the ones digit
-	ld a,(TEXT_BUFFER+4)     ; Get the ones digit
+	LD a,(TEXT_BUFFER+4)     ; Get the ones digit
 	or $80                   ; Set the high bit (add terminator)
-	ld (TEXT_BUFFER+4),a     ; Put it back
+	LD (TEXT_BUFFER+4),a     ; Put it back
  ;   xor a                    ; A = 0
- ;   ld (TEXT_BUFFER+4+1),a   ; Clear zero
+ ;   LD (TEXT_BUFFER+4+1),a   ; Clear zero
 
  ; Print average score
-	ld de,$1800 + 17 + 32*6
-	ld hl,TEXT_BUFFER
+	LD de,$1800 + 17 + 32*6
+	LD hl,TEXT_BUFFER
 	call MYPRINT
 
 	; Print WONDERFUL text
-	ld de,PNT + 8 + 32*(16)
-	ld hl,WONDERFULTXT0
+	LD de,PNT + 8 + 32*(16)
+	LD hl,WONDERFULTXT0
 	call MYPRINT
-	ld de,PNT + 8 + 32*(17)
-	ld hl,WONDERFULTXT1
+	LD de,PNT + 8 + 32*(17)
+	LD hl,WONDERFULTXT1
 	call MYPRINT
-	ld de,PNT + 8 + 32*(18)
-	ld hl,WONDERFULTXT0
+	LD de,PNT + 8 + 32*(18)
+	LD hl,WONDERFULTXT0
 	call MYPRINT
 ret
 
@@ -11495,26 +11713,26 @@ RET
 ;----------------------------------------------------------------------
 PRINT_LEVEL_STATS:
 	; Print "VERY GOOD !!"
-	ld de,$1800 + 12 + 32*12
-	ld hl,VERYGOOD
+	LD de,$1800 + 12 + 32*12
+	LD hl,VERYGOOD
 	call MYPRINT
 
 	; Check which player is active
-	ld a,(GAMECONTROL)
+	LD a,(GAMECONTROL)
 	bit 1,a                   ; Test if Player 2 is active
 	jr nz,.use_p2
 
 	; Player 1 is active
-	ld a,(CURRENT_LEVEL_P1)
+	LD a,(CURRENT_LEVEL_P1)
 	jr .cont
 .use_p2:
-	ld a,(CURRENT_LEVEL_P2)
+	LD a,(CURRENT_LEVEL_P2)
 .cont:
 	; A now contains the correct current level
 
 	; Print and calculate scores for all three levels
 	; First level (Current - 2)
-	ld de,$1800 + 3 + 32*2   	; First line position
+	LD de,$1800 + 3 + 32*2   	; First line position
 	SUB 2                      	; Get first level number
 	push af                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)
 	call PRINT_SINGLE_SCORE
@@ -11527,7 +11745,7 @@ PRINT_LEVEL_STATS:
 	pop af
 
 	; Second level (Current - 1)
-	ld de,$1800 + 3 + 32*5   ; Next line down
+	LD de,$1800 + 3 + 32*5   ; Next line down
 	INC	A
 	push af
 	call PRINT_SINGLE_SCORE
@@ -11540,7 +11758,7 @@ PRINT_LEVEL_STATS:
 	pop af
 
 	; Third level (Current)
-	ld de,$1800 + 3 + 32*8   ; Next line down
+	LD de,$1800 + 3 + 32*8   ; Next line down
 	INC	A
 	push af
 	call PRINT_SINGLE_SCORE
@@ -11561,26 +11779,26 @@ GET_SLOT_OFFSET:
 	push 	bc                 	; Save BC
 
 	; First check if it's exactly level 10,20,30,etc
-	ld 		b,10
+	LD 		b,10
 	call 	MOD_B            	; A = level % 10
 	or 		a                  	; Check if remainder is 0
 	jr nz,.normalize
 
 	; It's level 10/20/30
 	xor 	a                	; Use first slot
-	ld 		e,a
-	ld 		d,a
+	LD 		e,a
+	LD 		d,a
 	pop 	bc
 	ret
 
 .normalize:
 	; Now A is 1-9,do MOD_3
 	dec 	a               	; Convert to 0-8
-	ld 		b,3
+	LD 		b,3
 	call 	MOD_B          		; Get mod 3 (0,1,2)
 	add 	a,a            		; Multiply by 2 for offset
-	ld 		e,a
-	ld 		d,0
+	LD 		e,a
+	LD 		d,0
 	pop 	bc
 ret
 
@@ -11756,11 +11974,11 @@ PRINT_SINGLE_TIME:
 	push af                  ; Save level number
 
 	; Check which player is active
-	ld a,(GAMECONTROL)
+	LD a,(GAMECONTROL)
 	bit 1,a                   ; Test if Player 2 is active
-	ld hl,P1_LEVEL1_SEC      	; Default to Player 1 base
+	LD hl,P1_LEVEL1_SEC      	; Default to Player 1 base
 	jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
-	ld hl,P2_LEVEL1_SEC      	; Otherwise use Player 2 base
+	LD hl,P2_LEVEL1_SEC      	; Otherwise use Player 2 base
 .got_base:
 
 	; Calculate which level's time to show
@@ -11771,33 +11989,33 @@ PRINT_SINGLE_TIME:
 
 	; Get minutes first (it's the next byte)
 	inc hl                    	; Point to minutes
-	ld a,(hl)                	; Get minutes
+	LD a,(hl)                	; Get minutes
 	add a,"0"                	; Convert to ASCII
-	ld (TEXT_BUFFER),a       	; Store single minute digit
-	ld a,"'"                 	; Add space
-	ld (TEXT_BUFFER+1),a
+	LD (TEXT_BUFFER),a       	; Store single minute digit
+	LD a,"'"                 	; Add space
+	LD (TEXT_BUFFER+1),a
 
 	; Now get seconds
 	pop hl                    	; Restore pointer to seconds
-	ld l,(hl)                	; Get seconds
-	ld h,0                   	; Put seconds in HL
+	LD l,(hl)                	; Get seconds
+	LD h,0                   	; Put seconds in HL
 
 	; Convert seconds to decimal
 	CALL DIV_HLby10
 
 	; Store seconds (always show both digits)
-	ld a,c
+	LD a,c
 	add a,"0"                	; Convert tens to ASCII
-	ld (TEXT_BUFFER+2),a
-	ld a,l
+	LD (TEXT_BUFFER+2),a
+	LD a,l
 	add a,"0" + $80            ; Convert ones to ASCII and add terminator
-	ld (TEXT_BUFFER+3),a
+	LD (TEXT_BUFFER+3),a
 	 ; Print time value
 	pop hl                    ; Restore screen position in HL
-	ld de,7                  ; Move 7 positions right
+	LD de,7                  ; Move 7 positions right
 	add hl,de
 	ex de,hl
-	ld hl,TEXT_BUFFER
+	LD hl,TEXT_BUFFER
 	call MYPRINT
 ret
 
@@ -11810,7 +12028,7 @@ PRINT_SINGLE_SCORE:
 
 	; Print "SCENE "
 	push de                     ; Save screen position
-	ld hl,SCENE_TEXT
+	LD hl,SCENE_TEXT
 	call MYPRINT
 	pop de                      ; Restore screen position
 
@@ -11819,31 +12037,31 @@ PRINT_SINGLE_SCORE:
 	push af                     ; Save it again
 
 	; Convert level to decimal
-	ld h,0                    ; Clear H
-	ld l,a                    ; Put level in L (now HL = level)
+	LD h,0                    ; Clear H
+	LD l,a                    ; Put level in L (now HL = level)
 	push de                    ; Save screen position
 
 	; Get tens and ones only
 	CALL DIV_HLby10
 
 	; Store tens digit
-	ld a,c
+	LD a,c
 	or a                       ; Test if zero
 	jr z,.skip_tens          	; If zero,skip tens
 
 	add a,"0"                	; Convert to ASCII
-	ld (TEXT_BUFFER),a
-	ld a,l						; Store ones digit
+	LD (TEXT_BUFFER),a
+	LD a,l						; Store ones digit
 	add a,"0" + $80			; add terminator
-	ld (TEXT_BUFFER+1),a
+	LD (TEXT_BUFFER+1),a
 
 	jr .print_level
 
 .skip_tens:
 
-	ld a,l					    ; Just store ones for single digit
+	LD a,l					    ; Just store ones for single digit
 	add a,"0" + $80
-	ld (TEXT_BUFFER),a
+	LD (TEXT_BUFFER),a
 
 .print_level:
 	POP HL                     	; Restore VRAM Address
@@ -11852,7 +12070,7 @@ PRINT_SINGLE_SCORE:
 	LD DE,6                   	; Move 6 positions right
 	ADD HL,DE
 	ex de,hl                  	; Put back in DE
-	ld hl,TEXT_BUFFER
+	LD hl,TEXT_BUFFER
 	call MYPRINT
 	pop de						; Restore screen position
 
@@ -11862,11 +12080,11 @@ PRINT_SINGLE_SCORE:
 
 	push    af
 	; Check which player is active
-	ld a,(GAMECONTROL)
+	LD a,(GAMECONTROL)
 	bit 1,a                   	; Test if Player 2 is active
-	ld hl,P1_LEVEL1_SCORE    	; Default to Player 1 base
+	LD hl,P1_LEVEL1_SCORE    	; Default to Player 1 base
 	jr z,.got_base           	; ZF==0 for P1,ZF==1 for P2
-	ld hl,P2_LEVEL1_SCORE    	; Otherwise use Player 2 base
+	LD hl,P2_LEVEL1_SCORE    	; Otherwise use Player 2 base
 .got_base:
 
 	; Calculate score address
@@ -11875,9 +12093,9 @@ PRINT_SINGLE_SCORE:
 	add hl,de                 	; HL now points to correct score
 
 	; Load score
-	ld e,(hl)
+	LD e,(hl)
 	inc hl
-	ld d,(hl)
+	LD d,(hl)
 	ex de,hl                  ; HL now contains score value
 
 	; Convert to decimal digits
@@ -11885,10 +12103,10 @@ PRINT_SINGLE_SCORE:
 
 	; Print score
 	pop hl                      ; Restore screen position in HL
-	ld de,10                  	; Move 10 positions right
+	LD de,10                  	; Move 10 positions right
 	add hl,de
 	ex de,hl                  	; Put  in DE
-	ld hl,TEXT_BUFFER
+	LD hl,TEXT_BUFFER
 	call MYPRINT
 ret
 
@@ -11897,83 +12115,83 @@ ret
 ;----------------------------------------------------------------------
 CONVERT_TO_DECIMAL:
 	; First get ten thousands
-	ld de,10000
+	LD de,10000
 	CALL 	DIV_HLbyDE
 
 	; Store ten thousands digit
-	ld a,c
+	LD a,c
 	or a                       ; Test if zero
 	jr nz,.not_zero1         ; If not zero,show digit
-	ld a," "                 ; If zero,show space
+	LD a," "                 ; If zero,show space
 	jr .store1
 .not_zero1:
 	add a,"0"                ; Convert to ASCII
 .store1:
-	ld (TEXT_BUFFER),a
+	LD (TEXT_BUFFER),a
 
 	; Now get thousands
 
-	ld de,1000
+	LD de,1000
 	CALL 	DIV_HLbyDE
 
 	; Store thousands digit
-	ld a,(TEXT_BUFFER)       ; Check if we had ten thousands
+	LD a,(TEXT_BUFFER)       ; Check if we had ten thousands
 	cp " "                    ; Was it a space?
-	ld a,c                   ; digit value
+	LD a,c                   ; digit value
 	jr nz,.not_zero2         ; If we had ten thousands,always show this digit
 	or a                      ; Test if zero
 	jr nz,.not_zero2         ; If not zero,show digit
-	ld a," "                 ; If zero,show space
+	LD a," "                 ; If zero,show space
 	jr .store2
 .not_zero2:
 	add a,"0"               ; Convert to ASCII
 .store2:
-	ld (TEXT_BUFFER+1),a
+	LD (TEXT_BUFFER+1),a
 
 	; Now get hundreds
-	ld de,100
+	LD de,100
 	CALL 	DIV_HLbyDE
 
 	; Store hundreds digit
-	ld a,(TEXT_BUFFER+1)       ; Check if we had thousands
+	LD a,(TEXT_BUFFER+1)       ; Check if we had thousands
 	cp " "                    	; Was it a space?
-	ld a,c                   	; digit value
+	LD a,c                   	; digit value
 	jr nz,.not_zero3        	; If we had thousands,always show this digit
 	or a                      	; Test if zero
 	jr nz,.not_zero3        	; If not zero,show digit
-	ld a," "                	; If zero,show space
+	LD a," "                	; If zero,show space
 	jr .store3
 .not_zero3:
 	add a,"0"               ; Convert to ASCII
 .store3:
-	ld (TEXT_BUFFER+2),a
+	LD (TEXT_BUFFER+2),a
 
 	; Now get tens
-	ld de,10
+	LD de,10
 	CALL 	DIV_HLbyDE
 
 	; Store tens digit
-	ld a,(TEXT_BUFFER+2)     	; Check if we had hundreds
+	LD a,(TEXT_BUFFER+2)     	; Check if we had hundreds
 	cp " "                    	; Was it a space?
-	ld a,c                   	; Restore digit value
+	LD a,c                   	; Restore digit value
 	jr nz,.not_zero4        	; If we had hundreds,always show this digit
 	or a                      	; Test if zero
 	jr nz,.not_zero4        	; If not zero,show digit
-	ld a," "                	; If zero,show space
+	LD a," "                	; If zero,show space
 	jr .store4
 .not_zero4:
 	add a,"0"               ; Convert to ASCII
 .store4:
-	ld (TEXT_BUFFER+3),a
+	LD (TEXT_BUFFER+3),a
 
 	; Ones are what's left in HL (always show)
-	ld a,l
+	LD a,l
 	add a,"0"
-	ld (TEXT_BUFFER+4),a
+	LD (TEXT_BUFFER+4),a
 
 	; Add literal "0" with terminator
-	ld a,"0" + $80
-	ld (TEXT_BUFFER+5),a
+	LD a,"0" + $80
+	LD (TEXT_BUFFER+5),a
 
 RET
 
