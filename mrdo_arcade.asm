@@ -3427,16 +3427,16 @@ GRAB_SOME_CHERRIES:
 	LD		DE,5
 	CALL	SUB_B601
 	BIT		1,(IY+0)
-	JR		Z,LOC_96CA
+	JP		Z,LOC_96CA
 	LD		A,(IY+8)
 	CALL	TEST_SIGNAL
-	JR		NZ,LOC_96CA
+	JP		NZ,LOC_96CA
 	LD		A,(IY+8)
 	CALL	FREE_SIGNAL
 	INC		(IY+7)
 	LD		A,(IY+7)
 	CP		8
-	JR		C,LOC_96D5
+	JP		C,LOC_96D5
 	LD		(IY+7),0
 	LD		DE,2DH 			; final cherry scores 500 not 550
 	CALL	SUB_B601		; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
@@ -3451,45 +3451,76 @@ GRAB_SOME_CHERRIES:
 	
 ; allocate  500 sign timer	here
 	XOR		A			; A = 0 if one-shot, else free-running
-	LD		HL,3*60		; time lenght	(3 secs)
+	LD		HL,3*60		; time length	(3 secs)
 	CALL	REQUEST_SIGNAL
 	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
-; here compute vram address for 500 sign (divide Y by 8, mutiply by 32 add X/8, add the PNT address)
-; put in VRAM the tiles for the 500 sign (now 120,121 upper half, 122,123, lower half)
+    ; Get map position for cleanup tracking
+    LD      A,(MRDO_DATA.Y)    
+    LD      B,A
+    LD      A,(MRDO_DATA.X)    
+    LD      C,A
+    CALL    PEEKMAP     
 
-; use OS7 calls
-;
-	LD 		DE,30+21*32
-	LD 		HL,TestSign
-	LD		A,2
-	LD		IY,2
-	CALL	PUT_VRAM
-	LD 		DE,30+22*32
-	LD 		HL,TestSign+2
-	LD		A,2
-	LD		IY,2
-	CALL	PUT_VRAM
+        ; Store position for cleanup (D-1 as noted in comments)
+    LD      A,D
+    DEC     A
+    LD      (SIGNPOSITION),A       
+    
+    PUSH    AF              ; Save original value
+    AND     0Fh            ; Mask to get X coordinate (lower nibble) (e.g., 7)
+    ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
+    LD      B,A            ; Store X position in B
+    
+    POP     AF              ; Restore original value
+    AND     0F0h           ; Mask to get Y coordinate (upper nibble)
+    RRCA                    ; Rotate right 4 times to get value (e.g., 6)
+    RRCA
+    RRCA
+    RRCA
+    INC     A              ; Add 1 to Y to place sign below player
+    ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
+    ADD     A,3            ; Add 3 for score area offset (e.g., 14+3 = 17)
+    LD      C,A            ; Store Y position in C
+    
+    ; Calculate VRAM position: DE = B + (C * 32)
+    LD      H,0            ; Calculate C * 32 first
+    LD      L,C
+    ADD     HL,HL          ; Multiply by 2
+    ADD     HL,HL          ; Multiply by 4
+    ADD     HL,HL          ; Multiply by 8
+    ADD     HL,HL          ; Multiply by 16
+    ADD     HL,HL          ; Multiply by 32
+    LD      D,H
+    LD      E,L            ; DE now contains Y*32
+    
+    LD      A,B            ; Add X offset
+    LD      H,0
+    LD      L,A
+    ADD     HL,DE          ; Add X offset to Y*32
+    EX      DE,HL          ; Put result in DE
+    PUSH    DE 
+    ; Write first part of sign
+    LD      HL,TestSign
+    LD      A,2
+    LD      IY,2
+    CALL    PUT_VRAM
+    POP     DE
+    ; For second part, just add 32 to DE to move down one row
 
-;   Use PEEKMAP to compute the location of the player in the game map 
-;   store OFFSET=D-1 (offset in the GAMEMAP computed by PEEKMAP) to remember where to remove the 500 sign
-; 	you can use SIGNPOSITION
-;
-;	LD	A,D
-;	DEC A 
-;	LD (SIGNPOSITION),A 		; note any value of SIGNPOSITION>0 means that the sign is on the screen
-
-;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
-;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
-TEST1:
-	LD	A,-1					; any value>0 will tell to the MrDo code to test the SIGN timers
-	LD (SIGNPOSITION),A 		; we use the fact that 0 cannot be a valid position for the 500 sign
-
-
-	POP 	IY
-	RET
-
-	
+    ; For second part, just add 32 directly to DE
+    LD      A,32
+    ADD     A,E            ; Add 32 to E
+    LD      E,A
+    JR      NC,NO_CARRY    ; If no carry, skip
+    INC     D              ; If carry, increment D
+NO_CARRY:
+    LD      HL,TestSign+2  ; Use TestSign+2 for bottom half
+    LD      A,2
+    LD      IY,2
+    CALL    PUT_VRAM
+    POP     IY
+    RET
 LOC_96CA:
 	LD		(IY+7),1
 	PUSH	IY
