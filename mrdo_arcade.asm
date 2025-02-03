@@ -219,9 +219,9 @@ P1_LEVEL3_MIN:    		RB 1 	; Player 1 level 3 minutes
 P1_PREV_SCORE:    		RB 2 	; 2 bytes - Previous total score for P1
 P1_LEVEL1_SCORE:  		RB 2 	; 2 bytes - Level 1 score
 P1_LEVEL2_SCORE:  		RB 2 	; 2 bytes - Level 2 score
-P1_LEVEL3_SCORE:  		RB 2 	; 2 bytes - Level 3 score
+P1_LEVEL3_SCORE:  		RB 2 	; 2 bytes - Level 3 score ; equ 072FFCh
 
-P2_LEVEL1_SEC:    		RB 1    ; Player 1 level 1 seconds
+P2_LEVEL1_SEC:    		RB 1    ; Player 1 level 1 seconds  ; equ 07300h
 P2_LEVEL1_MIN:    		RB 1    ; Player 1 level 1 minutes
 P2_LEVEL2_SEC:    		RB 1    ; Player 1 level 2 seconds
 P2_LEVEL2_MIN:    		RB 1    ; Player 1 level 2 minutes
@@ -233,14 +233,13 @@ P2_LEVEL1_SCORE:  		RB 2    ; 2 bytes - Level 1 score
 P2_LEVEL2_SCORE:  		RB 2    ; 2 bytes - Level 2 score
 P2_LEVEL3_SCORE:  		RB 2    ; 2 bytes - Level 3 score		; equ 0730Ch
 
-P1_LEVEL_FINISH_BASE: 	RB 3 	;
-P2_LEVEL_FINISH_BASE: 	RB 3 	;
+P1_LEVEL_FINISH_BASE: 	RB 3 	; equ 0730Eh
+P2_LEVEL_FINISH_BASE: 	RB 3 	; equ 07311h
 
 
-SIGNPOSITION:		RB 1	; offeset in the game map (16x10)
-SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area
-
-ENDUSEDRAM:				RB 1
+SIGNPOSITION:		RB 1	; offeset in the game map (16x10) ; equ 07314h
+SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area ; equ 07315h
+LEFTOVER_IDX:				RB 2	; equ 07316h
 
 ; ram for letter monsters
 ;LETTERMON_FLAG:		EQU		$72BD
@@ -3033,6 +3032,8 @@ FREESIGNTIMER:
 	CALL	FREE_SIGNAL
 	XOR     A			; any value>0 will tell to the MrDo code to test the SIGN timers
 	LD 		(SIGNPOSITION),A
+	LD		HL,LEFTOVER_IDX
+	LD		(HL),0
 	RET
 
 LEADS_TO_CHERRY_STUFF:
@@ -3062,32 +3063,24 @@ TEST3:
 ; timer is expired, free it
 	LD		A,(SIGNTIMER)
 	CALL	FREE_SIGNAL
-;	
-; 	retrive here the offset in the GAMEMAP saved in SIGNPOSITION 
-; 	convert it to a VRAM address 
-;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
-;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
-	
-; plot a blank block of 2x2  using OS7 calls
 
+; plot a block of 2x2 leftover patterns
 	CALL PLOTLEFTOVERS
-
-;
-	LD 		DE,30+21*32
-	LD 		HL,SAT_BUFFER
-	LD		A,2
-	LD		IY,2
-	CALL	PUT_VRAM
-	LD 		DE,30+22*32
-	LD 		HL,SAT_BUFFER+2
-	LD		A,2
-	LD		IY,2
-	CALL	PUT_VRAM
+	LD   A, (SIGNPOSITION)
+	LD   BC,SAT_BUFFER
+	CALL	PRINT_2X2_PATTERN
 
 	XOR		A
 	LD 		(SIGNPOSITION),A 	; no sign on the screen
+	JR    no_sign_on_the_screen
 
 timer_still_running:
+	CALL    MyNMI_off         ; Disable VDP
+  LD		A, (SIGNPOSITION)
+	LD    BC,TestSign
+	CALL	PRINT_2X2_PATTERN
+	CALL	MyNMI_on
+
 no_sign_on_the_screen:
 
 	LD		IY,MRDO_DATA  ; IY points to Mr. Do's data
@@ -3427,16 +3420,16 @@ GRAB_SOME_CHERRIES:
 	LD		DE,5
 	CALL	SUB_B601
 	BIT		1,(IY+0)
-	JR		Z,LOC_96CA
+	JP		Z,LOC_96CA
 	LD		A,(IY+8)
 	CALL	TEST_SIGNAL
-	JR		NZ,LOC_96CA
+	JP		NZ,LOC_96CA
 	LD		A,(IY+8)
 	CALL	FREE_SIGNAL
 	INC		(IY+7)
 	LD		A,(IY+7)
 	CP		8
-	JR		C,LOC_96D5
+	JP		C,LOC_96D5
 	LD		(IY+7),0
 	LD		DE,2DH 			; final cherry scores 500 not 550
 	CALL	SUB_B601		; activate here the 500 sign (**), IY aims to MRDO_DATA (IY+3)=Y, (IY+4)=X
@@ -3451,45 +3444,96 @@ GRAB_SOME_CHERRIES:
 	
 ; allocate  500 sign timer	here
 	XOR		A			; A = 0 if one-shot, else free-running
-	LD		HL,3*60		; time lenght	(3 secs)
+	LD		HL,2*60		; time length	(3 secs)
 	CALL	REQUEST_SIGNAL
 	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
-; here compute vram address for 500 sign (divide Y by 8, mutiply by 32 add X/8, add the PNT address)
-; put in VRAM the tiles for the 500 sign (now 120,121 upper half, 122,123, lower half)
-
-; use OS7 calls
-;
-	LD 		DE,30+21*32
-	LD 		HL,TestSign
-	LD		A,2
-	LD		IY,2
-	CALL	PUT_VRAM
-	LD 		DE,30+22*32
-	LD 		HL,TestSign+2
-	LD		A,2
-	LD		IY,2
-	CALL	PUT_VRAM
-
-;   Use PEEKMAP to compute the location of the player in the game map 
-;   store OFFSET=D-1 (offset in the GAMEMAP computed by PEEKMAP) to remember where to remove the 500 sign
-; 	you can use SIGNPOSITION
-;
-;	LD	A,D
-;	DEC A 
-;	LD (SIGNPOSITION),A 		; note any value of SIGNPOSITION>0 means that the sign is on the screen
-
-;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
-;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
-TEST1:
-	LD	A,-1					; any value>0 will tell to the MrDo code to test the SIGN timers
-	LD (SIGNPOSITION),A 		; we use the fact that 0 cannot be a valid position for the 500 sign
+  ; Get map position for cleanup tracking
+  LD      A,(MRDO_DATA.Y)    
+  LD      B,A
+  LD      A,(MRDO_DATA.X)    
+  LD      C,A
+  CALL    PEEKMAP
+  ; IX Stores the byte in the game map
+  ; Store the address that IX points to in LEFTOVER_IDX
+  LD		HL,LEFTOVER_IDX
+  PUSH  IX
+  POP  BC
+  LD  (HL),C
+  INC  HL
+  LD  (HL),B
+  ; Store position for cleanup (D-1 as noted in comments)
+  LD  A,D
+  DEC  A
+  LD  (SIGNPOSITION),A
+  LD  BC,TestSign
+  CALL  PRINT_2X2_PATTERN
+  POP  IY
+  RET
 
 
-	POP 	IY
-	RET
+; Input:
+;   A = Position value (X in lower nibble, Y in upper nibble)
+;   BC = Pattern source address (SAT_BUFFER/TestSign etc.)
+PRINT_2X2_PATTERN:
+    PUSH    BC
+    PUSH    AF              ; Save original values
+    AND     0Fh            ; Mask to get X coordinate (lower nibble) (e.g., 7)
+    ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
+    LD      B,A            ; Store X position in B
+    
+    POP     AF              ; Restore original value
+    AND     0F0h           ; Mask to get Y coordinate (upper nibble)
+    RRCA                    ; Rotate right 4 times to get value (e.g., 6)
+    RRCA
+    RRCA
+    RRCA
+    ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
+    ADD     A,3            ; Add 3 for score area offset (e.g., 14+3 = 17)
+    LD      C,A            ; Store Y position in C
+    ; Calculate VRAM position: DE = B + (C * 32)
+    LD      H,0            ; Calculate C * 32 first
+    LD      L,C
+    ADD     HL,HL          ; Multiply by 2
+    ADD     HL,HL          ; Multiply by 4
+    ADD     HL,HL          ; Multiply by 8
+    ADD     HL,HL          ; Multiply by 16
+    ADD     HL,HL          ; Multiply by 32
+    LD      D,H
+    LD      E,L            ; DE now contains Y*32
+    
+    LD      A,B            ; Add X offset
+    LD      H,0
+    LD      L,A
+    ADD     HL,DE          ; Add X offset to Y*32
+    EX      DE,HL          ; Put result in DE
+    POP     BC
+    PUSH    BC
+    PUSH    DE
+    ; Write first part of sign
+    LD      H,B
+    LD      L,C
+    LD      A,2
+    LD      IY,2
+    CALL    PUT_VRAM
+    POP     DE
+    ; For second part, just add 32 to DE to move down one row
 
-	
+    LD      A,32
+    ADD     A,E            ; Add 32 to E
+    LD      E,A
+    JR      NC,NO_CARRY    ; If no carry, skip
+    INC     D              ; If carry, increment D
+NO_CARRY:
+    POP		BC
+    INC		BC
+    INC		BC
+    LD		  H,B
+    LD		  L,C
+    LD      A,2
+    LD      IY,2
+    CALL    PUT_VRAM
+    RET
 LOC_96CA:
 	LD		(IY+7),1
 	PUSH	IY
@@ -3503,13 +3547,19 @@ LOC_96D5:
 	SET		1,(IY+0)
 RET
 
-
-	
 TestSign:	DB 120,121,122,123
 
-
 PLOTLEFTOVERS:
-	LD		A,$1F	; test value
+; we have stored an index to the leftover pattern in LEFTOVER_IDX
+; Get the byte at the index
+	LD		HL,LEFTOVER_IDX
+	LD    C, (HL)
+	INC		HL
+	LD    B, (HL)
+	PUSH  BC
+	POP		IX
+	LD		A,(IX+0)
+
 	RRCA
 	RRCA
 	RRCA
@@ -3525,8 +3575,6 @@ PLOTLEFTOVERS:
 	CALL 	EXPAND
 	INC		HL
 	LD		DE,SAT_BUFFER+0
-;	CALL 	EXPAND
-;	RET
 EXPAND:
 	XOR 	A
 	RLD				; upper nibble
@@ -3534,15 +3582,12 @@ EXPAND:
 	INC		DE
 	XOR 	A
 	RRD				; lower nibble
-;	CALL 	.0
-;	RET
 .0:	CP		$F
 	JR 		Z,.1
 	ADD		A,88	
 .1:	LD 		(DE),A
 	RET
 
-	
 LfovrConf:
 	DW	$0167	;1F
 	DW	$4501	;2F
@@ -3558,7 +3603,6 @@ LfovrConf:
 	DW	$2233	;CF
 	DW	$FF33	;DF
 	DW	$22FF	;EF
-
 
 SUB_96E4:
 	LD		A,(GAMEFLAGSBONUSITEM)
