@@ -3444,7 +3444,7 @@ GRAB_SOME_CHERRIES:
 	
 ; allocate  500 sign timer	here
 	XOR		A			; A = 0 if one-shot, else free-running
-	LD		HL,3*60		; time length	(3 secs)
+	LD		HL,2*60		; time length	(3 secs)
 	CALL	REQUEST_SIGNAL
 	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
