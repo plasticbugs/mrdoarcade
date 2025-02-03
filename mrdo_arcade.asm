@@ -3063,69 +3063,12 @@ TEST3:
 ; timer is expired, free it
 	LD		A,(SIGNTIMER)
 	CALL	FREE_SIGNAL
-;	
-; 	retrive here the offset in the GAMEMAP saved in SIGNPOSITION 
-; 	convert it to a VRAM address 
-;	NB: the upper 4 bits are Y in steps of 16 pixels, the lower 4 bits are X in steps of 16 pixels
-;	Add separately 3 lines to count the scorebar when computing the VRAM addresses
-	
-; plot a blank block of 2x2  using OS7 calls
+
+; plot a block of 2x2 leftover patterns
 	CALL PLOTLEFTOVERS
 	LD   A, (SIGNPOSITION)
 	LD   BC,SAT_BUFFER
 	CALL	PRINT_2X2_PATTERN
-	
-; 		PUSH    AF              ; Save original value
-;     AND     0Fh            ; Mask to get X coordinate (lower nibble) (e.g., 7)
-;     ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
-;     LD      B,A            ; Store X position in B
-    
-;     POP     AF              ; Restore original value
-;     AND     0F0h           ; Mask to get Y coordinate (upper nibble)
-;     RRCA                    ; Rotate right 4 times to get value (e.g., 6)
-;     RRCA
-;     RRCA
-;     RRCA
-;     ; INC     A              ; Add 1 to Y to place sign below player
-;     ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
-;     ADD     A,3            ; Add 3 for score area offset (e.g., 14+3 = 17)
-;     LD      C,A            ; Store Y position in C
-    
-;     ; Calculate VRAM position: DE = B + (C * 32)
-;     LD      H,0            ; Calculate C * 32 first
-;     LD      L,C
-;     ADD     HL,HL          ; Multiply by 2
-;     ADD     HL,HL          ; Multiply by 4
-;     ADD     HL,HL          ; Multiply by 8
-;     ADD     HL,HL          ; Multiply by 16
-;     ADD     HL,HL          ; Multiply by 32
-;     LD      D,H
-;     LD      E,L            ; DE now contains Y*32
-    
-;     LD      A,B            ; Add X offset
-;     LD      H,0
-;     LD      L,A
-;     ADD     HL,DE          ; Add X offset to Y*32
-;     EX      DE,HL          ; Put result in DE
-;     PUSH    DE 
-;     ; Write first part of sign
-;     LD      HL,SAT_BUFFER
-;     LD      A,2
-;     LD      IY,2
-;     CALL    PUT_VRAM
-;     POP     DE
-;     ; For second part, just add 32 to DE to move down one row
-
-;     LD      A,32
-;     ADD     A,E            ; Add 32 to E
-;     LD      E,A
-;     JR      NC,NO_CARRY2    ; If no carry, skip
-;     INC     D              ; If carry, increment D
-; NO_CARRY2:
-;     LD      HL,SAT_BUFFER+2  ; Use TestSign+2 for bottom half
-;     LD      A,2
-;     LD      IY,2
-;     CALL    PUT_VRAM
 
 	XOR		A
 	LD 		(SIGNPOSITION),A 	; no sign on the screen
@@ -3505,35 +3448,35 @@ GRAB_SOME_CHERRIES:
 	CALL	REQUEST_SIGNAL
 	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
-    ; Get map position for cleanup tracking
-    LD      A,(MRDO_DATA.Y)    
-    LD      B,A
-    LD      A,(MRDO_DATA.X)    
-    LD      C,A
-    CALL    PEEKMAP
-		; IX Stores the byte in the game map
-		; Store the address that IX points to in LEFTOVER_IDX
-		LD		HL,LEFTOVER_IDX
-		PUSH  IX
-		POP		BC
-		LD		(HL),C
-		INC		HL
-		LD		(HL),B
-        ; Store position for cleanup (D-1 as noted in comments)
-    LD      A,D
-    DEC     A
-    LD      (SIGNPOSITION),A
-		LD    BC,TestSign
-		CALL	PRINT_2X2_PATTERN
-		POP		IY
-		RET
+  ; Get map position for cleanup tracking
+  LD      A,(MRDO_DATA.Y)    
+  LD      B,A
+  LD      A,(MRDO_DATA.X)    
+  LD      C,A
+  CALL    PEEKMAP
+  ; IX Stores the byte in the game map
+  ; Store the address that IX points to in LEFTOVER_IDX
+  LD		HL,LEFTOVER_IDX
+  PUSH  IX
+  POP  BC
+  LD  (HL),C
+  INC  HL
+  LD  (HL),B
+  ; Store position for cleanup (D-1 as noted in comments)
+  LD  A,D
+  DEC  A
+  LD  (SIGNPOSITION),A
+  LD  BC,TestSign
+  CALL  PRINT_2X2_PATTERN
+  POP  IY
+  RET
 
 
 ; Input:
 ;   A = Position value (X in lower nibble, Y in upper nibble)
 ;   BC = Pattern source address (SAT_BUFFER/TestSign etc.)
 PRINT_2X2_PATTERN:
-		PUSH    BC
+    PUSH    BC
     PUSH    AF              ; Save original values
     AND     0Fh            ; Mask to get X coordinate (lower nibble) (e.g., 7)
     ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
@@ -3564,8 +3507,8 @@ PRINT_2X2_PATTERN:
     LD      L,A
     ADD     HL,DE          ; Add X offset to Y*32
     EX      DE,HL          ; Put result in DE
-		POP		BC
-		PUSH    BC
+    POP     BC
+    PUSH    BC
     PUSH    DE
     ; Write first part of sign
     LD      H,B
@@ -3582,11 +3525,11 @@ PRINT_2X2_PATTERN:
     JR      NC,NO_CARRY    ; If no carry, skip
     INC     D              ; If carry, increment D
 NO_CARRY:
-		POP		BC
-		INC		BC
-		INC		BC
-		LD		  H,B
-		LD		  L,C
+    POP		BC
+    INC		BC
+    INC		BC
+    LD		  H,B
+    LD		  L,C
     LD      A,2
     LD      IY,2
     CALL    PUT_VRAM
@@ -4991,8 +4934,8 @@ UNK_9FB3:
 
 SUB_9FC8:							; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-	XOR		A    ; (Uncomment for invincibility)
-	RET        ; (Uncomment for invincibility)
+	; XOR		A    ; (Uncomment for invincibility)
+	; RET        ; (Uncomment for invincibility)
 	LD		A,(MRDO_DATA.Y)
 	SUB		(IY+2)
 	JR		NC,.ypos
