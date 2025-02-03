@@ -116,11 +116,12 @@ TWINKLE_TWINKLE_0C:     EQU $25
 ; RAM DEFINITIONS ***************************
 	ORG $7000,$73FF
 
-WORKBUFFER:				RB	16	;EQU $07000	; work ram
+SAT_BUFFER:
+WORKBUFFER:				RB	16	;EQU $7000	; work ram
 
-SAT_BUFFER:				RB	4	;EQU $7000	; work buffer for sprites
+				RB	4	;EQU $7010	; Free
 
-TIMER_DATA_BLOCK:		RB	12	;EQU $7014
+				RB	12	;EQU $7014      ; Free
 STATESTART:				RB	11	;EQU $7020 	; OS Sound Buffer Start
 SOUND_BANK_01_RAM:		RB	10	;EQU $702B
 SOUND_BANK_02_RAM:		RB	10	;EQU $7035
@@ -131,24 +132,25 @@ SOUND_BANK_06_RAM:		RB	10	;EQU $705D
 SOUND_BANK_07_RAM:		RB	10	;EQU $7067
 SOUND_BANK_08_RAM:		RB	10	;EQU $7071
 SOUND_BANK_09_RAM:		RB	10	;EQU $707B
-						RB	 1	; ??
+USED_BY_SOUND:			RB	 1	;EQU $7085
 
 CONTROLLER_BUFFER:		RB	 2	;EQU $7086
 						RB	 4	;EQU $7088 ?? some kind of struct used in SUB_94A9 for Player1
 KEYBOARD_P1:			RB	 1	;EQU $708C
+
 						RB	 4	;EQU $708D ?? some kind of struct used in SUB_94A9 for Player2
 KEYBOARD_P2:			RB	 1	;EQU $7091
-						RB	 4	;EQU $7092	; <- not sure if used by controller 2
-						RB	 8	;EQU $7096
-TIMER_TABLE:			RB	75	;EQU $709E
+
+TIMER_TABLE:			RB	87	;EQU $7092	; total 29x3=87 bytes avoid overflow in the SAT
+
 SPRITE_NAME_TABLE:		RB	80	;EQU $70E9	; SAT (4*20)
 
 BADGUY_BHVR_CNT_RAM:	RB	 1	;EQU $7139 ; HOW MANY BYTES IN TABLE
-BADGUY_BEHAVIOR_RAM:	RB	28	;EQU $713A ; BEHAVIOR TABLE. UP TO 7*4=28 ELEMENTS
-						RB 	52	; ??
+BADGUY_BEHAVIOR_RAM:	RB	80	;EQU $713A ; BEHAVIOR TABLE. UP TO 80 ELEMENTS
+
 LEVELMAP:				RB 160	;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 CURRAPPL:				RB   1	;EQU $722A
-						RB   1	;EQU $722B
+						RB   1	;EQU $722B ; free !
 APPLEDATA:				RB  25	;EQU $722C ; Apple sprite data 5x5 bytes
 ENEMYINTERACT:			RB  20	;EQU $7245 ; enemy interaction data
 ENEMYINTERACT2:			RB  20	;EQU $7259 ; enemy interaction data
@@ -165,11 +167,12 @@ LIVES_LEFT_P1_RAM:		RB	 1	;EQU $7276
 LIVES_LEFT_P2_RAM:		RB	 1	;EQU $7277
 ENEMY_NUM_P1:			RB	 1	;EQU $7278 Initialised at 7 by LOC_8573
 ENEMY_NUM_P2:			RB	 1	;EQU $7279 Initialised at 7 by LOC_8573
-						RB	 2	;EQU $727A ??
-						RB	 1	;EQU $727C FLAG about SCORE ???
+						RB	 1	;EQU $727A Counter used to spawn letter monster for P1
+						RB	 1	;EQU $727B Counter used to spawn letter monster for P2
+SCOREFLAG:				RB	 1	;EQU $727C Tell which score to upate ($80 for P1, $40 for P2, 0 no update)
 
-SCORE_P1_RAM:			RB	 2	;EQU $727D ;  $727D/7E	2 BYTES SCORING FOR PLAYER#1. THE LAST DIGIT IS A RED HERRING. I.E. 150 LOOKS LIKE 1500.  SCORE WRAPS AROUND AFTER $FFFF (65535)
-SCORE_P2_RAM:			RB	 2	;EQU $727F ;  $727F/80	2 BYTES SCORING FOR PLAYER#2
+free:					RB	 4	;EQU $727D 
+
 MRDO_DATA:				RB   1	;EQU $7281 ;+0	; Mr. Do's flags
 MRDO_DATA.unkn:			RB   1	;EQU $7282 ;+1	; Mr. Do's ?
 MRDO_DATA.Timer:		RB   1	;EQU $7283 ;+2	; Mr. Do's timer
@@ -184,17 +187,19 @@ BADGUYTIMER:			RB   1	;EQU $728B	;
 CURRBADGUY:				RB   1	;EQU $728C	; Current bad guy 0-6
 						RB   1	;EQU $728D
 ENEMY_DATA_ARRAY:		RB  42	;EQU $728E	; enemy data starts here = 7*6 bytes (7 enemies)
-						RB   1	;EQU $72B8
-						RB   1	;EQU $72B9
-						RB   1	;EQU $72BA
+LETTERMON_DATA_P1:		RB   1	;EQU $72B8
+LETTERMON_DATA_P2:		RB   1	;EQU $72B9
+LETTERMON_COUNTER:		RB   1	;EQU $72BA  ; Counter for the position in the scorebar (only 3 bits, UPPER BITS ARE FLAGS)
 						RB   1	;EQU $72BB
 						RB   1	;EQU $72BC
 LETTERMON_FLAG:			RB   1	;EQU $72BD	; ram for letter monsters
 LETTERMON_X:			RB   1	;EQU $72BE
 LETTERMON_Y:			RB   1	;EQU $72BF
-						RB	 3	;EQU $72C0
+LETTERMON_TIMER:		RB	 1	;EQU $72C0
+						RB	 1	;EQU $72C1
+						RB	 1	;EQU $72C2
 GAMEFLAGS:				RB   1	;EQU $72C3	Game Flag B7 = chomper mode,B0 ???
-						RB	 1	;??
+						RB	 1	;EQU $72C4  if set to 1 you need to free the timer for Letter Monsters
 CHOMPNUMBER:			RB	 1	;EQU $72C5  store the current chomper 0-2
 TIMERCHOMP1:			RB	 1	;EQU $72C6  Game timer chomper mode
 CHOMPDATA:				RB  18	;EQU $72C7  3x6 = 18 bytes (3 chompers)
@@ -209,57 +214,42 @@ ADDCURRTIMER:			RB 2 	;EQU $072EF	; 2 bytes used to remove overhead in the NMI
 FRAME_COUNT:      		RB 1    ;EQU $072F1 	Shared frame counter (0-59)
 
 
-P1_LEVEL1_SEC:    		RB 1 	; Player 1 level 1 seconds		; equ 072F2h
-P1_LEVEL1_MIN:    		RB 1 	; Player 1 level 1 minutes
-P1_LEVEL2_SEC:    		RB 1 	; Player 1 level 2 seconds
-P1_LEVEL2_MIN:    		RB 1 	; Player 1 level 2 minutes
-P1_LEVEL3_SEC:    		RB 1 	; Player 1 level 3 seconds
-P1_LEVEL3_MIN:    		RB 1 	; Player 1 level 3 minutes
+P1_LEVEL1_SEC:    		RB 1 	; EQU 072F2h ; Player 1 level 1 seconds		
+P1_LEVEL1_MIN:    		RB 1 	; EQU 072F3h ; Player 1 level 1 minutes
+P1_LEVEL2_SEC:    		RB 1 	; EQU 072F4h ; Player 1 level 2 seconds
+P1_LEVEL2_MIN:    		RB 1 	; EQU 072F5h ; Player 1 level 2 minutes
+P1_LEVEL3_SEC:    		RB 1 	; EQU 072F6h ; Player 1 level 3 seconds
+P1_LEVEL3_MIN:    		RB 1 	; EQU 072F7h ; Player 1 level 3 minutes
 
-P1_PREV_SCORE:    		RB 2 	; 2 bytes - Previous total score for P1
-P1_LEVEL1_SCORE:  		RB 2 	; 2 bytes - Level 1 score
-P1_LEVEL2_SCORE:  		RB 2 	; 2 bytes - Level 2 score
-P1_LEVEL3_SCORE:  		RB 2 	; 2 bytes - Level 3 score ; equ 072FFCh
+P1_PREV_SCORE:    		RB 2 	; EQU 072F8h ; 2 bytes - Previous total score for P1
+P1_LEVEL1_SCORE:  		RB 2 	; EQU 072FAh ; 2 bytes - Level 1 score
+P1_LEVEL2_SCORE:  		RB 2 	; EQU 072FCh ; 2 bytes - Level 2 score
+P1_LEVEL3_SCORE:  		RB 2 	; EQU 072FEh ; 2 bytes - Level 3 score
 
-P2_LEVEL1_SEC:    		RB 1    ; Player 1 level 1 seconds  ; equ 07300h
-P2_LEVEL1_MIN:    		RB 1    ; Player 1 level 1 minutes
-P2_LEVEL2_SEC:    		RB 1    ; Player 1 level 2 seconds
-P2_LEVEL2_MIN:    		RB 1    ; Player 1 level 2 minutes
-P2_LEVEL3_SEC:    		RB 1    ; Player 1 level 3 seconds
-P2_LEVEL3_MIN:    		RB 1    ; Player 1 level 3 minutes
+P2_LEVEL1_SEC:    		RB 1    ; EQU 07300h ; Player 1 level 1 seconds
+P2_LEVEL1_MIN:    		RB 1    ; EQU 07301h ; Player 1 level 1 minutes
+P2_LEVEL2_SEC:    		RB 1    ; EQU 07302h ; Player 1 level 2 seconds
+P2_LEVEL2_MIN:    		RB 1    ; EQU 07303h ; Player 1 level 2 minutes
+P2_LEVEL3_SEC:    		RB 1    ; EQU 07304h ; Player 1 level 3 seconds
+P2_LEVEL3_MIN:    		RB 1    ; EQU 07305h ; Player 1 level 3 minutes
 
-P2_PREV_SCORE:    		RB 2    ; 2 bytes - Previous total score for P2
-P2_LEVEL1_SCORE:  		RB 2    ; 2 bytes - Level 1 score
-P2_LEVEL2_SCORE:  		RB 2    ; 2 bytes - Level 2 score
-P2_LEVEL3_SCORE:  		RB 2    ; 2 bytes - Level 3 score		; equ 0730Ch
+P2_PREV_SCORE:    		RB 2    ; EQU 07306h ; 2 bytes - Previous total score for P2
+P2_LEVEL1_SCORE:  		RB 2    ; EQU 07308h ; 2 bytes - Level 1 score
+P2_LEVEL2_SCORE:  		RB 2    ; EQU 0730Ah ; 2 bytes - Level 2 score
+P2_LEVEL3_SCORE:  		RB 2    ; EQU 0730Ch ; 2 bytes - Level 3 score		
 
-P1_LEVEL_FINISH_BASE: 	RB 3 	; equ 0730Eh
-P2_LEVEL_FINISH_BASE: 	RB 3 	; equ 07311h
+P1_LEVEL_FINISH_BASE: 	RB 3 	; EQU 0730Eh ;
+P2_LEVEL_FINISH_BASE: 	RB 3 	; EQU 07311h ;
 
+SIGNPOSITION:			RB 1	; EQU 0x07314 ;offeset in the game map (16x10)
+SIGNTIMER:				RB 1	; EQU 0x07315 ;now we have free ram also at the end of the used area
 
-SIGNPOSITION:		RB 1	; offeset in the game map (16x10) ; equ 07314h
-SIGNTIMER:			RB 1	; now we have free ram also at the end of the used area ; equ 07315h
-LEFTOVER_IDX:				RB 2	; equ 07316h
+SCORE_P1_RAM:			RB	 2	;EQU 07316h ;  SCORING FOR PLAYER#1
+SCORE_P2_RAM:			RB	 2	;EQU 07318h ;  SCORING FOR PLAYER#2
 
-; ram for letter monsters
-;LETTERMON_FLAG:		EQU		$72BD
-;LETTERMON_X:		EQU		$72BE
-;LETTERMON_Y:		EQU		$72BF
+TIMER_DATA_BLOCK:		RB	21
 
-
-; FREE RAM ALLOCATED IN THE TIMER TABLE
-; NB they are reset at game start by INIT_TIMER
-
-SAFEROOM0:				EQU $07018	; free RAM in the timer buffer
-SAFEROOM1:				EQU $07019	; free RAM in the timer buffer
-SAFEROOM2:				EQU $0701A	; free RAM in the timer buffer
-SAFEROOM3:				EQU $0701B	; free RAM in the timer buffer
-SAFEROOM4:				EQU $0701C	; free RAM in the timer buffer
-SAFEROOM5:				EQU $0701D	; free RAM in the timer buffer
-SAFEROOM6:				EQU $0701E	; free RAM in the timer buffer
-SAFEROOM7:				EQU $0701F	; free RAM in the timer buffer
-
-
+ENDUSEDRAM:				RB 1
 
 FRAMEPERSEC:			EQU $0069
 DEFER_WRITES:			EQU $73C6		; System flag
@@ -280,7 +270,7 @@ FNAME "mrdo_arcade.rom"
 	ORG $8000
 
 	DW COLECO_TITLE_OFF		   ; SET TO COLECO_TITLE_ON FOR TITLES,COLECO_TITLE_OFF TO TURN THEM OFF
-	DW SPRITE_NAME_TABLE
+	DW 0
 	DW 0
 	DW 0
 	DW CONTROLLER_BUFFER
@@ -371,7 +361,7 @@ nmi_handler:				; do not move from here (!!!)
 	LD		BC,1C2H
 	CALL	WRITE_REGISTER			; disable ISR generation
 
-	CALL	READ_REGISTER
+	IN 		A,(CTRL_PORT)
 
 	LD		A,(GAMECONTROL)
 	BIT		3,A
@@ -382,7 +372,7 @@ nmi_handler:				; do not move from here (!!!)
 
 	CALL	SUB_80D1					; enemy interaction with the play field
 	CALL	MRDO_SPT_UPDATE				; UPDATE MR DO SPRITE
-	CALL	SUB_8251					; update play field
+	CALL	SCORE_UPDATE				; update play score
 	CALL	DISPLAY_EXTRA_01			; update Extra Letters
 	CALL	SETBONUS					; Set bonus items and diamonds
 	CALL	TIME_MGR
@@ -579,19 +569,19 @@ LOC_8241:
 	LD		(IX+7),15
 RET
 
-SUB_8251:						; update play field
-	LD		HL,$727C
+SCORE_UPDATE:					; update play score
+	LD		HL,SCOREFLAG
 	BIT		7,(HL)
-	JR		Z,LOC_825D
-	RES		7,(HL)
-	XOR		A
-	JP		PATTERNS_TO_VRAM
-LOC_825D:
+	JR		Z,.p2
+	RES		7,(HL)				; print only once
+	XOR		A					; print up (P1)
+	JP		PRINT_SCORE
+.p2:
 	BIT		6,(HL)
 	RET		Z
-	RES		6,(HL)
-	LD		A,1
-	CALL	PATTERNS_TO_VRAM
+	RES		6,(HL)				; print only once
+	LD		A,1					; print down (P2)
+	CALL	PRINT_SCORE
 RET
 
 DISPLAY_EXTRA_01:
@@ -617,9 +607,9 @@ LOC_8282:
 	INC		HL
 	LD		A,(GAMECONTROL)
 	BIT		1,A
-	LD		A,($72B8)
+	LD		A,(LETTERMON_DATA_P1)
 	JR		Z,LOC_8297
-	LD		A,($72B9)
+	LD		A,(LETTERMON_DATA_P2)
 LOC_8297:
 	AND		(HL)
 	LD		HL,0
@@ -679,15 +669,15 @@ LOC_82FB:
 	LD		C,A
 	LD		B,0
 	ADD		HL,BC
-	LD		A,(HL)
+	LD		A,(HL)			; choose bonus to set
 	JR		LOC_830D
 LOC_8305:
 	BIT		1,(HL)
 	JR		Z,LOC_8310
 	RES		1,(HL)
-	LD		A,0EH
+	LD		A,0EH			; remove bonus
 LOC_830D:
-	CALL	DEAL_WITH_PLAYFIELD
+	CALL	PRINT_MESSAGE
 LOC_8310:
 	LD		HL,DIAMOND_RAM
 	BIT		7,(HL)
@@ -695,15 +685,15 @@ LOC_8310:
 	LD		IX,APPLEDATA
 	LD		B,(IX+1)		; B = Y-1,C=X
 	LD		C,(IX+2)
-	LD		D,0
+	LD		D,0				; D=0 removes the apple
 	BIT		0,(HL)
 	JR		NZ,LOC_8329
-	LD		D,4
+	LD		D,4					; Diamond
 LOC_8329:
 	LD		A,(HL)
 	XOR		1
 	LD		(HL),A
-	LD		A,13 				;  Diamond!
+	LD		A,13 				;  Diamond! Use apple n. 13 (second out of 5)
 	CALL	PUTSPRITE
 RET
 
@@ -749,16 +739,15 @@ LOC_8375:
 	CALL 	WAIT_NMI
 	POP		AF
 	PUSH	AF
-	AND		A
-	CALL	Z,SUB_851C
+	CALL	Z,SUB_851C	; if Z restart the game
 	CALL	SUB_8585
 	POP		AF
 	CP		2
 	CALL	NZ,CLEAR_SCREEN_AND_SPRITES_01
-	CALL	CLEAR_SCREEN_AND_SPRITES_02
-	CALL	SUB_87F4
+	CALL	BUILD_LEVEL
+	CALL	SUB_Start_the_level
 
-	CALL 	CURRTIMERINIT
+	CALL 	CURRTIMERINIT		; update pointer to timer
 	CALL	FREESIGNTIMER		; avoid lost timers (??)
 
 	; DEBUGGER! COMMENT
@@ -903,7 +892,7 @@ RET
 INIT_VRAM:
 	LD		BC,0
 	CALL	WRITE_REGISTER
-	LD		BC,1C2H
+	LD		BC,182H		; Disable video, disable NMI
 	CALL	WRITE_REGISTER
 	LD		BC,700H
 	CALL	WRITE_REGISTER
@@ -929,12 +918,6 @@ INIT_VRAM:
 	LD		HL,CT
 	CALL	INIT_TABLE
 
-	LD		HL,0
-	LD		DE,2000H
-	XOR		A			; CLEAR PT,PNT,SAT
-	CALL	FILL_VRAM
-
-
 ;	LD		HL,EXTRA_SPRITE_PAT	; EXTRA+Apples+Diamond+Balls
 ;	LD		DE,60H
 ;	LD		IY,80+6*4				; OS7 BUG should have been 72+6*4
@@ -959,8 +942,7 @@ INIT_VRAM:
 	DJNZ	.1
 
 ; screen 2 hack
-	CALL 	MYMODE1			; intermission mode
-	CALL 	MYDISSCR
+	CALL MYMODE1					; switch to intermission  mode (Disable video, enable NMI)
 	
 ; load tile graphics
 
@@ -979,13 +961,11 @@ INIT_VRAM:
 	CALL 	unpack
 
 	CALL 	LOADFONTS
-	CALL 	MYENASCR
 
 	LD HL,mode
 	RES 7,(HL)			; game mode
 
-
-	LD		BC,1E2H		 		; Original game state register
+	LD		BC,1E2H		 		; Original game state register: Enable video and NMI
 	CALL	WRITE_REGISTER
 RET
 
@@ -1037,19 +1017,22 @@ LOC_853F:
 	LD		A,(GAMECONTROL)
 	AND		1					; save B0 == number of players
 	LD		(GAMECONTROL),A		; reset B1 == current player
-
+	
 	LD		A,1
 	CALL	SUB_B286		; build level 1
+	
 	LD		HL,LEVELMAP
 	LD		DE,3400H		; VRAM area for P1 data
 	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P1
 	CALL	WRITE_VRAM
+	
 	LD		HL,LEVELMAP
 	LD		DE,3600H		; VRAM area for P2 data
 	LD		BC,0D4H		; save in VRAM 212 bytes of game state for P2
 	CALL	WRITE_VRAM
+	
 	CALL	SUB_866B
-	LD		HL,$72B8
+	LD		HL,LETTERMON_DATA_P1
 	LD		B,0BH
 	XOR		A
 LOC_8573:
@@ -1057,7 +1040,7 @@ LOC_8573:
 	INC		HL
 	DJNZ	LOC_8573
 	LD		A,8
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	LD		A,7				; Enemy Number
 	LD		(ENEMY_NUM_P1),A
 	LD		(ENEMY_NUM_P2),A
@@ -1083,11 +1066,12 @@ LOC_85A4:
 	XOR		A
 	LD		(BADGUY_BHVR_CNT_RAM),A
 	LD		HL,BADGUY_BEHAVIOR_RAM
-	LD		B,50H
+	LD		B,80
 LOC_85B6:
 	LD		(HL),A
 	INC		HL
 	DJNZ	LOC_85B6
+	
 	CALL	GET_LEVEL
 	DEC		A
 	ADD		A,A
@@ -1121,9 +1105,9 @@ LOC_862E:
 	LD		A,($72C1)
 	AND		7
 	LD		($72C1),A
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	AND		3FH
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	LD		HL,ENEMY_NUM_P1
 	LD		A,(GAMECONTROL)
 	AND		3
@@ -1166,14 +1150,15 @@ CLEAR_SCREEN_AND_SPRITES_01:
 	CALL	REMOVESPRITES
 	LD		A,(GAMECONTROL)
 	BIT		1,A
-	LD		A,4
+	LD		A,4				; get ready player 1
 	JR		Z,LOC_86A1
-	LD		A,5
+	LD		A,5				; get ready player 2
 LOC_86A1:
-	CALL	DEAL_WITH_PLAYFIELD
+	CALL	PRINT_MESSAGE
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
-	LD		HL,0B4H
+	
+	LD		HL,0B4H			; short pause
 	XOR		A
 	CALL	REQUEST_SIGNAL
 	PUSH	AF
@@ -1186,7 +1171,10 @@ LOC_86B2:
 	CALL	WAIT_NMI
 RET
 
-CLEAR_SCREEN_AND_SPRITES_02:
+BUILD_LEVEL:
+	LD		BC,1C2H			; disable interrupt NMI
+	CALL	WRITE_REGISTER
+
 	LD		HL,PNT			; vram PATTERN_NAME_TABLE
 	LD		DE,300H
 	XOR 	A
@@ -1196,24 +1184,26 @@ CLEAR_SCREEN_AND_SPRITES_02:
 	XOR 	A
 	CALL	FILL_VRAM
 	CALL	REMOVESPRITES
-	LD		A,0A0H
-LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE:
+	
+	LD		A,0A0H						; plot level line by line from the bottom (10 blocks 2 lines each)
+NEXTLINE:
 	PUSH	AF
-	CALL	DISPLAY_PLAY_FIELD_PARTS
+	CALL	DISPLAY_PLAY_FIELD_PARTS	; plot a line of blocks
 	POP		AF
 	DEC		A
-	JR		NZ,LOOP_TILL_PLAYFIELD_PARTS_ARE_DONE
+	JR		NZ,NEXTLINE
+	
 	LD		A,1
-	CALL	DEAL_WITH_PLAYFIELD
+	CALL	PRINT_MESSAGE
 	XOR		A
-	CALL	PATTERNS_TO_VRAM
+	CALL	PRINT_SCORE
 	LD		A,(GAMECONTROL)
 	BIT		0,A
 	JR		Z,LOC_8709			; B0 == one player
 	LD		A,0FH
-	CALL	DEAL_WITH_PLAYFIELD
+	CALL	PRINT_MESSAGE
 	LD		A,1
-	CALL	PATTERNS_TO_VRAM
+	CALL	PRINT_SCORE
 LOC_8709:
 	LD		A,(GAMECONTROL)
 	BIT		1,A
@@ -1247,12 +1237,12 @@ LOC_8739:
 	LD		A,2
 	CALL	PUT_VRAM
 	LD		A,2
-	CALL	DEAL_WITH_PLAYFIELD
-	LD		HL,$72B8
+	CALL	PRINT_MESSAGE
+	LD		HL,LETTERMON_DATA_P1
 	LD		A,(GAMECONTROL)
 	BIT		1,A
 	JR		Z,LOC_8753
-	LD		HL,$72B9
+	LD		HL,LETTERMON_DATA_P2
 LOC_8753:
 	LD		DE,12BH
 	LD		BC,0
@@ -1313,10 +1303,10 @@ SEND_LIVES_TO_VRAM:
 	JR		SEND_LIVES_TO_VRAM
 LOC_87B9:
 	LD		A,3
-	CALL	DEAL_WITH_PLAYFIELD
+	CALL	PRINT_MESSAGE
 	LD		B,5
 	LD		IY,APPLEDATA
-	LD		A,0CH
+	LD		A,12
 LOOP_87C6:
 	BIT		7,(IY+0)
 	JR		Z,LOC_87DF
@@ -1325,7 +1315,7 @@ LOOP_87C6:
 	PUSH	AF
 	LD		B,(IY+1)
 	LD		C,(IY+2)
-	LD		D,1			; integer apple
+	LD		D,1			; set integer apple
 	CALL	PUTSPRITE
 	POP		AF
 	POP		IX
@@ -1344,7 +1334,7 @@ EXTRA_02_TXT:
 MR_DO_ICON:
 	DB  75,107
 
-SUB_87F4:	; Start the level
+SUB_Start_the_level:   ; SUB_87F4
 	LD		IY,MRDO_DATA
 	XOR		A
 	LD		(IY+6),A		; $7287 = ??
@@ -1352,9 +1342,9 @@ SUB_87F4:	; Start the level
 	LD		A,1
 	LD		(IY+1),A		; $7282 = Set Mr. Do's starting direction 1=Right,2=Left,3=Up,4=Down
 	LD		(IY+5),A		; $7286 = ?? CURRENT MRDO FRAME !!!
-	LD		(IY+3),0B0H	; $7284 = Set Mr. Do's starting Y coordinate
-	LD		(IY+4),078H	; $7285 = Set Mr. Do's starting X coordinate
-	LD		(IY+0),0C0H	; $7281 = flag
+	LD		(IY+3),0B0H		; $7284 = Set Mr. Do's starting Y coordinate
+	LD		(IY+4),078H		; $7285 = Set Mr. Do's starting X coordinate
+	LD		(IY+0),0C0H		; $7281 = flag
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 
@@ -1362,8 +1352,7 @@ SUB_87F4:	; Start the level
 	LD		HL,1
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		($7283),A		; $7283 = Mr Do's Timer ?
-					;	POP	AF	; WTF??? Potential critical bug
+	LD		(MRDO_DATA.Timer),A		; $7283 = Mr Do's Timer ?
 RET
 
 CHECK_FOR_PAUSE:			; CHECK_FOR_PAUSE
@@ -1474,7 +1463,7 @@ DEAL_WITH_APPLE_FALLING:
 
 	XOR		A
 	BIT		7,(IY+0)
-	JR		Z,LEADS_TO_FALLING_APPLE_04
+	JP		Z,LEADS_TO_FALLING_APPLE_04
 	LD		A,(IY+0)
 	BIT		3,A
 	JR		NZ,LEADS_TO_FALLING_APPLE_01
@@ -1527,7 +1516,23 @@ LEADS_TO_FALLING_APPLE_06:
 	CALL	DEAL_WITH_APPLE_HITTING_SOMETHING
 	JR		Z,LOC_8945
 LOC_8941:
-	CALL	SUB_8972
+
+;	CALL	SUB_8972
+;SUB_8972:
+	LD		HL,0FH
+	LD		A,(IY+0)
+	BIT		6,A
+	JR		NZ,LOC_8992
+	LD		HL,4
+	BIT		5,A
+	JR		NZ,LOC_8992
+	LD		HL,19H
+LOC_8992:
+	XOR		A
+	CALL	REQUEST_SIGNAL
+	LD		(IY+3),A
+;RET
+
 	XOR		A
 LOC_8945:
 	PUSH	AF
@@ -1550,21 +1555,21 @@ RET
 BYTE_896C:
 	DB 000,005,010,015,020,025
 
-SUB_8972:
-	LD		HL,0FH
-	LD		A,(IY+0)
-	BIT		6,A
-	JR		NZ,LOC_8992
-	LD		HL,4
-	BIT		5,A
-	JR		NZ,LOC_8992
-	LD		HL,19H
-
-LOC_8992:
-	XOR		A
-	CALL	REQUEST_SIGNAL
-	LD		(IY+3),A
-RET
+;SUB_8972:
+;	LD		HL,0FH
+;	LD		A,(IY+0)
+;	BIT		6,A
+;	JR		NZ,LOC_8992
+;	LD		HL,4
+;	BIT		5,A
+;	JR		NZ,LOC_8992
+;	LD		HL,19H
+;
+;LOC_8992:
+;	XOR		A
+;	CALL	REQUEST_SIGNAL
+;	LD		(IY+3),A
+;RET
 
 SUB_899A:
 	LD		A,(IY+4)
@@ -1615,13 +1620,13 @@ SUB_89D1:
 	LD		E,(HL)
 	INC		HL
 	LD		D,(HL)
-	CALL	SUB_B601		; score for apples smashed
+	CALL	SUB_B601		; score for apples smashed (enemy smashed?)
 LOC_89E9:
 	POP		IY
 RET
 
 BYTE_89EC:
-	db 100,0,200,0,144,1,88,2,32,3,232,3,176,4,120,5,64,6,8,7,208,7,152,8
+	DW 100,200,600,800,1000,1200,1400,1600,1800,2000,2200
 
 DEAL_WITH_RANDOM_DIAMOND:
 	PUSH	IY
@@ -1881,7 +1886,7 @@ LOC_8BE4:
 RET
 
 SUB_8BF6:	; Falling apple
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	LD		B,A
 	LD		A,1
 	BIT		7,B
@@ -3021,8 +3026,12 @@ LOC_9444:
 	SET		6,(HL)
 RET
 
+; timer for ball
+
 BYTE_944E:
-	db 60,0,120,0,240,0,104,1,224,1,0
+	DW 60,120,240,360,480
+	db 0
+	
 	
 FREESIGNTIMER:
 	LD 		A,(SIGNPOSITION)
@@ -3032,8 +3041,6 @@ FREESIGNTIMER:
 	CALL	FREE_SIGNAL
 	XOR     A			; any value>0 will tell to the MrDo code to test the SIGN timers
 	LD 		(SIGNPOSITION),A
-	LD		HL,LEFTOVER_IDX
-	LD		(HL),0
 	RET
 
 LEADS_TO_CHERRY_STUFF:
@@ -3065,9 +3072,10 @@ TEST3:
 	CALL	FREE_SIGNAL
 
 ; plot a block of 2x2 leftover patterns
-	CALL PLOTLEFTOVERS
-	LD   A, (SIGNPOSITION)
-	LD   BC,SAT_BUFFER
+	LD  	 A, (SIGNPOSITION)
+	CALL 	PLOTLEFTOVERS
+	LD  	 A, (SIGNPOSITION)
+	LD   	BC,SAT_BUFFER
 	CALL	PRINT_2X2_PATTERN
 
 	XOR		A
@@ -3076,8 +3084,8 @@ TEST3:
 
 timer_still_running:
 	CALL    MyNMI_off         ; Disable VDP
-  LD		A, (SIGNPOSITION)
-	LD    BC,TestSign
+	LD		A, (SIGNPOSITION)
+	LD    	BC,TestSign
 	CALL	PRINT_2X2_PATTERN
 	CALL	MyNMI_on
 
@@ -3147,44 +3155,44 @@ LOC_94C4:
 	LD		A,C
 	JR		NZ,LOC_94ED
 	ADD		A,6
-	LD		($72DB),A
+	LD		(BALLDATA+2),A
 	ADD		A,3
 	JR		C,LOC_9538
 	LD		C,A
 	LD		A,B
-	LD		($72DA),A
+	LD		(BALLDATA+1),A
 	JR		LOC_9524
 LOC_94ED:
 	SUB		6
-	LD		($72DB),A
+	LD		(BALLDATA+2),A
 	SUB		3
 	JR		C,LOC_9538
 	LD		C,A
 	LD		A,B
-	LD		($72DA),A
+	LD		(BALLDATA+1),A
 	JR		LOC_9524
 LOC_94FD:
 ;	CP		3		; redundant
 	LD		A,B
 	JR		NZ,LOC_9514
 	SUB		6
-	LD		($72DA),A
+	LD		(BALLDATA+1),A
 	SUB		3
 	CP		1CH
 	JR		C,LOC_9538
 	LD		B,A
 	LD		A,C
-	LD		($72DB),A
+	LD		(BALLDATA+2),A
 	JR		LOC_9524
 LOC_9514:
 	ADD		A,6
-	LD		($72DA),A
+	LD		(BALLDATA+1),A
 	ADD		A,3
 	CP		0B5H
 	JR		NC,LOC_9538
 	LD		B,A
 	LD		A,C
-	LD		($72DB),A
+	LD		(BALLDATA+2),A
 LOC_9524:
 	PUSH	IX
 	CALL	PEEKMAP
@@ -3320,7 +3328,7 @@ LOC_AEC1:
 	LD		A,(BADGUY_BHVR_CNT_RAM)
 	LD		L,A
 	LD		H,0					
-;	LD		DE,BADGUY_BEHAVIOR_RAM
+;	LD		DE,BADGUY_BEHAVIOR_RAM		; already in de
 	ADD		HL,DE
 	LD		(HL),B
 	INC		A
@@ -3444,96 +3452,69 @@ GRAB_SOME_CHERRIES:
 	
 ; allocate  500 sign timer	here
 	XOR		A			; A = 0 if one-shot, else free-running
-	LD		HL,2*60		; time length	(3 secs)
+	LD		HL,2*60		; time length	(2 secs)
 	CALL	REQUEST_SIGNAL
 	LD		(SIGNTIMER),A	; ID of the allocated timer in the current 
 
   ; Get map position for cleanup tracking
-  LD      A,(MRDO_DATA.Y)    
-  LD      B,A
-  LD      A,(MRDO_DATA.X)    
-  LD      C,A
-  CALL    PEEKMAP
-  ; IX Stores the byte in the game map
-  ; Store the address that IX points to in LEFTOVER_IDX
-  LD		HL,LEFTOVER_IDX
-  PUSH  IX
-  POP  BC
-  LD  (HL),C
-  INC  HL
-  LD  (HL),B
-  ; Store position for cleanup (D-1 as noted in comments)
-  LD  A,D
-  DEC  A
-  LD  (SIGNPOSITION),A
-  LD  BC,TestSign
-  CALL  PRINT_2X2_PATTERN
-  POP  IY
-  RET
+	LD      A,(MRDO_DATA.Y)    
+	LD      B,A
+	LD      A,(MRDO_DATA.X)    
+	LD      C,A
+	CALL    PEEKMAP
+
+  ; Store position for cleanup (A-1 as noted in comments)
+
+	DEC  	A
+	LD  	(SIGNPOSITION),A
+	LD  	BC,TestSign
+	CALL  	PRINT_2X2_PATTERN
+	POP  IY
+	RET
 
 
 ; Input:
 ;   A = Position value (X in lower nibble, Y in upper nibble)
 ;   BC = Pattern source address (SAT_BUFFER/TestSign etc.)
 PRINT_2X2_PATTERN:
-    PUSH    BC
-    PUSH    AF              ; Save original values
-    AND     0Fh            ; Mask to get X coordinate (lower nibble) (e.g., 7)
-    ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
-    LD      B,A            ; Store X position in B
-    
-    POP     AF              ; Restore original value
-    AND     0F0h           ; Mask to get Y coordinate (upper nibble)
-    RRCA                    ; Rotate right 4 times to get value (e.g., 6)
-    RRCA
-    RRCA
-    RRCA
-    ADD     A,A            ; Multiply by 2 (e.g., 7*2 = 14)
-    ADD     A,3            ; Add 3 for score area offset (e.g., 14+3 = 17)
-    LD      C,A            ; Store Y position in C
-    ; Calculate VRAM position: DE = B + (C * 32)
-    LD      H,0            ; Calculate C * 32 first
-    LD      L,C
-    ADD     HL,HL          ; Multiply by 2
-    ADD     HL,HL          ; Multiply by 4
-    ADD     HL,HL          ; Multiply by 8
-    ADD     HL,HL          ; Multiply by 16
-    ADD     HL,HL          ; Multiply by 32
-    LD      D,H
-    LD      E,L            ; DE now contains Y*32
-    
-    LD      A,B            ; Add X offset
-    LD      H,0
-    LD      L,A
-    ADD     HL,DE          ; Add X offset to Y*32
-    EX      DE,HL          ; Put result in DE
-    POP     BC
-    PUSH    BC
-    PUSH    DE
-    ; Write first part of sign
-    LD      H,B
-    LD      L,C
-    LD      A,2
-    LD      IY,2
-    CALL    PUT_VRAM
-    POP     DE
-    ; For second part, just add 32 to DE to move down one row
+	PUSH	AF
+	AND 	$F0
+	LD		L,A
+	LD		H,0
+	ADD 	HL,HL		; y * 2 * 16
+	ADD 	HL,HL		; y * 2 * 32
+	LD		DE,3*32
+	ADD     HL,DE		; count the scorebar
+	POP 	AF
+	AND 	$0F			
+	ADD 	A,A			; x * 2
+	ADD 	A,L			; carry not possible here
+	LD  	L,A			; HL = x*2 + y*2 *32 + 3*32
+	
+	EX		DE,HL		; VRAM position in DE
 
-    LD      A,32
-    ADD     A,E            ; Add 32 to E
-    LD      E,A
-    JR      NC,NO_CARRY    ; If no carry, skip
-    INC     D              ; If carry, increment D
-NO_CARRY:
-    POP		BC
-    INC		BC
-    INC		BC
-    LD		  H,B
-    LD		  L,C
+	LD	L,C				; ROM position in HL
+	LD	H,B
+    LD      IY,2
+    LD      A,2
+	PUSH	HL
+	PUSH	DE
+    CALL    PUT_VRAM
+	POP 	DE
+	LD		HL,32
+	ADD     HL,DE
+	EX      DE,HL
+	POP 	HL
+	INC     HL
+	INC     HL
     LD      A,2
     LD      IY,2
     CALL    PUT_VRAM
     RET
+	
+
+
+	
 LOC_96CA:
 	LD		(IY+7),1
 	PUSH	IY
@@ -3547,26 +3528,27 @@ LOC_96D5:
 	SET		1,(IY+0)
 RET
 
+
+	
 TestSign:	DB 120,121,122,123
 
-PLOTLEFTOVERS:
-; we have stored an index to the leftover pattern in LEFTOVER_IDX
-; Get the byte at the index
-	LD		HL,LEFTOVER_IDX
-	LD    C, (HL)
-	INC		HL
-	LD    B, (HL)
-	PUSH  BC
-	POP		IX
-	LD		A,(IX+0)
 
+PLOTLEFTOVERS:
+	LD		B,0
+	LD		C,A
+	LD		HL,LEVELMAP
+	ADD		HL,BC
+
+; we read the  leftover pattern in LEVELMAP
+
+	LD		A,(HL)
 	RRCA
 	RRCA
 	RRCA
 	RRCA
 	AND 	15		; divide by 16
 					; range 1-14
-	ADD 	A,A
+	ADD 	A,A		; x2 to accedd the table
 	LD		E,A
 	LD  	D,0
 	LD 		HL,LfovrConf-2
@@ -3575,6 +3557,8 @@ PLOTLEFTOVERS:
 	CALL 	EXPAND
 	INC		HL
 	LD		DE,SAT_BUFFER+0
+;	CALL 	EXPAND
+;	RET
 EXPAND:
 	XOR 	A
 	RLD				; upper nibble
@@ -3582,12 +3566,15 @@ EXPAND:
 	INC		DE
 	XOR 	A
 	RRD				; lower nibble
+;	CALL 	.0
+;	RET
 .0:	CP		$F
 	JR 		Z,.1
 	ADD		A,88	
 .1:	LD 		(DE),A
 	RET
 
+	
 LfovrConf:
 	DW	$0167	;1F
 	DW	$4501	;2F
@@ -3603,6 +3590,7 @@ LfovrConf:
 	DW	$2233	;CF
 	DW	$FF33	;DF
 	DW	$22FF	;EF
+
 
 SUB_96E4:
 	LD		A,(GAMEFLAGSBONUSITEM)
@@ -4571,7 +4559,7 @@ LOC_9D79:
 	PUSH	BC
 	PUSH	IY
 	POP		HL
-	LD		BC,$72B8
+	LD		BC,LETTERMON_DATA_P1
 	AND		A
 	SBC		HL,BC
 	POP		BC
@@ -5365,9 +5353,9 @@ SUB_A259:
 	LD		A,E
 	CALL	SUB_ABB7
 	PUSH	BC
-	LD		A,($72DA)
+	LD		A,(BALLDATA+1)
 	LD		B,A
-	LD		A,($72DB)
+	LD		A,(BALLDATA+2)
 	LD		C,A
 	CALL	PEEKMAP
 	PUSH	AF
@@ -5819,11 +5807,11 @@ LOC_A53A:
 RET
 
 SUB_A53E:
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	BIT		7,A
 	JR		NZ,LOC_A551
 	SET		7,A
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	LD		A,40H
 	LD		(LETTERMON_FLAG),A
 	JR		LOC_A5A6
@@ -5835,7 +5823,7 @@ LOC_A551:
 	LD		A,($72C0)
 	CALL	TEST_SIGNAL
 	JR		Z,LOC_A5BB
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	BIT		6,A
 	JR		Z,LOC_A56F
 	CALL	SUB_A6BB
@@ -5857,10 +5845,18 @@ LOC_A57B:
 	CALL	SUB_B8A3
 	JR		LOC_A5A9
 LOC_A591:
-	JP		LOC_D309
-
-
-LOC_A596:
+;	JP		LOC_D309
+;LOC_D309:
+	LD		HL,GAMEFLAGSBONUSITEM
+	BIT		5,(HL)
+	JR		Z,LOC_D319
+	RES		5,(HL)
+	PUSH	IY
+	CALL	PLAY_NO_EXTRA_NO_CHOMPERS
+	POP		IY
+LOC_D319:
+;	JP		LOC_A596
+;LOC_A596:
 	LD		A,(GAMEFLAGSBONUSITEM)
 	BIT		4,A
 	JR		NZ,LOC_A5A9
@@ -5877,7 +5873,7 @@ LOC_A5AA:
 	LD		HL,0AH
 	XOR		A
 	CALL	REQUEST_SIGNAL
-	LD		($72C0),A
+	LD		(LETTERMON_TIMER),A
 	POP		AF
 	PUSH	AF
 	CALL	SUB_A788
@@ -5887,12 +5883,12 @@ LOC_A5BB:
 RET
 
 SUB_A5BD:
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	INC		A
 	AND		0F7H
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	LD		HL,BYTE_A5F1
-	LD		A,($72BA)
+;	LD		A,(LETTERMON_COUNTER)	; already in A
 	AND		7
 	LD		C,A
 	LD		B,0
@@ -5905,7 +5901,7 @@ SUB_A5BD:
 	ADD		HL,BC
 	LD		A,(HL)
 	LD		($72BC),A
-	LD		HL,BYTE_A617
+	LD		HL,BYTE_A616+1
 	ADD		HL,BC
 	LD		A,(HL)
 	LD		($72BB),A
@@ -5913,18 +5909,19 @@ SUB_A5BD:
 	LD		($72C2),A
 RET
 
+; X Coords for Letter Monster in the scorebar
 BYTE_A5F1:
 	DB 091,107,123,139,155,139,123,107
 
 SUB_A5F9:
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	AND		7
 	LD		C,A
 	LD		B,0
-	LD		HL,BYTE_A617
+	LD		HL,BYTE_A616+1
 	ADD		HL,BC
 	LD		B,(HL)
-	LD		HL,$72B8
+	LD		HL,LETTERMON_DATA_P1
 	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
@@ -5936,9 +5933,7 @@ LOC_A613:
 RET
 
 BYTE_A616:
-	DB 002
-BYTE_A617:
-	DB 001,002,004,008,016,008,004,002
+	DB 002,001,002,004,008,016,008,004,002
 
 SUB_A61F:
 	LD		BC,(SCORE_P1_RAM)
@@ -5953,7 +5948,7 @@ LOC_A637:
 	LD		D,(HL)
 	LD		E,0
 LOC_A63A:
-	LD		A,C
+	LD		A,C						; spawn letter monser each 10.000 points
 	SUB		0F4H
 	LD		C,A
 	LD		A,B
@@ -5968,13 +5963,13 @@ LOC_A647:
 	CP		D
 	JR		Z,LOC_A65F
 	LD		(HL),A
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	LD		B,A
 	BIT		6,A
 	JR		NZ,LOC_A65F
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	SET		5,A
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	INC		E
 LOC_A65F:
 	LD		A,E
@@ -5996,9 +5991,9 @@ LOC_A681:
 	LD		(LETTERMON_Y),A
 	LD		A,0CH
 	LD		($72C2),A
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	SET		6,A
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	LD		A,(GAMEFLAGSBONUSITEM)
 	BIT		5,A
 	JR		NZ,LOC_A6AB
@@ -6008,12 +6003,18 @@ LOC_A681:
 	CALL	REQUEST_SIGNAL
 	LD		(GAMETIMER),A
 LOC_A6AB:
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	BIT		5,A
 	RET		Z
 	RES		5,A
-	LD		($72BA),A
-	JP		LOC_D31C
+	LD		(LETTERMON_COUNTER),A
+;	JP		LOC_D31C
+;RET
+;LOC_D31C:
+	LD		A,(GAMEFLAGSBONUSITEM)
+	BIT		5,A
+	RET		NZ
+	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 RET
 
 SUB_A6BB:
@@ -6032,10 +6033,10 @@ SUB_A6BB:
 	LD		(LETTERMON_FLAG),A
 	LD		A,1
 	LD		($72C2),A
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	RES		6,A
 	RES		5,A
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	CALL	SUB_CA24
 	XOR		A
 	JP		LOC_A77E
@@ -6120,17 +6121,17 @@ SUB_A788:
 	LD		A,(GAMEFLAGSBONUSITEM)
 	BIT		4,A
 	JR		Z,LOC_A796
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	BIT		6,A
 	RET		Z
 LOC_A796:
 	LD		A,(GAMECONTROL)
 	BIT		1,A
-	LD		IX,$72B8
+	LD		IX,LETTERMON_DATA_P1
 	JR		Z,LOC_A7A5
-	LD		IX,$72B9
+	LD		IX,LETTERMON_DATA_P2
 LOC_A7A5:
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	AND		7
 	LD		HL,BYTE_A7DC
 	LD		C,A
@@ -6146,7 +6147,7 @@ LOC_A7A5:
 	INC		HL
 LOC_A7BC:
 	LD		D,(HL)
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	BIT		5,A
 	JR		Z,LOC_A7C8
 	RES		5,A
@@ -6155,7 +6156,7 @@ LOC_A7C8:
 	SET		5,A
 	INC		D
 LOC_A7CB:
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	LD		A,(LETTERMON_Y)
 	LD		B,A
 	LD		A,(LETTERMON_X)
@@ -6207,8 +6208,28 @@ LOC_A83C:
 	POP		AF
 RET
 
-
-LOC_A853:
+SUB_A83E:
+	LD		A,(TIMERCHOMP1)
+	CALL	TEST_SIGNAL
+	JP		Z,LOC_D3A6
+	LD		A,(GAMEFLAGS)
+	XOR		1					; b0 in GAMEFLAGS ??
+	LD		(GAMEFLAGS),A
+	LD		HL,78H
+	BIT		0,A
+	JR		Z,LOC_D39F
+	LD		HL,3CH
+LOC_D39F:
+	XOR		A
+	CALL	REQUEST_SIGNAL
+	LD		(TIMERCHOMP1),A
+LOC_D3A6:
+	LD		A,(GAMEFLAGS)
+	BIT		0,A				; b0 in GAMEFLAGS ??
+	JR		NZ,LOC_A858
+;	JP		Z,LOC_A853
+;	JP		LOC_A858
+;LOC_A853:
 	CALL	SUB_A460
 	RET
 LOC_A858:
@@ -6258,9 +6279,13 @@ LOC_A898:
 	POP		HL
 	RET		Z
 	LD		A,(IY+4)
-	JP		LOC_D3D5
-
-LOC_A8AF:
+;	JP		LOC_D3D5
+;LOC_D3D5:
+	AND		7
+	LD		C,0C0H
+	CP		3
+;	JP		LOC_A8AF
+;LOC_A8AF:
 	JR		NC,LOC_A8B3
 	LD		C,30H
 LOC_A8B3:
@@ -6292,15 +6317,15 @@ SUB_A8CB:
 
 	LD		A,(IY+4)
 	AND		7
-	DEC		A						; 1 = right
+	CP      1; DEC		A						; 1 = right
 	JR		Z,CHMPRIGHT
-	DEC		A						; 2 = left
+	CP      2; DEC		A						; 2 = left
 	JR		Z,CHMPLEFT
-	DEC		A						; 3 = up
+	CP      3; DEC		A						; 3 = up
 	JR		Z,CHMPUP
-	DEC		A						; 4 = down
+	CP      4; DEC		A						; 4 = down
 	JR		Z,CHMPDOWN
-									; ANY OTHER VALUE (??)
+	ret								; ANY OTHER VALUE (?!?)
 CHMPLEFT:
 	LD		D,3
 	JR		LOC_A905
@@ -6421,7 +6446,7 @@ LOC_A973:
 	JR		Z,LOC_AB0D
 	LD		A,8
 LOC_AB0D:
-	CALL	DEAL_WITH_PLAYFIELD
+	CALL	PRINT_MESSAGE
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	XOR		A
@@ -6474,11 +6499,11 @@ ExtraMrDo: 	; CONGRATULATIONS! YOU WIN AN EXTRA MR. DO! TEXT and MUSIC
 	LD		HL,GAMECONTROL
 	BIT		1,(HL)
 	JR		NZ,.p2
-	LD		($72B8),A
+	LD		(LETTERMON_DATA_P1),A
 	LD		HL,LIVES_LEFT_P1_RAM
 	JR		LOC_A9EC
 .p2:
-	LD		($72B9),A
+	LD		(LETTERMON_DATA_P2),A
 	LD		HL,LIVES_LEFT_P2_RAM
 
 LOC_A9EC:
@@ -6515,24 +6540,23 @@ LOC_A9F2:
 	JR		Z,.1
 	POP		AF
 
+;	CALL	REMOVESPRITES
 	CALL 	MYDISSCR
-	CALL	REMOVESPRITES
 
-	LD		HL,0000H			; do not delete player data in VRAM
-	LD		DE,3000H
-	xor		a					; fill with space
-	CALL	FILL_VRAM
+	LD HL,SAT
+	LD	A,208
+	CALL MyNMI_off
+	CALL MYWRTVRM
+	CALL cvb_MYCLS
 
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
-
 	CALL	INIT_VRAM
 	CALL	RESTORE_PLAYFIELD_COLORS
 
 	CALL 	WAIT_NMI
 
-;	Original code's final register writes
-	LD		BC,1E2H		 ; Original game state register
+	LD		BC,1E2H		 ; Original game state register: Enable video and NMI
 	CALL	WRITE_REGISTER
 RET
 
@@ -6821,7 +6845,7 @@ SUB_AB28:
 	CALL	FILL_VRAM
 	CALL	REMOVESPRITES
 	LD		A,9
-	CALL	DEAL_WITH_PLAYFIELD				; game over text
+	CALL	PRINT_MESSAGE				; game over text
 	LD		BC,1E2H
 	CALL	WRITE_REGISTER
 	CALL	PLAY_GAME_OVER_TUNE
@@ -7286,7 +7310,7 @@ SUBMIRDUP:
 	INC		IY
 RET
 
-DEAL_WITH_PLAYFIELD:			; Print strings to the playfield
+PRINT_MESSAGE:			; Print strings to the playfield
 	DEC		A
 	ADD		A,A
 	LD		C,A
@@ -7738,7 +7762,7 @@ LOC_B105:
 	JP		NZ,LOC_B070
 	DEC		H
 	JR		Z,LOC_B123
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	BIT		6,A
 	JR		Z,LOC_B123
 	LD		IY,LETTERMON_FLAG
@@ -8405,7 +8429,9 @@ RET
 ;	EX		DE,HL
 ;RET
 
-PATTERNS_TO_VRAM:
+; convert binary score in decimal and print it
+
+PRINT_SCORE:			; A=0 for P1, A=1 for P2
 	ADD		A,A
 	ADD		A,A
 	LD		C,A
@@ -8420,7 +8446,7 @@ PATTERNS_TO_VRAM:
 	EX		DE,HL
 	LD		E,(HL)
 	INC		HL
-	LD		D,(HL)
+	LD		D,(HL)		; DE = score of p1 or p2
 	LD		HL,SCRATCH
 ;	CALL	LOC_AE88
 ;LOC_AE88:
@@ -8431,17 +8457,17 @@ LOOP_AE8E:
 	XOR		A
 	EX		DE,HL
 	LD		C,(IX+0)
-	LD		B,(IX+1)
+	LD		B,(IX+1)	; compare with current power of 10 
 LOC_AE97:
 	AND		A
 	SBC		HL,BC
 	JR		C,LOC_AE9F
-	INC		A
+	INC		A			; decimal digit
 	JR		LOC_AE97
 LOC_AE9F:
 	ADD		HL,BC
 	EX		DE,HL
-	ADD		A,0D8H
+	ADD		A,0D8H		; offset for "0"
 	LD		(HL),A
 	INC		HL
 	INC		IX
@@ -8450,22 +8476,30 @@ LOC_AE9F:
 	DJNZ	LOOP_AE8E
 ; ret	(was a subroutine)
 	LD		A,0D8H
-	LD		($72EC),A
+	LD		(SCRATCH+5),A	; last fake "0"
 	LD		A,2
 	POP		HL
 	LD		E,(HL)
 	INC		HL
 	LD		D,(HL)
 	LD		HL,SCRATCH
-	LD		IY,6
+	LD		IY,6			; print 6 digits
 	CALL	PUT_VRAM
 RET
 
 BYTE_B5D4:
-	DB 125,114,036,000,127,114,068,000,000
+	DW SCORE_P1_RAM
+	DW 			36	; SCREEN POSITION SCORE P1
+	DW SCORE_P2_RAM
+	DW 			68	; SCREEN POSITION SCORE P2
+;	DB 			0	; ?? unused?
 
 BYTE_AEAD:
-	DB 016,039,232,003,100,000,010,000,001,000
+	DW 10000
+	DW  1000
+	DW   100
+	DW    10
+	DW 	   1
 
 SUB_B5DD:	; Ball collision detection
 	LD		A,B
@@ -8497,18 +8531,18 @@ SUB_B601:							; add DE to the SCORE of the active player
 	LD		IX,SCORE_P2_RAM
 	LD		C,40H
 LOC_B614:
-	LD		L,(IX+0)
+	LD		L,(IX+0)				; change here to pass to 24 bits
 	LD		H,(IX+1)
 	ADD		HL,DE
 	LD		(IX+0),L
 	LD		(IX+1),H
-	LD		A,($727C)
-	OR		C
-	LD		($727C),A
+	LD		A,(SCOREFLAG)		; tell where to print the score
+	OR		C				; $80 for P1, $40 for P2
+	LD		(SCOREFLAG),A
 RET
 
 
-PUTSPRITE:		; B=Y, C=X, A=Object, D=Frame
+PUTSPRITE:		; B=Y, C=X, A = OBJECT/SAT Position, D=Frame
 		PUSH	DE			; Save FRAME NUMBER in D
 
 		AND		7FH			; SAT position
@@ -8542,6 +8576,9 @@ PUTSPRITE:		; B=Y, C=X, A=Object, D=Frame
 
 		LD		A,B
 		SUB		8
+;		JR 		NC,.1
+;		LD		A,$D1					; remove if partially offscreen (fix glitch)
+;.1:		
 		LD		(IX+0),A				; Y
 		LD		A,C
 		SUB		8
@@ -8627,23 +8664,24 @@ SUB_B76D:
 	BIT		0,(HL)
 	JR		Z,LOC_B781
 	RES		0,(HL)
-	LD		A,(SCORE_P1_RAM)
+	LD		A,(SCORE_P1_RAM)		; THIS SEEMS A BUG (!?) WHY USE THE SCORE AS TIMER ID ?
+;	LD		A,(LETTERMON_TIMER)		; doesn't solve....
 	CALL	FREE_SIGNAL
 LOC_B781:
 	CALL	SUB_CA24
 	LD		A,1
 	LD		($72C2),A
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	RES		6,A
 	RES		5,A
-	LD		($72BA),A
+	LD		(LETTERMON_COUNTER),A
 	AND		7
 	LD		C,A
 	LD		B,0
 	LD		HL,BYTE_B7BC
 	ADD		HL,BC
 	LD		B,(HL)
-	LD		HL,$72B8
+	LD		HL,LETTERMON_DATA_P1
 	LD		A,(GAMECONTROL)
 	AND		3
 	CP		3
@@ -8780,14 +8818,18 @@ LOC_B865:
 LOC_B884:
 	XOR		A
 	LD		(GAMEFLAGS),A
-	LD		A,($72BA)
+	LD		A,(LETTERMON_COUNTER)
 	BIT		6,A
 	JR		Z,LOC_B89E
 	LD		HL,$72C4
-	JP		LOC_D300
-LOC_B895:
+	; JP		LOC_D300
+; LOC_D300:
+	SET		0,(HL)
+	LD		HL,5A0H
+	XOR		A
+	; JP		LOC_B895	
+; LOC_B895:
 	CALL	REQUEST_SIGNAL
-
 	LD		(GAMETIMER),A
 	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 
@@ -8855,8 +8897,8 @@ LOC_B8B1:
 	BIT		0,(HL)
 	JP		Z,LOC_B8EC
 	RES		0,(HL)
-	LD		A,(GAMETIMER)			; ?? what is it for ??
-	CALL	TEST_SIGNAL				; apparently unused
+;	LD		A,(GAMETIMER)			; ?? what is it for ??
+;	CALL	TEST_SIGNAL				; apparently unused
 
 LOC_B8EC:
 	LD		A,80H
@@ -9806,7 +9848,13 @@ PLAY_NO_EXTRA_NO_CHOMPERS:
 	LD		B,NO_EXTRA_TUNE_0B
 	CALL	PLAY_IT
 	LD		B,NO_EXTRA_TUNE_0C
-	JP		LOC_D3DE
+;	JP		LOC_D3DE
+; LOC_D3DE:
+	CALL	PLAY_IT
+	LD		A,0FFH
+	LD		(SOUND_BANK_01_RAM),A
+	LD		(SOUND_BANK_02_RAM),A
+RET
 
 PLAY_DESSERT_COLLECT_SOUND:
 	LD    B,NO_EXTRA_TUNE_0C
@@ -9889,7 +9937,15 @@ PLAY_BLUE_CHOMPERS_SOUND:
 	LD		B,BLUE_CHOMPER_SND_0A
 	CALL	PLAY_IT
 	LD		B,BLUE_CHOMPER_SND_0B
-	JP		LOC_D3EA
+;	JP		LOC_D3EA
+; LOC_D3EA:
+	CALL	PLAY_IT
+	LD		A,0FFH
+	LD		(SOUND_BANK_01_RAM),A
+	LD		(SOUND_BANK_02_RAM),A
+	LD		(SOUND_BANK_07_RAM),A
+RET
+
 
 SOUND_TABLE:
 	DW NEW_OPENING_TUNE_P1
@@ -9954,18 +10010,18 @@ SOUND_TABLE:
 	DW SOUND_BANK_02_RAM
 	DW VERY_GOOD_TUNE_P3
 	DW SOUND_BANK_03_RAM
-  DW SFX_COIN_INSERT
-  DW SOUND_BANK_01_RAM
+	DW SFX_COIN_INSERT
+	DW SOUND_BANK_01_RAM
 	DW NO_EXTRA_TUNE_P4
 	DW SOUND_BANK_07_RAM
 	DW NO_EXTRA_TUNE_P5
 	DW SOUND_BANK_06_RAM
-  DW TWINKLE_TWINKLE_P1
-  DW SOUND_BANK_03_RAM
-  DW TWINKLE_TWINKLE_P2
-  DW SOUND_BANK_04_RAM
-  DW TWINKLE_TWINKLE_P3
-  DW SOUND_BANK_05_RAM
+	DW TWINKLE_TWINKLE_P1
+	DW SOUND_BANK_03_RAM
+	DW TWINKLE_TWINKLE_P2
+	DW SOUND_BANK_04_RAM
+	DW TWINKLE_TWINKLE_P3
+	DW SOUND_BANK_05_RAM
 
 GRAB_CHERRIES_SOUND:
 	DB 193,214,048,002,051,149,193,214,048,002,051,149,193,214,048,002,051,149,234,193,190,048
@@ -10180,8 +10236,6 @@ TWINKLE_TWINKLE_P1:
   DB 064,$54,048,013,097
 
   DB 064,$5F,048,026,098
-
-
 
   DB 064,$D5,048,013,097
   DB 064,$D5,048,013,097
@@ -10438,71 +10492,7 @@ TWINKLE_TWINKLE_P3:
   DB 192,$1D,049,006,225
   ; C
   DB 192,$AB,049,013,208
-LOC_D300:
-	SET		0,(HL)
-	LD		HL,5A0H
-	XOR		A
-	JP		LOC_B895
-LOC_D309:
-	LD		HL,GAMEFLAGSBONUSITEM
-	BIT		5,(HL)
-	JR		Z,LOC_D319
-	RES		5,(HL)
-	PUSH	IY
-	CALL	PLAY_NO_EXTRA_NO_CHOMPERS
-	POP		IY
-LOC_D319:
-	JP		LOC_A596
-LOC_D31C:
-	LD		A,(GAMEFLAGSBONUSITEM)
-	BIT		5,A
-	RET		NZ
-	CALL	PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
-RET
-
-
-
-
-SUB_A83E:
-LOC_D383:
-	LD		A,(TIMERCHOMP1)
-	CALL	TEST_SIGNAL
-	JP		Z,LOC_D3A6
-	LD		A,(GAMEFLAGS)
-	XOR		1					; b0 in GAMEFLAGS ??
-	LD		(GAMEFLAGS),A
-	LD		HL,78H
-	BIT		0,A
-	JR		Z,LOC_D39F
-	LD		HL,3CH
-LOC_D39F:
-	XOR		A
-	CALL	REQUEST_SIGNAL
-	LD		(TIMERCHOMP1),A
-LOC_D3A6:
-	LD		A,(GAMEFLAGS)
-	BIT		0,A				; b0 in GAMEFLAGS ??
-	JP		Z,LOC_A853
-	JP		LOC_A858
-
-LOC_D3D5:
-	AND		7
-	LD		C,0C0H
-	CP		3
-	JP		LOC_A8AF
-LOC_D3DE:
-	CALL	PLAY_IT
-	LD		A,0FFH
-	LD		(SOUND_BANK_01_RAM),A
-	LD		(SOUND_BANK_02_RAM),A
-RET
-LOC_D3EA:
-	CALL	PLAY_IT
-	LD		A,0FFH
-	LD		(SOUND_BANK_01_RAM),A
-	LD		(SOUND_BANK_02_RAM),A
-	LD		(SOUND_BANK_07_RAM),A
-RET
+  
 
 
 NEW_OPENING_TUNE_P1:
@@ -11207,7 +11197,6 @@ Skill4:		db "4.PR","O" or 128
 GET_GAME_OPTIONS:
 	CALL	ShowPlyrNum			; Show 1 or 2 Players
 .PlyrNumWait:
-	CALL	POLLER
 	LD		A,(KEYBOARD_P1)
 	DEC		A					; 0-1	valid range
 	CP		2
@@ -11228,7 +11217,6 @@ GET_GAME_OPTIONS:
 .OnePlyr:
 
 .WaitKeyRelease:
-	CALL	POLLER
 	LD		A,(KEYBOARD_P1)
 	CP		15
 	JR		NZ,.WaitKeyRelease
@@ -11238,7 +11226,6 @@ GET_GAME_OPTIONS:
 
 	CALL	ShowSkill			; Show Select skill 1-4
 .SkillWait:
-	CALL	POLLER
 	LD		A,(KEYBOARD_P1)
 	DEC		A					; 0-3 valid range
 	CP		4
@@ -11258,8 +11245,7 @@ GET_GAME_OPTIONS:
 StrINSERTCOIN: 	db "INSERT COIN"," " or 128
 
 cvb_ANIMATEDLOGO:
-	CALL MYMODE2					; switch to intermission  mode
-	CALL MYDISSCR
+	CALL MYMODE2					; switch to intermission  mode (Disable video, Enable NMI)
 	CALL cvb_MYCLS
 
 	LD DE,$0000
@@ -11303,13 +11289,19 @@ cvb_ANIMATEDLOGO:
 	DJNZ .3
 
 	CALL 	MYDISSCR
+	CALL cvb_MYCLS
 
-	LD		HL,SAT				; remove sprites in the new position of the SAT
-	LD		A,208
+	LD		HL,CT		; avoid glitches during screen transition
+	LD		DE,256*8
+	XOR		A			; CLEAR CT
+	CALL	FILL_VRAM
+	
+
+	LD	HL,SAT				; remove sprites in the new position of the SAT
+	LD	A,208
 	CALL MyNMI_off
 	CALL MYWRTVRM
 	CALL MyNMI_on
-
 
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
@@ -11359,8 +11351,7 @@ colorframes_plt:
 	; MAKE SURE TO BE IN INTERMISSION MODE BEFORE CALLING
 
 cvb_EXTRASCREEN:
-	CALL MYMODE1					; switch to intermission  mode
-	CALL MYDISSCR
+	CALL MYMODE1					; switch to intermission  mode (Disable video, enable NMI)
 	CALL cvb_MYCLS
 
 	LD DE,$2000						; Mirror mode for colors
@@ -11381,13 +11372,9 @@ cvb_EXTRASCREEN:
 	LD HL,cvb_IMAGE_SPRITES
 	CALL unpack						; 22 sprites
 
-	LD		HL,$1800
-	LD		DE,3*256
-	LD		A,1						; black tile
-	CALL MyNMI_off
-	CALL	FILL_VRAM
-	CALL MyNMI_on
-
+;	LD		A,1						; black tile
+;	CALL	cvb_MYCLS.2
+;
 ;	LD HL,cvb_IMAGE_PATTERN
 ;	LD DE,$1800+5
 ;	LD BC,24*256+22
@@ -11396,7 +11383,6 @@ cvb_EXTRASCREEN:
 	LD DE,$1800
 	LD HL,cvb_IMAGE_PATTERN_plt
 	CALL unpack
-
 
 	LD BC,128
 	LD DE,$1B00
@@ -11440,14 +11426,17 @@ WONDERFUL:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	; Show the intermission screen
 	;
+	LD		BC,1A2H		; Disable video, enable NMI
+	CALL	WRITE_REGISTER
 
+	CALL MYMODE1					; switch to intermission  mode (Disable video, enable NMI)
+	
 	LD HL,SAT
 	LD	A,208
 	CALL MyNMI_off
 	CALL MYWRTVRM
 
-	CALL MYMODE1					; switch to intermission  mode
-	CALL MYDISSCR
+	CALL cvb_MYCLS
 
 	LD DE,$0000
 	LD HL,intermission_char
@@ -11466,17 +11455,12 @@ WONDERFUL:
 	LD DE,$2800
 	LD HL,intermission_sprites
 	CALL unpack
-  ; Fill top half with blank tiles
-	LD		HL,$1800
-	LD		DE,384
-	XOR   	A
-	CALL	FILL_VRAM
 
-	    ; Fill bottom half with brick pattern
+	; Fill bottom half with brick pattern
 	LD      HL,$1800 + 32*10 ; Start halfway down screen
-	LD      DE,32*14         ; Fill remaining 12 rows
+	LD      BC,32*14         ; Fill lower 14 rows
 	LD      A,105            ; brick pattern for level 10,20,30 etc
-	CALL    FILL_VRAM
+	CALL 	cvb_MYCLS.0
 
 	CALL    PRINT_WONDERFUL_STATS
 
@@ -11502,11 +11486,17 @@ WONDERFUL:
 	JR		Z,.1
 	POP		AF
 
-	CALL	REMOVESPRITES
-	LD		HL,0000H			; do not delete player data in VRAM
-	LD		DE,3000H
-	xor		a					; fill with space
-	CALL	FILL_VRAM
+	CALL	RESET_LEVEL_TIMERS
+
+;	CALL	REMOVESPRITES
+	CALL 	MYDISSCR
+
+	LD HL,SAT
+	LD	A,208
+	CALL MyNMI_off
+	CALL MYWRTVRM
+	CALL cvb_MYCLS
+
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
 	CALL	INIT_VRAM
@@ -11514,9 +11504,7 @@ WONDERFUL:
 
 	CALL 	WAIT_NMI
 
-	CALL	RESET_LEVEL_TIMERS
-
-	LD		BC,1C2H		 		; Original game state register (No NMI)
+	LD		BC,1C2H		 		; Original game state register (Enable video, No NMI)
 	CALL	WRITE_REGISTER
 RET
 
@@ -11611,56 +11599,7 @@ PRINT_WONDERFUL_STATS:
 	call MYPRINT
 ret
 
-
-INTERMISSION:
-	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	; Show the intermission screen
-	;
-	CALL	cvb_INTERMISSION
-	CALL	INITIALIZE_THE_SOUND
-	CALL	PLAY_VERY_GOOD_TUNE
-
-	LD		HL,200H				; music duration
-	XOR		A
-	CALL	REQUEST_SIGNAL
-
-	PUSH	AF						; wait for music to finish
-.1:
-	CALL	cvb_INTERMISSION_FRM1	; animate the monsters
-	CALL	WAIT8
-	CALL	cvb_INTERMISSION_FRM2
-	CALL	WAIT8
-	POP		AF
-	PUSH	AF
-	CALL	TEST_SIGNAL
-	JR		Z,.1
-	POP		AF
-
-	CALL 	MYDISSCR
-
-	LD		HL,mode
-	RES		7,(HL)						; switch to game mode
-
-	CALL 	CURRTIMERINIT
-	CALL	RESET_LEVEL_TIMERS
-
-	LD		BC,1C2H		 		; restore original game state register (No NMI)
-	CALL	WRITE_REGISTER
-
-	CALL	REMOVESPRITES
-
-	LD		HL,0000H			; do not delete player data in VRAM
-	LD		DE,3000H
-	xor		a					; fill with space
-	CALL	FILL_VRAM
-
-	CALL	INIT_VRAM
-	CALL	RESTORE_PLAYFIELD_COLORS
-
-	CALL 	WAIT_NMI
-
-RET
-
+; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 RESET_LEVEL_TIMERS:
 	; Check which player's timers to reset
@@ -11681,6 +11620,8 @@ Reset_p2:
 	INC     HL                ; Move to next byte
 	DJNZ    .1
 RET
+
+; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 CURRTIMERINIT:
 	; set the pointer to the current timer
@@ -11707,16 +11648,65 @@ CURRTIMERINIT:
 	LD (ADDCURRTIMER),HL
 RET
 
-cvb_INTERMISSION:
-	CALL MYMODE1				; switch to intermission  mode
-	CALL MYDISSCR
+INTERMISSION:
+	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	; Show the intermission screen
+	;
+	LD		BC,1A2H		; Disable video, enable NMI
+	CALL	WRITE_REGISTER
+	
+	CALL MYMODE1					; switch to intermission  mode (Disable video, enable NMI)
 
 	LD HL,SAT
 	LD	A,208
 	CALL MyNMI_off
 	CALL MYWRTVRM
-
 	CALL cvb_MYCLS
+	
+	CALL	cvb_INTERMISSION
+	CALL	INITIALIZE_THE_SOUND
+	CALL	PLAY_VERY_GOOD_TUNE
+
+	LD		HL,200H				; music duration
+	XOR		A
+	CALL	REQUEST_SIGNAL
+
+	PUSH	AF						; wait for music to finish
+.1:
+	CALL	cvb_INTERMISSION_FRM1	; animate the monsters
+	CALL	WAIT8
+	CALL	cvb_INTERMISSION_FRM2
+	CALL	WAIT8
+	POP		AF
+	PUSH	AF
+	CALL	TEST_SIGNAL
+	JR		Z,.1
+	POP		AF
+
+	CALL	RESET_LEVEL_TIMERS
+	
+;	CALL	REMOVESPRITES
+	CALL 	MYDISSCR
+
+	LD HL,SAT
+	LD	A,208
+	CALL MyNMI_off
+	CALL MYWRTVRM
+	CALL cvb_MYCLS
+
+	LD		HL,mode
+	RES		7,(HL)						; switch to game mode
+	CALL	INIT_VRAM
+	CALL	RESTORE_PLAYFIELD_COLORS
+
+	CALL 	WAIT_NMI
+
+	LD		BC,1C2H		 		; restore original game state register (No NMI)
+	CALL	WRITE_REGISTER
+RET
+
+
+cvb_INTERMISSION:
 
 	CALL 	LOADFONTS
 
@@ -12469,6 +12459,17 @@ CONGRATULATION:
 	; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	; Show the congratulation screen
 	;
+	LD		BC,1A2H		; Disable video, enable NMI
+	CALL	WRITE_REGISTER
+	
+	CALL MYMODE1					; switch to intermission  mode (Disable video, enable NMI)
+	LD HL,SAT
+	LD	A,208
+	CALL MyNMI_off
+	CALL MYWRTVRM
+
+	CALL cvb_MYCLS
+	
 	CALL	cvb_CONGRATULATION		; switch to intermission  mode
 	CALL	INITIALIZE_THE_SOUND
 	CALL	PLAY_TWINKLE_TWINKLE_TUNE
@@ -12491,14 +12492,15 @@ CONGRATULATION:
 	JR		Z,.1
 	POP		AF
 
+;	CALL	REMOVESPRITES
 	CALL 	MYDISSCR
-	CALL	REMOVESPRITES
 
-	LD		HL,0000H
-	LD		DE,3000H			; do not delete the game data
-	xor		a					; fill with space
-	CALL	FILL_VRAM
-
+	LD HL,SAT
+	LD	A,208
+	CALL MyNMI_off
+	CALL MYWRTVRM
+	CALL cvb_MYCLS
+	
 	LD	HL,mode
 	RES	7,(HL)						; switch to game mode
 
@@ -12512,9 +12514,6 @@ CONGRATULATION:
 RET
 
 cvb_CONGRATULATION:
-	CALL MYMODE1				; switch to intermission  mode
-	CALL MYDISSCR
-	CALL cvb_MYCLS
 
 	CALL 	LOADFONTS
 
@@ -12846,9 +12845,9 @@ MyNMI_on:
 
 
 cvb_MYCLS:
-	LD 		BC,$0300
-	LD 		HL,$1800
 	XOR		A
+.2:	LD 		BC,$0300
+	LD 		HL,$1800
 .0:	CALL 	MyNMI_off
 	PUSH 	AF
 	LD  	A,L
@@ -13531,7 +13530,7 @@ cvb_IMAGE_SPRITES:
 	; sprite_overlay:
 cvb_SPRITE_OVERLAY:
 ;	DB 2+17*8,24+13*8,0,3
-	DB 208,24+13*8,0,3		; hide (??)
+	DB 208,24+13*8,0,3		; hide (!)
 	DB 74,165,4,12
 	DB 70,149,8,5
 	DB 70,136,12,5
