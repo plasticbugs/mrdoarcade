@@ -26,9 +26,9 @@ Changes:
 - Add pushing animations for bad guys
 - Icon marker for "how" level was completed on "Very Good" screen
 - Wonderful screen every 10th level that shows average score per level along with score and time data for the previous level.
-      
+- displays a 500 sign after a set of cherries has been collected 
+
 Wish list/To do list:
-- display a 500 sign after a set of cherries has been collected 
 - display a 1000 signs after an enemy has been smashed by an apple
 - add a credits screen to be activated by a secret combo of keys
 - extend to 24 bits the score (now at 16 bit)
