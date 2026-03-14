@@ -4937,8 +4937,8 @@ UNK_9FB3:
 
 SUB_9FC8:                           ; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-    ; XOR       A    ; (Uncomment for invincibility)
-    ; RET        ; (Uncomment for invincibility)
+    XOR       A    ; (Uncomment for invincibility)
+    RET        ; (Uncomment for invincibility)
     LD      A,(MRDO_DATA.Y)
     SUB     (IY+2)
     JR      NC,.ypos
@@ -6407,6 +6407,26 @@ CHMPUP:
     JR      LOC_A905
 CHMPRIGHT:
     LD      D,1
+; SCOREBAR SPRITE GLITCH FIX (chompers)
+; Chompers spawn at LETTERMON_Y/X (scorebar area). On the first frames after
+; init, they are rendered at that position before moving into the playfield.
+; .MYCRAPPYPATCH in PUTSPRITE should hide them, but the sprite was still
+; appearing in the scorebar. This guard forces Y=$D9 (hidden) if Y < 31.
+; If diamonds or apples also appear in the scorebar, apply the same pattern
+; to their rendering code:
+;   - Diamond blink: LOC_8310 (SETBONUS) calls PUTSPRITE for slot 13 every
+;     NMI frame. B=(APPLEDATA+1), C=(APPLEDATA+2). Add a Y<31 guard before
+;     the CALL PUTSPRITE at line ~698.
+;   - Apple rendering: SUB_899A calls PUTSPRITE for slot CURRAPPL+12.
+;     B=(IY+1), C=(IY+2). Add a Y<31 guard before CALL PUTSPRITE at line ~1610.
+;   - Apple push: LOC_B035 calls PUTSPRITE for slot 17-E.
+;     B=(IX+1), C=new X. Add a Y<31 guard before CALL PUTSPRITE at line ~7711.
+; The guard pattern is always:
+;     LD  A,B
+;     CP  31
+;     JR  NC,.renderit
+;     LD  B,$D9          ; force hide ($D9-8=$D1 in SAT)
+;   .renderit:
 LOC_A905:
     LD      A,(IY+5)
     XOR     $80
@@ -6416,6 +6436,11 @@ LOC_A905:
     LD      (IY+5),A
     LD      B,(IY+2)
     LD      C,(IY+1)
+    LD      A,B
+    CP      31              ; is chomper still in scorebar area?
+    JR      NC,.renderit    ; no, render normally
+    LD      B,$D9           ; yes, force hide (will become $D1 after SUB 8)
+.renderit:
     LD      A,(CHOMPNUMBER)
     ADD     A,17            ; animate chomper
     CALL    PUTSPRITE
@@ -8671,8 +8696,13 @@ RET
     CP      117-96              ; if FRAME>MONSTER LETTER EMPTY, remove it
     RET     C
     
-.REMOVE:                ; set breackpoint at PUTSPRITE.REMOVE and trace back in the debugger
-    LD      B,$D1               ; remove this crap
+; SCOREBAR SPRITE GLITCH FIX (.MYCRAPPYPATCH)
+; Previously this was LD B,$D1, but PUTSPRITE does SUB 8 before storing Y,
+; so the SAT value was $C9 (201) instead of the canonical $D1 (209) hide value.
+; Changed to $D9 so that $D9-8=$D1 is stored in the SAT.
+; This fix applies globally to ALL non-ball, non-letter sprites with Y < 31.
+.REMOVE:
+    LD      B,$D9               ; hide sprite ($D9 - 8 = $D1 in SAT)
     RET
 
 
