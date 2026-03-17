@@ -12124,7 +12124,7 @@ PRINT_ICON_SPRITE:
     POP     BC
     JR      Z, .WONDERFUL       ; If multiple of 10, use wonderful positioning
 
-    LD      A, 200              ; X position (always 200)
+    LD      A, 216              ; X position (always 216)
     LD      (SAT_BUFFER+1), A
 
     ; Calculate SAT position (level 1 = 40, level 2 = 44, level 3 = 48)
