@@ -220,10 +220,10 @@ P1_LEVEL2_MIN:          RB 1    ; EQU 072F5h ; Player 1 level 2 minutes
 P1_LEVEL3_SEC:          RB 1    ; EQU 072F6h ; Player 1 level 3 seconds
 P1_LEVEL3_MIN:          RB 1    ; EQU 072F7h ; Player 1 level 3 minutes
 
-P1_PREV_SCORE:          RB 2    ; EQU 072F8h ; 2 bytes - Previous total score for P1
-P1_LEVEL1_SCORE:        RB 2    ; EQU 072FAh ; 2 bytes - Level 1 score
-P1_LEVEL2_SCORE:        RB 2    ; EQU 072FCh ; 2 bytes - Level 2 score
-P1_LEVEL3_SCORE:        RB 2    ; EQU 072FEh ; 2 bytes - Level 3 score
+P1_PREV_SCORE:          RB 3    ; 3 bytes - Previous total score for P1 (24-bit)
+P1_LEVEL1_SCORE:        RB 3    ; 3 bytes - Level 1 score (24-bit)
+P1_LEVEL2_SCORE:        RB 3    ; 3 bytes - Level 2 score (24-bit)
+P1_LEVEL3_SCORE:        RB 3    ; 3 bytes - Level 3 score (24-bit)
 
 P2_LEVEL1_SEC:          RB 1    ; EQU 07300h ; Player 1 level 1 seconds
 P2_LEVEL1_MIN:          RB 1    ; EQU 07301h ; Player 1 level 1 minutes
@@ -232,10 +232,10 @@ P2_LEVEL2_MIN:          RB 1    ; EQU 07303h ; Player 1 level 2 minutes
 P2_LEVEL3_SEC:          RB 1    ; EQU 07304h ; Player 1 level 3 seconds
 P2_LEVEL3_MIN:          RB 1    ; EQU 07305h ; Player 1 level 3 minutes
 
-P2_PREV_SCORE:          RB 2    ; EQU 07306h ; 2 bytes - Previous total score for P2
-P2_LEVEL1_SCORE:        RB 2    ; EQU 07308h ; 2 bytes - Level 1 score
-P2_LEVEL2_SCORE:        RB 2    ; EQU 0730Ah ; 2 bytes - Level 2 score
-P2_LEVEL3_SCORE:        RB 2    ; EQU 0730Ch ; 2 bytes - Level 3 score
+P2_PREV_SCORE:          RB 3    ; 3 bytes - Previous total score for P2 (24-bit)
+P2_LEVEL1_SCORE:        RB 3    ; 3 bytes - Level 1 score (24-bit)
+P2_LEVEL2_SCORE:        RB 3    ; 3 bytes - Level 2 score (24-bit)
+P2_LEVEL3_SCORE:        RB 3    ; 3 bytes - Level 3 score (24-bit)
 
 P1_LEVEL_FINISH_BASE:   RB 3    ; EQU 0730Eh ;
 P2_LEVEL_FINISH_BASE:   RB 3    ; EQU 07311h ;
@@ -994,12 +994,14 @@ RET
 SUB_851C:                   ; If we're here,the game just started
     XOR     A
     LD      HL,0
-    LD      (SCORE_P1),A
-    LD      (SCORE_P1_RAM),HL
-    LD      (SCORE_P2),A
-    LD      (SCORE_P2_RAM),HL
-    LD      (P1_PREV_SCORE),HL
-    LD      (P2_PREV_SCORE),HL
+    LD      (SCORE_P1),A        ; clear high byte P1
+    LD      (SCORE_P1_RAM),HL   ; clear low 16 bits P1
+    LD      (SCORE_P2),A        ; clear high byte P2
+    LD      (SCORE_P2_RAM),HL   ; clear low 16 bits P2
+    LD      (P1_PREV_SCORE),A   ; clear 24-bit prev scores
+    LD      (P1_PREV_SCORE+1),HL
+    LD      (P2_PREV_SCORE),A
+    LD      (P2_PREV_SCORE+1),HL
     CALL    Reset_p1        ; reset min and sec for the two players
     CALL    Reset_p2
 
@@ -4937,8 +4939,8 @@ UNK_9FB3:
 
 SUB_9FC8:                           ; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-  ;  XOR       A    ; (Uncomment for invincibility)
-  ;  RET        ; (Uncomment for invincibility)
+    XOR       A    ; (Uncomment for invincibility)
+    RET        ; (Uncomment for invincibility)
     LD      A,(MRDO_DATA.Y)
     SUB     (IY+2)
     JR      NC,.ypos
@@ -5964,7 +5966,7 @@ LOC_A637:
     LD      D,(HL)
     LD      E,0
 LOC_A63A:
-    LD      A,C                     ; spawn letter monser each 10.000 points
+    LD      A,C                     ; spawn letter monster each 5,000 points
     SUB     0F4H
     LD      C,A
     LD      A,B
@@ -6659,57 +6661,75 @@ RET
 GO_NEXT_LEVEL: ; Level complete,load next level
     CALL    WAIT_NMI
 
-; CALCULATE_LEVEL_SCORE
+; CALCULATE_LEVEL_SCORE (24-bit)
 
-    ; Check which player
+    ; Determine player and calculate slot offset first
     LD      A,(GAMECONTROL)
     BIT     1,A
-    JR      Z,.calc_p1_score
+    JR      Z,.calc_p1_slot
 
-.calc_p2_score:
-    LD      HL,(SCORE_P2_RAM)       ; Get current total score
-    LD      DE,(P2_PREV_SCORE)      ; Get previous total score
-    LD      IY,P2_LEVEL1_SCORE      ; Base address for P2 scores ($74DE)
-    LD      A,(CURRENT_LEVEL_P2)    ; Get P2's level
-    JR      .calc_difference
+.calc_p2_slot:
+    LD      IY,P2_LEVEL1_SCORE
+    LD      A,(CURRENT_LEVEL_P2)
+    JR      .calc_slot
 
-.calc_p1_score:
-    LD      HL,(SCORE_P1_RAM)       ; Get current total score
-    LD      DE,(P1_PREV_SCORE)      ; Get previous total score
-    LD      IY,P1_LEVEL1_SCORE      ; Base address for P1 scores
-    LD      A,(CURRENT_LEVEL_P1)    ; Get P1's level
+.calc_p1_slot:
+    LD      IY,P1_LEVEL1_SCORE
+    LD      A,(CURRENT_LEVEL_P1)
 
-.calc_difference:
-    ; First check if it's level 10 or multiple of 10
-
+.calc_slot:
     LD      B,10
     CALL    MOD_B                   ; Check if multiple of 10
-    AND     A                       ; Check if remainder is 0
-    JR      Z,.use_first_slot       ; If multiple of 10,use first slot
+    AND     A
+    JR      Z,.slot_ready           ; Multiple of 10, use first slot
 
-    ; For all other levels,calculate based on remainder after division by 10
-
-    DEC     A                       ; Convert to completed level
+    DEC     A
     LD      B,3
     CALL    MOD_B                   ; Get mod 3 (0,1,2)
-    ADD     A,A                     ; Multiply by 2 for bytes offset
-
-    ; ADD offset to IY
+    ; Multiply by 3 for 24-bit score slots
+    LD      B,A
+    ADD     A,A
+    ADD     A,B                     ; A = A * 3
     LD      B,0
     LD      C,A
-    ADD     IY,BC                   ; IY now points to correct score slot
+    ADD     IY,BC
 
-.use_first_slot:
-                                    ; Calculate HL (current) - DE (previous) = level score
+.slot_ready:
+    ; Load 24-bit scores and subtract
+    LD      A,(GAMECONTROL)
+    BIT     1,A
+    JR      Z,.load_p1_scores
+
+.load_p2_scores:
+    LD      HL,(SCORE_P2_RAM)       ; Current low 16
+    LD      DE,(P2_PREV_SCORE)      ; Previous low 16
+    LD      A,(SCORE_P2)            ; Current high byte
+    LD      B,A
+    LD      A,(P2_PREV_SCORE+2)     ; Previous high byte
+    JR      .do_subtract
+
+.load_p1_scores:
+    LD      HL,(SCORE_P1_RAM)       ; Current low 16
+    LD      DE,(P1_PREV_SCORE)      ; Previous low 16
+    LD      A,(SCORE_P1)            ; Current high byte
+    LD      B,A
+    LD      A,(P1_PREV_SCORE+2)     ; Previous high byte
+
+.do_subtract:
+    ; B = current high, A = previous high
+    ; HL = current low 16, DE = previous low 16
     OR      A                       ; Clear carry
-    SBC     HL,DE                   ; HL now contains level score
+    SBC     HL,DE                   ; HL = level score low 16
+    LD      C,A                     ; C = previous high byte
+    LD      A,B                     ; A = current high byte
+    SBC     A,C                     ; A = level score high byte
 
-    ; Store level score
-    LD      (IY+0),L      ; Store low byte
-    LD      (IY+1),H      ; Store high byte
+    ; Store 24-bit level score
+    LD      (IY+0),L                ; low byte
+    LD      (IY+1),H                ; mid byte
+    LD      (IY+2),A                ; high byte
 
-
-    ; Update previous score for next level
+    ; Update 24-bit previous score for next level
     LD      A,(GAMECONTROL)
     BIT     1,A
     JR      Z,.update_p1_prev
@@ -6717,11 +6737,15 @@ GO_NEXT_LEVEL: ; Level complete,load next level
 .update_p2_prev:
     LD      HL,(SCORE_P2_RAM)
     LD      (P2_PREV_SCORE),HL
+    LD      A,(SCORE_P2)
+    LD      (P2_PREV_SCORE+2),A
     JR      .done
 
 .update_p1_prev:
     LD      HL,(SCORE_P1_RAM)
     LD      (P1_PREV_SCORE),HL
+    LD      A,(SCORE_P1)
+    LD      (P1_PREV_SCORE+2),A
 
 .done:
 
@@ -8529,58 +8553,71 @@ PRINT_SCORE:            ; A=0 for P1, A=1 for P2
     ADD     HL,BC
     LD      E,(HL)
     INC     HL
-    LD      D,(HL)
+    LD      D,(HL)          ; DE = SCORE_Px_RAM address
     INC     HL
-    PUSH    HL
-    EX      DE,HL
-    LD      E,(HL)
+    PUSH    HL              ; save ptr to screen position
+    EX      DE,HL           ; HL = SCORE_Px_RAM
+    ; Load 24-bit score into A:HL (A=high, H=mid, L=low)
+    DEC     HL              ; point to SCORE_Px (high byte)
+    LD      A,(HL)          ; A = high byte
     INC     HL
-    LD      D,(HL)      ; DE = score of p1 or p2
+    LD      C,(HL)          ; C = low byte
+    INC     HL
+    LD      H,(HL)          ; H = mid byte
+    LD      L,C             ; HL = low 16 bits
+    ; A:HL = 24-bit score
+    ; Convert 7 digits using b2d into SCRATCH (max displayed: 99,999,990)
+    LD      IX,SCRATCH
+    ; 1,000,000 place
+    LD      C,$F0
+    LD      DE,$BDC0
+    CALL    b2d
+    ; 100,000 place
+    LD      C,$FE
+    LD      DE,$7960
+    CALL    b2d
+    ; 10,000 place
+    LD      C,$FF
+    LD      DE,-10000
+    CALL    b2d
+    ; 1,000 place
+    LD      DE,-1000
+    CALL    b2d
+    ; 100 place
+    LD      DE,-100
+    CALL    b2d
+    ; 10 place
+    LD      E,-10
+    CALL    b2d
+    ; 1 place
+    LD      E,-1
+    CALL    b2d
+    ; Convert ASCII digits in SCRATCH to tile offsets
     LD      HL,SCRATCH
-;   CALL    LOC_AE88
-;LOC_AE88:
-    LD      IX,BYTE_AEAD
-    LD      B,5
-LOOP_AE8E:
-    PUSH    BC
-    XOR     A
-    EX      DE,HL
-    LD      C,(IX+0)
-    LD      B,(IX+1)    ; compare with current power of 10
-LOC_AE97:
-    AND     A
-    SBC     HL,BC
-    JR      C,LOC_AE9F
-    INC     A           ; decimal digit
-    JR      LOC_AE97
-LOC_AE9F:
-    ADD     HL,BC
-    EX      DE,HL
-    ADD     A,0D8H      ; offset for "0"
+    LD      B,7
+.ascii2tile:
+    LD      A,(HL)
+    ADD     A,$A8           ; ASCII '0'($30) + $A8 = tile $D8
     LD      (HL),A
     INC     HL
-    INC     IX
-    INC     IX
-    POP     BC
-    DJNZ    LOOP_AE8E
-; RET   (was A subroutine)
-    LD      A,0D8H
-    LD      (SCRATCH+5),A   ; last fake "0"
+    DJNZ    .ascii2tile
+    LD      (HL),0D8H       ; trailing "0" tile
+    ; Print 8 digits (7 + trailing "0")
     LD      A,2
     POP     HL
     LD      E,(HL)
     INC     HL
     LD      D,(HL)
     LD      HL,SCRATCH
-    LD      IY,6            ; print 6 digits
+    LD      IY,8
     CALL    PUT_VRAM
 RET
 
 BYTE_B5D4:
     DW SCORE_P1_RAM
-    DW          36  ; SCREEN POSITION SCORE P1
+    DW          34  ; SCREEN POSITION SCORE P1 (shifted left 2 for 8-digit display)
     DW SCORE_P2_RAM
-    DW          68  ; SCREEN POSITION SCORE P2
+    DW          66  ; SCREEN POSITION SCORE P2 (shifted left 2 for 8-digit display)
 ;   DB          0   ; ?? unused?
 
 BYTE_AEAD:
@@ -8620,11 +8657,14 @@ SUB_B601:                           ; ADD DE to the SCORE of the active player
     LD      IX,SCORE_P2_RAM
     LD      C,40H
 LOC_B614:
-    LD      L,(IX+0)                ; change here to pass to 24 bits
+    LD      L,(IX+0)                ; 24-bit score addition
     LD      H,(IX+1)
     ADD     HL,DE
     LD      (IX+0),L
     LD      (IX+1),H
+    LD      A,(IX-1)                ; load high byte (24-bit)
+    ADC     A,0                     ; add carry from 16-bit addition
+    LD      (IX-1),A                ; store high byte
     LD      A,(SCOREFLAG)       ; tell where to print the score
     OR      C               ; $80 for P1, $40 for P2
     LD      (SCOREFLAG),A
@@ -11629,36 +11669,43 @@ PRINT_WONDERFUL_STATS:
 
     ; Player 1 is active
     LD A,(CURRENT_LEVEL_P1)
-    LD bc,(SCORE_P1_RAM)      ; Use BC instead of HL for initial load
+    LD HL,(SCORE_P1_RAM)        ; low 16 bits of score
+    LD B,A                       ; B = level
+    LD A,(SCORE_P1)              ; A = score high byte
     JR .continue
 .use_p2:
     LD A,(CURRENT_LEVEL_P2)
-    LD bc,(SCORE_P2_RAM)
+    LD HL,(SCORE_P2_RAM)
+    LD B,A
+    LD A,(SCORE_P2)
 .continue:
-    ; Save score and level
-    PUSH bc                     ; Save score
+    ; A = score high byte, HL = score low 16, B = level
+    PUSH AF                      ; save score high byte
+    PUSH HL                      ; save score low 16
+    PUSH BC                      ; save level in B
 
-    ; Print and calculate scores for only the current level
+    ; Print single level score
+    LD A,B                       ; level number
     LD DE,$1800 + 6 + 32*2
-    PUSH AF                     ; Save current level and Player (ZF==0 for P1,ZF==1 for P2)
+    PUSH AF
     CALL PRINT_SINGLE_SCORE
-    POP AF                      ; Get current level number
-    PUSH AF                     ; Save current level number again
-    CALL PRINT_SINGLE_TIME
     POP AF
     PUSH AF
+    CALL PRINT_SINGLE_TIME
+    POP AF
     CALL PRINT_ICON
 
-    POP  HL                 ; get level back
-    EX (SP),HL              ; Get in HL original score and save level on the satck
+    ; Restore saved values for total score display
+    POP BC                       ; B = level
+    POP HL                       ; score low 16
+    POP AF                       ; A = score high byte
 
-;   POP AF                ; get level back
-;   POP HL                ; Get in HL original score
-;   PUSH AF                 ; save level
-    PUSH HL                ; save score
+    PUSH BC                      ; save level again
+    PUSH AF                      ; save score high byte
+    PUSH HL                      ; save score low 16
 
-    ; Convert score for display (needs HL)
-    CALL CONVERT_TO_DECIMAL
+    ; Convert 24-bit total score A:HL to decimal
+    CALL CONVERT_TO_DECIMAL_24
 
     ; Print total score
     LD DE,$1800 + 6 + 32*4
@@ -11673,27 +11720,29 @@ PRINT_WONDERFUL_STATS:
     LD HL,AVERAGE_TEXT
     CALL MYPRINT
 
-    POP DE   ; get score back
-    LD A, 10
-    CALL DE_Times_A
-    LD D, 0
-    LD E, A
-    POP AF   ; get level back
-    LD C, A
-    CALL DEHL_Div_C
+    ; Calculate average: (score × 10) / level
+    ; Step 1: divide 24-bit score by level count using DEHL_Div_C
+    POP HL                       ; score low 16
+    POP AF                       ; A = score high byte
+    LD E,A
+    LD D,0                       ; DEHL = 32-bit score (D=0, E=high, H=mid, L=low)
+    POP BC                       ; B = level
+    LD C,B                       ; C = divisor for DEHL_Div_C
+    CALL DEHL_Div_C              ; DEHL = score / level
 
-    ; DEHL is the result of the division
-    ; we can ignore the remainder and the 0s in DE
-    ; NB: game scoring makes it impossible to get above 32k average
-    ; HL is passed to CONVERT_TO_DECIMAL
+    ; Step 2: multiply quotient by 10 for display trailing zero
+    ; Result should fit in 16 bits (HL) for practical averages
+    EX DE,HL                     ; DE = quotient low 16
+    LD A,10
+    CALL DE_Times_A              ; A:HL = (score/level) × 10
+
+    ; HL is the average for display
     CALL CONVERT_TO_DECIMAL
 
     ; ADD terminator bit to the ones digit
     LD A,(TEXT_BUFFER+4)     ; Get the ones digit
     or $80                   ; Set the high bit (ADD terminator)
     LD (TEXT_BUFFER+4),A     ; Put it back
- ;   xor A                    ; A = 0
- ;   LD (TEXT_BUFFER+4+1),A   ; Clear zero
 
  ; Print average score
     LD DE,$1800 + 17 + 32*6
@@ -12234,19 +12283,24 @@ PRINT_SINGLE_SCORE:
     LD HL,P2_LEVEL1_SCORE       ; Otherwise use Player 2 base
 .got_base:
 
-    ; Calculate score address
+    ; Calculate score address (24-bit slots = 3 bytes each)
     POP     AF                  ; Get level number back
-    CALL    GET_SLOT_OFFSET     ; Get the correct offset
-    ADD HL,DE                   ; HL now points to correct score
+    CALL    GET_SLOT_OFFSET     ; DE = 0, 2, or 4 (×2 offset)
+    SRL     E                   ; E = 0, 1, or 2 (slot index)
+    ADD     HL,DE               ; add slot index once
+    ADD     HL,DE               ; add slot index twice
+    ADD     HL,DE               ; add slot index thrice (total: HL += 3 * slot)
 
-    ; Load score
+    ; Load 24-bit score: low at +0, mid at +1, high at +2
     LD E,(HL)
     INC HL
     LD D,(HL)
-    EX DE,HL                  ; HL now contains score value
+    INC HL
+    LD A,(HL)                   ; A = high byte
+    EX DE,HL                    ; HL = low 16 bits (L=low, H=mid)
 
-    ; Convert to decimal digits
-    CALL CONVERT_TO_DECIMAL
+    ; Convert 24-bit A:HL to decimal digits
+    CALL CONVERT_TO_DECIMAL_24
 
     ; Print score
     POP HL                      ; Restore screen position in HL
@@ -12258,11 +12312,20 @@ PRINT_SINGLE_SCORE:
 RET
 
 ;----------------------------------------------------------------------
+; CONVERT_TO_DECIMAL_24: Converts A:HL to decimal ASCII in TEXT_BUFFER
+; Input: A = high byte, HL = low 16 bits (24-bit value)
+;----------------------------------------------------------------------
+CONVERT_TO_DECIMAL_24:
+    LD IX,TEXT_BUFFER
+    JP num2str24
+
+;----------------------------------------------------------------------
 ; CONVERT_TO_DECIMAL: Converts HL to decimal ASCII in TEXT_BUFFER
+; Input: HL = 16-bit value
 ;----------------------------------------------------------------------
 CONVERT_TO_DECIMAL:
     XOR A
-    LD IX,TEXT_BUFFER   ;where we will store the result
+    LD IX,TEXT_BUFFER
     JP num2str16
     
 ;    ; First get ten thousands
