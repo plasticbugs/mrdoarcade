@@ -5966,11 +5966,11 @@ LOC_A637:
     LD      D,(HL)
     LD      E,0
 LOC_A63A:
-    LD      A,C                     ; spawn letter monster each 5,000 points
-    SUB     0F4H
+    LD      A,C                     ; spawn letter monster each 10,000 points
+    SUB     0E8H
     LD      C,A
     LD      A,B
-    SBC     A,1
+    SBC     A,3
     LD      B,A
     JR      C,LOC_A647
     INC     E
