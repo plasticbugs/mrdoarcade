@@ -11720,8 +11720,8 @@ PRINT_WONDERFUL_STATS:
     LD HL,AVERAGE_TEXT
     CALL MYPRINT
 
-    ; Calculate average: (score × 10) / level
-    ; Step 1: divide 24-bit score by level count using DEHL_Div_C
+    ; Calculate average: total score / level count
+    ; Divide 24-bit score by level count using DEHL_Div_C
     POP HL                       ; score low 16
     POP AF                       ; A = score high byte
     LD E,A
@@ -11730,21 +11730,13 @@ PRINT_WONDERFUL_STATS:
     LD C,B                       ; C = divisor for DEHL_Div_C
     CALL DEHL_Div_C              ; DEHL = score / level
 
-    ; Step 2: multiply quotient by 10 for display trailing zero
-    ; Result should fit in 16 bits (HL) for practical averages
-    EX DE,HL                     ; DE = quotient low 16
-    LD A,10
-    CALL DE_Times_A              ; A:HL = (score/level) × 10
+    ; Result is 24-bit average in E:HL (D=0 for practical scores)
+    LD A,E                       ; A = high byte of average
+    ; num2str24 appends "0"+$80 terminator, which serves as the trailing
+    ; zero for the ×10 display convention — no multiply needed
+    CALL CONVERT_TO_DECIMAL_24
 
-    ; HL is the average for display
-    CALL CONVERT_TO_DECIMAL
-
-    ; ADD terminator bit to the ones digit
-    LD A,(TEXT_BUFFER+4)     ; Get the ones digit
-    or $80                   ; Set the high bit (ADD terminator)
-    LD (TEXT_BUFFER+4),A     ; Put it back
-
- ; Print average score
+    ; Print average score
     LD DE,$1800 + 17 + 32*6
     LD HL,TEXT_BUFFER
     CALL MYPRINT
@@ -12291,16 +12283,14 @@ PRINT_SINGLE_SCORE:
     ADD     HL,DE               ; add slot index twice
     ADD     HL,DE               ; add slot index thrice (total: HL += 3 * slot)
 
-    ; Load 24-bit score: low at +0, mid at +1, high at +2
+    ; Load 16-bit score from 24-bit slot (level scores fit in 16 bits)
     LD E,(HL)
     INC HL
     LD D,(HL)
-    INC HL
-    LD A,(HL)                   ; A = high byte
-    EX DE,HL                    ; HL = low 16 bits (L=low, H=mid)
+    EX DE,HL                    ; HL = low 16 bits
 
-    ; Convert 24-bit A:HL to decimal digits
-    CALL CONVERT_TO_DECIMAL_24
+    ; Convert 16-bit HL to decimal digits
+    CALL CONVERT_TO_DECIMAL
 
     ; Print score
     POP HL                      ; Restore screen position in HL
