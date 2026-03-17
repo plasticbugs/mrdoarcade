@@ -11749,7 +11749,7 @@ PRINT_WONDERFUL_STATS:
     CALL CONVERT_TO_DECIMAL_24
 
     ; Print average score
-    LD DE,$1800 + 17 + 32*6
+    LD DE,$1800 + 16 + 32*6
     LD HL,TEXT_BUFFER
     CALL MYPRINT
 
@@ -12306,7 +12306,7 @@ PRINT_SINGLE_SCORE:
 
     ; Print score
     POP HL                      ; Restore screen position in HL
-    LD DE,10                    ; Move 10 positions right
+    LD DE,12                    ; Move 12 positions right (right-align with 8-char total)
     ADD HL,DE
     EX DE,HL                    ; Put  in DE
     LD HL,TEXT_BUFFER
