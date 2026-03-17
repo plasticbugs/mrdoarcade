@@ -8602,6 +8602,18 @@ PRINT_SCORE:            ; A=0 for P1, A=1 for P2
     INC     HL
     DJNZ    .ascii2tile
     LD      (HL),0D8H       ; trailing "0" tile
+    ; Suppress leading zeros: replace $D8 with $00 (blank tile)
+    ; Stop before last digit so score always shows at least "00"
+    LD      HL,SCRATCH
+    LD      B,6             ; suppress up to 6 of 7 digits
+.suppress:
+    LD      A,(HL)
+    CP      0D8H            ; is it a "0" tile?
+    JR      NZ,.suppress_done
+    LD      (HL),0          ; blank tile
+    INC     HL
+    DJNZ    .suppress
+.suppress_done:
     ; Print 8 digits (7 + trailing "0")
     LD      A,2
     POP     HL
