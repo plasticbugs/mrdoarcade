@@ -11723,7 +11723,7 @@ PRINT_WONDERFUL_STATS:
     LD DE,$1800 + 6 + 32*4
     LD HL,TOTAL_TEXT
     CALL MYPRINT
-    LD DE,$1800 + 16 + 32*4
+    LD DE,$1800 + 15 + 32*4
     LD HL,TEXT_BUFFER
     CALL MYPRINT
 
@@ -11749,7 +11749,7 @@ PRINT_WONDERFUL_STATS:
     CALL CONVERT_TO_DECIMAL_24
 
     ; Print average score
-    LD DE,$1800 + 16 + 32*6
+    LD DE,$1800 + 15 + 32*6
     LD HL,TEXT_BUFFER
     CALL MYPRINT
 
@@ -12142,7 +12142,7 @@ PRINT_ICON_SPRITE:
 
 .WONDERFUL:
     POP     AF                  ; clear the stack
-    LD      A, 224              ; X position (always 224 for "WONDERFUL")
+    LD      A, 240              ; X position (adjusted for score offset change)
     LD      (SAT_BUFFER+1), A
     LD      DE, $1B00
 
