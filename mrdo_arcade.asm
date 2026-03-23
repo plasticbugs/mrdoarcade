@@ -386,8 +386,7 @@ nmi_handler:                ; do not move from here (!!!)
     RES     7,(HL)
     JR      FINISH_NMI
 LOC_80BB:
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER          ; enable ISR generation
+    CALL    ENABLE_NMI
 FINISH_NMI:
     POP     IY
     POP     IX
@@ -531,8 +530,7 @@ SETMRDOFRAME:
 ;   LD      IX,SNOWMANGENERATOR
 ;.1:
     ADD     IX,DE
-    CALL    UPDATE_SPT  ; Rotate the current frame of the player
-RET
+    JP      UPDATE_SPT  ; Rotate the current frame of the player
 
 MRDO_SPT_UPDATE:
     LD      HL,MRDO_DATA            ; Mr. Do's sprite data
@@ -582,8 +580,7 @@ SCORE_UPDATE:                   ; update play score
     RET     Z
     RES     6,(HL)              ; print only once
     LD      A,1                 ; print down (P2)
-    CALL    PRINT_SCORE
-RET
+    JP      PRINT_SCORE
 
 DISPLAY_EXTRA_01:
     LD      A,(LETTERMON_EXTRAFLAGP2)
@@ -642,8 +639,7 @@ LOC_82BF:
     LD      HL,BYTE_82DD
     LD      A,2
     LD      IY,1
-    CALL    PUT_VRAM
-RET
+    JP      PUT_VRAM
 
 BYTE_82D3:
     DB 254,001,253,002,251,004,247,008,239,016      ; AND and OR MASKS
@@ -695,8 +691,7 @@ LOC_8329:
     XOR     1
     LD      (HL),A
     LD      A,13                ;  Diamond! Use apple n. 13 (second out of 5)
-    CALL    PUTSPRITE
-RET
+    JP      PUTSPRITE
 
 ; BONUS ITEM LIST
 BONUS_OBJ_LIST:
@@ -824,8 +819,7 @@ LOC_83ABX:
 LOOP_83B1:                      ; MrDo is dead,let apples fall if any
     BIT     3,(IX+0)
     JR      NZ,LOC_83C0         ; if this apple is falling make it fall
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     DJNZ    LOOP_83B1           ; ?? probably only one apple falling at time...
 
 LOC_83C5: ; Mr. Do finished the round
@@ -862,8 +856,7 @@ MrDoDeathSequence:
     CALL        NZ,DEAL_WITH_APPLE_FALLING      ; if this apple is falling make it fall
     POP         BC
     POP         IX
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     DJNZ    .NextApple
 
     POP     AF
@@ -937,8 +930,7 @@ INIT_VRAM:
     LD      IY,4
     CALL    UPDATE_SPT
     POP     IX
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     POP     BC
     DJNZ    .1
 
@@ -966,9 +958,7 @@ INIT_VRAM:
     LD HL,mode
     RES 7,(HL)          ; game mode
 
-    LD      BC,1E2H             ; Original game state register: Enable video and NMI
-    CALL    WRITE_REGISTER
-RET
+    JP      ENABLE_NMI
 
 LOADFONTS:      ; LOAD  ARCADE FONTS
     LD      DE,PT + 8*0d7h                  ; start fonts here
@@ -984,8 +974,7 @@ LOADFONTS:      ; LOAD  ARCADE FONTS
     LD      HL,CT+0d7h*8
     LD      BC,41*8
     LD      A,$F1
-    CALL    cvb_MYCLS.0
-RET
+    JP      cvb_MYCLS.0
 
 
 
@@ -1161,8 +1150,7 @@ CLEAR_SCREEN_AND_SPRITES_01:
     LD      A,5             ; get ready player 2
 LOC_86A1:
     CALL    PRINT_MESSAGE
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
 
     LD      HL,0B4H         ; short pause
     XOR     A
@@ -1174,8 +1162,7 @@ LOC_86B2:
     CALL    TEST_SIGNAL
     JR      Z,LOC_86B2
     POP     AF
-    CALL    WAIT_NMI
-RET
+    JP      WAIT_NMI
 
 BUILD_LEVEL:
     LD      BC,1C2H         ; disable interrupt NMI
@@ -1351,8 +1338,7 @@ SUB_Start_the_level:   ; SUB_87F4
     LD      (IY+3),0B0H     ; $7284 = Set Mr. Do's starting Y coordinate
     LD      (IY+4),078H     ; $7285 = Set Mr. Do's starting X coordinate
     LD      (IY+0),0C0H     ; $7281 = flag
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
 
     CALL    PLAY_OPENING_TUNE
     LD      HL,1
@@ -1389,8 +1375,7 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     LD      BC,5DH                  ; 93 bytes of sound state saved at 3B00h in VRAM
     CALL    WRITE_VRAM
 
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
 
     CALL    PLAY_END_OF_ROUND_TUNE
 
@@ -1416,8 +1401,7 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     LD      HL,PNT
     CALL    INIT_TABLE          ; enable PNT
 
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
 
     LD      HL,GAMECONTROL
     RES     3,(HL)              ; enable sprites
@@ -1433,9 +1417,7 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     LD      BC,5DH
     CALL    READ_VRAM
 
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
-RET
+    JP      ENABLE_NMI
 
 DELAY:
     LD      B,2
@@ -1609,8 +1591,7 @@ LOC_89C1:
 LOC_89C8:
     LD      A,(CURRAPPL)            ; which apple to show
     ADD     A,12
-    CALL    PUTSPRITE
-RET
+    JP      PUTSPRITE
 
 SUB_89D1:
     PUSH    IY
@@ -1848,8 +1829,7 @@ LOC_8B94:
 LOC_8BAA:
     LD      A,D
     ADD     A,10H
-    CALL    SUB_8BB1
-RET
+    JP      SUB_8BB1
 
 SUB_8BB1:
     PUSH    BC
@@ -1966,8 +1946,7 @@ LOC_8C7A:
     CALL    PUTSPRITE
     POP     IX
 LOC_8C8D:
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     POP     BC
     DJNZ    LOC_8C40
 RET
@@ -2021,8 +2000,7 @@ LOC_8CEA:
     CALL    PUTSPRITE
     POP     IX
 LOC_8CF5:
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     POP     BC
     DJNZ    LOC_8C9C
 RET
@@ -2096,8 +2074,7 @@ LOC_8D47:
 LOC_8D7F:
     INC     B
 LOC_8D80:
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     INC     C
     LD      A,C
     CP      5
@@ -2133,8 +2110,7 @@ LOC_8DA1:
     JR      Z,LOC_8E05
     PUSH    BC
 LOC_8DC5:
-    LD      DE,6
-    ADD     IX,DE       ; next enemy
+    CALL    NEXT_ENTITY_IX
     POP     BC
     DJNZ    LOC_8DA1
 
@@ -2152,8 +2128,7 @@ LOOP_8DD3:
     CALL    SUB_B832
 LOST_A_LIFE:
     POP     BC
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     DJNZ    LOOP_8DD3
     LD      L,0
     BIT     7,(IY+4)
@@ -2874,8 +2849,7 @@ LOC_92F8:
     AND     A
     JR      NZ,LOC_9324
 LOC_9316:
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     INC     C
     LD      A,C
     CP      7
@@ -2910,8 +2884,7 @@ LOC_933D:
     AND     A
     JR      NZ,LOC_9363
 LOC_9355:
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     INC     C
     LD      A,C
     CP      3
@@ -3024,8 +2997,7 @@ LOC_9421:  ; Ball intersects with sprite
     LD      BC,$D908
     LD      D,0
     LD      A,4         ; remove ball explosion
-    CALL    PUTSPRITE
-    RET
+    JP      PUTSPRITE
 LOC_9444:
     RES     3,(IY+0)
     LD      HL,MRDO_DATA
@@ -3519,8 +3491,7 @@ PRINT_2X2_PATTERN:
     LD      IY,2
     CALL    MyNMI_off         ; Disable VDP ISR
     CALL    PUT_VRAM
-    CALL    MyNMI_on
-    RET
+    JP      MyNMI_on
 
 
 
@@ -3634,8 +3605,7 @@ LOC_9721:
     DEC     A
     JP      P,LOC_9721
     EX      DE,HL
-    CALL    SUB_B601
-RET
+    JP      SUB_B601
 
 SUB_9732:
     AND     A                   ; if MrDo is halted reset animation
@@ -4243,8 +4213,7 @@ PUSHTEST:
     DEC     A               ; pushing apple 40 41 left, A==2
     RET                     ; Z if A==2, NZ otherwise
 .next:
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     DJNZ    .loop
     OR      E               ; NZ
 RET
@@ -4640,8 +4609,7 @@ LOC_9DDD:
     POP     HL
     JR      NC,LOC_9E01
 LOC_9DF0:
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     DEC     L
     JR      NZ,LOC_9DB6
     LD      A,H
@@ -5775,8 +5743,7 @@ LOC_A4D3:
     CP      C
     JR      NC,LOC_A4FD
 LOC_A4F3:
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     DEC     L
     JR      NZ,LOC_A4D3
     JR      LOC_A520
@@ -6032,8 +5999,7 @@ LOC_A6AB:
     LD      A,(GAMEFLAGSBONUSITEM)
     BIT     5,A
     RET     NZ
-    CALL    PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
-RET
+    JP      PLAY_EXTRA_WALKING_TUNE_NO_CHOMPERS
 
 SUB_A6BB:
     PUSH    IX
@@ -6180,8 +6146,7 @@ LOC_A7CB:
     LD      A,(LETTERMON_X)
     LD      C,A
     LD      A,3         ; extra letter
-    CALL    PUTSPRITE
-RET
+    JP      PUTSPRITE
 
 BYTE_A7DC:
     DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
@@ -6291,8 +6256,7 @@ LOC_D3A6:
 ;   JP      Z,LOC_A853
 ;   JP      LOC_A858
 ;LOC_A853:
-    CALL    SUB_A460
-    RET
+    JP      SUB_A460
 LOC_A858:
     LD      A,(IY+2)
     AND     0FH
@@ -6390,8 +6354,7 @@ AMIMATECHOMPER_SUB_A83E:
     LD      BC,$D908
     LD      A,(CHOMPNUMBER)
     ADD     A,17            ; remove chomper
-    CALL    PUTSPRITE
-    RET                     ; REMOVE THIS SPRITE IN CASE OF ANY OTHER VALUE (?!?)
+    JP      PUTSPRITE
 CHMPLEFT:
     LD      D,3
     JR      LOC_A905
@@ -6445,8 +6408,7 @@ LOC_A905:
 .renderit:
     LD      A,(CHOMPNUMBER)
     ADD     A,17            ; animate chomper
-    CALL    PUTSPRITE
-RET
+    JP      PUTSPRITE
 
 ;SUB_A921:
 ;   CALL    SUB_9BE2
@@ -6538,8 +6500,7 @@ LOC_A973:
     LD      A,8
 LOC_AB0D:
     CALL    PRINT_MESSAGE
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
     XOR     A
     LD      HL,0B4H
     CALL    REQUEST_SIGNAL
@@ -6553,8 +6514,7 @@ LOC_AB1E:
     LD      A,1
     RET
 LOC_A984:
-    CALL    SUB_AB28
-RET
+    JP      SUB_AB28
 
 ; Input: C = completion type (1 for cherries,2 for monsters,3 diamond,4 for Extra MrDo)
 ; Uses: GAMECONTROL to determine active player
@@ -6603,8 +6563,7 @@ LOC_A9EC:
     JR      NC,LOC_A9F2
     INC     (HL)
 LOC_A9F2:
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
 
     ; %%%%%%%%%%%%%%%%%%%%%%%%%%
     ; show the extra screen
@@ -6647,9 +6606,7 @@ LOC_A9F2:
 
     CALL    WAIT_NMI
 
-    LD      BC,1E2H      ; Original game state register: Enable video and NMI
-    CALL    WRITE_REGISTER
-RET
+    JP      ENABLE_NMI
 
 WAIT8:
     LD  B,8
@@ -6806,9 +6763,7 @@ GO_NEXT_LEVEL: ; Level complete,load next level
 LOC_AA5C:
     LD      BC,0D4H
     CALL    WRITE_VRAM      ; save game data in VRAM
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
-RET
+    JP      ENABLE_NMI
 
 GET_LEVEL:
     LD      A,(GAMECONTROL)
@@ -6903,8 +6858,7 @@ LOC_AA7C:
     LD      HL,LEVELMAP
     LD      BC,0D4H
     CALL    WRITE_VRAM
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
     LD      IX,LIVES_LEFT_P1_RAM
     LD      IY,LIVES_LEFT_P2_RAM
     LD      HL,GAMECONTROL
@@ -6959,8 +6913,7 @@ SUB_AB28:
     CALL    REMOVESPRITES
     LD      A,9
     CALL    PRINT_MESSAGE               ; game over text
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
     CALL    PLAY_GAME_OVER_TUNE
     LD      HL,168H
     XOR     A
@@ -6996,8 +6949,7 @@ LOC_AB6C:
     LD      DE,300H
     XOR     A
     CALL    FILL_VRAM
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
     JR      LOC_AB6C
 LOC_ABA5:
     POP     AF
@@ -7180,8 +7132,7 @@ UPDATE_SPT:
     JP      NZ,.ROTATION
 .NOROTATION:
     LD      A,1             ; write the SPT
-    CALL    PUT_VRAM            ; IY = #of chars,DE = SPT pos,HL = ROM addr
-    RET
+    JP      PUT_VRAM            ; IY = #of chars,DE = SPT pos,HL = ROM addr
 .ROTATION:
 
     PUSH DE
@@ -7577,8 +7528,7 @@ LOC_AEFD:
     JP      NC,LOC_B061
 LOC_AF1A:
     PUSH    DE
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     POP     DE
     DEC     E
     JR      NZ,LOC_AEFD
@@ -7673,8 +7623,7 @@ LOC_AFA5:
     CP      C
     JR      NC,LOC_AFD0
 LOC_AFBF:
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     DEC     L
     JR      NZ,LOC_AF8B
     POP     HL
@@ -7765,8 +7714,7 @@ LOC_B035:
     JR      LOC_B05A
 LOC_B050:
     PUSH    DE
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     POP     DE
     DEC     E
     JR      NZ,LOC_B00F
@@ -7945,8 +7893,7 @@ LOC_B156:
     JR      C,LOC_B170
 LOC_B163:
     EX      DE,HL
-    LD      DE,5
-    ADD     IX,DE
+    CALL    NEXT_APPLE_IX
     EX      DE,HL
     DEC     E
     JR      NZ,LOC_B133
@@ -8622,8 +8569,7 @@ PRINT_SCORE:            ; A=0 for P1, A=1 for P2
     LD      D,(HL)
     LD      HL,SCRATCH
     LD      IY,8
-    CALL    PUT_VRAM
-RET
+    JP    PUT_VRAM
 
 BYTE_B5D4:
     DW SCORE_P1_RAM
@@ -8932,8 +8878,7 @@ LOC_B80F:
     POP     IX
     POP     BC
 LOC_B82A:
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B80F
 RET
 
@@ -8966,13 +8911,11 @@ LOC_B856:
 LOC_B865:
     BIT     7,(IX+4)
     JR      NZ,LOC_B89E
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B865
     CALL    SUB_CA2D
     CALL    WAIT_NMI
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
     LD      HL,GAMEFLAGSBONUSITEM
     RES     4,(HL)
     LD      A,(GAMEFLAGS)
@@ -9012,8 +8955,7 @@ SUB_B8A3:
     PUSH    IY
     CALL    SUB_CA24
     CALL    WAIT_NMI
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
     CALL  PLAY_DESSERT_COLLECT_SOUND
 
     ; Wait for dessert collect sound to finish
@@ -9049,8 +8991,7 @@ LOC_B8B1:
     CALL    REQUEST_SIGNAL
     LD      (IX+3),A
     POP     BC
-    LD      DE,6
-    ADD     IX,DE
+    CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B8B1            ; init the 3 chompers
 
     XOR     A
@@ -9104,8 +9045,7 @@ SUB_B8F7:
     LD  A,11
     CALL SET_LEVEL_COLORS.RESTORE_COLORS
 
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
 
     POP     IY
 RET
@@ -9114,8 +9054,7 @@ RET
 RESTORE_PLAYFIELD_COLORS:
     PUSH    IY                  ; Calculate correct level colors using original logic
     CALL    SET_LEVEL_COLORS
-    LD      BC,1E2H
-    CALL    WRITE_REGISTER
+    CALL    ENABLE_NMI
     POP     IY
 RET
 
@@ -9232,8 +9171,7 @@ SET_LEVEL_COLORS:
     LD      HL,CT+(2*32+24)*8
     CALL    FILL_VRAM
 
-    CALL    MyNMI_on
-RET
+    JP      MyNMI_on
 
 staticcolors:               ; leftovers
     DB $C1,$51,$31,$A1,$31
@@ -9245,8 +9183,7 @@ REP8:
 REP16:
     LD      BC,16
 .1: LD      HL,WORKBUFFER
-    CALL    MYLDIRVM
-RET
+    JP      MYLDIRVM
 
 EXTRA_BEHAVIOR:
     DW PHASE_01_EX
@@ -9951,8 +9888,7 @@ PLAY_BACKGROUND_TUNE:
     LD      B,BACKGROUND_TUNE_0A ; Play first part of background tune
     CALL    PLAY_IT
     LD      B,BACKGROUND_TUNE_0B ; Play second part of background tune
-    CALL    PLAY_IT
-    RET
+    JP      PLAY_IT
 
 SUB_C97F:
     LD      A,0FFH
@@ -11670,8 +11606,7 @@ WONDERFUL:
     CALL    WAIT_NMI
 
     LD      BC,1C2H             ; Original game state register (Enable video, No NMI)
-    CALL    WRITE_REGISTER
-RET
+    JP      WRITE_REGISTER
 
 PRINT_WONDERFUL_STATS:
     ; Check which player is active
@@ -11762,8 +11697,7 @@ PRINT_WONDERFUL_STATS:
     CALL MYPRINT
     LD DE,PNT + 8 + 32*(18)
     LD HL,WONDERFULTXT0
-    CALL MYPRINT
-RET
+    JP MYPRINT
 
 ; %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -11868,8 +11802,7 @@ INTERMISSION:
     CALL    WAIT_NMI
 
     LD      BC,1C2H             ; restore original game state register (No NMI)
-    CALL    WRITE_REGISTER
-RET
+    JP      WRITE_REGISTER
 
 
 cvb_INTERMISSION:
@@ -11904,9 +11837,7 @@ cvb_INTERMISSION:
     CALL MYWRTVRM
     CALL MyNMI_on
 
-    CALL MYENASCR
-
-RET
+    JP MYENASCR
 
 ;----------------------------------------------------------------------
 ; PRINT_LEVEL_STATS: Shows scores for current and previous two levels
@@ -11966,8 +11897,7 @@ PRINT_LEVEL_STATS:
     PUSH AF
     CALL PRINT_SINGLE_TIME
     POP AF
-    CALL PRINT_ICON
-RET
+    JP PRINT_ICON
 
 ;----------------------------------------------------------------------
 ; GET_SLOT_OFFSET: Calculates the correct slot offset for level data
@@ -12071,9 +12001,7 @@ PRINT_ICON:
 
     ; Copy the icon to screen
     LD      BC,3*256+2         ; B = 3 (height),C = 2 (width)
-    CALL    CPYBLK_MxN
-
-RET
+    JP      CPYBLK_MxN
 
 ; Table of icon addresses
 ICON_TABLE:
@@ -12155,8 +12083,7 @@ PRINT_ICON_SPRITE:
     LD    BC, 4
     CALL  MyNMI_off
     CALL  MYLDIRVM
-    CALL  MyNMI_on
-RET
+    JP    MyNMI_on
 
 
 ; Y position tables
@@ -12216,8 +12143,7 @@ PRINT_SINGLE_TIME:
     ADD HL,DE
     EX DE,HL
     LD HL,TEXT_BUFFER
-    CALL MYPRINT
-RET
+    JP MYPRINT
 
 ;----------------------------------------------------------------------
 ; PRINT_SINGLE_SCORE: Prints one level's score
@@ -12310,8 +12236,7 @@ PRINT_SINGLE_SCORE:
     ADD HL,DE
     EX DE,HL                    ; Put  in DE
     LD HL,TEXT_BUFFER
-    CALL MYPRINT
-RET
+    JP MYPRINT
 
 ;----------------------------------------------------------------------
 ; CONVERT_TO_DECIMAL_24: Converts A:HL to decimal ASCII in TEXT_BUFFER
@@ -12511,8 +12436,7 @@ cvb_INTERMISSION_FRM1:
     LD BC,5*256+14
     LD DE,$1800+10+17*32
     LD HL,cvb_FR1
-    CALL CPYBLK_MxN
-    RET
+    JP CPYBLK_MxN
 
 cvb_INTERMISSION_FRM2:
     LD BC,4*10
@@ -12526,8 +12450,7 @@ cvb_INTERMISSION_FRM2:
     LD BC,2*256+14
     LD DE,$1800+10+17*32+3*32
     LD HL,cvb_FR2
-    CALL CPYBLK_MxN
-    RET
+    JP CPYBLK_MxN
 
 EXTRA_ICON:
     DB $3c,$3d     ; Top row of extra icon
@@ -12773,9 +12696,7 @@ CONGRATULATION:
 
     CALL    WAIT_NMI
 
-    LD      BC,1E2H      ; Original game state register
-    CALL    WRITE_REGISTER
-RET
+    JP      ENABLE_NMI
 
 cvb_CONGRATULATION:
 
@@ -12821,9 +12742,7 @@ cvb_CONGRATULATION:
     LD HL,CONGRATULATIONS
     CALL MYPRINT
 
-    CALL MYENASCR
-
-    RET
+    JP MYENASCR
 
 CONGRATULATIONS:    db "CONGRATULATIONS !","!" or 128
 
@@ -13947,6 +13866,21 @@ cvb_PNT:
     DB $ff,$ff,$c0
 
 
+
+; Utility subroutines for ROM size optimization
+ENABLE_NMI:
+    LD      BC,1E2H
+    JP      WRITE_REGISTER
+
+NEXT_ENTITY_IX:
+    LD      DE,6
+    ADD     IX,DE
+    RET
+
+NEXT_APPLE_IX:
+    LD      DE,5
+    ADD     IX,DE
+    RET
 
 ARCADEFONTS:
     db $1f,$00,$01,$00,$7c,$c6,$82,$82
