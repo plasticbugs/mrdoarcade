@@ -386,7 +386,7 @@ nmi_handler:                ; do not move from here (!!!)
     RES     7,(HL)
     JR      FINISH_NMI
 LOC_80BB:
-    CALL    ENABLE_NMI
+    CALL    ENABLE_NMI          ; enable ISR generation
 FINISH_NMI:
     POP     IY
     POP     IX
@@ -958,7 +958,7 @@ INIT_VRAM:
     LD HL,mode
     RES 7,(HL)          ; game mode
 
-    JP      ENABLE_NMI
+    JP      ENABLE_NMI          ; Original game state register: Enable video and NMI
 
 LOADFONTS:      ; LOAD  ARCADE FONTS
     LD      DE,PT + 8*0d7h                  ; start fonts here
@@ -6354,7 +6354,7 @@ AMIMATECHOMPER_SUB_A83E:
     LD      BC,$D908
     LD      A,(CHOMPNUMBER)
     ADD     A,17            ; remove chomper
-    JP      PUTSPRITE
+    JP      PUTSPRITE           ; REMOVE THIS SPRITE IN CASE OF ANY OTHER VALUE (?!?)
 CHMPLEFT:
     LD      D,3
     JR      LOC_A905
@@ -6606,7 +6606,7 @@ LOC_A9F2:
 
     CALL    WAIT_NMI
 
-    JP      ENABLE_NMI
+    JP      ENABLE_NMI          ; Original game state register: Enable video and NMI
 
 WAIT8:
     LD  B,8
@@ -12696,7 +12696,7 @@ CONGRATULATION:
 
     CALL    WAIT_NMI
 
-    JP      ENABLE_NMI
+    JP      ENABLE_NMI          ; Original game state register
 
 cvb_CONGRATULATION:
 
