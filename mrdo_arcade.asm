@@ -149,7 +149,7 @@ BADGUY_BEHAVIOR_RAM:    RB  80  ;EQU $713A ; BEHAVIOR TABLE. UP TO 80 ELEMENTS
 
 LEVELMAP:               RB 160  ;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 CURRAPPL:               RB   1  ;EQU $722A
-                        RB   1  ;EQU $722B ; free !
+KONAMI_INDEX:           RB   1  ;EQU $722B ; Konami code sequence index (bit 7 = wait-for-release flag)
 APPLEDATA:              RB  25  ;EQU $722C ; Apple sprite data 5x5 bytes
 ENEMYINTERACT:          RB  20  ;EQU $7245 ; enemy interaction data
 ENEMYINTERACT2:         RB  20  ;EQU $7259 ; enemy interaction data
@@ -11296,8 +11296,11 @@ Skill4:     db "4.PR","O" or 128
 ; Select  Number of Players and Skill
 
 GET_GAME_OPTIONS:
+    XOR     A
+    LD      (KONAMI_INDEX),A    ; reset Konami code sequence
     CALL    ShowPlyrNum         ; Show 1 or 2 Players
 .PlyrNumWait:
+    CALL    CheckKonamiCode     ; check for Konami code (Up-Up-Down-Down-Left-Right-Left-Right-B-A)
     LD      A,(KEYBOARD_P1)
     DEC     A                   ; 0-1   valid range
     CP      2
@@ -13881,6 +13884,192 @@ NEXT_APPLE_IX:
     LD      DE,5
     ADD     IX,DE
     RET
+
+; ============================================================
+; Konami Code detection
+; Up-Up-Down-Down-Left-Right-Left-Right-B-A on player select
+; ============================================================
+
+; Konami sequence: expected bit patterns for each step
+KonamiSequence:
+    db $01, $01             ; Up, Up
+    db $04, $04             ; Down, Down
+    db $08, $02             ; Left, Right
+    db $08, $02             ; Left, Right
+    db $40, $40             ; B, A
+; Konami offsets: which controller buffer byte to read for each step
+; Offset 3 = $7089: joystick directions (bits 0-3)
+; Offset 2 = $7088: left fire / side button (bit 6)
+; Offset 5 = $708B: right fire / arm button (bit 6)
+KonamiOffset:
+    db 3, 3                 ; Up, Up
+    db 3, 3                 ; Down, Down
+    db 3, 3                 ; Left, Right
+    db 3, 3                 ; Left, Right
+    db 2, 5                 ; B (side), A (arm)
+
+; Check one step of the Konami code sequence per call.
+; Uses bit 7 of KONAMI_INDEX as "processing" flag.
+; Counter advances on RELEASE, not on press.
+CheckKonamiCode:
+    LD      A,(KONAMI_INDEX)
+    BIT     7,A
+    JR      NZ,.wait_release
+
+    ; Get current expected input based on index
+    AND     %00011111
+    LD      B,A             ; B = current index
+
+    ; Get expected bit pattern
+    LD      HL,KonamiSequence
+    LD      E,B
+    LD      D,0
+    ADD     HL,DE
+    LD      C,(HL)          ; C = expected bit pattern
+
+    ; Get controller buffer offset for this step
+    LD      HL,KonamiOffset
+    ADD     HL,DE
+    LD      A,(HL)
+    LD      D,A             ; D = correct offset
+
+    ; Check if any input is pressed
+    CALL    AnyInput
+    RET     Z               ; no input at all
+
+.check_input:
+    ; Read from the correct offset for this step
+    LD      HL,CONTROLLER_BUFFER
+    LD      E,D
+    LD      D,0
+    ADD     HL,DE
+    LD      A,(HL)
+
+    AND     C               ; mask to expected bit
+    CP      C               ; must match exactly
+    JR      Z,.correct_input
+
+    ; Wrong input - reset sequence
+    XOR     A
+    LD      (KONAMI_INDEX),A
+    RET
+
+.correct_input:
+    ; Set processing flag, keep current index (advance happens on release)
+    LD      A,B
+    OR      %10000000
+    LD      (KONAMI_INDEX),A
+    RET
+
+.wait_release:
+    ; Check if all inputs are released
+    CALL    AnyInput
+    RET     NZ              ; still pressed - bit 7 already set, just return
+
+    ; All released - advance counter
+    LD      A,(KONAMI_INDEX)
+    AND     %00011111
+    INC     A
+    CP      10
+    JR      NZ,.store_counter
+
+    ; Sequence complete!
+    XOR     A
+    LD      (KONAMI_INDEX),A
+    POP     HL              ; discard return to GET_GAME_OPTIONS .PlyrNumWait loop
+    POP     HL              ; discard return to cvb_ANIMATEDLOGO (CALL GET_GAME_OPTIONS)
+    JP      ShowCredits     ; stack now has original return from CALL cvb_ANIMATEDLOGO
+
+.store_counter:
+    LD      (KONAMI_INDEX),A
+    RET
+
+; ============================================================
+; Credits screen - displayed when Konami code is completed
+; ============================================================
+ShowCredits:
+    LD      A,215           ; space tile (blank, black background from LOADFONTS $F1 color)
+    CALL    cvb_MYCLS.2     ; fill PNT with spaces for clean black screen
+    CALL    REMOVESPRITES   ; hide all sprites in RAM
+
+    ; Print credit lines from table
+    LD      IX,CreditsTable
+.printloop:
+    LD      E,(IX+0)
+    LD      D,(IX+1)        ; DE = VDP address
+    LD      A,D
+    OR      E
+    JR      Z,.printdone    ; $0000 = end of table
+    LD      L,(IX+2)
+    LD      H,(IX+3)        ; HL = string pointer
+    CALL    MYPRINT
+    LD      DE,4
+    ADD     IX,DE
+    JR      .printloop
+.printdone:
+    CALL    ENABLE_NMI      ; enable display
+    CALL    PLAY_END_OF_ROUND_TUNE
+
+.waitrelease1:              ; first wait for Konami A button to be released
+    CALL    AnyInput
+    JR      NZ,.waitrelease1
+.waitpress:                 ; then wait for a new button press
+    CALL    AnyInput
+    JR      Z,.waitpress
+.waitrelease2:              ; wait for that press to be released
+    CALL    AnyInput
+    JR      NZ,.waitrelease2
+
+    JP      cvb_ANIMATEDLOGO ; return to title screen (reinitializes everything)
+
+; Returns Z if no input, NZ if any input pressed
+; Shared by CheckKonamiCode and ShowCredits
+AnyInput:
+    LD      A,(CONTROLLER_BUFFER+3)
+    AND     $0F
+    RET     NZ
+    LD      A,(CONTROLLER_BUFFER+2)
+    AND     $40
+    RET     NZ
+    LD      A,(CONTROLLER_BUFFER+5)
+    AND     $40
+    RET
+
+; Credits table: pairs of (VDP_address, string_pointer), terminated by $0000
+; PNT = $1800, 32 columns per row
+CreditsTable:
+    DW PNT+32*2+12,  cr_title       ; "- CREDITS-"     10 chars
+    DW PNT+32*5+11,  cr_disasm      ; "DISASSEMBLY"    11 chars
+    DW PNT+32*6+9,   cr_cosmos      ; "CAPTAIN COSMOS" 14 chars
+    DW PNT+32*8+13,  cr_sprites     ; "SPRITES"         7 chars
+    DW PNT+32*9+15,  cr_tix         ; "TIX"             3 chars
+    DW PNT+32*11+14, cr_code        ; "CODE"            4 chars
+    DW PNT+32*12+13, cr_artrag      ; "ARTRAG"          6 chars
+    DW PNT+32*14+9,  cr_msc         ; "MUSIC SFX CODE" 14 chars
+    DW PNT+32*15+11, cr_plastic     ; "PLASTICBUGS"    11 chars
+    DW PNT+32*17+15, cr_art         ; "ART"              3 chars
+    DW PNT+32*18+12, cr_hako       ; "HAKOGAME"        8 chars
+    DW PNT+32*19+10, cr_retro      ; "RETROILLUCID"   12 chars
+    DW PNT+32*21+12, cr_thanks     ; "- THANKS-"       9 chars
+    DW PNT+32*22+10, cr_coleco     ; "COLECOFAN1981"  13 chars
+    DW 0                        ; end of table
+
+; Credit strings (bit 7 set on last char = MYPRINT terminator)
+cr_title:   db "-CREDITS","-" or 128
+cr_disasm:  db "DISASSEMBL","Y" or 128
+cr_cosmos:  db "CAPTAIN COSMO","S" or 128
+cr_sprites: db "SPRITE","S" or 128
+cr_tix:     db "TI","X" or 128
+cr_code:    db "COD","E" or 128
+cr_artrag:  db "ARTRA","G" or 128
+cr_msc:     db "MUSIC SFX COD","E" or 128
+cr_plastic: db "PLASTICBUG","S" or 128
+cr_art:     db "AR","T" or 128
+cr_thanks:  db "-THANKS","-" or 128
+cr_coleco:  db "COLECOFAN198","1" or 128
+cr_hako:    db "HAKOGAM","E" or 128
+cr_retro:   db "RETROILLUCI","D" or 128
+
 
 ARCADEFONTS:
     db $1f,$00,$01,$00,$7c,$c6,$82,$82
