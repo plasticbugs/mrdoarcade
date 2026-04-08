@@ -4907,8 +4907,8 @@ UNK_9FB3:
 
 SUB_9FC8:                           ; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-  ;  XOR       A    ; (Uncomment for invincibility)
-  ;  RET        ; (Uncomment for invincibility)
+  ;    XOR       A    ; (Uncomment for invincibility)
+  ;    RET        ; (Uncomment for invincibility)
     LD      A,(MRDO_DATA.Y)
     SUB     (IY+2)
     JR      NC,.ypos
@@ -14040,7 +14040,7 @@ AnyInput:
 CreditsTable:
     DW PNT+32*2+12,  cr_title       ; "- CREDITS-"     10 chars
     DW PNT+32*5+11,  cr_disasm      ; "DISASSEMBLY"    11 chars
-    DW PNT+32*6+9,   cr_cosmos      ; "CAPTAIN COSMOS" 14 chars
+    DW PNT+32*6+9,   cr_cozmos      ; "CAPTAIN COZMOS" 14 chars
     DW PNT+32*8+13,  cr_sprites     ; "SPRITES"         7 chars
     DW PNT+32*9+15,  cr_tix         ; "TIX"             3 chars
     DW PNT+32*11+14, cr_code        ; "CODE"            4 chars
@@ -14057,7 +14057,7 @@ CreditsTable:
 ; Credit strings (bit 7 set on last char = MYPRINT terminator)
 cr_title:   db "-CREDITS","-" or 128
 cr_disasm:  db "DISASSEMBL","Y" or 128
-cr_cosmos:  db "CAPTAIN COSMO","S" or 128
+cr_cozmos:  db "CAPTAIN COZMO","S" or 128
 cr_sprites: db "SPRITE","S" or 128
 cr_tix:     db "TI","X" or 128
 cr_code:    db "COD","E" or 128
