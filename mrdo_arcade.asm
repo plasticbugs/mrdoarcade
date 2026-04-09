@@ -1379,19 +1379,13 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     ; Show Mr. Do sprite on pause screen
     LD      HL,PAUSE_SAT
     LD      DE,SAT                  ; SAT in VRAM ($1B00)
-    LD      BC,13
+    LD      BC,9                    ; 2 sprites + terminator
     CALL    MyNMI_off
     CALL    MYLDIRVM
-    ; Patch right-side sprite pattern based on Mr. Do's facing direction
-    LD      A,(7282H)               ; direction: 1=R, 2=L, 3=U, 4=D
-    LD      HL,PAUSE_DIR_PATTERNS-1
-    LD      C,A
-    LD      B,0
-    ADD     HL,BC
-    LD      A,(HL)                  ; get correct pattern for direction
-    LD      HL,SAT+10              ; 3rd sprite's pattern byte in VRAM
-    CALL    MYWRTVRM
     CALL    MyNMI_on
+    ; Set initial walk-right frame 0
+    XOR     A
+    CALL    SETMRDOFRAME
 
     LD      A,2
     LD      HL,3800H
@@ -1408,7 +1402,33 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
 
     CALL    DELAY
 
+    LD      B,0                     ; delay counter
+    LD      C,0                     ; frame index (0-3)
 .wait_star:
+    PUSH    BC
+    HALT                            ; wait for next vblank NMI
+    POP     BC
+    ; Animate every 60 frames (~1 second)
+    INC     B
+    LD      A,B
+    CP      60
+    JR      NZ,.no_anim
+    LD      B,0                     ; reset delay counter
+    ; Advance frame index 0→1→2→3→0
+    INC     C
+    LD      A,C
+    AND     3
+    LD      C,A
+    ; Look up walk-right frame: 0,1,2,1
+    PUSH    BC
+    LD      HL,PAUSE_FRAMES
+    LD      E,A
+    LD      D,0
+    ADD     HL,DE
+    LD      A,(HL)
+    CALL    SETMRDOFRAME
+    POP     BC
+.no_anim:
     LD      A,(GAMECONTROL)
     BIT     1,A
     LD      A,(KEYBOARD_P1)
@@ -1417,6 +1437,15 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
 .plr1:
     CP      0AH
     JR      NZ,.wait_star
+
+    ; Hide all sprites before switching back to game screen
+    LD      A,0D0H                  ; SAT terminator - hides all sprites
+    LD      HL,SAT                  ; first byte of SAT in VRAM
+    CALL    MYWRTVRM
+    ; Restore Mr. Do's actual sprite frame
+    LD      A,(MRDO_DATA.Frame)
+    DEC     A
+    CALL    SETMRDOFRAME
 
     CALL    INITIALIZE_THE_SOUND
 
@@ -14099,13 +14128,12 @@ cr_retro:   db "RETROILLUCI","D" or 128
 
 ; Pause screen data
 PAUSE_TEXT: db "PAUS","E" or 128
-PAUSE_DIR_PATTERNS:
-    DB  8, 0, 24, 16           ; R, L, U, D sprite patterns
+PAUSE_FRAMES:
+    DB  0, 1, 2, 1              ; walk-right frame sequence
 PAUSE_SAT:
-    DB  88, 72, 176, 6      ; Mr. Do body layer, left of text
-    DB  88, 72, 180, 15     ; Mr. Do detail layer, left of text
-    DB  88, 160, 8, 6       ; Pattern 8 sprite, right of text, red
-    DB  208                  ; SAT terminator ($D0)
+    DB  88, 88, 176, 8         ; Mr. Do body layer, left of text (medium red)
+    DB  88, 88, 180, 15        ; Mr. Do detail layer, left of text
+    DB  208                     ; SAT terminator ($D0)
 
 
 ARCADEFONTS:
