@@ -735,6 +735,7 @@ LOC_8375:
     CALL    WAIT_NMI
     POP     AF
     PUSH    AF
+    AND     A               ; re-test A (CP 3 at game-over return clears Z even when A=0)
     CALL    Z,SUB_851C  ; if Z restart the game
     CALL    SUB_8585
     POP     AF
