@@ -1300,7 +1300,7 @@ NEXTLINE:
     LD      HL,LIVES_LEFT_P2_RAM
 .got_lives:
     LD      B,(HL)
-    LD      DE,37H                      ; row 1, col 23 (aligned with SCENE below)
+    LD      DE,36H                      ; row 1, col 22 (aligned with SCENE below)
 .lives_loop:
     DEC     B
     JR      Z,.lives_done
@@ -1360,7 +1360,7 @@ NEXTLINE:
     LD      (HL),A                      ; hundreds tile at SCRATCH+6
 .scene_write:
     LD      HL,SCRATCH
-    LD      DE,57H                      ; row 2, col 23 (cols 23-31)
+    LD      DE,56H                      ; row 2, col 22 (cols 22-31)
     LD      IY,9
     LD      A,2
     CALL    PUT_VRAM
