@@ -110,8 +110,8 @@ SFX_COIN_INSERT_SND:    EQU $20
 NO_EXTRA_TUNE_0D:       EQU $21
 NO_EXTRA_TUNE_0E:       EQU $22
 TWINKLE_TWINKLE_0A:     EQU $23
-TWINKLE_TWINKLE_0B:     EQU $24
-TWINKLE_TWINKLE_0C:     EQU $25
+; TWINKLE_TWINKLE_0B:     EQU $24
+TWINKLE_TWINKLE_0C:     EQU $24
 
 ; RAM DEFINITIONS ***************************
     ORG $7000,$73FF
@@ -1372,7 +1372,7 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     CALL    FILL_VRAM               ; clear pause screen to blank
 
     ; Print "PAUSE" centered on pause screen
-    LD      DE,3800H+12*32+13       ; row 12, col 13 of alt PNT
+    LD      DE,3800H+12*32+14       ; row 12, col 14 of alt PNT
     LD      HL,PAUSE_TEXT
     CALL    MYPRINT
 
@@ -1383,9 +1383,12 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     CALL    MyNMI_off
     CALL    MYLDIRVM
     CALL    MyNMI_on
-    ; Set initial walk-right frame 0
-    XOR     A
-    CALL    SETMRDOFRAME
+    ; Set initial impatient frame 0
+    LD      HL,MR_DO_IMPATIENT_F0
+    LD      DE,44*4                 ; SPT position 176 (body)
+    LD      IY,8                    ; 8 tiles = 64 bytes (body + detail)
+    LD      A,1
+    CALL    PUT_VRAM
 
     LD      A,2
     LD      HL,3800H
@@ -1403,30 +1406,32 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     CALL    DELAY
 
     LD      B,0                     ; delay counter
-    LD      C,0                     ; frame index (0-3)
+    LD      C,0                     ; frame index (0-1)
 .wait_star:
     PUSH    BC
     HALT                            ; wait for next vblank NMI
     POP     BC
-    ; Animate every 60 frames (~1 second)
+    ; Animate every 30 frames (~0.5 second)
     INC     B
     LD      A,B
-    CP      60
+    CP      30
     JR      NZ,.no_anim
     LD      B,0                     ; reset delay counter
-    ; Advance frame index 0→1→2→3→0
-    INC     C
+    ; Toggle frame index 0→1→0→1
     LD      A,C
-    AND     3
+    XOR     1
     LD      C,A
-    ; Look up walk-right frame: 0,1,2,1
+    ; Write custom sprite data to SPT
     PUSH    BC
-    LD      HL,PAUSE_FRAMES
-    LD      E,A
-    LD      D,0
-    ADD     HL,DE
-    LD      A,(HL)
-    CALL    SETMRDOFRAME
+    LD      HL,MR_DO_IMPATIENT_F0
+    AND     A
+    JR      Z,.use_frame
+    LD      HL,MR_DO_IMPATIENT_F1
+.use_frame:
+    LD      DE,44*4                 ; SPT position 176 (body)
+    LD      IY,8                    ; 8 tiles = 64 bytes
+    LD      A,1
+    CALL    PUT_VRAM
     POP     BC
 .no_anim:
     LD      A,(GAMECONTROL)
@@ -9664,6 +9669,28 @@ BYTE_C278:      DB 087,085,086,084
 BYTE_C27C:      DB 090,088,091,089
 BYTE_C280:      DB 094,092,095,093
 
+; pause screen Mr. Do impatient animation
+; Frame 0: red (body, SPT 176) then white (detail, SPT 180)
+MR_DO_IMPATIENT_F0:
+   DB 000,000,007,012,008,008,016,000
+   DB 000,004,031,026,003,015,028,000
+   DB 000,000,128,064,064,000,000,000
+   DB 000,080,216,240,128,192,224,000
+   DB 000,000,000,003,004,003,005,021
+   DB 003,008,000,005,012,000,000,060
+   DB 000,000,000,128,000,128,076,094
+   DB 158,012,032,000,064,000,000,240
+
+; Frame 1: red (body, SPT 176) then white (detail, SPT 180)
+MR_DO_IMPATIENT_F1:
+   DB 000,000,007,012,008,016,000,000
+   DB 000,004,031,026,003,031,012,000
+   DB 000,000,128,064,064,000,000,000
+   DB 016,088,240,224,128,192,224,000
+   DB 000,000,000,003,004,003,037,005
+   DB 003,008,000,005,012,000,048,012
+   DB 000,000,012,158,030,140,064,080
+   DB 140,032,000,000,064,000,000,240
 
 ENEMY_GENERATOR:
     DB 000                          ;0
@@ -10056,10 +10083,8 @@ PLAY_VERY_GOOD_TUNE:
 PLAY_TWINKLE_TWINKLE_TUNE:
   LD    B,TWINKLE_TWINKLE_0A
   CALL  PLAY_IT
-  LD    B,TWINKLE_TWINKLE_0B
-  CALL  PLAY_IT
   LD    B,TWINKLE_TWINKLE_0C
-  JP    PLAY_IT
+  JP  PLAY_IT
 PLAY_COIN_INSERT_SFX:
   LD    B,SFX_COIN_INSERT_SND
   JP    PLAY_IT
@@ -10175,10 +10200,10 @@ SOUND_TABLE:
     DW SOUND_BANK_06_RAM
     DW TWINKLE_TWINKLE_P1
     DW SOUND_BANK_03_RAM
-    DW TWINKLE_TWINKLE_P2
-    DW SOUND_BANK_04_RAM
     DW TWINKLE_TWINKLE_P3
-    DW SOUND_BANK_05_RAM
+    DW SOUND_BANK_04_RAM
+    ; DW TWINKLE_TWINKLE_P2
+    ; DW SOUND_BANK_04_RAM
 
 GRAB_CHERRIES_SOUND:
     DB 193,214,048,002,051,149,193,214,048,002,051,149,193,214,048,002,051,149,234,193,190,048
@@ -10417,101 +10442,101 @@ TWINKLE_TWINKLE_P1:
   DB 064,$D5,048,013,097
   DB 064,$D5,048,013,080
 
-TWINKLE_TWINKLE_P2:
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+; TWINKLE_TWINKLE_P2:
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$28,064,006,161
-  DB 128,$2F,064,006,161
+;   DB 128,$28,064,006,161
+;   DB 128,$2F,064,006,161
 
-  DB 128,$28,064,006,161
-  DB 128,$2F,064,006,161
+;   DB 128,$28,064,006,161
+;   DB 128,$2F,064,006,161
 
-  DB 128,$2A,064,006,161
-  DB 128,$28,064,006,161
+;   DB 128,$2A,064,006,161
+;   DB 128,$28,064,006,161
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$2F,064,006,161
-  DB 128,$2A,064,006,161
-  DB 128,$2F,064,013,161
+;   DB 128,$2F,064,006,161
+;   DB 128,$2A,064,006,161
+;   DB 128,$2F,064,013,161
 
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$28,064,006,161
-  DB 128,$2F,064,006,161
+;   DB 128,$28,064,006,161
+;   DB 128,$2F,064,006,161
 
-  DB 128,$28,064,006,161
-  DB 128,$2F,064,006,161
+;   DB 128,$28,064,006,161
+;   DB 128,$2F,064,006,161
 
-  DB 128,$2A,064,006,161
-  DB 128,$28,064,006,161
+;   DB 128,$2A,064,006,161
+;   DB 128,$28,064,006,161
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$2F,064,006,161
-  DB 128,$2A,064,006,161
-  DB 128,$2F,064,013,161
+;   DB 128,$2F,064,006,161
+;   DB 128,$2A,064,006,161
+;   DB 128,$2F,064,013,161
 
-  DB 128,$35,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$35,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$35,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$35,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
-  ; A
-  DB 128,$19,064,006,161
-  ;   B
-  DB 128,$16,064,006,161
-  ;  C
-  DB 128,$14,064,006,161
-  ; A
-  DB 128,$19,064,006,161
+;   ; A
+;   DB 128,$19,064,006,161
+;   ;   B
+;   DB 128,$16,064,006,161
+;   ;  C
+;   DB 128,$14,064,006,161
+;   ; A
+;   DB 128,$19,064,006,161
 
-  DB 128,$23,064,006,161
-  DB 128,$2A,064,006,161
+;   DB 128,$23,064,006,161
+;   DB 128,$2A,064,006,161
 
- ; C
-  DB 128,$35,064,013,161
-  ; FG
-  DB 128,$28,064,006,161
-  DB 128,$23,064,006,161
-  ; A
-  DB 128,$19,064,006,161
-  ; FE
-  DB 128,$28,064,006,161
-  DB 128,$2A,064,006,161
-  ; FG
-  DB 128,$28,064,006,161
-  DB 128,$23,064,006,161
+;  ; C
+;   DB 128,$35,064,013,161
+;   ; FG
+;   DB 128,$28,064,006,161
+;   DB 128,$23,064,006,161
+;   ; A
+;   DB 128,$19,064,006,161
+;   ; FE
+;   DB 128,$28,064,006,161
+;   DB 128,$2A,064,006,161
+;   ; FG
+;   DB 128,$28,064,006,161
+;   DB 128,$23,064,006,161
 
-  ; ECE
-  DB 128,$2A,064,006,161
-  DB 128,$35,064,006,161
-  DB 128,$2A,064,006,161
-; FDC
-  DB 128,$28,064,006,161
-  DB 128,$2F,064,006,161
-  DB 128,$35,064,006,161
+;   ; ECE
+;   DB 128,$2A,064,006,161
+;   DB 128,$35,064,006,161
+;   DB 128,$2A,064,006,161
+; ; FDC
+;   DB 128,$28,064,006,161
+;   DB 128,$2F,064,006,161
+;   DB 128,$35,064,006,161
 
-  DB 128,$28,064,006,161
-  DB 128,$35,064,006,144
+;   DB 128,$28,064,006,161
+;   DB 128,$35,064,006,144
 
 TWINKLE_TWINKLE_P3:
   ; C
@@ -14128,13 +14153,10 @@ cr_retro:   db "RETROILLUCI","D" or 128
 
 ; Pause screen data
 PAUSE_TEXT: db "PAUS","E" or 128
-PAUSE_FRAMES:
-    DB  0, 1, 2, 1              ; walk-right frame sequence
 PAUSE_SAT:
     DB  88, 88, 176, 8         ; Mr. Do body layer, left of text (medium red)
     DB  88, 88, 180, 15        ; Mr. Do detail layer, left of text
     DB  208                     ; SAT terminator ($D0)
-
 
 ARCADEFONTS:
     db $1f,$00,$01,$00,$7c,$c6,$82,$82
