@@ -1484,10 +1484,10 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     PUSH    BC
     HALT                            ; wait for next vblank NMI
     POP     BC
-    ; Animate every 30 frames (~0.5 second)
+    ; Animate every 15 frames (~0.25 second)
     INC     B
     LD      A,B
-    CP      30
+    CP      15
     JR      NZ,.no_anim
     LD      B,0                     ; reset delay counter
     ; Toggle frame index 0→1→0→1
