@@ -1366,6 +1366,30 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     LD      DE,80H
     CALL    FILL_VRAM
 
+    LD      A,$D7                   ; blank tile (space character)
+    LD      HL,3800H                ; alternative PNT
+    LD      DE,300H                 ; 768 bytes (full PNT)
+    CALL    FILL_VRAM               ; clear pause screen to blank
+
+    ; Print "PAUSE" centered on pause screen
+    LD      DE,3800H+12*32+14       ; row 12, col 14 of alt PNT
+    LD      HL,PAUSE_TEXT
+    CALL    MYPRINT
+
+    ; Show Mr. Do sprite on pause screen
+    LD      HL,PAUSE_SAT
+    LD      DE,SAT                  ; SAT in VRAM ($1B00)
+    LD      BC,9                    ; 2 sprites + terminator
+    CALL    MyNMI_off
+    CALL    MYLDIRVM
+    CALL    MyNMI_on
+    ; Set initial impatient frame 0
+    LD      HL,MR_DO_IMPATIENT_F0
+    LD      DE,44*4                 ; SPT position 176 (body)
+    LD      IY,8                    ; 8 tiles = 64 bytes (body + detail)
+    LD      A,1
+    CALL    PUT_VRAM
+
     LD      A,2
     LD      HL,3800H
     CALL    INIT_TABLE              ; enable alternative PNT at 3800H
@@ -1381,7 +1405,35 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
 
     CALL    DELAY
 
+    LD      B,0                     ; delay counter
+    LD      C,0                     ; frame index (0-1)
 .wait_star:
+    PUSH    BC
+    HALT                            ; wait for next vblank NMI
+    POP     BC
+    ; Animate every 30 frames (~0.5 second)
+    INC     B
+    LD      A,B
+    CP      30
+    JR      NZ,.no_anim
+    LD      B,0                     ; reset delay counter
+    ; Toggle frame index 0→1→0→1
+    LD      A,C
+    XOR     1
+    LD      C,A
+    ; Write custom sprite data to SPT
+    PUSH    BC
+    LD      HL,MR_DO_IMPATIENT_F0
+    AND     A
+    JR      Z,.use_frame
+    LD      HL,MR_DO_IMPATIENT_F1
+.use_frame:
+    LD      DE,44*4                 ; SPT position 176 (body)
+    LD      IY,8                    ; 8 tiles = 64 bytes
+    LD      A,1
+    CALL    PUT_VRAM
+    POP     BC
+.no_anim:
     LD      A,(GAMECONTROL)
     BIT     1,A
     LD      A,(KEYBOARD_P1)
@@ -1390,6 +1442,15 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
 .plr1:
     CP      0AH
     JR      NZ,.wait_star
+
+    ; Hide all sprites before switching back to game screen
+    LD      A,0D0H                  ; SAT terminator - hides all sprites
+    LD      HL,SAT                  ; first byte of SAT in VRAM
+    CALL    MYWRTVRM
+    ; Restore Mr. Do's actual sprite frame
+    LD      A,(MRDO_DATA.Frame)
+    DEC     A
+    CALL    SETMRDOFRAME
 
     CALL    INITIALIZE_THE_SOUND
 
@@ -9608,6 +9669,28 @@ BYTE_C278:      DB 087,085,086,084
 BYTE_C27C:      DB 090,088,091,089
 BYTE_C280:      DB 094,092,095,093
 
+; pause screen Mr. Do impatient animation
+; Frame 0: red (body, SPT 176) then white (detail, SPT 180)
+MR_DO_IMPATIENT_F0:
+   DB 000,000,007,012,008,008,016,000
+   DB 000,004,031,026,003,015,028,000
+   DB 000,000,128,064,064,000,000,000
+   DB 000,080,216,240,128,192,224,000
+   DB 000,000,000,003,004,003,005,021
+   DB 003,008,000,005,012,000,000,060
+   DB 000,000,000,128,000,128,076,094
+   DB 158,012,032,000,064,000,000,240
+
+; Frame 1: red (body, SPT 176) then white (detail, SPT 180)
+MR_DO_IMPATIENT_F1:
+   DB 000,000,007,012,008,016,000,000
+   DB 000,004,031,026,003,031,012,000
+   DB 000,000,128,064,064,000,000,000
+   DB 016,088,240,224,128,192,224,000
+   DB 000,000,000,003,004,003,037,005
+   DB 003,008,000,005,012,000,048,012
+   DB 000,000,012,158,030,140,064,080
+   DB 140,032,000,000,064,000,000,240
 
 ENEMY_GENERATOR:
     DB 000                          ;0
@@ -13881,6 +13964,13 @@ NEXT_APPLE_IX:
     LD      DE,5
     ADD     IX,DE
     RET
+
+; Pause screen data
+PAUSE_TEXT: db "PAUS","E" or 128
+PAUSE_SAT:
+    DB  88, 88, 176, 8         ; Mr. Do body layer, left of text (medium red)
+    DB  88, 88, 180, 15        ; Mr. Do detail layer, left of text
+    DB  208                     ; SAT terminator ($D0)
 
 ARCADEFONTS:
     db $1f,$00,$01,$00,$7c,$c6,$82,$82
