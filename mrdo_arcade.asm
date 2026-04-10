@@ -954,6 +954,7 @@ INIT_VRAM:
     CALL    unpack
 
     CALL    LOADFONTS
+    CALL    SETUP_YELLOW_LABELS
 
     LD HL,mode
     RES 7,(HL)          ; game mode
@@ -975,6 +976,60 @@ LOADFONTS:      ; LOAD  ARCADE FONTS
     LD      BC,41*8
     LD      A,$F1
     JP      cvb_MYCLS.0
+
+; ---------------------------------------------------------------------------
+; SETUP_YELLOW_LABELS
+; Copies font patterns for "1","S","T","2","N","D" to unused pattern slots
+; 192-197 (first screen third only) and sets their color to yellow ($B1).
+; This allows the "1ST"/"2ND" labels to be yellow while score digits stay white.
+;
+; >>> TO REVERT TO WHITE LABELS (saves ~60 bytes ROM): <<<
+; 1. Remove this routine and the CALL SETUP_YELLOW_LABELS in init
+; 2. In P1ST_PHASE_LEVEL_GEN, change 192,193,194 back to $D9,244,245
+; 3. In P2ND_GEN, change 195,196,197 back to $DA,239,229
+; Labels will use the normal white font patterns instead.
+; ---------------------------------------------------------------------------
+SETUP_YELLOW_LABELS:
+    LD      IX,YELLOW_SRC_PATS
+    LD      C,192                       ; destination pattern slot
+    LD      B,6
+.copy_loop:
+    PUSH    BC
+    ; Calculate source VDP address: PT + pattern * 8
+    LD      L,(IX+0)
+    LD      H,0
+    ADD     HL,HL
+    ADD     HL,HL
+    ADD     HL,HL                       ; HL = source_pattern * 8
+    EX      DE,HL                       ; DE = source VDP addr
+    LD      HL,SCRATCH
+    LD      BC,8
+    CALL    MYINIRVM                    ; read 8 bytes from VDP to SCRATCH
+    ; Calculate dest VDP address: PT + dest_pattern * 8
+    POP     BC
+    PUSH    BC
+    LD      A,C
+    LD      L,A
+    LD      H,0
+    ADD     HL,HL
+    ADD     HL,HL
+    ADD     HL,HL                       ; HL = dest * 8
+    EX      DE,HL                       ; DE = dest VDP addr
+    LD      HL,SCRATCH
+    LD      BC,8
+    CALL    MYLDIRVM                    ; write 8 bytes from SCRATCH to VDP
+    POP     BC
+    INC     C
+    INC     IX
+    DJNZ    .copy_loop
+    ; Set color to yellow for patterns 192-197 in first third
+    LD      HL,CT+192*8
+    LD      DE,6*8                      ; 48 bytes (6 patterns)
+    LD      A,$B1                       ; light yellow on black
+    JP      FILL_VRAM                   ; tail call (returns to caller)
+
+YELLOW_SRC_PATS:
+    DB      217,244,245,218,239,229     ; source patterns: 1,S,T,2,N,D
 
 
 
@@ -1186,67 +1241,40 @@ NEXTLINE:
     DEC     A
     JR      NZ,NEXTLINE
 
-    LD      A,1
-    CALL    PRINT_MESSAGE
-    XOR     A
-    CALL    PRINT_SCORE
+    ; --- Draw "1ST" or "2ND" label + fake zeros based on active player ---
     LD      A,(GAMECONTROL)
-    BIT     0,A
-    JR      Z,LOC_8709          ; B0 == one player
-    LD      A,0FH
-    CALL    PRINT_MESSAGE
-    LD      A,1
-    CALL    PRINT_SCORE
-LOC_8709:
-    LD      A,(GAMECONTROL)
+    PUSH    AF
     BIT     1,A
-    LD      A,(CURRENT_LEVEL_P1)
-    JR      Z,LOC_8716
-    LD      A,(CURRENT_LEVEL_P2)
-LOC_8716:
-    LD      HL,SCRATCH
-    LD      D,0D8H
-    LD      IY,1
-    CP      0AH
-    JR      NC,LOC_8728
-    ADD     A,0D8H
-    LD      (HL),A
-    JR      LOC_8739
-LOC_8728:
-    CP      0AH
-    JR      C,LOC_8731
-    SUB     0AH
-    INC     D
-    JR      LOC_8728
-LOC_8731:
-    INC     IY
-    LD      (HL),D
-    INC     HL
-    ADD     A,0D8H
-    LD      (HL),A
-    DEC     HL
-LOC_8739:
-    LD      DE,3DH
-    LD      A,2
-    CALL    PUT_VRAM
+    LD      A,1                         ; message 1 = "1ST" + fake zeros
+    JR      Z,.draw_label
+    LD      A,0FH                       ; message 15 = "2ND" + fake zeros
+.draw_label:
+    CALL    PRINT_MESSAGE
+    ; --- Draw active player's score at row 2, col 2 ---
+    POP     AF
+    AND     2                           ; isolate bit 1 (P2 flag)
+    RRCA                                ; A=0 for P1, A=1 for P2
+    CALL    PRINT_SCORE
+    ; --- Draw EXTRA border ---
     LD      A,2
     CALL    PRINT_MESSAGE
+    ; --- Draw initial EXTRA letters ---
     LD      HL,LETTERMON_DATA_P1
     LD      A,(GAMECONTROL)
     BIT     1,A
-    JR      Z,LOC_8753
+    JR      Z,.got_lettermon
     LD      HL,LETTERMON_DATA_P2
-LOC_8753:
+.got_lettermon:
     LD      DE,12BH
     LD      BC,0
-LOC_8759:
+.extra_loop:
     LD      A,(HL)
     PUSH    HL
     LD      HL,EXTRA_01_TXT
     AND     D
-    JR      Z,SEND_EXTRA_TO_VRAM
+    JR      Z,.extra_tile
     LD      HL,EXTRA_02_TXT
-SEND_EXTRA_TO_VRAM:
+.extra_tile:
     ADD     HL,BC
     PUSH    BC
     PUSH    DE
@@ -1263,37 +1291,79 @@ SEND_EXTRA_TO_VRAM:
     INC     C
     LD      A,C
     CP      5
-    JR      NZ,LOC_8759
+    JR      NZ,.extra_loop
+    ; --- Draw lives (top half only, tile 75) ---
     LD      A,(GAMECONTROL)
     BIT     1,A
     LD      HL,LIVES_LEFT_P1_RAM
-    JR      Z,LOC_878C
+    JR      Z,.got_lives
     LD      HL,LIVES_LEFT_P2_RAM
-LOC_878C:
+.got_lives:
     LD      B,(HL)
-    LD      DE,35H
-SEND_LIVES_TO_VRAM:
+    LD      DE,37H                      ; row 1, col 23 (aligned with SCENE below)
+.lives_loop:
     DEC     B
-    JR      Z,LOC_87B9
+    JR      Z,.lives_done
     PUSH    BC
     PUSH    DE
-    LD      HL,MR_DO_ICON
-    LD      IY,1
-    LD      A,2
-    CALL    PUT_VRAM
-    POP     HL
-    PUSH    HL
-    LD      DE,20H
-    ADD     HL,DE
-    EX      DE,HL
-    LD      HL,MR_DO_ICON+1
+    LD      HL,MR_DO_ICON               ; tile 75 (top half only)
     LD      IY,1
     LD      A,2
     CALL    PUT_VRAM
     POP     DE
     POP     BC
     INC     DE
-    JR      SEND_LIVES_TO_VRAM
+    JR      .lives_loop
+.lives_done:
+    ; --- Draw "SCENE...#" at row 2, cols 23-31 ---
+    LD      A,(GAMECONTROL)
+    BIT     1,A
+    LD      A,(CURRENT_LEVEL_P1)
+    JR      Z,.got_level
+    LD      A,(CURRENT_LEVEL_P2)
+.got_level:
+    PUSH    AF                          ; save level number
+    LD      HL,SCENE_DOTS_DATA
+    LD      DE,SCRATCH
+    LD      BC,8
+    LDIR                                ; copy "SCENE..." to SCRATCH[0-7]
+    POP     AF                          ; A = level number (1-255)
+    ; Convert level to right-justified digit tiles at SCRATCH[6/7/8]
+    ; Format: SCENE...# / SCENE..## / SCENE.###
+    ; Note: SCRATCH[8] overflows into ADDCURRTIMER (safe — NMI disabled)
+    LD      HL,SCRATCH+8
+    LD      B,-1
+.div10_ones:
+    INC     B
+    SUB     10
+    JR      NC,.div10_ones
+    ADD     A,10                        ; A = ones digit
+    ADD     A,0D8H                      ; convert to tile
+    LD      (HL),A
+    DEC     HL                          ; HL = SCRATCH+7
+    LD      A,B                         ; A = level/10 (0-25)
+    AND     A
+    JR      Z,.scene_write              ; single digit, done
+    LD      B,-1
+.div10_tens:
+    INC     B
+    SUB     10
+    JR      NC,.div10_tens
+    ADD     A,10                        ; A = tens digit
+    ADD     A,0D8H
+    LD      (HL),A                      ; tens tile at SCRATCH+7
+    DEC     HL                          ; HL = SCRATCH+6
+    LD      A,B                         ; A = level/100 (0-2)
+    AND     A
+    JR      Z,.scene_write              ; two digits, done
+    ADD     A,0D8H
+    LD      (HL),A                      ; hundreds tile at SCRATCH+6
+.scene_write:
+    LD      HL,SCRATCH
+    LD      DE,57H                      ; row 2, col 23 (cols 23-31)
+    LD      IY,9
+    LD      A,2
+    CALL    PUT_VRAM
 LOC_87B9:
     LD      A,3
     CALL    PRINT_MESSAGE
@@ -1326,6 +1396,8 @@ EXTRA_02_TXT:
     DB  48,49,50,51,52      ; EXTRA red
 MR_DO_ICON:
     DB  75,107
+SCENE_DOTS_DATA:
+    DB  244,228,230,239,230,254,254,254  ; "SCENE..." tiles (S,C,E,N,E,dot,dot,dot)
 
 SUB_Start_the_level:   ; SUB_87F4
     LD      IY,MRDO_DATA
@@ -8634,9 +8706,9 @@ PRINT_SCORE:            ; A=0 for P1, A=1 for P2
 
 BYTE_B5D4:
     DW SCORE_P1_RAM
-    DW          34  ; SCREEN POSITION SCORE P1 (shifted left 2 for 8-digit display)
+    DW          65  ; SCREEN POSITION SCORE P1 (row 2, col 1)
     DW SCORE_P2_RAM
-    DW          66  ; SCREEN POSITION SCORE P2 (shifted left 2 for 8-digit display)
+    DW          65  ; SCREEN POSITION SCORE P2 (row 2, col 1)
 ;   DB          0   ; ?? unused?
 
 BYTE_AEAD:
@@ -9394,7 +9466,7 @@ PHASE_10_MAP:
     DB 000,000,095,175,001,000,008,095,207,239,159,001,000,003,095,001,207,010,159,000,000,002,000
 
 OBJ_POSITION_LIST:
-    DW $0020,$000A,$016E,$0188,$0188,$016E,$0166,$0166,$016A,$016E,$016E,$016E,$016E,$016E,$0040,$016E,$016E,$016E,$016E,$016E
+    DW $0025,$000A,$016E,$0188,$0188,$016E,$0166,$0166,$016A,$016E,$016E,$016E,$016E,$016E,$0025,$016E,$016E,$016E,$016E,$016E
 
 OBJ_DESCRIPTION_LIST:
     DW P1ST_PHASE_LEVEL_GEN             ; 1
@@ -9426,7 +9498,7 @@ OBJ_DESCRIPTION_LIST:
 
 P1ST_PHASE_LEVEL_GEN:
 ;   DB 066,067,068,254,023,241,233,255
-    DB 124,125,216,216,0FEH, 23, 73, 74,0FFH            ;1st, two fake 0s and PH
+    DB 192,193,194,0FEH,019H,0D8H,0D8H,0FFH                ;"1ST" yellow at col 5 + skip to row 2 col 1 for fake zeros
 EXTRA_BORDER_GEN:
     DB 058,0FDH,009,061,063,0FEH,021,059,0FEH,009,064,0FEH,021,060,0FDH,009,062,065,0FFH
 GET_READY_P1_GEN:
@@ -9442,7 +9514,7 @@ GAME_OVER_GEN:
     DB 0FDH,011,000,0FEH,021,000,232,226,238,230,000,240,247,230,243,000,0FEH,021,0FDH,011,000,0FFH
 
 P2ND_GEN:
-    DB 126,127,216,216,0FFH             ;2nd and two fake 0s
+    DB 195,196,197,0FEH,019H,0D8H,0D8H,0FFH   ;"2ND" yellow at col 5 + skip to row 2 col 1 for fake zeros
 
 BLANK_SPACE_GEN:    DB   0, 0,0FEH,030,  0,  0,0FFH
 BADGUY_OUTLINE_GEN: DB  76,77,0FEH,030,108,109,0FFH
