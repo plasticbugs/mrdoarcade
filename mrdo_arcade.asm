@@ -735,6 +735,7 @@ LOC_8375:
     CALL    WAIT_NMI
     POP     AF
     PUSH    AF
+    AND     A               ; re-test A (CP 3 at game-over return clears Z even when A=0)
     CALL    Z,SUB_851C  ; if Z restart the game
     CALL    SUB_8585
     POP     AF
@@ -1300,7 +1301,7 @@ NEXTLINE:
     LD      HL,LIVES_LEFT_P2_RAM
 .got_lives:
     LD      B,(HL)
-    LD      DE,37H                      ; row 1, col 23 (aligned with SCENE below)
+    LD      DE,36H                      ; row 1, col 22 (aligned with SCENE below)
 .lives_loop:
     DEC     B
     JR      Z,.lives_done
@@ -1360,7 +1361,7 @@ NEXTLINE:
     LD      (HL),A                      ; hundreds tile at SCRATCH+6
 .scene_write:
     LD      HL,SCRATCH
-    LD      DE,57H                      ; row 2, col 23 (cols 23-31)
+    LD      DE,56H                      ; row 2, col 22 (cols 22-31)
     LD      IY,9
     LD      A,2
     CALL    PUT_VRAM
@@ -1483,10 +1484,10 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
     PUSH    BC
     HALT                            ; wait for next vblank NMI
     POP     BC
-    ; Animate every 30 frames (~0.5 second)
+    ; Animate every 15 frames (~0.25 second)
     INC     B
     LD      A,B
-    CP      30
+    CP      15
     JR      NZ,.no_anim
     LD      B,0                     ; reset delay counter
     ; Toggle frame index 0→1→0→1
