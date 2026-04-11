@@ -5041,8 +5041,8 @@ UNK_9FB3:
 
 SUB_9FC8:                           ; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-     XOR       A    ; (Uncomment for invincibility)
-     RET        ; (Uncomment for invincibility)
+    ;  XOR       A    ; (Uncomment for invincibility)
+    ;  RET        ; (Uncomment for invincibility)
     LD      A,(MRDO_DATA.Y)
     SUB     (IY+2)
     JR      NC,.ypos
@@ -12319,33 +12319,43 @@ PRINT_SINGLE_SCORE:
     POP AF                      ; Restore level number
     PUSH AF                     ; Save it again
 
-    ; Convert level to decimal
-    LD h,0                    ; Clear H
-    LD l,A                    ; Put level in L (now HL = level)
-    PUSH DE                    ; Save screen position
-
-    ; Get tens and ones only
-    CALL DIV_HLby10
-
-    ; Store tens digit
-    LD A,C
-    or A                       ; Test if zero
-    JR z,.skip_tens             ; If zero,skip tens
-
-    ADD A,"0"                   ; Convert to ASCII
-    LD (TEXT_BUFFER),A
-    LD A,l                      ; Store ones digit
-    ADD A,"0" + $80         ; ADD terminator
-    LD (TEXT_BUFFER+1),A
-
-    JR .print_level
-
-.skip_tens:
-
-    LD A,l                      ; Just store ones for single digit
-    ADD A,"0" + $80
-    LD (TEXT_BUFFER),A
-
+    ; Convert level (1-255) to decimal digits in TEXT_BUFFER
+    LD      H,0
+    LD      L,A                     ; HL = level
+    PUSH    DE                      ; Save screen position
+    CALL    DIV_HLby10              ; C = level/10, L = ones
+    LD      A,L                     ; save ones digit
+    LD      H,0
+    LD      L,C                     ; HL = level/10
+    LD      B,A                     ; B = ones digit
+    CALL    DIV_HLby10              ; C = hundreds, L = tens
+    LD      IX,TEXT_BUFFER
+    LD      A,C
+    OR      A
+    JR      Z,.no_hundreds
+    ADD     A,"0"
+    LD      (IX+0),A
+    LD      A,L
+    ADD     A,"0"
+    LD      (IX+1),A
+    LD      A,B
+    ADD     A,"0" + $80
+    LD      (IX+2),A
+    JR      .print_level
+.no_hundreds:
+    LD      A,L
+    OR      A
+    JR      Z,.no_tens
+    ADD     A,"0"
+    LD      (IX+0),A
+    LD      A,B
+    ADD     A,"0" + $80
+    LD      (IX+1),A
+    JR      .print_level
+.no_tens:
+    LD      A,B
+    ADD     A,"0" + $80
+    LD      (IX+0),A
 .print_level:
     POP HL                      ; Restore VRAM Address
     ; Print level number
