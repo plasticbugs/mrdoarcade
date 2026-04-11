@@ -1301,7 +1301,7 @@ NEXTLINE:
     LD      HL,LIVES_LEFT_P2_RAM
 .got_lives:
     LD      B,(HL)
-    LD      DE,36H                      ; row 1, col 22 (aligned with SCENE below)
+    LD      DE,37H                      ; row 1, col 23
 .lives_loop:
     DEC     B
     JR      Z,.lives_done
