@@ -14171,13 +14171,53 @@ ShowCredits:
     ADD     IX,DE
     JR      .printloop
 .printdone:
+    ; Show Mr. Do sprite on credits screen
+    LD      HL,CREDITS_SAT
+    LD      DE,SAT                  ; SAT in VRAM ($1B00)
+    LD      BC,9                    ; 2 sprites + terminator
+    CALL    MyNMI_off
+    CALL    MYLDIRVM
+    CALL    MyNMI_on
+    ; Set initial impatient frame 0
+    LD      HL,MR_DO_IMPATIENT_F0
+    LD      DE,2D80H                ; SPT + 176*8 (pattern 176 VRAM addr)
+    LD      BC,64                   ; 64 bytes (body + detail)
+    CALL    MYLDIRVM
+
     CALL    ENABLE_NMI      ; enable display
     CALL    PLAY_END_OF_ROUND_TUNE
 
 .waitrelease1:              ; first wait for Konami A button to be released
     CALL    AnyInput
     JR      NZ,.waitrelease1
+    LD      B,0                     ; delay counter
+    LD      C,0                     ; frame index (0-1)
 .waitpress:                 ; then wait for a new button press
+    PUSH    BC
+    HALT                            ; wait for next vblank NMI
+    POP     BC
+    ; Animate every 30 frames (~0.5 second)
+    INC     B
+    LD      A,B
+    CP      30
+    JR      NZ,.no_anim
+    LD      B,0
+    LD      A,C
+    XOR     1
+    LD      C,A
+    PUSH    BC
+    LD      HL,MR_DO_IMPATIENT_F0
+    AND     A
+    JR      Z,.use_frame
+    LD      HL,MR_DO_IMPATIENT_F1
+.use_frame:
+    LD      DE,2D80H                ; SPT + 176*8
+    LD      BC,64
+    CALL    MyNMI_off
+    CALL    MYLDIRVM
+    CALL    MyNMI_on
+    POP     BC
+.no_anim:
     CALL    AnyInput
     JR      Z,.waitpress
 .waitrelease2:              ; wait for that press to be released
@@ -14239,6 +14279,11 @@ PAUSE_TEXT: db "PAUS","E" or 128
 PAUSE_SAT:
     DB  88, 88, 176, 8         ; Mr. Do body layer, left of text (medium red)
     DB  88, 88, 180, 15        ; Mr. Do detail layer, left of text
+    DB  208                     ; SAT terminator ($D0)
+
+CREDITS_SAT:
+    DB  62, 82, 176, 8         ; Mr. Do body layer, left of TIX (medium red)
+    DB  62, 82, 180, 15        ; Mr. Do detail layer
     DB  208                     ; SAT terminator ($D0)
 
 ARCADEFONTS:
