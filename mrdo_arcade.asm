@@ -1476,7 +1476,17 @@ CHECK_FOR_PAUSE:            ; CHECK_FOR_PAUSE
 
     CALL    PLAY_END_OF_ROUND_TUNE
 
-    CALL    DELAY
+    ; Wait for star button release before entering pause loop
+.wait_release:
+    HALT
+    LD      A,(GAMECONTROL)
+    BIT     1,A
+    LD      A,(KEYBOARD_P1)
+    JR      Z,.rel1
+    LD      A,(KEYBOARD_P2)
+.rel1:
+    CP      0AH
+    JR      Z,.wait_release
 
     LD      B,0                     ; delay counter
     LD      C,0                     ; frame index (0-1)
@@ -14196,10 +14206,10 @@ ShowCredits:
     PUSH    BC
     HALT                            ; wait for next vblank NMI
     POP     BC
-    ; Animate every 30 frames (~0.5 second)
+    ; Animate every 15 frames (~0.25 second)
     INC     B
     LD      A,B
-    CP      30
+    CP      15
     JR      NZ,.no_anim
     LD      B,0
     LD      A,C
