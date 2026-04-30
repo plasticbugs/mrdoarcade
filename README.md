@@ -1,6 +1,6 @@
 # Mr. Do Arcade ColecoVision Rom Hack
 
-For folk not familiar with GitHub: Click on the `mrdo_arcade.rom` link in the list of files here and click the "RAW" button to get the ROM. Play it in your favorite ColecoVision emulator or load it onto a CV Flash Cart and play it on a real ColecoVision.
+For folks not familiar with GitHub: Click on the `mrdo_arcade.rom` link in the list of files here and click the "RAW" button to get the ROM. Play it in your favorite ColecoVision emulator or load it onto a CV Flash Cart and play it on a real ColecoVision.
 
 This work is based on the original Mr. Do game for the ColecoVision and was made possible by the disassembly work done by Captain Cosmos on the Atari Age forums. HUGE shout out to @artrag and @TIX for lending their time and their talents to this project!
 
