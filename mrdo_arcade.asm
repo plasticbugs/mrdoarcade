@@ -14311,7 +14311,7 @@ ARCADEFONTS:
     db $60,$f7,$18,$65,$18,$25,$01,$ff
     db $ff,$ff,$ff,$80
 
-
+    DS $10000-$,$FF    ; pad to end of 32KB ROM
 
 ;; Snowman 4 frames
 ;SNOWMANGENERATOR:
