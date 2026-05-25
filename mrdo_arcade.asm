@@ -103,6 +103,16 @@ LOSE_LIFE_TUNE_0A:      EQU $19
 LOSE_LIFE_TUNE_0B:      EQU $1A
 BLUE_CHOMPER_SND_0A:    EQU $1B
 BLUE_CHOMPER_SND_0B:    EQU $1C
+; Frames between staggered chomper releases (one-by-one single-file spawn).
+; Bigger = larger gap between chompers in the line. Tune to taste.
+CHOMP_STAGGER:          EQU 56
+; Sprite Y of the first grid-aligned playfield row (PEEKMAP subtracts the 24px
+; scorebar). Chompers descend the entry shaft until they reach this row, then
+; navigate existing tunnels only. Decision rows are 32,48,64,...
+CHOMP_PLAYFIELD_Y:      EQU 32
+; Sprite Y of the last (bottom) playfield row. Emerging chompers force-join the
+; tunnel network here so they never dig past the bottom into out-of-bounds map.
+CHOMP_BOTTOM_Y:         EQU 176
 VERY_GOOD_TUNE_0A:      EQU $1D
 VERY_GOOD_TUNE_0B:      EQU $1E
 VERY_GOOD_TUNE_0C:      EQU $1F
@@ -170,7 +180,9 @@ LETTERMON_SPAWNP1:      RB   1  ;EQU $727A Counter used to spawn letter monster 
 LETTERMON_SPAWNP2:      RB   1  ;EQU $727B Counter used to spawn letter monster for P2
 SCOREFLAG:              RB   1  ;EQU $727C Tell which score to upate ($80 for P1, $40 for P2, 0 no update)
 
-free:                   RB   4  ;EQU $727D
+CHOMP_RELEASED:         RB   1  ;EQU $727D ; staggered release: # of chompers released so far (1-3)
+CHOMP_RELTIMER:         RB   1  ;EQU $727E ; staggered release: signal timer ID between releases
+free:                   RB   2  ;EQU $727F
 
 MRDO_DATA:              RB   1  ;EQU $7281 ;+0  ; Mr. Do's flags
 MRDO_DATA.unkn:         RB   1  ;EQU $7282 ;+1  ; Mr. Do's ?
@@ -6203,6 +6215,16 @@ LOC_A6F2:
     RES     5,(HL)
     CALL    SUB_B8A3
 LOC_A70B:
+    ; hold the letter monster still until all chompers have emerged
+    LD      A,(GAMEFLAGS)
+    BIT     7,A                 ; chomper mode?
+    JR      Z,.lm_canmove
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.lm_canmove      ; all 3 out -> resume movement
+    POP     DE                  ; balance the PUSH DE above
+    JP      LOC_A77B            ; still spawning -> skip ALL movement this frame
+.lm_canmove:
     CALL    SUB_A527
     POP     DE
     JR      Z,LOC_A74B
@@ -6319,6 +6341,37 @@ BYTE_A7DC:
     DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
 
 SUB_A7F4:
+    ; --- staggered release: bring out chompers one-by-one, single file ---
+    LD      A,(GAMEFLAGS)
+    BIT     7,A                 ; ONLY run release logic in chomper mode (CHOMPDATA/
+    JR      Z,.norelease        ; CHOMP_RELEASED are only valid once SUB_B8A3 has set up)
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.norelease       ; all 3 already out
+    LD      A,(CHOMP_RELTIMER)
+    CALL    TEST_SIGNAL
+    JR      Z,.norelease        ; not time yet
+    LD      A,(CHOMP_RELEASED)  ; index of next chomper to release
+    LD      C,A
+    ADD     A,A                 ; *2
+    ADD     A,C                 ; *3
+    ADD     A,A                 ; *6
+    LD      E,A
+    LD      D,0
+    LD      IX,CHOMPDATA
+    ADD     IX,DE               ; IX -> chomper[CHOMP_RELEASED]
+    SET     7,(IX+4)            ; activate it
+    XOR     A
+    LD      HL,1
+    CALL    REQUEST_SIGNAL
+    LD      (IX+3),A            ; seed its movement timer
+    LD      HL,CHOMP_RELEASED
+    INC     (HL)
+    XOR     A
+    LD      HL,CHOMP_STAGGER
+    CALL    REQUEST_SIGNAL
+    LD      (CHOMP_RELTIMER),A  ; restart stagger timer for the next one
+.norelease:
     LD      A,(CHOMPNUMBER)
     AND     3
     LD      C,A
@@ -6337,7 +6390,30 @@ SUB_A7F4:
     LD      A,(IY+3)
     CALL    TEST_SIGNAL
     JR      Z,LOC_A82B
+    ; --- single file: chomper 0 homes on Mr. Do, followers home on the chomper ahead ---
+    LD      A,(CHOMPNUMBER)
+    AND     A
+    JR      Z,.lead_move            ; chomper 0 = leader, real target = Mr. Do
+    BIT     7,(IY-2)               ; chomper ahead (IY-6) still active? (+4 byte = IY-2)
+    JR      Z,.lead_move           ; ahead is dead/not out yet -> home on Mr. Do instead
+    ; follower: chomper ahead is at IY-6; swap its X/Y in for Mr. Do's during the move
+    LD      A,(MRDO_DATA.Y)
+    PUSH    AF
+    LD      A,(MRDO_DATA.X)
+    PUSH    AF
+    LD      A,(IY-5)               ; ahead chomper X  (IY-6+1)
+    LD      (MRDO_DATA.X),A
+    LD      A,(IY-4)               ; ahead chomper Y  (IY-6+2)
+    LD      (MRDO_DATA.Y),A
+    CALL    MOVECHOMPER_SUB_A83E    ; MOVE CHOMPER (homes on chomper ahead)
+    POP     AF
+    LD      (MRDO_DATA.X),A        ; restore real Mr. Do X
+    POP     AF
+    LD      (MRDO_DATA.Y),A        ; restore real Mr. Do Y
+    JR      .moved
+.lead_move:
     CALL    MOVECHOMPER_SUB_A83E    ; MOVE CHOMPER
+.moved:
     CALL    AMIMATECHOMPER_SUB_A83E ; PLOT CHOMPER
 
     CALL    SUB_9BE2                ; MANAGE MOVEMENT DELAY ACCORDING TO SKILL LEVEL AND PHASE
@@ -6417,90 +6493,79 @@ LOC_D39F:
     CALL    REQUEST_SIGNAL
     LD      (TIMERCHOMP1),A
 LOC_D3A6:
-    LD      A,(GAMEFLAGS)
-    BIT     0,A             ; b0 in GAMEFLAGS ??
-    JR      NZ,LOC_A858
-;   JP      Z,LOC_A853
-;   JP      LOC_A858
-;LOC_A853:
-    JP      SUB_A460
-LOC_A858:
+    ; chompers no longer dig freely; always use tunnel-only homing
+    JP      CHOMP_MOVE_WALLED
+
+; --- Tunnel-only chomper movement -------------------------------------------
+; Chompers emerge from the letter monster by descending straight down (carving
+; only a minimal entry shaft as they cross into the maze) until they reach an
+; existing side tunnel, then home toward the target (Mr. Do for the leader, the
+; chomper ahead for followers) using ONLY already-open tunnels.
+; bit6 of (IY+0) = "still emerging / digging the entry shaft".
+; (bit7 is reserved as the chomper "dead" flag by SUB_A7F4 / SUB_B809.)
+CHOMP_MOVE_WALLED:
+    BIT     6,(IY+0)
+    JR      Z,.network          ; already joined the tunnel network
+    ; emerging: only re-evaluate the join condition at a grid decision point
     LD      A,(IY+2)
     AND     0FH
-    JR      NZ,LOC_A868
+    JR      NZ,.descend
     LD      A,(IY+1)
     AND     0FH
     CP      8
-    JR      Z,LOC_A878
-LOC_A868:
-    LD      A,(IY+4)
-    AND     7
-    DEC     A
-    LD      E,A
-    LD      D,0
-    LD      HL,BYTE_A8C7
-    ADD     HL,DE
-    LD      H,(HL)
-    JR      LOC_A898
-LOC_A878:
-    LD      H,0F0H
+    JR      NZ,.descend
     LD      A,(IY+2)
-    CP      28H
-    JR      NC,LOC_A883
-    RES     4,H
-LOC_A883:
-    CP      0A8H
-    JR      C,LOC_A889
-    RES     5,H
-LOC_A889:
-    LD      A,(IY+1)
-    CP      20H
-    JR      NC,LOC_A892
-    RES     7,H
-LOC_A892:
-    CP      0E0H
-    JR      C,LOC_A898
-    RES     6,H
-LOC_A898:
-    LD      A,H
-    PUSH    HL
-    CALL    SUB_9E7A
+    CP      CHOMP_PLAYFIELD_Y
+    JR      C,.descend          ; still above the playfield -> keep descending
+    CP      CHOMP_BOTTOM_Y
+    JR      NC,.join            ; reached the bottom row -> stop digging, join here
+    CALL    SUB_9F29            ; open-tunnel mask at this tile
+    AND     0C0H                ; bit6=right, bit7=left : any side tunnel here?
+    JR      Z,.descend          ; none yet -> keep descending
+.join:
+    RES     6,(IY+0)            ; reached the network -> stop emerging
+    JR      .network
+.descend:
     LD      A,(IY+4)
-    AND     7
-    CALL    SUB_9D2F
-    POP     HL
-    RET     Z
-    LD      A,(IY+4)
-;   JP      LOC_D3D5
-;LOC_D3D5:
-    AND     7
-    LD      C,0C0H
-    CP      3
-;   JP      LOC_A8AF
-;LOC_A8AF:
-    JR      NC,LOC_A8B3
-    LD      C,30H
-LOC_A8B3:
-    LD      A,H
-    AND     C
-    LD      H,A
-    JR      NZ,LOC_A898
-    LD      A,(IY+4)
-    BIT     0,A
-    JR      Z,LOC_A8C2
-    INC     A
-    JR      LOC_A8C3
-LOC_A8C2:
-    DEC     A
-LOC_A8C3:
+    AND     0F8H
+    OR      4                   ; force direction = DOWN
     LD      (IY+4),A
-RET
-
-BYTE_A8C7:
-    DB 064,128,016,032
+    LD      A,(IY+2)
+    CP      CHOMP_PLAYFIELD_Y
+    JR      C,.descend_step     ; above the playfield: no map tile yet, don't dig
+    CALL    SUB_9B4F            ; carve the entry shaft as we enter the maze
+.descend_step:
+    LD      A,4
+    JP      SUB_9D2F            ; step down
+.network:
+    ; only choose a new direction at a grid decision point; otherwise keep going
+    LD      A,(IY+2)
+    AND     0FH
+    JR      NZ,.netstep
+    LD      A,(IY+1)
+    AND     0FH
+    CP      8
+    JR      NZ,.netstep
+    CALL    SUB_A497            ; desired direction mask toward target
+    PUSH    AF
+    CALL    SUB_9F29            ; open-tunnel mask
+    LD      B,A
+    POP     AF
+    AND     B                   ; directions that are toward target AND open
+    JR      NZ,.netchoose
+    LD      A,B                 ; none toward target -> follow any open tunnel
+    AND     A
+    JR      Z,.netstep          ; boxed in -> just try to continue straight
+.netchoose:
+    CALL    SUB_9E7A            ; pick a direction within the mask -> (IY+4)
+.netstep:
+    LD      A,(IY+4)
+    AND     7
+    JP      SUB_9D2F            ; step in the committed direction
 
 AMIMATECHOMPER_SUB_A83E:
-    CALL    SUB_9B4F            ; comment here to make chopers not dig (but they will pass everywhere)
+    ; No free digging: chompers carve only the entry shaft (in CHOMP_MOVE_WALLED)
+    ; and otherwise travel existing tunnels. (was: CALL SUB_9B4F)
     LD      B,(IY+2)
     LD      C,(IY+1)
     CALL    PEEKMAP
@@ -9142,15 +9207,22 @@ SUB_B8A3:
     LD      IX,CHOMPDATA    ; chomper data
     LD      B,3     ; chomper number
 LOC_B8B1:
-    LD      (IX+0),10H
+    LD      (IX+0),50H          ; bit4=chomper, bit6=emerging (dig entry shaft, then tunnels only)
+                                ; NOTE: bit7 is the "dead" flag (SUB_A7F4/SUB_B809) - do NOT reuse it
     LD      A,(LETTERMON_Y)
     LD      (IX+2),A
     LD      A,(LETTERMON_X)
+    AND     0F0H                ; snap X to tile-center column (offset 8) so the
+    OR      8                   ; chomper rides the maze grid for tunnel movement
     LD      (IX+1),A
     LD      A,($72C1)
-    AND     7
-    OR      80H
+    AND     7                   ; starting direction; bit7 (active) left CLEAR for followers
     LD      (IX+4),A
+    LD      A,B                 ; loop counter: 3=chomper0, 2=chomper1, 1=chomper2
+    CP      3
+    JR      NZ,.notlead
+    SET     7,(IX+4)            ; activate ONLY chomper 0 at spawn (others released later)
+.notlead:
     LD      (IX+5),0
     PUSH    BC
     XOR     A
@@ -9160,6 +9232,22 @@ LOC_B8B1:
     POP     BC
     CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B8B1            ; init the 3 chompers
+
+    ; --- staggered release setup: chomper 0 is out, queue 1 & 2 ---
+    LD      A,1
+    LD      (CHOMP_RELEASED),A
+    XOR     A
+    LD      HL,CHOMP_STAGGER
+    CALL    REQUEST_SIGNAL
+    LD      (CHOMP_RELTIMER),A
+    ; hide the not-yet-released chomper sprites (slots 18,19) so no stale sprite shows
+    LD      BC,$D908            ; Y=$D9 (hidden), X=8
+    LD      D,0
+    LD      A,18
+    CALL    PUTSPRITE
+    LD      D,0
+    LD      A,19
+    CALL    PUTSPRITE
 
     XOR     A
     LD      HL,78H
