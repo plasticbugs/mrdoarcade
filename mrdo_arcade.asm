@@ -106,13 +106,6 @@ BLUE_CHOMPER_SND_0B:    EQU $1C
 ; Frames between staggered chomper releases (one-by-one single-file spawn).
 ; Bigger = larger gap between chompers in the line. Tune to taste.
 CHOMP_STAGGER:          EQU 56
-; Sprite Y of the first grid-aligned playfield row (PEEKMAP subtracts the 24px
-; scorebar). Chompers descend the entry shaft until they reach this row, then
-; navigate existing tunnels only. Decision rows are 32,48,64,...
-CHOMP_PLAYFIELD_Y:      EQU 32
-; Sprite Y of the last (bottom) playfield row. Emerging chompers force-join the
-; tunnel network here so they never dig past the bottom into out-of-bounds map.
-CHOMP_BOTTOM_Y:         EQU 176
 VERY_GOOD_TUNE_0A:      EQU $1D
 VERY_GOOD_TUNE_0B:      EQU $1E
 VERY_GOOD_TUNE_0C:      EQU $1F
@@ -6493,79 +6486,90 @@ LOC_D39F:
     CALL    REQUEST_SIGNAL
     LD      (TIMERCHOMP1),A
 LOC_D3A6:
-    ; chompers no longer dig freely; always use tunnel-only homing
-    JP      CHOMP_MOVE_WALLED
-
-; --- Tunnel-only chomper movement -------------------------------------------
-; Chompers emerge from the letter monster by descending straight down (carving
-; only a minimal entry shaft as they cross into the maze) until they reach an
-; existing side tunnel, then home toward the target (Mr. Do for the leader, the
-; chomper ahead for followers) using ONLY already-open tunnels.
-; bit6 of (IY+0) = "still emerging / digging the entry shaft".
-; (bit7 is reserved as the chomper "dead" flag by SUB_A7F4 / SUB_B809.)
-CHOMP_MOVE_WALLED:
-    BIT     6,(IY+0)
-    JR      Z,.network          ; already joined the tunnel network
-    ; emerging: only re-evaluate the join condition at a grid decision point
+    LD      A,(GAMEFLAGS)
+    BIT     0,A             ; b0 in GAMEFLAGS ??
+    JR      NZ,LOC_A858
+;   JP      Z,LOC_A853
+;   JP      LOC_A858
+;LOC_A853:
+    JP      SUB_A460
+LOC_A858:
     LD      A,(IY+2)
     AND     0FH
-    JR      NZ,.descend
+    JR      NZ,LOC_A868
     LD      A,(IY+1)
     AND     0FH
     CP      8
-    JR      NZ,.descend
-    LD      A,(IY+2)
-    CP      CHOMP_PLAYFIELD_Y
-    JR      C,.descend          ; still above the playfield -> keep descending
-    CP      CHOMP_BOTTOM_Y
-    JR      NC,.join            ; reached the bottom row -> stop digging, join here
-    CALL    SUB_9F29            ; open-tunnel mask at this tile
-    AND     0C0H                ; bit6=right, bit7=left : any side tunnel here?
-    JR      Z,.descend          ; none yet -> keep descending
-.join:
-    RES     6,(IY+0)            ; reached the network -> stop emerging
-    JR      .network
-.descend:
-    LD      A,(IY+4)
-    AND     0F8H
-    OR      4                   ; force direction = DOWN
-    LD      (IY+4),A
-    LD      A,(IY+2)
-    CP      CHOMP_PLAYFIELD_Y
-    JR      C,.descend_step     ; above the playfield: no map tile yet, don't dig
-    CALL    SUB_9B4F            ; carve the entry shaft as we enter the maze
-.descend_step:
-    LD      A,4
-    JP      SUB_9D2F            ; step down
-.network:
-    ; only choose a new direction at a grid decision point; otherwise keep going
-    LD      A,(IY+2)
-    AND     0FH
-    JR      NZ,.netstep
-    LD      A,(IY+1)
-    AND     0FH
-    CP      8
-    JR      NZ,.netstep
-    CALL    SUB_A497            ; desired direction mask toward target
-    PUSH    AF
-    CALL    SUB_9F29            ; open-tunnel mask
-    LD      B,A
-    POP     AF
-    AND     B                   ; directions that are toward target AND open
-    JR      NZ,.netchoose
-    LD      A,B                 ; none toward target -> follow any open tunnel
-    AND     A
-    JR      Z,.netstep          ; boxed in -> just try to continue straight
-.netchoose:
-    CALL    SUB_9E7A            ; pick a direction within the mask -> (IY+4)
-.netstep:
+    JR      Z,LOC_A878
+LOC_A868:
     LD      A,(IY+4)
     AND     7
-    JP      SUB_9D2F            ; step in the committed direction
+    DEC     A
+    LD      E,A
+    LD      D,0
+    LD      HL,BYTE_A8C7
+    ADD     HL,DE
+    LD      H,(HL)
+    JR      LOC_A898
+LOC_A878:
+    LD      H,0F0H
+    LD      A,(IY+2)
+    CP      28H
+    JR      NC,LOC_A883
+    RES     4,H
+LOC_A883:
+    CP      0A8H
+    JR      C,LOC_A889
+    RES     5,H
+LOC_A889:
+    LD      A,(IY+1)
+    CP      20H
+    JR      NC,LOC_A892
+    RES     7,H
+LOC_A892:
+    CP      0E0H
+    JR      C,LOC_A898
+    RES     6,H
+LOC_A898:
+    LD      A,H
+    PUSH    HL
+    CALL    SUB_9E7A
+    LD      A,(IY+4)
+    AND     7
+    CALL    SUB_9D2F
+    POP     HL
+    RET     Z
+    LD      A,(IY+4)
+;   JP      LOC_D3D5
+;LOC_D3D5:
+    AND     7
+    LD      C,0C0H
+    CP      3
+;   JP      LOC_A8AF
+;LOC_A8AF:
+    JR      NC,LOC_A8B3
+    LD      C,30H
+LOC_A8B3:
+    LD      A,H
+    AND     C
+    LD      H,A
+    JR      NZ,LOC_A898
+    LD      A,(IY+4)
+    BIT     0,A
+    JR      Z,LOC_A8C2
+    INC     A
+    JR      LOC_A8C3
+LOC_A8C2:
+    DEC     A
+LOC_A8C3:
+    LD      (IY+4),A
+RET
+
+BYTE_A8C7:
+    DB 064,128,016,032
 
 AMIMATECHOMPER_SUB_A83E:
-    ; No free digging: chompers carve only the entry shaft (in CHOMP_MOVE_WALLED)
-    ; and otherwise travel existing tunnels. (was: CALL SUB_9B4F)
+    CALL    SUB_9B4F            ; comment here to make chopers not dig (but they will pass everywhere)
     LD      B,(IY+2)
     LD      C,(IY+1)
     CALL    PEEKMAP
@@ -9207,13 +9211,10 @@ SUB_B8A3:
     LD      IX,CHOMPDATA    ; chomper data
     LD      B,3     ; chomper number
 LOC_B8B1:
-    LD      (IX+0),50H          ; bit4=chomper, bit6=emerging (dig entry shaft, then tunnels only)
-                                ; NOTE: bit7 is the "dead" flag (SUB_A7F4/SUB_B809) - do NOT reuse it
+    LD      (IX+0),10H
     LD      A,(LETTERMON_Y)
     LD      (IX+2),A
     LD      A,(LETTERMON_X)
-    AND     0F0H                ; snap X to tile-center column (offset 8) so the
-    OR      8                   ; chomper rides the maze grid for tunnel movement
     LD      (IX+1),A
     LD      A,($72C1)
     AND     7                   ; starting direction; bit7 (active) left CLEAR for followers
