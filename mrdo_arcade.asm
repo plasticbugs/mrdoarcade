@@ -103,9 +103,16 @@ LOSE_LIFE_TUNE_0A:      EQU $19
 LOSE_LIFE_TUNE_0B:      EQU $1A
 BLUE_CHOMPER_SND_0A:    EQU $1B
 BLUE_CHOMPER_SND_0B:    EQU $1C
-; Frames between staggered chomper releases (one-by-one single-file spawn).
-; Bigger = larger gap between chompers in the line. Tune to taste.
-CHOMP_STAGGER:          EQU 56
+; Stagger between chomper spawns is computed dynamically at chomper-mode start:
+;   stagger_frames = chomper_delay × 4 + CHOMP_STAGGER_BASE
+; so the gap between releases tracks how fast the chompers are this level.
+;   skill 1 slowest (delay 13): 13*4 + 4 = 56 frames
+;   skill 3 level 1 (delay 10): 10*4 + 4 = 44 frames
+; Raise CHOMP_STAGGER_BASE for looser spacing across the board.
+CHOMP_STAGGER_BASE:     EQU 4
+; Hard floor on the chomper move delay (frames per step). The skill/level table
+; drops to 4 at the top; raising the floor caps the top speed. 5 ~ skill-3 level-8.
+CHOMP_MIN_DELAY:        EQU 5
 VERY_GOOD_TUNE_0A:      EQU $1D
 VERY_GOOD_TUNE_0B:      EQU $1E
 VERY_GOOD_TUNE_0C:      EQU $1F
@@ -175,7 +182,8 @@ SCOREFLAG:              RB   1  ;EQU $727C Tell which score to upate ($80 for P1
 
 CHOMP_RELEASED:         RB   1  ;EQU $727D ; staggered release: # of chompers released so far (1-3)
 CHOMP_RELTIMER:         RB   1  ;EQU $727E ; staggered release: signal timer ID between releases
-free:                   RB   2  ;EQU $727F
+CHOMP_STAGGER_VAR:      RB   1  ;EQU $727F ; dynamic stagger value (computed at chomper-mode start)
+free:                   RB   1  ;EQU $7280
 
 MRDO_DATA:              RB   1  ;EQU $7281 ;+0  ; Mr. Do's flags
 MRDO_DATA.unkn:         RB   1  ;EQU $7282 ;+1  ; Mr. Do's ?
@@ -254,6 +262,15 @@ SCORE_P2:               RB  1
 SCORE_P2_RAM:           RB  2  ;EQU 07318h ;  SCORING FOR PLAYER#2
 
 TIMER_DATA_BLOCK:       RB  21
+
+; --- Chomper train: leader records direction breadcrumbs each tile,
+; followers replay them so the train traces the leader's exact path. ---
+TRAIN_DIRBUF:           RB  8   ; ring buffer of leader's chosen direction per tile
+TRAIN_HEAD:             RB  1   ; next write index into TRAIN_DIRBUF (0..7)
+TRAIN_READ_1:           RB  1   ; chomper 1's next read index
+TRAIN_READ_2:           RB  1   ; chomper 2's next read index
+TRAIN_LEADER:           RB  1   ; cached current leader index (lowest-alive chomper)
+TRAIN_ALIGNED:          RB  1   ; flag: was leader at a decision point this frame?
 
 ENDUSEDRAM:             RB 1
 
@@ -5138,12 +5155,12 @@ UNK_9FB3:
 
 SUB_9FC8:                           ; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-    ; XOR       A    ; (Uncomment for invincibility)
-    ; RET        ; (Uncomment for invincibility)
-    LD      A,(MRDO_DATA.Y)
-    SUB     (IY+2)
-    JR      NC,.ypos
-    NEG
+    XOR       A    ; (Uncomment for invincibility)
+    RET        ; (Uncomment for invincibility)
+    ; LD      A,(MRDO_DATA.Y)
+    ; SUB     (IY+2)
+    ; JR      NC,.ypos
+    ; NEG
 .ypos:
     LD      L,0
     CP      5
@@ -6419,11 +6436,42 @@ SUB_A7F4:
     LD      (IX+3),A            ; seed its movement timer
     LD      HL,CHOMP_RELEASED
     INC     (HL)
+    LD      A,(CHOMP_STAGGER_VAR)   ; restart with the dynamic stagger value
+    LD      L,A
+    LD      H,0
     XOR     A
-    LD      HL,CHOMP_STAGGER
     CALL    REQUEST_SIGNAL
-    LD      (CHOMP_RELTIMER),A  ; restart stagger timer for the next one
+    LD      (CHOMP_RELTIMER),A      ; restart stagger timer for the next one
 .norelease:
+    ; --- train: detect leader change (= lowest-index alive chomper) ---
+    LD      A,(GAMEFLAGS)
+    BIT     7,A
+    JR      Z,.train_skip_lead          ; not chomper mode -> no train state to maintain
+    LD      IX,CHOMPDATA
+    XOR     A
+    BIT     7,(IX+4)
+    JR      NZ,.train_have_lead         ; chomper 0 alive -> leader = 0
+    LD      DE,6
+    ADD     IX,DE
+    INC     A
+    BIT     7,(IX+4)
+    JR      NZ,.train_have_lead         ; chomper 1 alive -> leader = 1
+    ADD     IX,DE
+    INC     A
+    BIT     7,(IX+4)
+    JR      NZ,.train_have_lead         ; chomper 2 alive -> leader = 2
+    LD      A,0FFH                      ; nobody alive
+.train_have_lead:
+    LD      HL,TRAIN_LEADER
+    CP      (HL)
+    JR      Z,.train_skip_lead          ; leader unchanged
+    LD      (HL),A                      ; update cached leader
+    ; CLEAN SNAP: wipe the breadcrumb buffer and follower read pointers
+    XOR     A
+    LD      (TRAIN_HEAD),A
+    LD      (TRAIN_READ_1),A
+    LD      (TRAIN_READ_2),A
+.train_skip_lead:
     LD      A,(CHOMPNUMBER)
     AND     3
     LD      C,A
@@ -6436,39 +6484,130 @@ SUB_A7F4:
     ADD     IY,BC                   ; IY = CHOMPDATA + 6*CHOMPNUMBER
 
     BIT     7,(IY+4)
-    JR      Z,LOC_A82B
+    JP      Z,LOC_A82B          ; JP (not JR): train code pushed LOC_A82B out of JR range
     BIT     7,(IY+0)
-    JR      NZ,LOC_A82B
+    JP      NZ,LOC_A82B
     LD      A,(IY+3)
     CALL    TEST_SIGNAL
-    JR      Z,LOC_A82B
-    ; --- single file: chomper 0 homes on Mr. Do, followers home on the chomper ahead ---
+    JP      Z,LOC_A82B
+    ; --- TRAIN: leader records direction at each tile; followers replay them ---
     LD      A,(CHOMPNUMBER)
     AND     A
-    JR      Z,.lead_move            ; chomper 0 = leader, real target = Mr. Do
-    BIT     7,(IY-2)               ; chomper ahead (IY-6) still active? (+4 byte = IY-2)
-    JR      Z,.lead_move           ; ahead is dead/not out yet -> home on Mr. Do instead
-    ; follower: chomper ahead is at IY-6; swap its X/Y in for Mr. Do's during the move
+    JR      Z,.train_leader         ; chomper 0 always leader
+    BIT     7,(IY-2)               ; chomper ahead still active? (+4 byte of IY-6 = IY-2)
+    JR      Z,.train_leader         ; ahead dead -> become leader (home on Mr. Do)
+
+    ; FOLLOWER PATH ----------------------------------------------------------
+    LD      A,(IY+2)
+    AND     0FH
+    JR      NZ,.train_fwd           ; not row-aligned -> step in current direction
+    LD      A,(IY+1)
+    AND     0FH
+    CP      8
+    JR      NZ,.train_fwd           ; not col-aligned -> step
+
+    ; At a decision point: select this follower's read pointer
+    LD      A,(CHOMPNUMBER)
+    LD      HL,TRAIN_READ_2
+    DEC     A
+    JR      NZ,.train_got_rp        ; CHOMPNUMBER != 1 -> use READ_2
+    LD      HL,TRAIN_READ_1
+.train_got_rp:
+    LD      A,(HL)
+    LD      B,A
+    LD      A,(TRAIN_HEAD)
+    CP      B
+    JR      Z,.train_no_crumb       ; read == head -> no breadcrumb yet (fall back)
+
+    ; Breadcrumb available at TRAIN_DIRBUF[B]
+    PUSH    HL                      ; save read-pointer address
+    LD      E,B
+    LD      D,0
+    LD      HL,TRAIN_DIRBUF
+    ADD     HL,DE
+    LD      A,(HL)                  ; A = stored direction
+    POP     HL                      ; restore read-pointer address
+    AND     7
+    JR      Z,.train_no_crumb       ; corrupt entry -> fall back
+    LD      B,A
+    LD      A,(IY+4)
+    AND     0F8H
+    OR      B
+    LD      (IY+4),A                ; commit the recorded direction
+    LD      A,(HL)
+    INC     A
+    AND     7
+    LD      (HL),A                  ; advance follower's read pointer
+    JR      .train_fwd
+
+.train_no_crumb:
+    ; Trail empty (just spawned or just cleared) -> homing-chain fallback
     LD      A,(MRDO_DATA.Y)
     PUSH    AF
     LD      A,(MRDO_DATA.X)
     PUSH    AF
-    LD      A,(IY-5)               ; ahead chomper X  (IY-6+1)
+    LD      A,(IY-5)
     LD      (MRDO_DATA.X),A
-    LD      A,(IY-4)               ; ahead chomper Y  (IY-6+2)
+    LD      A,(IY-4)
     LD      (MRDO_DATA.Y),A
-    CALL    MOVECHOMPER_SUB_A83E    ; MOVE CHOMPER (homes on chomper ahead)
+    CALL    MOVECHOMPER_SUB_A83E
     POP     AF
-    LD      (MRDO_DATA.X),A        ; restore real Mr. Do X
+    LD      (MRDO_DATA.X),A
     POP     AF
-    LD      (MRDO_DATA.Y),A        ; restore real Mr. Do Y
+    LD      (MRDO_DATA.Y),A
     JR      .moved
-.lead_move:
-    CALL    MOVECHOMPER_SUB_A83E    ; MOVE CHOMPER
+
+.train_fwd:
+    ; Step in current direction without letting MOVECHOMPER re-decide
+    LD      A,(IY+4)
+    AND     7
+    CALL    SUB_9D2F
+    JR      .moved
+
+.train_leader:
+    ; LEADER PATH -----------------------------------------------------------
+    ; Note pre-move alignment so we record the chosen direction after MOVECHOMPER.
+    LD      A,(IY+2)
+    AND     0FH
+    JR      NZ,.train_lp_noalign
+    LD      A,(IY+1)
+    AND     0FH
+    CP      8
+    JR      NZ,.train_lp_noalign
+    LD      A,1
+    LD      (TRAIN_ALIGNED),A
+    JR      .train_lp_call
+.train_lp_noalign:
+    XOR     A
+    LD      (TRAIN_ALIGNED),A
+.train_lp_call:
+    CALL    MOVECHOMPER_SUB_A83E
+    LD      A,(TRAIN_ALIGNED)
+    OR      A
+    JR      Z,.moved                ; wasn't aligned -> nothing to record
+    LD      A,(IY+4)
+    AND     7
+    OR      A
+    JR      Z,.moved                ; direction not set (shouldn't happen) -> skip
+    LD      B,A
+    LD      A,(TRAIN_HEAD)
+    LD      E,A
+    LD      D,0
+    LD      HL,TRAIN_DIRBUF
+    ADD     HL,DE
+    LD      (HL),B                  ; push direction at head
+    LD      A,(TRAIN_HEAD)
+    INC     A
+    AND     7
+    LD      (TRAIN_HEAD),A
 .moved:
     CALL    AMIMATECHOMPER_SUB_A83E ; PLOT CHOMPER
 
-    CALL    SUB_9BE2                ; MANAGE MOVEMENT DELAY ACCORDING TO SKILL LEVEL AND PHASE
+    CALL    SUB_9BE2                ; HL = skill/level delay (H=0, L=delay)
+    LD      A,CHOMP_MIN_DELAY       ; cap top speed: floor L at CHOMP_MIN_DELAY
+    CP      L
+    JR      C,$+3                   ; L > MIN -> skip clamp (delay stays)
+    LD      L,A                     ; L <= MIN -> clamp L = MIN
     XOR     A
     CALL    REQUEST_SIGNAL
     LD      (IY+3),A
@@ -9296,10 +9435,25 @@ LOC_B8B1:
     ; --- staggered release setup: chomper 0 is out, queue 1 & 2 ---
     LD      A,1
     LD      (CHOMP_RELEASED),A
+    ; Compute stagger = chomper_delay × 4 + CHOMP_STAGGER_BASE (scales with speed).
+    CALL    SUB_9BE2                ; HL = skill/level chomper delay (H=0)
+    ADD     HL,HL                   ; ×2
+    ADD     HL,HL                   ; ×4 (still fits in L since max 13×4=52)
+    LD      A,L
+    ADD     A,CHOMP_STAGGER_BASE
+    LD      (CHOMP_STAGGER_VAR),A
+    LD      L,A
+    LD      H,0
     XOR     A
-    LD      HL,CHOMP_STAGGER
     CALL    REQUEST_SIGNAL
     LD      (CHOMP_RELTIMER),A
+    ; --- train: clear breadcrumb buffer, set initial leader = chomper 0 ---
+    XOR     A
+    LD      (TRAIN_HEAD),A
+    LD      (TRAIN_READ_1),A
+    LD      (TRAIN_READ_2),A
+    LD      (TRAIN_ALIGNED),A
+    LD      (TRAIN_LEADER),A    ; chomper 0 is the leader at spawn
     ; hide the not-yet-released chomper sprites (slots 18,19) so no stale sprite shows
     LD      BC,$D908            ; Y=$D9 (hidden), X=8
     LD      D,0
