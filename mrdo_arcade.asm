@@ -3064,11 +3064,70 @@ LOC_9355:
     XOR     A
     RET
 LOC_9363:
-    CALL    SUB_B832
+    LD      B,(IX+2)            ; remember chomper Y before SUB_B832 deactivates it
+    LD      C,(IX+1)            ; remember chomper X
+    PUSH    BC
+    CALL    SUB_B832            ; deactivate chomper + hide its sprite
+    POP     BC
+    CALL    SPAWN_CHOMP_APPLE   ; ball-kill: chomper turns into an apple at (B,C)
     LD      DE,32H              ; 500 points if chomper is hit by A ball
     CALL    SUB_B601
     LD      A,1
 RET
+
+; --- Drop a fresh apple at sprite (B=Y, C=X). Silent no-op if all 5 apple ---
+; slots are already taken. Fields mirror the level-loader's apple init (LOOP_B2DB).
+SPAWN_CHOMP_APPLE:
+    LD      IX,APPLEDATA
+    LD      D,5
+    ; Slot 0 doubles as the diamond's position holder when DIAMOND_RAM bit7 is
+    ; set (see line ~1809: the diamond writes IX+1/IX+2 but NOT IX+0). Skip it
+    ; so we don't stomp an active diamond.
+    LD      A,(DIAMOND_RAM)
+    BIT     7,A
+    JR      Z,.scan
+    PUSH    BC
+    PUSH    DE
+    CALL    NEXT_APPLE_IX
+    POP     DE
+    POP     BC
+    DEC     D                   ; start at slot 1, only 4 slots left to consider
+.scan:
+    BIT     7,(IX+0)            ; bit7 set = slot occupied
+    JR      Z,.place
+    PUSH    BC
+    PUSH    DE
+    CALL    NEXT_APPLE_IX
+    POP     DE
+    POP     BC
+    DEC     D
+    JR      NZ,.scan
+    RET                         ; no free slot -> give up silently
+.place:
+    LD      (IX+0),80H          ; bit7 = active, all other state flags clear
+    ; Snap (B=Y, C=X) onto the apple grid. The chomper can be mid-step when
+    ; killed; an off-grid apple won't match the digger's coords (no push) and
+    ; the PEEKMAP-based support check misbehaves -> frozen apple.
+    LD      A,B
+    AND     0F0H                ; Y -> row top (tile-aligned)
+    LD      B,A
+    LD      (IX+1),A
+    LD      A,C
+    AND     0F0H
+    OR      8                   ; X -> tile-center column (offset 8)
+    LD      C,A
+    LD      (IX+2),A
+    LD      (IX+3),0
+    LD      (IX+4),10H          ; SUB_899A reads bits 4-5 as the render frame;
+                                ; 10H -> frame 1 (whole apple, visible). 0 hides it.
+    ; The apple-update loop skips rendering for a stable supported apple, so
+    ; the SAT slot stays at whatever was drawn there last (usually hidden).
+    ; Force one PUTSPRITE now so the apple is visible without needing a push.
+    LD      A,17
+    SUB     D                   ; D = scan counter; sprite slot = 17-D = 12+index
+    LD      D,1                 ; frame 1 (whole apple, matches the push render)
+    CALL    PUTSPRITE           ; A=slot, B=Y, C=X (snapped above), D=frame
+    RET
 
 SUB_936F:
     LD      A,(LETTERMON_FLAG)
