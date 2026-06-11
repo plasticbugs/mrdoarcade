@@ -5143,8 +5143,8 @@ UNK_9FB3:
 
 SUB_9FC8:                           ; Test collision MrDo vs Enemy in IY
   ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-    XOR       A    ; (Uncomment for invincibility)
-    RET        ; (Uncomment for invincibility)
+    ; XOR       A    ; (Uncomment for invincibility)
+    ; RET        ; (Uncomment for invincibility)
     LD      A,(MRDO_DATA.Y)
     SUB     (IY+2)
     JR      NC,.ypos
@@ -9089,8 +9089,11 @@ SUB_B76D:
     BIT     0,(HL)
     JR      Z,LOC_B781
     RES     0,(HL)
-    LD      A,(SCORE_P1_RAM)        ; THIS SEEMS A BUG (!?) WHY USE THE SCORE AS TIMER ID ?
-;   LD      A,(LETTERMON_TIMER)     ; doesn't solve....
+    ; Was LD A,(SCORE_P1_RAM) -- "THIS SEEMS A BUG (!?)" -- and it was: it freed a
+    ; RANDOM timer (ID = score low byte), sometimes an enemy's movement timer (the
+    ; halting-enemy bug), while leaking the real one. $72C4 bit0 pairs with the
+    ; 5A0H lettermon walk timer stored in GAMETIMER; that's what this abort frees.
+    LD      A,(GAMETIMER)
     CALL    FREE_SIGNAL
 LOC_B781:
     CALL    SUB_CA24
@@ -9275,6 +9278,9 @@ LOC_B865:
     LD      A,(CURRBADGUY)
     AND     7
     LD      (CURRBADGUY),A
+    ; (stock gated this free on GAMEFLAGS bit0 -- the chase/flee toggle -- skipping
+    ; it ~half the time and leaking TIMERCHOMP1. MOVECHOMPER re-requests it on every
+    ; expiry, so it is ALWAYS live here: free unconditionally.)
     LD      A,(TIMERCHOMP1)
     CALL    FREE_SIGNAL
 LOC_B884:
@@ -9390,8 +9396,10 @@ LOC_B8B1:
     BIT     0,(HL)
     JP      Z,LOC_B8EC
     RES     0,(HL)
-;   LD      A,(GAMETIMER)           ; ?? what is it for ??
-;   CALL    TEST_SIGNAL             ; apparently unused
+    LD      A,(GAMETIMER)           ; chompers interrupt the lettermon's 5A0H walk
+    CALL    FREE_SIGNAL             ; timer: free it or it leaks (one 24s timer per
+                                    ; chomper mode -> pool exhaustion -> enemies
+                                    ; with REQUEST_SIGNAL=0 move haltingly)
 
 LOC_B8EC:
     LD      A,80H
