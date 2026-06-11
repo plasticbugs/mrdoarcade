@@ -170,7 +170,10 @@ LETTERMON_SPAWNP1:      RB   1  ;EQU $727A Counter used to spawn letter monster 
 LETTERMON_SPAWNP2:      RB   1  ;EQU $727B Counter used to spawn letter monster for P2
 SCOREFLAG:              RB   1  ;EQU $727C Tell which score to upate ($80 for P1, $40 for P2, 0 no update)
 
-free:                   RB   4  ;EQU $727D
+CHOMP_RELEASED:         RB   1  ;EQU $727D ; staggered release: # chompers released so far (1-3)
+CHOMP_RELTIMER:         RB   1  ;EQU $727E ; staggered release: signal timer ID between releases
+CHOMP_STAGGER_VAR:      RB   1  ;EQU $727F ; dynamic stagger frames (computed at chomper-mode start)
+free:                   RB   1  ;EQU $7280
 
 MRDO_DATA:              RB   1  ;EQU $7281 ;+0  ; Mr. Do's flags
 MRDO_DATA.unkn:         RB   1  ;EQU $7282 ;+1  ; Mr. Do's ?
@@ -1391,6 +1394,11 @@ NEXTLINE:
 LOC_87B9:
     LD      A,3
     CALL    PRINT_MESSAGE
+; Draw every on-field apple as a whole apple (D=1), ignoring IY+4. Resting apples
+; carry frame 0 in IY+4 (SUB_899A would hide them), so this forced-frame loop is
+; how they stay visible. Reused as an entry point to re-show apples after chomper
+; mode (see SUB_B832).
+REDRAW_ALL_APPLES:
     LD      B,5
     LD      IY,APPLEDATA
     LD      A,12
@@ -3059,11 +3067,62 @@ LOC_9355:
     XOR     A
     RET
 LOC_9363:
-    CALL    SUB_B832
-    LD      DE,32H              ; 500 points if chomper is hit by A ball
+    LD      B,(IX+2)            ; chomper Y  \ save before SUB_B832 clobbers BC
+    LD      C,(IX+1)            ; chomper X  / and hides the sprite
+    PUSH    BC
+    CALL    SUB_B832            ; deactivate chomper + hide its sprite
+    POP     BC
+    CALL    SPAWN_CHOMP_APPLE   ; ball-kill: turn the chomper into an apple (if room)
+    LD      DE,32H              ; 500 points if chomper is hit by a ball
     CALL    SUB_B601
     LD      A,1
 RET
+
+; --- Ball-killed chomper -> apple at (B=Y, C=X). No-op if no free apple slot. ---
+; (Branch's implementation, minus the diamond-slot-0 guard we agreed to drop.)
+; Y-range guard ($20..$B0): an off-grid Y makes the support check wrap past LEVELMAP
+; (corruption). Grid-snap is ALSO required: SUB_8E48 only recognises positions whose
+; low nibbles key into UNK_8F98 (X low 0/4/8/C, Y low 0/8); off-grid -> read as
+; "supported" -> the apple never falls. The apple is drawn once with a manual
+; PUTSPRITE (D=1) which, unlike REDRAW_ALL_APPLES, leaves IY (the ball pointer)
+; untouched -- so DEAL_WITH_BALL keeps working after the hit.
+SPAWN_CHOMP_APPLE:
+    LD      A,B
+    CP      $20
+    RET     C                   ; above the playfield -> skip
+    CP      $B1
+    RET     NC                  ; below the playfield -> skip
+    LD      IX,APPLEDATA
+    LD      D,5                 ; slots left to scan
+.scan:
+    BIT     7,(IX+0)            ; bit7 set = slot occupied
+    JR      Z,.place
+    PUSH    BC
+    PUSH    DE
+    CALL    NEXT_APPLE_IX
+    POP     DE
+    POP     BC
+    DEC     D
+    JR      NZ,.scan
+    RET                         ; all 5 apple slots taken -> no apple
+.place:
+    LD      (IX+0),80H          ; active; all other flags clear
+    LD      A,B
+    AND     0F0H                ; Y -> tile-row top
+    LD      B,A
+    LD      (IX+1),A
+    LD      A,C
+    AND     0F0H
+    OR      8                   ; X -> tile centre (gives support key $80)
+    LD      C,A
+    LD      (IX+2),A
+    LD      (IX+3),0            ; movement/anim timer
+    LD      (IX+4),10H          ; whole-apple frame
+    LD      A,17
+    SUB     D                   ; D = scan counter -> sprite slot 17-D = 12+index
+    LD      D,1                 ; frame 1 (whole apple)
+    CALL    PUTSPRITE           ; A=slot, B=Y, C=X, D=frame; preserves IY
+    RET
 
 SUB_936F:
     LD      A,(LETTERMON_FLAG)
@@ -3696,6 +3755,16 @@ PLOTLEFTOVERS:
     RRCA
     AND     15      ; divide by 16
                     ; range 1-14
+    ; SAFETY NET: LfovrConf has exactly 14 entries (valid nibbles 1-14). A 0 or
+    ; 15 here (empty/corrupted cell) would index OUTSIDE the table -- nibble 15
+    ; lands on SUB_96E4's first opcode ($3A), which EXPANDs to the stray tile 98
+    ; 2x2 block. Clamp out-of-range nibbles to entry 1 (a plain ground 2x2).
+    JR      Z,.bad          ; nibble 0
+    CP      15
+    JR      C,.ok           ; 1..14 = valid index
+.bad:
+    LD      A,1
+.ok:
     ADD     A,A     ; x2 to accedd the table
     LD      E,A
     LD      D,0
@@ -6203,6 +6272,16 @@ LOC_A6F2:
     RES     5,(HL)
     CALL    SUB_B8A3
 LOC_A70B:
+    ; --- hold the letter monster still until all chompers have emerged (feature #3) ---
+    LD      A,(GAMEFLAGS)
+    BIT     7,A                     ; chomper mode?
+    JR      Z,.lm_canmove
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.lm_canmove          ; all 3 out -> resume normal movement
+    POP     DE                      ; balance the PUSH DE from LOC_A6F2
+    JP      LOC_A77B                ; skip ALL letter-monster movement this frame
+.lm_canmove:
     CALL    SUB_A527
     POP     DE
     JR      Z,LOC_A74B
@@ -6318,7 +6397,57 @@ LOC_A7CB:
 BYTE_A7DC:
     DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
 
+; Hard floor on the chomper move delay (frames per step). The skill/level table
+; (BYTE_9C36, read by SUB_9BE2) bottoms out at 4 on high levels, which is nearly
+; uncontrollable; 6 caps the top chomper speed without touching the table.
+CHOMP_MIN_DELAY:        EQU 6
+; Stagger between chomper releases = (capped_delay * 4) + CHOMP_STAGGER_BASE, so
+; the gap scales with how fast the chompers move this level. Raise for looser
+; spacing.  capped slowest (delay 13): 13*4+4 = 56 frames; capped fastest
+; (delay 6): 6*4+4 = 28 frames.
+CHOMP_STAGGER_BASE:     EQU 4
+
 SUB_A7F4:
+    ; --- staggered release: bring chompers out one-by-one (features #2 & #5) ---
+    LD      A,(GAMEFLAGS)
+    BIT     7,A                     ; only while in chomper mode
+    JR      Z,.norelease
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.norelease           ; all three already released
+    LD      A,(CHOMP_RELTIMER)
+    CALL    TEST_SIGNAL
+    JR      Z,.norelease            ; not time for the next one yet
+    LD      A,(CHOMP_RELEASED)      ; index of the chomper to release now
+    LD      C,A
+    ADD     A,A                     ; *2
+    ADD     A,C                     ; *3
+    ADD     A,A                     ; *6 = byte offset into CHOMPDATA
+    LD      E,A
+    LD      D,0
+    LD      IX,CHOMPDATA
+    ADD     IX,DE                   ; IX -> chomper[CHOMP_RELEASED]
+    SET     7,(IX+4)                ; activate it (bit7 = in play)
+    LD      A,(IX+3)                ; free the placeholder timer from SUB_B8A3 init
+    CALL    FREE_SIGNAL             ; (else one signal leaks per release)
+    XOR     A
+    LD      HL,1
+    CALL    REQUEST_SIGNAL
+    LD      (IX+3),A                ; seed its movement timer (fires next frame)
+    LD      HL,CHOMP_RELEASED
+    INC     (HL)                    ; one more chomper is out
+    LD      A,(HL)
+    CP      3
+    JR      NC,.norelease           ; that was the 3rd: nobody will ever test another
+                                    ; stagger timer, so don't arm one (it would leak;
+                                    ; the 29-slot timer pool ends at the SAT shadow)
+    LD      A,(CHOMP_STAGGER_VAR)   ; reload the dynamic stagger
+    LD      L,A
+    LD      H,0
+    XOR     A
+    CALL    REQUEST_SIGNAL
+    LD      (CHOMP_RELTIMER),A      ; restart the stagger timer for the next one
+.norelease:
     LD      A,(CHOMPNUMBER)
     AND     3
     LD      C,A
@@ -6340,7 +6469,12 @@ SUB_A7F4:
     CALL    MOVECHOMPER_SUB_A83E    ; MOVE CHOMPER
     CALL    AMIMATECHOMPER_SUB_A83E ; PLOT CHOMPER
 
-    CALL    SUB_9BE2                ; MANAGE MOVEMENT DELAY ACCORDING TO SKILL LEVEL AND PHASE
+    CALL    SUB_9BE2                ; HL = skill/level chomper delay (H=0, L=delay)
+    LD      A,CHOMP_MIN_DELAY       ; cap top chomper speed: floor L at MIN_DELAY
+    CP      L                       ; A-L: C if L>MIN (keep), NC if L<=MIN (clamp)
+    JR      C,.nocap
+    LD      L,A
+.nocap:
     XOR     A
     CALL    REQUEST_SIGNAL
     LD      (IY+3),A
@@ -6520,6 +6654,14 @@ AMIMATECHOMPER_SUB_A83E:
 
     LD      BC,$D908
     LD      A,(CHOMPNUMBER)
+    ; clamp IN-REGISTER: a corrupted CHOMPNUMBER (e.g. $7E/$FE, seen in the wild)
+    ; would put this PUTSPRITE on apple slot 15 ((value+17)&7F) -> invisible apple.
+    ; Clamping the register copy leaves no window for an async (NMI-side) write.
+    AND     3
+    CP      3
+    JR      NZ,.rmok
+    XOR     A               ; 3 -> 0 (slot 20 would hit BADGUY_BEHAVIOR_RAM)
+.rmok:
     ADD     A,17            ; remove chomper
     JP      PUTSPRITE           ; REMOVE THIS SPRITE IN CASE OF ANY OTHER VALUE (?!?)
 CHMPLEFT:
@@ -6574,6 +6716,11 @@ LOC_A905:
     LD      B,$D9           ; yes, force hide (will become $D1 after SUB 8)
 .renderit:
     LD      A,(CHOMPNUMBER)
+    AND     3               ; clamp IN-REGISTER (see .rmok above): corrupt CHOMPNUMBER
+    CP      3               ; here painted hidden chomper frames into apple slot 15
+    JR      NZ,.anok        ; (all three invisible-apple RAM dumps matched this site)
+    XOR     A
+.anok:
     ADD     A,17            ; animate chomper
     JP      PUTSPRITE
 
@@ -8874,7 +9021,7 @@ RET
 SPR_OBJ_ATTRB:          ; Sprite frame and color data
     DW BYTE_B6C3    ; 0 ball
     DW BYTE_B6C7    ; 1 mr do
-    DW 0    ; free
+    DW 0    ; free (NB: Mr. Do's 2nd colour layer is written here at runtime)
     DW BYTE_B6CF    ; 3 Extra letter
     DW BYTE_B6FB    ; 4 ball explosion
     DW BYTE_B70B    ; 5 bad guy/digger
@@ -8942,8 +9089,11 @@ SUB_B76D:
     BIT     0,(HL)
     JR      Z,LOC_B781
     RES     0,(HL)
-    LD      A,(SCORE_P1_RAM)        ; THIS SEEMS A BUG (!?) WHY USE THE SCORE AS TIMER ID ?
-;   LD      A,(LETTERMON_TIMER)     ; doesn't solve....
+    ; Was LD A,(SCORE_P1_RAM) -- "THIS SEEMS A BUG (!?)" -- and it was: it freed a
+    ; RANDOM timer (ID = score low byte), sometimes an enemy's movement timer (the
+    ; halting-enemy bug), while leaking the real one. $72C4 bit0 pairs with the
+    ; 5A0H lettermon walk timer stored in GAMETIMER; that's what this abort frees.
+    LD      A,(GAMETIMER)
     CALL    FREE_SIGNAL
 LOC_B781:
     CALL    SUB_CA24
@@ -9030,6 +9180,35 @@ LOC_B805:
 RET
 
 SUB_B809:
+    ; Killing the letter monster (SUB_B76D) force-ends chomper mode. With staggered
+    ; release, chompers 1/2 may still be QUEUED (bit7 IX+4 clear) -> the kill loop
+    ; below would skip them and the SUB_B832 guard would refuse to end the mode.
+    ; So during chomper mode: mark all released (cancel pending spawns + let the
+    ; guard pass) and promote queued chompers to in-play so they get removed too.
+    ; Dead slots (IX+4 == 0) are left alone so they aren't resurrected/re-scored.
+    LD      A,(GAMEFLAGS)
+    BIT     7,A
+    JR      Z,.killloop
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.relsdone            ; stagger already finished: its timer expired and
+                                    ; was freed by TEST_SIGNAL; the stored ID is stale
+    LD      A,(CHOMP_RELTIMER)
+    CALL    FREE_SIGNAL             ; cancel the pending stagger timer (else it leaks)
+.relsdone:
+    LD      A,3
+    LD      (CHOMP_RELEASED),A
+    LD      IX,CHOMPDATA
+    LD      B,3
+.force:
+    LD      A,(IX+4)
+    AND     A
+    JR      Z,.fnext            ; dead slot -> don't resurrect
+    SET     7,(IX+4)            ; queued/in-play -> ensure the kill loop removes it
+.fnext:
+    CALL    NEXT_ENTITY_IX
+    DJNZ    .force
+.killloop:
     LD      IX,CHOMPDATA
     LD      B,3
 LOC_B80F:
@@ -9080,19 +9259,34 @@ LOC_B865:
     JR      NZ,LOC_B89E
     CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B865
+    ; staggered release guard: bit7(IX+4) is CLEAR for not-yet-released chompers,
+    ; so the scan above can read "all gone" prematurely if chomper 0 dies before
+    ; 1 & 2 emerge. Keep chomper mode alive until all three have been released.
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      C,LOC_B89E
     CALL    SUB_CA2D
     CALL    WAIT_NMI
     CALL    ENABLE_NMI
     LD      HL,GAMEFLAGSBONUSITEM
     RES     4,(HL)
-    LD      A,(GAMEFLAGS)
-    BIT     0,A                 ; b0 in GAMEFLAGS ??
-    JR      NZ,LOC_B884
+    ; RES 4 aborts the bonus-food enemy freeze. Its countdown lives in CURRBADGUY
+    ; (loaded with 10 by SUB_96E4!) -- if the chompers die before it finishes,
+    ; CURRBADGUY is stranded at 8-10: the enemy dispatcher then reads past its
+    ; 7-entry offset table (garbage IY) and renders into sprite slot CURRBADGUY+5
+    ; = 13-15, hiding an apple's sprite (the invisible-apple bug, 5x confirmed).
+    LD      A,(CURRBADGUY)
+    AND     7
+    LD      (CURRBADGUY),A
+    ; (stock gated this free on GAMEFLAGS bit0 -- the chase/flee toggle -- skipping
+    ; it ~half the time and leaking TIMERCHOMP1. MOVECHOMPER re-requests it on every
+    ; expiry, so it is ALWAYS live here: free unconditionally.)
     LD      A,(TIMERCHOMP1)
     CALL    FREE_SIGNAL
 LOC_B884:
     XOR     A
     LD      (GAMEFLAGS),A
+    CALL    REDRAW_ALL_APPLES   ; chomper mode can leave an apple's sprite hidden; redraw them
     LD      A,(LETTERMON_COUNTER)
     BIT     6,A
     JR      Z,LOC_B89E
@@ -9148,9 +9342,13 @@ LOC_B8B1:
     LD      A,(LETTERMON_X)
     LD      (IX+1),A
     LD      A,($72C1)
-    AND     7
-    OR      80H
+    AND     7                       ; starting direction; bit7 (in-play) left CLEAR
     LD      (IX+4),A
+    LD      A,B                     ; loop counter B = 3,2,1 -> chomper 0,1,2
+    CP      3
+    JR      NZ,.notlead
+    SET     7,(IX+4)                ; activate ONLY chomper 0 now (1 & 2 are queued)
+.notlead:
     LD      (IX+5),0
     PUSH    BC
     XOR     A
@@ -9161,6 +9359,34 @@ LOC_B8B1:
     CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B8B1            ; init the 3 chompers
 
+    ; --- staggered release setup: chomper 0 is out, queue 1 & 2 (features #2 & #5) ---
+    LD      A,1
+    LD      (CHOMP_RELEASED),A
+    CALL    SUB_9BE2                ; HL = skill/level chomper delay (H=0, L=delay)
+    LD      A,CHOMP_MIN_DELAY       ; use the SAME cap as movement so spacing matches speed
+    CP      L
+    JR      C,.nofloor
+    LD      L,A
+.nofloor:
+    ADD     HL,HL                   ; *2
+    ADD     HL,HL                   ; *4  (max 13*4 = 52, stays in L; H=0)
+    LD      A,L
+    ADD     A,CHOMP_STAGGER_BASE    ; stagger = capped_delay*4 + BASE
+    LD      (CHOMP_STAGGER_VAR),A
+    LD      L,A
+    LD      H,0
+    XOR     A
+    CALL    REQUEST_SIGNAL
+    LD      (CHOMP_RELTIMER),A      ; first stagger timer (until chomper 1 emerges)
+    ; hide the not-yet-released chomper sprites (slots 18,19) so no stale sprite shows
+    LD      BC,$D908                ; Y=$D9 (off-screen), X=8
+    LD      D,0
+    LD      A,18
+    CALL    PUTSPRITE
+    LD      D,0
+    LD      A,19
+    CALL    PUTSPRITE
+
     XOR     A
     LD      HL,78H
     CALL    REQUEST_SIGNAL
@@ -9170,8 +9396,10 @@ LOC_B8B1:
     BIT     0,(HL)
     JP      Z,LOC_B8EC
     RES     0,(HL)
-;   LD      A,(GAMETIMER)           ; ?? what is it for ??
-;   CALL    TEST_SIGNAL             ; apparently unused
+    LD      A,(GAMETIMER)           ; chompers interrupt the lettermon's 5A0H walk
+    CALL    FREE_SIGNAL             ; timer: free it or it leaks (one 24s timer per
+                                    ; chomper mode -> pool exhaustion -> enemies
+                                    ; with REQUEST_SIGNAL=0 move haltingly)
 
 LOC_B8EC:
     LD      A,80H
@@ -11933,7 +12161,12 @@ INTERMISSION:
     LD HL,SAT
     LD  A,208
     CALL MyNMI_off
-    CALL MYWRTVRM
+    CALL MYWRTVRM                   ; SAT[0]=$D0: hide all sprites during setup
+    LD HL,SAT+40                    ; slot 10 (4 bytes * 10 animated sprites)
+    LD  A,208
+    CALL MYWRTVRM                   ; SAT[10]=$D0: re-terminate after the 10 monster
+                                    ; sprites so leftover gameplay sprites in slots
+                                    ; 10-19 (e.g. the diamond on slot 13) can't leak in
     CALL cvb_MYCLS
 
     CALL    cvb_INTERMISSION
