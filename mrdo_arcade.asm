@@ -173,7 +173,7 @@ SCOREFLAG:              RB   1  ;EQU $727C Tell which score to upate ($80 for P1
 CHOMP_RELEASED:         RB   1  ;EQU $727D ; staggered release: # chompers released so far (1-3)
 CHOMP_RELTIMER:         RB   1  ;EQU $727E ; staggered release: signal timer ID between releases
 CHOMP_STAGGER_VAR:      RB   1  ;EQU $727F ; dynamic stagger frames (computed at chomper-mode start)
-free:                   RB   1  ;EQU $7280
+SIGNKIND:               RB   1  ;EQU $7280 ; 0 = 500 cherry sign, 1 = 1000 kill sign (shares the sign lifecycle)
 
 MRDO_DATA:              RB   1  ;EQU $7281 ;+0  ; Mr. Do's flags
 MRDO_DATA.unkn:         RB   1  ;EQU $7282 ;+1  ; Mr. Do's ?
@@ -1773,6 +1773,8 @@ SUB_89D1:
     LD      A,(IY+4)
     AND     0FH
     JR      Z,LOC_89E9
+    CP      1
+    CALL    Z,PLANT_KILL_SIGN   ; single squash (= 1000 pts) -> show the "1000" sign
     DEC     A
     ADD     A,A
     LD      C,A
@@ -3288,9 +3290,16 @@ TEST3:
 
 timer_still_running:
 
+    LD      A,(SIGNKIND)
+    AND     A
+    JR      NZ,.replot_kill
     LD      A, (SIGNPOSITION)
     LD      BC,TestSign
     CALL    PRINT_2X2_PATTERN
+    JR      no_sign_on_the_screen
+.replot_kill:
+    LD      A,(SIGNPOSITION)
+    CALL    PRINT_KILLSIGN      ; 16x8 "1000" in the bottom half of the cell
 
 
 no_sign_on_the_screen:
@@ -3656,6 +3665,7 @@ GRAB_SOME_CHERRIES:
 
 ; allocate  500 sign timer  here
     XOR     A           ; A = 0 if one-shot, else free-running
+    LD      (SIGNKIND),A        ; A is 0 here -> mark this a 500 cherry sign (not a kill sign)
     LD      HL,2*60     ; time length   (2 secs)
     CALL    REQUEST_SIGNAL
     LD      (SIGNTIMER),A   ; ID of the allocated timer in the current
@@ -3670,7 +3680,7 @@ GRAB_SOME_CHERRIES:
   ; Store position for cleanup (A-1 as noted in comments)
 
     DEC     A
-    LD      (SIGNPOSITION),A
+    LD      (SIGNPOSITION),A    ; A (= position) must reach PRINT_2X2_PATTERN intact
     LD      BC,TestSign
     CALL    PRINT_2X2_PATTERN
     POP  IY
@@ -3720,6 +3730,70 @@ PRINT_2X2_PATTERN:
     JP      MyNMI_on
 
 
+; --- 1000 kill sign: a 16x8 (2 tiles, single row) sign drawn in the BOTTOM half
+; of the cell, so the top half keeps showing the leftovers. Same address math as
+; PRINT_2X2_PATTERN's top row but with 4*32 instead of 3*32 (drops one extra tile
+; row to reach the bottom half). Cleanup is the shared PLOTLEFTOVERS path, which
+; restores the whole cell from the map -- no special handling needed.
+; Input: A = SIGNPOSITION (x in low nibble, y in high nibble).
+PRINT_KILLSIGN:
+    PUSH    AF
+    AND     $F0
+    LD      L,A
+    LD      H,0
+    ADD     HL,HL           ; y * 2 * 16
+    ADD     HL,HL           ; y * 2 * 32
+    LD      DE,4*32         ; scorebar (3 rows) + 1 row -> bottom half of the cell
+    ADD     HL,DE
+    POP     AF
+    AND     $0F
+    ADD     A,A             ; x * 2
+    ADD     A,L
+    LD      L,A             ; HL = x*2 + y*2*32 + 4*32
+    EX      DE,HL           ; VRAM position in DE
+    LD      HL,KillSign
+    LD      IY,2
+    LD      A,2
+    CALL    MyNMI_off
+    CALL    PUT_VRAM
+    JP      MyNMI_on
+
+; --- Plant the 1000 sign at a single-squashed enemy. Called from SUB_89D1 with
+; IY = the breaking apple (which sits on the death cell). Preserves AF so the
+; caller's smash count survives. Skips if a sign is already up (one at a time).
+PLANT_KILL_SIGN:
+    PUSH    AF
+    LD      A,(SIGNPOSITION)
+    AND     A
+    JR      NZ,.pks_done        ; a sign is already on screen -> skip
+    PUSH    BC
+    PUSH    DE
+    PUSH    HL
+    PUSH    IX
+    PUSH    IY
+    LD      A,(IY+1)            ; apple Y (apple data: +1=Y, +2=X)
+    LD      B,A
+    LD      A,(IY+2)            ; apple X
+    LD      C,A
+    CALL    PEEKMAP             ; A = map offset + 1 (clobbers IX)
+    DEC     A
+    LD      (SIGNPOSITION),A    ; cleanup position for the shared expiry path
+    LD      A,1
+    LD      (SIGNKIND),A        ; mark this as the 16x8 kill sign
+    XOR     A                   ; one-shot timer
+    LD      HL,2*60             ; 2 seconds, same as the 500 sign
+    CALL    REQUEST_SIGNAL
+    LD      (SIGNTIMER),A
+    LD      A,(SIGNPOSITION)
+    CALL    PRINT_KILLSIGN      ; draw it now
+    POP     IY
+    POP     IX
+    POP     HL
+    POP     DE
+    POP     BC
+.pks_done:
+    POP     AF
+    RET
 
 
 LOC_96CA:
@@ -3738,6 +3812,7 @@ RET
 
 
 TestSign:   DB 120,121,122,123
+KillSign:   DB 46,47            ; "10" + "00" = 1000, single 16x8 row (bottom half)
 
 
 PLOTLEFTOVERS:
