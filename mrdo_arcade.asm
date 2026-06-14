@@ -173,7 +173,7 @@ SCOREFLAG:              RB   1  ;EQU $727C Tell which score to upate ($80 for P1
 CHOMP_RELEASED:         RB   1  ;EQU $727D ; staggered release: # chompers released so far (1-3)
 CHOMP_RELTIMER:         RB   1  ;EQU $727E ; staggered release: signal timer ID between releases
 CHOMP_STAGGER_VAR:      RB   1  ;EQU $727F ; dynamic stagger frames (computed at chomper-mode start)
-free:                   RB   1  ;EQU $7280
+SIGNKIND:               RB   1  ;EQU $7280 ; 0 = 500 cherry sign, 1 = 1000 kill sign (shares the sign lifecycle)
 
 MRDO_DATA:              RB   1  ;EQU $7281 ;+0  ; Mr. Do's flags
 MRDO_DATA.unkn:         RB   1  ;EQU $7282 ;+1  ; Mr. Do's ?
@@ -1773,6 +1773,8 @@ SUB_89D1:
     LD      A,(IY+4)
     AND     0FH
     JR      Z,LOC_89E9
+    CP      1
+    CALL    Z,PLANT_KILL_SIGN   ; single squash (= 1000 pts) -> show the "1000" sign
     DEC     A
     ADD     A,A
     LD      C,A
@@ -3288,9 +3290,16 @@ TEST3:
 
 timer_still_running:
 
+    LD      A,(SIGNKIND)
+    AND     A
+    JR      NZ,.replot_kill
     LD      A, (SIGNPOSITION)
     LD      BC,TestSign
     CALL    PRINT_2X2_PATTERN
+    JR      no_sign_on_the_screen
+.replot_kill:
+    LD      A,(SIGNPOSITION)
+    CALL    PRINT_KILLSIGN      ; 16x8 "1000" in the bottom half of the cell
 
 
 no_sign_on_the_screen:
@@ -3656,6 +3665,7 @@ GRAB_SOME_CHERRIES:
 
 ; allocate  500 sign timer  here
     XOR     A           ; A = 0 if one-shot, else free-running
+    LD      (SIGNKIND),A        ; A is 0 here -> mark this a 500 cherry sign (not a kill sign)
     LD      HL,2*60     ; time length   (2 secs)
     CALL    REQUEST_SIGNAL
     LD      (SIGNTIMER),A   ; ID of the allocated timer in the current
@@ -3670,7 +3680,7 @@ GRAB_SOME_CHERRIES:
   ; Store position for cleanup (A-1 as noted in comments)
 
     DEC     A
-    LD      (SIGNPOSITION),A
+    LD      (SIGNPOSITION),A    ; A (= position) must reach PRINT_2X2_PATTERN intact
     LD      BC,TestSign
     CALL    PRINT_2X2_PATTERN
     POP  IY
@@ -3720,6 +3730,70 @@ PRINT_2X2_PATTERN:
     JP      MyNMI_on
 
 
+; --- 1000 kill sign: a 16x8 (2 tiles, single row) sign drawn in the BOTTOM half
+; of the cell, so the top half keeps showing the leftovers. Same address math as
+; PRINT_2X2_PATTERN's top row but with 4*32 instead of 3*32 (drops one extra tile
+; row to reach the bottom half). Cleanup is the shared PLOTLEFTOVERS path, which
+; restores the whole cell from the map -- no special handling needed.
+; Input: A = SIGNPOSITION (x in low nibble, y in high nibble).
+PRINT_KILLSIGN:
+    PUSH    AF
+    AND     $F0
+    LD      L,A
+    LD      H,0
+    ADD     HL,HL           ; y * 2 * 16
+    ADD     HL,HL           ; y * 2 * 32
+    LD      DE,4*32         ; scorebar (3 rows) + 1 row -> bottom half of the cell
+    ADD     HL,DE
+    POP     AF
+    AND     $0F
+    ADD     A,A             ; x * 2
+    ADD     A,L
+    LD      L,A             ; HL = x*2 + y*2*32 + 4*32
+    EX      DE,HL           ; VRAM position in DE
+    LD      HL,KillSign
+    LD      IY,2
+    LD      A,2
+    CALL    MyNMI_off
+    CALL    PUT_VRAM
+    JP      MyNMI_on
+
+; --- Plant the 1000 sign at a single-squashed enemy. Called from SUB_89D1 with
+; IY = the breaking apple (which sits on the death cell). Preserves AF so the
+; caller's smash count survives. Skips if a sign is already up (one at a time).
+PLANT_KILL_SIGN:
+    PUSH    AF
+    LD      A,(SIGNPOSITION)
+    AND     A
+    JR      NZ,.pks_done        ; a sign is already on screen -> skip
+    PUSH    BC
+    PUSH    DE
+    PUSH    HL
+    PUSH    IX
+    PUSH    IY
+    LD      A,(IY+1)            ; apple Y (apple data: +1=Y, +2=X)
+    LD      B,A
+    LD      A,(IY+2)            ; apple X
+    LD      C,A
+    CALL    PEEKMAP             ; A = map offset + 1 (clobbers IX)
+    DEC     A
+    LD      (SIGNPOSITION),A    ; cleanup position for the shared expiry path
+    LD      A,1
+    LD      (SIGNKIND),A        ; mark this as the 16x8 kill sign
+    XOR     A                   ; one-shot timer
+    LD      HL,2*60             ; 2 seconds, same as the 500 sign
+    CALL    REQUEST_SIGNAL
+    LD      (SIGNTIMER),A
+    LD      A,(SIGNPOSITION)
+    CALL    PRINT_KILLSIGN      ; draw it now
+    POP     IY
+    POP     IX
+    POP     HL
+    POP     DE
+    POP     BC
+.pks_done:
+    POP     AF
+    RET
 
 
 LOC_96CA:
@@ -3738,6 +3812,7 @@ RET
 
 
 TestSign:   DB 120,121,122,123
+KillSign:   DB 46,47            ; "10" + "00" = 1000, single 16x8 row (bottom half)
 
 
 PLOTLEFTOVERS:
@@ -9978,7 +10053,32 @@ MR_DO_DEATH_F2:
  DB $00,$00,$06,$05,$07,$0A,$0F,$0D,$0F,$0C,$00,$00,$40,$70,$00,$00,$00,$00,$00,$1C,$34,$DC,$F8,$50,$F0,$30,$00,$00,$06,$0A,$00,$00,$00,$0F,$38,$02,$00,$05,$00,$02,$00,$00,$03,$07,$AD,$85,$03,$00,$00,$00,$06,$03,$0B,$21,$01,$A1,$00,$00,$C0,$E0,$B1,$A5,$C0,$00
 MR_DO_DEATH_F3:
  DB $00,$00,$00,$00,$00,$00,$06,$0A,$5F,$7C,$08,$00,$40,$70,$00,$00,$00,$00,$00,$00,$00,$00,$60,$B0,$F6,$3E,$10,$00,$06,$0A,$00,$00,$00,$03,$04,$03,$00,$40,$80,$85,$A0,$80,$03,$07,$AF,$85,$03,$00,$00,$C0,$20,$C0,$00,$02,$01,$41,$09,$01,$C0,$E0,$F1,$A5,$C0,$00
- 
+
+; UNCOMMNENT FOR RED NOSE MR. DO
+
+; MR_DO_WALK_RIGHT_00_PAT:
+;  DB $00,$01,$07,$0A,$1E,$34,$00,$00,$2C,$3A,$07,$1D,$17,$01,$00,$00,$00,$C0,$A0,$00,$00,$18,$18,$00,$00,$60,$D8,$78,$C0,$60,$C0,$00,$00,$00,$00,$05,$00,$0A,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$E0,$A0,$A0,$E0,$80,$00,$24,$84,$00,$80,$3C,$00
+; MR_DO_WALK_RIGHT_01_PAT:
+;  DB $00,$03,$0B,$1E,$36,$0C,$00,$00,$00,$02,$0F,$1D,$1F,$09,$03,$00,$00,$C0,$A0,$00,$00,$18,$18,$00,$00,$60,$B8,$E8,$60,$C0,$80,$00,$00,$00,$04,$41,$08,$02,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$40,$00,$E0,$A0,$A0,$E0,$80,$00,$44,$14,$80,$00,$78,$00
+; MR_DO_WALK_RIGHT_02_PAT:
+;  DB $00,$01,$0F,$36,$1E,$0C,$00,$00,$04,$0E,$2E,$3B,$07,$07,$00,$00,$00,$C0,$A0,$00,$00,$18,$18,$00,$38,$68,$A0,$F0,$40,$00,$00,$00,$00,$02,$40,$09,$00,$02,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$40,$00,$E0,$A0,$A0,$E0,$84,$14,$40,$00,$BC,$00,$C0,$00
+
+; MR_DO_PUSH_RIGHT_00_PAT:
+;  DB $00,$00,$01,$07,$0F,$1A,$00,$00,$00,$03,$05,$1F,$16,$01,$00,$00,$00,$E0,$D0,$00,$00,$0C,$0C,$00,$00,$30,$EC,$BC,$C0,$E0,$C0,$00,$00,$00,$02,$00,$00,$05,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$80,$70,$50,$D0,$70,$C0,$01,$13,$43,$00,$00,$3C,$00
+; MR_DO_PUSH_RIGHT_01_PAT:
+;  DB $00,$00,$02,$07,$0D,$03,$00,$00,$07,$0F,$0A,$0F,$05,$03,$00,$00,$00,$F0,$E8,$80,$80,$06,$06,$00,$00,$80,$EC,$BC,$C0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$10,$40,$38,$A8,$68,$38,$60,$01,$13,$43,$00,$00,$E0,$00
+; MR_DO_PUSH_RIGHT_02_PAT:
+;  DB $00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0D,$17,$3C,$00,$00,$00,$E0,$68,$C0,$C0,$83,$03,$00,$80,$C0,$F4,$5C,$E0,$C0,$00,$00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3E,$00,$00,$00,$90,$20,$1C,$54,$34,$1C,$30,$01,$0B,$A3,$00,$3C,$00,$00
+
+; MR_DO_DEATH_F0:
+;  DB $08,$3C,$58,$70,$58,$C0,$8A,$1F,$1A,$07,$0A,$1F,$1A,$04,$00,$00,$00,$00,$00,$00,$00,$60,$66,$0E,$A8,$F0,$B0,$E8,$78,$28,$30,$00,$04,$00,$20,$09,$A3,$01,$04,$20,$A1,$00,$05,$00,$04,$78,$00,$00,$00,$00,$F0,$F8,$6C,$08,$91,$01,$50,$00,$40,$10,$00,$10,$0F,$00
+; MR_DO_DEATH_F1:
+;  DB $00,$00,$03,$0D,$3F,$7A,$6F,$36,$0C,$08,$10,$28,$38,$00,$00,$00,$00,$00,$60,$B0,$F8,$A8,$FC,$1C,$0E,$06,$00,$C0,$C0,$00,$40,$00,$00,$00,$00,$02,$00,$85,$90,$80,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$00,$E0,$F0,$DA,$12,$22,$02,$80,$00
+; MR_DO_DEATH_F2:
+;  DB $00,$00,$06,$05,$07,$0A,$0F,$0D,$0F,$0C,$00,$00,$40,$71,$01,$00,$00,$00,$00,$1C,$34,$DC,$F8,$50,$F0,$30,$00,$00,$06,$8A,$80,$00,$00,$0F,$38,$02,$00,$05,$00,$02,$00,$00,$03,$07,$AD,$84,$02,$00,$00,$00,$06,$03,$0B,$21,$01,$A1,$00,$00,$C0,$E0,$B1,$25,$40,$00
+; MR_DO_DEATH_F3:
+;  DB $00,$00,$00,$00,$00,$00,$06,$0A,$5F,$7C,$08,$00,$40,$71,$01,$00,$00,$00,$00,$00,$00,$00,$60,$B0,$F6,$3E,$10,$00,$06,$8A,$80,$00,$00,$03,$04,$03,$00,$40,$80,$85,$A0,$80,$03,$07,$AF,$84,$02,$00,$00,$C0,$20,$C0,$00,$02,$01,$41,$09,$01,$C0,$E0,$F1,$25,$40,$00 
+
 ; bad guy
 BYTE_C234:      DB 010,011,008,009
 BYTE_C238:      DB 014,015,012,013
@@ -10011,6 +10111,17 @@ MR_DO_IMPATIENT_F0:
 ; Frame 1: red (body, SPT 176) then white (detail, SPT 180)
 MR_DO_IMPATIENT_F1:
  DB $00,$03,$0E,$08,$10,$20,$00,$08,$3C,$35,$07,$0F,$1A,$0C,$04,$00,$00,$80,$80,$00,$00,$00,$00,$18,$2C,$F8,$60,$C0,$C0,$F0,$40,$00,$00,$04,$01,$14,$0B,$45,$05,$13,$00,$0A,$18,$00,$45,$30,$08,$00,$00,$06,$4F,$2F,$C6,$A0,$A8,$C6,$10,$00,$80,$00,$20,$00,$3C,$00
+
+; UNCOMMNENT FOR RED NOSE MR. DO
+; pause screen Mr. Do impatient animation
+; Frame 0: red (body, SPT 176) then white (detail, SPT 180)
+; MR_DO_IMPATIENT_F0:
+;  DB $00,$03,$0E,$08,$10,$10,$01,$09,$3C,$35,$07,$07,$0E,$1A,$04,$00,$00,$80,$80,$00,$00,$00,$80,$80,$28,$EC,$78,$E0,$C0,$F0,$40,$00,$00,$04,$01,$14,$0B,$05,$24,$12,$00,$0A,$18,$00,$01,$04,$78,$00,$00,$00,$40,$20,$C0,$A6,$2F,$4F,$06,$10,$80,$00,$20,$00,$3C,$00
+
+; ; Frame 1: red (body, SPT 176) then white (detail, SPT 180)
+; MR_DO_IMPATIENT_F1:
+;  DB $00,$03,$0E,$08,$10,$20,$01,$09,$3C,$35,$07,$0F,$1A,$0C,$04,$00,$00,$80,$80,$00,$00,$00,$80,$98,$2C,$F8,$60,$C0,$C0,$F0,$40,$00,$00,$04,$01,$14,$0B,$45,$04,$12,$00,$0A,$18,$00,$45,$30,$08,$00,$00,$06,$4F,$2F,$C6,$A0,$28,$46,$10,$00,$80,$00,$20,$00,$3C,$00
+
 
 ENEMY_GENERATOR:
     DB 000                          ;0
