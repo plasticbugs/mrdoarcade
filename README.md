@@ -38,4 +38,20 @@ Wish list/To do list:
 - cap chomper's max speed after level 11 (or make them walk in tunnels only)
 - add patterns to leftover tiles to match those of the play field
 - add an alternative version of MrDo's sprites as Snowman to be activated by a secret combo of keys
-  
+
+## Building from source
+
+The ROM is assembled with **tniASM 0.45** (`TNIASM.EXE`) — a 32‑bit DOS assembler, so it only runs under DOS/Windows (e.g. a Windows VM or DOSBox). The full game source lives in **`mrdo_core.asm`** (plus the generated tileset `tilesetscr2.asm`).
+
+There are several build variants. Each is produced by assembling a small **wrapper file** — the wrapper sets the output ROM name and a build flag, then includes the shared core. Run the assembler on the wrapper for the build you want:
+
+| Command | Output ROM | Description |
+| --- | --- | --- |
+| `TNIASM.EXE mrdo_arcade.asm` | `mrdo_arcade.rom` | Standard game |
+| `TNIASM.EXE build_red_nose.asm` | `mrdo_arcade_red_nose.rom` | Alternate red‑nose Mr. Do sprites (by TIX) |
+| `TNIASM.EXE build_coleco_boot.asm` | `mrdo_arcade_coleco_boot.rom` | Restores the original ~12‑second Coleco BIOS title/boot screen (needed by some hardware) |
+| `TNIASM.EXE build_coleco_red_nose.asm` | `mrdo_arcade_coleco_red_nose.rom` | Coleco boot screen **and** red‑nose sprites |
+| `TNIASM.EXE build_invincible.asm` | `invincibility_for_qa.rom` | QA build — Mr. Do ignores all enemy collisions (not for release) |
+
+To change the game itself, edit `mrdo_core.asm` — the wrappers are thin and the variant differences are gated with `IFDEF` (`COLECOBOOT` / `REDNOSE` / `INVINCIBLE`). To add a new variant, copy a `build_*.asm` wrapper, give it a new `FNAME` and flag, and wrap the differing lines in the core with `IFDEF <FLAG> … ELSE … ENDIF`.
+
