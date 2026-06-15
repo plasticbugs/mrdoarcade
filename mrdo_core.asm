@@ -149,7 +149,7 @@ BADGUY_BEHAVIOR_RAM:    RB  80  ;EQU $713A ; BEHAVIOR TABLE. UP TO 80 ELEMENTS
 
 LEVELMAP:               RB 160  ;EQU $718A ; Level (16x10) and game state (52 bytes) total 212 byte saved in VRAM
 CURRAPPL:               RB   1  ;EQU $722A
-KONAMI_INDEX:           RB   1  ;EQU $722B ; Konami code sequence index (bit 7 = wait-for-release flag)
+                        RB   1  ;EQU $722B ; padding (was KONAMI_INDEX) - DO NOT REMOVE: hardcoded $72xx addresses depend on this offset
 APPLEDATA:              RB  25  ;EQU $722C ; Apple sprite data 5x5 bytes
 ENEMYINTERACT:          RB  20  ;EQU $7245 ; enemy interaction data
 ENEMYINTERACT2:         RB  20  ;EQU $7259 ; enemy interaction data
@@ -170,7 +170,10 @@ LETTERMON_SPAWNP1:      RB   1  ;EQU $727A Counter used to spawn letter monster 
 LETTERMON_SPAWNP2:      RB   1  ;EQU $727B Counter used to spawn letter monster for P2
 SCOREFLAG:              RB   1  ;EQU $727C Tell which score to upate ($80 for P1, $40 for P2, 0 no update)
 
-free:                   RB   4  ;EQU $727D
+CHOMP_RELEASED:         RB   1  ;EQU $727D ; staggered release: # chompers released so far (1-3)
+CHOMP_RELTIMER:         RB   1  ;EQU $727E ; staggered release: signal timer ID between releases
+CHOMP_STAGGER_VAR:      RB   1  ;EQU $727F ; dynamic stagger frames (computed at chomper-mode start)
+SIGNKIND:               RB   1  ;EQU $7280 ; 0 = 500 cherry sign, 1 = 1000 kill sign (shares the sign lifecycle)
 
 MRDO_DATA:              RB   1  ;EQU $7281 ;+0  ; Mr. Do's flags
 MRDO_DATA.unkn:         RB   1  ;EQU $7282 ;+1  ; Mr. Do's ?
@@ -264,13 +267,22 @@ mode:                   EQU $73FD       ; Unused (?) used by OS
 ; B7==0 -> game mode,   B7==1 -> intermission mode
 
 
-FNAME "mrdo_arcade.rom"
+; Output file (FNAME) and variant flags (IFDEF COLECOBOOT / INVINCIBLE / REDNOSE)
+; are set by the per-variant wrapper that INCLUDEs this core:
+;   mrdo_arcade.asm      = stock        -> mrdo_arcade.rom
+;   build_coleco_boot.asm= coleco boot  -> mrdo_arcade_coleco_boot.rom
+;   build_invincible.asm = QA invincible-> invincibility_for_qa.rom
+; Assemble a wrapper, never this core directly.
 ;   CPU Z80
 
 
     ORG $8000
 
-    DW COLECO_TITLE_OFF        ; SET TO COLECO_TITLE_ON FOR TITLES,COLECO_TITLE_OFF TO TURN THEM OFF
+IFDEF COLECOBOOT
+    DW COLECO_TITLE_ON       ; variant: restore the ~12s Coleco BIOS boot/title screen
+ELSE
+    DW COLECO_TITLE_OFF      ; stock: skip the BIOS titles (fast boot)
+ENDIF
     DW 0
     DW 0
     DW 0
@@ -285,13 +297,13 @@ FNAME "mrdo_arcade.rom"
     ; RST 38H vector
     DS 20,0
     RET
-;   JP      nmi_handler     ; nmi has to start here
+    JP      nmi_handler     ; $8021 - NMI vector (BIOS jumps here on VBLANK)
 
-;GAME_NAME:
-;   DB "MR. DO!",1EH,1FH
-;   DB "/PRESENTS UNIVERSAL'S/1983"
+GAME_NAME:                  ; $8024 - Coleco BIOS reads title text from here
+    DB "MR. DO!",$1E,$1F
+    DB "/PRESENTS UNIVERSAL'S/1983"
 
-nmi_handler:                ; do not move from here (!!!)
+nmi_handler:
     PUSH AF
     PUSH HL
     LD HL,mode
@@ -698,6 +710,29 @@ BONUS_OBJ_LIST:
     db   6,10,11,12,13,16,17,18,19,20
 
 START:
+    ; Silence SN76489 sound chip immediately - it can power up emitting noise
+    ; on cold boot. Write max attenuation ($F) to all 4 channels.
+    ; Latch bytes: $9F (ch0), $BF (ch1), $DF (ch2), $FF (noise) - step $20.
+    LD      A,$9F
+    LD      B,4
+.silence_loop:
+    OUT     ($FF),A
+    ADD     A,$20
+    DJNZ    .silence_loop
+
+    ; ~1.4s cold-boot delay (replaces BIOS title screen's ~12s delay).
+    ; Empirically the BIOS delay was needed for hardware boot reliability;
+    ; this is a much shorter custom replacement. Each B step ≈ 0.48s.
+    LD      B,2
+.bootdelay_outer:
+    LD      HL,0
+.bootdelay_inner:
+    DEC     HL
+    LD      A,H
+    OR      L
+    JR      NZ,.bootdelay_inner
+    DJNZ    .bootdelay_outer
+    IN      A,(CTRL_PORT)       ; clear VDP address latch (unknown state on cold boot)
     LD      HL,$7000            ; clean user ram
     LD      DE,$7000+1
     LD      BC,$3FE-1           ; all zeros till to the end of the ram - needed as we skip the coleco screen
@@ -1368,6 +1403,11 @@ NEXTLINE:
 LOC_87B9:
     LD      A,3
     CALL    PRINT_MESSAGE
+; Draw every on-field apple as a whole apple (D=1), ignoring IY+4. Resting apples
+; carry frame 0 in IY+4 (SUB_899A would hide them), so this forced-frame loop is
+; how they stay visible. Reused as an entry point to re-show apples after chomper
+; mode (see SUB_B832).
+REDRAW_ALL_APPLES:
     LD      B,5
     LD      IY,APPLEDATA
     LD      A,12
@@ -1742,6 +1782,8 @@ SUB_89D1:
     LD      A,(IY+4)
     AND     0FH
     JR      Z,LOC_89E9
+    CP      1
+    CALL    Z,PLANT_KILL_SIGN   ; single squash (= 1000 pts) -> show the "1000" sign
     DEC     A
     ADD     A,A
     LD      C,A
@@ -3036,11 +3078,62 @@ LOC_9355:
     XOR     A
     RET
 LOC_9363:
-    CALL    SUB_B832
-    LD      DE,32H              ; 500 points if chomper is hit by A ball
+    LD      B,(IX+2)            ; chomper Y  \ save before SUB_B832 clobbers BC
+    LD      C,(IX+1)            ; chomper X  / and hides the sprite
+    PUSH    BC
+    CALL    SUB_B832            ; deactivate chomper + hide its sprite
+    POP     BC
+    CALL    SPAWN_CHOMP_APPLE   ; ball-kill: turn the chomper into an apple (if room)
+    LD      DE,32H              ; 500 points if chomper is hit by a ball
     CALL    SUB_B601
     LD      A,1
 RET
+
+; --- Ball-killed chomper -> apple at (B=Y, C=X). No-op if no free apple slot. ---
+; (Branch's implementation, minus the diamond-slot-0 guard we agreed to drop.)
+; Y-range guard ($20..$B0): an off-grid Y makes the support check wrap past LEVELMAP
+; (corruption). Grid-snap is ALSO required: SUB_8E48 only recognises positions whose
+; low nibbles key into UNK_8F98 (X low 0/4/8/C, Y low 0/8); off-grid -> read as
+; "supported" -> the apple never falls. The apple is drawn once with a manual
+; PUTSPRITE (D=1) which, unlike REDRAW_ALL_APPLES, leaves IY (the ball pointer)
+; untouched -- so DEAL_WITH_BALL keeps working after the hit.
+SPAWN_CHOMP_APPLE:
+    LD      A,B
+    CP      $20
+    RET     C                   ; above the playfield -> skip
+    CP      $B1
+    RET     NC                  ; below the playfield -> skip
+    LD      IX,APPLEDATA
+    LD      D,5                 ; slots left to scan
+.scan:
+    BIT     7,(IX+0)            ; bit7 set = slot occupied
+    JR      Z,.place
+    PUSH    BC
+    PUSH    DE
+    CALL    NEXT_APPLE_IX
+    POP     DE
+    POP     BC
+    DEC     D
+    JR      NZ,.scan
+    RET                         ; all 5 apple slots taken -> no apple
+.place:
+    LD      (IX+0),80H          ; active; all other flags clear
+    LD      A,B
+    AND     0F0H                ; Y -> tile-row top
+    LD      B,A
+    LD      (IX+1),A
+    LD      A,C
+    AND     0F0H
+    OR      8                   ; X -> tile centre (gives support key $80)
+    LD      C,A
+    LD      (IX+2),A
+    LD      (IX+3),0            ; movement/anim timer
+    LD      (IX+4),10H          ; whole-apple frame
+    LD      A,17
+    SUB     D                   ; D = scan counter -> sprite slot 17-D = 12+index
+    LD      D,1                 ; frame 1 (whole apple)
+    CALL    PUTSPRITE           ; A=slot, B=Y, C=X, D=frame; preserves IY
+    RET
 
 SUB_936F:
     LD      A,(LETTERMON_FLAG)
@@ -3206,9 +3299,16 @@ TEST3:
 
 timer_still_running:
 
+    LD      A,(SIGNKIND)
+    AND     A
+    JR      NZ,.replot_kill
     LD      A, (SIGNPOSITION)
     LD      BC,TestSign
     CALL    PRINT_2X2_PATTERN
+    JR      no_sign_on_the_screen
+.replot_kill:
+    LD      A,(SIGNPOSITION)
+    CALL    PRINT_KILLSIGN      ; 16x8 "1000" in the bottom half of the cell
 
 
 no_sign_on_the_screen:
@@ -3574,6 +3674,7 @@ GRAB_SOME_CHERRIES:
 
 ; allocate  500 sign timer  here
     XOR     A           ; A = 0 if one-shot, else free-running
+    LD      (SIGNKIND),A        ; A is 0 here -> mark this a 500 cherry sign (not a kill sign)
     LD      HL,2*60     ; time length   (2 secs)
     CALL    REQUEST_SIGNAL
     LD      (SIGNTIMER),A   ; ID of the allocated timer in the current
@@ -3588,7 +3689,7 @@ GRAB_SOME_CHERRIES:
   ; Store position for cleanup (A-1 as noted in comments)
 
     DEC     A
-    LD      (SIGNPOSITION),A
+    LD      (SIGNPOSITION),A    ; A (= position) must reach PRINT_2X2_PATTERN intact
     LD      BC,TestSign
     CALL    PRINT_2X2_PATTERN
     POP  IY
@@ -3638,6 +3739,70 @@ PRINT_2X2_PATTERN:
     JP      MyNMI_on
 
 
+; --- 1000 kill sign: a 16x8 (2 tiles, single row) sign drawn in the BOTTOM half
+; of the cell, so the top half keeps showing the leftovers. Same address math as
+; PRINT_2X2_PATTERN's top row but with 4*32 instead of 3*32 (drops one extra tile
+; row to reach the bottom half). Cleanup is the shared PLOTLEFTOVERS path, which
+; restores the whole cell from the map -- no special handling needed.
+; Input: A = SIGNPOSITION (x in low nibble, y in high nibble).
+PRINT_KILLSIGN:
+    PUSH    AF
+    AND     $F0
+    LD      L,A
+    LD      H,0
+    ADD     HL,HL           ; y * 2 * 16
+    ADD     HL,HL           ; y * 2 * 32
+    LD      DE,4*32         ; scorebar (3 rows) + 1 row -> bottom half of the cell
+    ADD     HL,DE
+    POP     AF
+    AND     $0F
+    ADD     A,A             ; x * 2
+    ADD     A,L
+    LD      L,A             ; HL = x*2 + y*2*32 + 4*32
+    EX      DE,HL           ; VRAM position in DE
+    LD      HL,KillSign
+    LD      IY,2
+    LD      A,2
+    CALL    MyNMI_off
+    CALL    PUT_VRAM
+    JP      MyNMI_on
+
+; --- Plant the 1000 sign at a single-squashed enemy. Called from SUB_89D1 with
+; IY = the breaking apple (which sits on the death cell). Preserves AF so the
+; caller's smash count survives. Skips if a sign is already up (one at a time).
+PLANT_KILL_SIGN:
+    PUSH    AF
+    LD      A,(SIGNPOSITION)
+    AND     A
+    JR      NZ,.pks_done        ; a sign is already on screen -> skip
+    PUSH    BC
+    PUSH    DE
+    PUSH    HL
+    PUSH    IX
+    PUSH    IY
+    LD      A,(IY+1)            ; apple Y (apple data: +1=Y, +2=X)
+    LD      B,A
+    LD      A,(IY+2)            ; apple X
+    LD      C,A
+    CALL    PEEKMAP             ; A = map offset + 1 (clobbers IX)
+    DEC     A
+    LD      (SIGNPOSITION),A    ; cleanup position for the shared expiry path
+    LD      A,1
+    LD      (SIGNKIND),A        ; mark this as the 16x8 kill sign
+    XOR     A                   ; one-shot timer
+    LD      HL,2*60             ; 2 seconds, same as the 500 sign
+    CALL    REQUEST_SIGNAL
+    LD      (SIGNTIMER),A
+    LD      A,(SIGNPOSITION)
+    CALL    PRINT_KILLSIGN      ; draw it now
+    POP     IY
+    POP     IX
+    POP     HL
+    POP     DE
+    POP     BC
+.pks_done:
+    POP     AF
+    RET
 
 
 LOC_96CA:
@@ -3656,6 +3821,7 @@ RET
 
 
 TestSign:   DB 120,121,122,123
+KillSign:   DB 46,47            ; "10" + "00" = 1000, single 16x8 row (bottom half)
 
 
 PLOTLEFTOVERS:
@@ -3673,6 +3839,16 @@ PLOTLEFTOVERS:
     RRCA
     AND     15      ; divide by 16
                     ; range 1-14
+    ; SAFETY NET: LfovrConf has exactly 14 entries (valid nibbles 1-14). A 0 or
+    ; 15 here (empty/corrupted cell) would index OUTSIDE the table -- nibble 15
+    ; lands on SUB_96E4's first opcode ($3A), which EXPANDs to the stray tile 98
+    ; 2x2 block. Clamp out-of-range nibbles to entry 1 (a plain ground 2x2).
+    JR      Z,.bad          ; nibble 0
+    CP      15
+    JR      C,.ok           ; 1..14 = valid index
+.bad:
+    LD      A,1
+.ok:
     ADD     A,A     ; x2 to accedd the table
     LD      E,A
     LD      D,0
@@ -5050,9 +5226,10 @@ UNK_9FB3:
     DW LOC_9F9C
 
 SUB_9FC8:                           ; Test collision MrDo vs Enemy in IY
-  ; INVINCIBILITY HACK FOR DEBUG (PRESERVE)
-    ; XOR       A    ; (Uncomment for invincibility)
-    ; RET        ; (Uncomment for invincibility)
+IFDEF INVINCIBLE                     ; QA variant: Mr. Do ignores all enemy collisions
+    XOR     A
+    RET
+ENDIF
     LD      A,(MRDO_DATA.Y)
     SUB     (IY+2)
     JR      NC,.ypos
@@ -6180,6 +6357,16 @@ LOC_A6F2:
     RES     5,(HL)
     CALL    SUB_B8A3
 LOC_A70B:
+    ; --- hold the letter monster still until all chompers have emerged (feature #3) ---
+    LD      A,(GAMEFLAGS)
+    BIT     7,A                     ; chomper mode?
+    JR      Z,.lm_canmove
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.lm_canmove          ; all 3 out -> resume normal movement
+    POP     DE                      ; balance the PUSH DE from LOC_A6F2
+    JP      LOC_A77B                ; skip ALL letter-monster movement this frame
+.lm_canmove:
     CALL    SUB_A527
     POP     DE
     JR      Z,LOC_A74B
@@ -6295,7 +6482,57 @@ LOC_A7CB:
 BYTE_A7DC:
     DB 001,001,012,002,003,014,004,005,016,008,007,018,016,009,020,008,007,018,004,005,016,002,003,014
 
+; Hard floor on the chomper move delay (frames per step). The skill/level table
+; (BYTE_9C36, read by SUB_9BE2) bottoms out at 4 on high levels, which is nearly
+; uncontrollable; 6 caps the top chomper speed without touching the table.
+CHOMP_MIN_DELAY:        EQU 6
+; Stagger between chomper releases = (capped_delay * 4) + CHOMP_STAGGER_BASE, so
+; the gap scales with how fast the chompers move this level. Raise for looser
+; spacing.  capped slowest (delay 13): 13*4+4 = 56 frames; capped fastest
+; (delay 6): 6*4+4 = 28 frames.
+CHOMP_STAGGER_BASE:     EQU 4
+
 SUB_A7F4:
+    ; --- staggered release: bring chompers out one-by-one (features #2 & #5) ---
+    LD      A,(GAMEFLAGS)
+    BIT     7,A                     ; only while in chomper mode
+    JR      Z,.norelease
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.norelease           ; all three already released
+    LD      A,(CHOMP_RELTIMER)
+    CALL    TEST_SIGNAL
+    JR      Z,.norelease            ; not time for the next one yet
+    LD      A,(CHOMP_RELEASED)      ; index of the chomper to release now
+    LD      C,A
+    ADD     A,A                     ; *2
+    ADD     A,C                     ; *3
+    ADD     A,A                     ; *6 = byte offset into CHOMPDATA
+    LD      E,A
+    LD      D,0
+    LD      IX,CHOMPDATA
+    ADD     IX,DE                   ; IX -> chomper[CHOMP_RELEASED]
+    SET     7,(IX+4)                ; activate it (bit7 = in play)
+    LD      A,(IX+3)                ; free the placeholder timer from SUB_B8A3 init
+    CALL    FREE_SIGNAL             ; (else one signal leaks per release)
+    XOR     A
+    LD      HL,1
+    CALL    REQUEST_SIGNAL
+    LD      (IX+3),A                ; seed its movement timer (fires next frame)
+    LD      HL,CHOMP_RELEASED
+    INC     (HL)                    ; one more chomper is out
+    LD      A,(HL)
+    CP      3
+    JR      NC,.norelease           ; that was the 3rd: nobody will ever test another
+                                    ; stagger timer, so don't arm one (it would leak;
+                                    ; the 29-slot timer pool ends at the SAT shadow)
+    LD      A,(CHOMP_STAGGER_VAR)   ; reload the dynamic stagger
+    LD      L,A
+    LD      H,0
+    XOR     A
+    CALL    REQUEST_SIGNAL
+    LD      (CHOMP_RELTIMER),A      ; restart the stagger timer for the next one
+.norelease:
     LD      A,(CHOMPNUMBER)
     AND     3
     LD      C,A
@@ -6317,7 +6554,12 @@ SUB_A7F4:
     CALL    MOVECHOMPER_SUB_A83E    ; MOVE CHOMPER
     CALL    AMIMATECHOMPER_SUB_A83E ; PLOT CHOMPER
 
-    CALL    SUB_9BE2                ; MANAGE MOVEMENT DELAY ACCORDING TO SKILL LEVEL AND PHASE
+    CALL    SUB_9BE2                ; HL = skill/level chomper delay (H=0, L=delay)
+    LD      A,CHOMP_MIN_DELAY       ; cap top chomper speed: floor L at MIN_DELAY
+    CP      L                       ; A-L: C if L>MIN (keep), NC if L<=MIN (clamp)
+    JR      C,.nocap
+    LD      L,A
+.nocap:
     XOR     A
     CALL    REQUEST_SIGNAL
     LD      (IY+3),A
@@ -6497,6 +6739,14 @@ AMIMATECHOMPER_SUB_A83E:
 
     LD      BC,$D908
     LD      A,(CHOMPNUMBER)
+    ; clamp IN-REGISTER: a corrupted CHOMPNUMBER (e.g. $7E/$FE, seen in the wild)
+    ; would put this PUTSPRITE on apple slot 15 ((value+17)&7F) -> invisible apple.
+    ; Clamping the register copy leaves no window for an async (NMI-side) write.
+    AND     3
+    CP      3
+    JR      NZ,.rmok
+    XOR     A               ; 3 -> 0 (slot 20 would hit BADGUY_BEHAVIOR_RAM)
+.rmok:
     ADD     A,17            ; remove chomper
     JP      PUTSPRITE           ; REMOVE THIS SPRITE IN CASE OF ANY OTHER VALUE (?!?)
 CHMPLEFT:
@@ -6551,6 +6801,11 @@ LOC_A905:
     LD      B,$D9           ; yes, force hide (will become $D1 after SUB 8)
 .renderit:
     LD      A,(CHOMPNUMBER)
+    AND     3               ; clamp IN-REGISTER (see .rmok above): corrupt CHOMPNUMBER
+    CP      3               ; here painted hidden chomper frames into apple slot 15
+    JR      NZ,.anok        ; (all three invisible-apple RAM dumps matched this site)
+    XOR     A
+.anok:
     ADD     A,17            ; animate chomper
     JP      PUTSPRITE
 
@@ -8851,7 +9106,7 @@ RET
 SPR_OBJ_ATTRB:          ; Sprite frame and color data
     DW BYTE_B6C3    ; 0 ball
     DW BYTE_B6C7    ; 1 mr do
-    DW 0    ; free
+    DW 0    ; free (NB: Mr. Do's 2nd colour layer is written here at runtime)
     DW BYTE_B6CF    ; 3 Extra letter
     DW BYTE_B6FB    ; 4 ball explosion
     DW BYTE_B70B    ; 5 bad guy/digger
@@ -8919,8 +9174,11 @@ SUB_B76D:
     BIT     0,(HL)
     JR      Z,LOC_B781
     RES     0,(HL)
-    LD      A,(SCORE_P1_RAM)        ; THIS SEEMS A BUG (!?) WHY USE THE SCORE AS TIMER ID ?
-;   LD      A,(LETTERMON_TIMER)     ; doesn't solve....
+    ; Was LD A,(SCORE_P1_RAM) -- "THIS SEEMS A BUG (!?)" -- and it was: it freed a
+    ; RANDOM timer (ID = score low byte), sometimes an enemy's movement timer (the
+    ; halting-enemy bug), while leaking the real one. $72C4 bit0 pairs with the
+    ; 5A0H lettermon walk timer stored in GAMETIMER; that's what this abort frees.
+    LD      A,(GAMETIMER)
     CALL    FREE_SIGNAL
 LOC_B781:
     CALL    SUB_CA24
@@ -9007,6 +9265,35 @@ LOC_B805:
 RET
 
 SUB_B809:
+    ; Killing the letter monster (SUB_B76D) force-ends chomper mode. With staggered
+    ; release, chompers 1/2 may still be QUEUED (bit7 IX+4 clear) -> the kill loop
+    ; below would skip them and the SUB_B832 guard would refuse to end the mode.
+    ; So during chomper mode: mark all released (cancel pending spawns + let the
+    ; guard pass) and promote queued chompers to in-play so they get removed too.
+    ; Dead slots (IX+4 == 0) are left alone so they aren't resurrected/re-scored.
+    LD      A,(GAMEFLAGS)
+    BIT     7,A
+    JR      Z,.killloop
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      NC,.relsdone            ; stagger already finished: its timer expired and
+                                    ; was freed by TEST_SIGNAL; the stored ID is stale
+    LD      A,(CHOMP_RELTIMER)
+    CALL    FREE_SIGNAL             ; cancel the pending stagger timer (else it leaks)
+.relsdone:
+    LD      A,3
+    LD      (CHOMP_RELEASED),A
+    LD      IX,CHOMPDATA
+    LD      B,3
+.force:
+    LD      A,(IX+4)
+    AND     A
+    JR      Z,.fnext            ; dead slot -> don't resurrect
+    SET     7,(IX+4)            ; queued/in-play -> ensure the kill loop removes it
+.fnext:
+    CALL    NEXT_ENTITY_IX
+    DJNZ    .force
+.killloop:
     LD      IX,CHOMPDATA
     LD      B,3
 LOC_B80F:
@@ -9057,19 +9344,34 @@ LOC_B865:
     JR      NZ,LOC_B89E
     CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B865
+    ; staggered release guard: bit7(IX+4) is CLEAR for not-yet-released chompers,
+    ; so the scan above can read "all gone" prematurely if chomper 0 dies before
+    ; 1 & 2 emerge. Keep chomper mode alive until all three have been released.
+    LD      A,(CHOMP_RELEASED)
+    CP      3
+    JR      C,LOC_B89E
     CALL    SUB_CA2D
     CALL    WAIT_NMI
     CALL    ENABLE_NMI
     LD      HL,GAMEFLAGSBONUSITEM
     RES     4,(HL)
-    LD      A,(GAMEFLAGS)
-    BIT     0,A                 ; b0 in GAMEFLAGS ??
-    JR      NZ,LOC_B884
+    ; RES 4 aborts the bonus-food enemy freeze. Its countdown lives in CURRBADGUY
+    ; (loaded with 10 by SUB_96E4!) -- if the chompers die before it finishes,
+    ; CURRBADGUY is stranded at 8-10: the enemy dispatcher then reads past its
+    ; 7-entry offset table (garbage IY) and renders into sprite slot CURRBADGUY+5
+    ; = 13-15, hiding an apple's sprite (the invisible-apple bug, 5x confirmed).
+    LD      A,(CURRBADGUY)
+    AND     7
+    LD      (CURRBADGUY),A
+    ; (stock gated this free on GAMEFLAGS bit0 -- the chase/flee toggle -- skipping
+    ; it ~half the time and leaking TIMERCHOMP1. MOVECHOMPER re-requests it on every
+    ; expiry, so it is ALWAYS live here: free unconditionally.)
     LD      A,(TIMERCHOMP1)
     CALL    FREE_SIGNAL
 LOC_B884:
     XOR     A
     LD      (GAMEFLAGS),A
+    CALL    REDRAW_ALL_APPLES   ; chomper mode can leave an apple's sprite hidden; redraw them
     LD      A,(LETTERMON_COUNTER)
     BIT     6,A
     JR      Z,LOC_B89E
@@ -9125,9 +9427,13 @@ LOC_B8B1:
     LD      A,(LETTERMON_X)
     LD      (IX+1),A
     LD      A,($72C1)
-    AND     7
-    OR      80H
+    AND     7                       ; starting direction; bit7 (in-play) left CLEAR
     LD      (IX+4),A
+    LD      A,B                     ; loop counter B = 3,2,1 -> chomper 0,1,2
+    CP      3
+    JR      NZ,.notlead
+    SET     7,(IX+4)                ; activate ONLY chomper 0 now (1 & 2 are queued)
+.notlead:
     LD      (IX+5),0
     PUSH    BC
     XOR     A
@@ -9138,6 +9444,34 @@ LOC_B8B1:
     CALL    NEXT_ENTITY_IX
     DJNZ    LOC_B8B1            ; init the 3 chompers
 
+    ; --- staggered release setup: chomper 0 is out, queue 1 & 2 (features #2 & #5) ---
+    LD      A,1
+    LD      (CHOMP_RELEASED),A
+    CALL    SUB_9BE2                ; HL = skill/level chomper delay (H=0, L=delay)
+    LD      A,CHOMP_MIN_DELAY       ; use the SAME cap as movement so spacing matches speed
+    CP      L
+    JR      C,.nofloor
+    LD      L,A
+.nofloor:
+    ADD     HL,HL                   ; *2
+    ADD     HL,HL                   ; *4  (max 13*4 = 52, stays in L; H=0)
+    LD      A,L
+    ADD     A,CHOMP_STAGGER_BASE    ; stagger = capped_delay*4 + BASE
+    LD      (CHOMP_STAGGER_VAR),A
+    LD      L,A
+    LD      H,0
+    XOR     A
+    CALL    REQUEST_SIGNAL
+    LD      (CHOMP_RELTIMER),A      ; first stagger timer (until chomper 1 emerges)
+    ; hide the not-yet-released chomper sprites (slots 18,19) so no stale sprite shows
+    LD      BC,$D908                ; Y=$D9 (off-screen), X=8
+    LD      D,0
+    LD      A,18
+    CALL    PUTSPRITE
+    LD      D,0
+    LD      A,19
+    CALL    PUTSPRITE
+
     XOR     A
     LD      HL,78H
     CALL    REQUEST_SIGNAL
@@ -9147,8 +9481,10 @@ LOC_B8B1:
     BIT     0,(HL)
     JP      Z,LOC_B8EC
     RES     0,(HL)
-;   LD      A,(GAMETIMER)           ; ?? what is it for ??
-;   CALL    TEST_SIGNAL             ; apparently unused
+    LD      A,(GAMETIMER)           ; chompers interrupt the lettermon's 5A0H walk
+    CALL    FREE_SIGNAL             ; timer: free it or it leaks (one 24s timer per
+                                    ; chomper mode -> pool exhaustion -> enemies
+                                    ; with REQUEST_SIGNAL=0 move haltingly)
 
 LOC_B8EC:
     LD      A,80H
@@ -9706,27 +10042,76 @@ BYTE_C294:      DB 178,176,179,177,45*4+2,45*4+0,45*4+3,45*4+1
 
 
 MR_DO_WALK_RIGHT_00_PAT:
+IFDEF REDNOSE
  DB $00,$01,$07,$0A,$1E,$34,$00,$00,$2C,$3A,$07,$1D,$17,$01,$00,$00,$00,$C0,$A0,$00,$00,$18,$18,$00,$00,$60,$D8,$78,$C0,$60,$C0,$00,$00,$00,$00,$05,$00,$0A,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$E0,$A0,$A0,$E0,$80,$00,$24,$84,$00,$80,$3C,$00
+ELSE
+ DB $00,$01,$07,$0A,$1E,$34,$00,$00,$2C,$3A,$07,$1D,$17,$01,$00,$00,$00,$C0,$A0,$00,$00,$00,$00,$00,$00,$60,$D8,$78,$C0,$60,$C0,$00,$00,$00,$00,$05,$00,$0A,$41,$00,$51,$44,$00,$62,$68,$40,$40,$00,$00,$00,$40,$00,$E0,$B0,$B0,$E0,$80,$00,$24,$84,$00,$80,$3C,$00
+ENDIF
+
 MR_DO_WALK_RIGHT_01_PAT:
+IFDEF REDNOSE
  DB $00,$03,$0B,$1E,$36,$0C,$00,$00,$00,$02,$0F,$1D,$1F,$09,$03,$00,$00,$C0,$A0,$00,$00,$18,$18,$00,$00,$60,$B8,$E8,$60,$C0,$80,$00,$00,$00,$04,$41,$08,$02,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$40,$00,$E0,$A0,$A0,$E0,$80,$00,$44,$14,$80,$00,$78,$00
+ELSE
+ DB $00,$03,$0B,$1E,$36,$0C,$00,$00,$00,$02,$0F,$1D,$1F,$09,$03,$00,$00,$C0,$A0,$00,$00,$00,$00,$00,$00,$60,$B8,$E8,$60,$C0,$80,$00,$00,$00,$04,$41,$08,$02,$01,$00,$01,$04,$00,$02,$00,$06,$00,$00,$00,$00,$40,$00,$E0,$B0,$B0,$E0,$80,$00,$44,$14,$80,$00,$78,$00
+ENDIF
+
 MR_DO_WALK_RIGHT_02_PAT:
+IFDEF REDNOSE
  DB $00,$01,$0F,$36,$1E,$0C,$00,$00,$04,$0E,$2E,$3B,$07,$07,$00,$00,$00,$C0,$A0,$00,$00,$18,$18,$00,$38,$68,$A0,$F0,$40,$00,$00,$00,$00,$02,$40,$09,$00,$02,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$40,$00,$E0,$A0,$A0,$E0,$84,$14,$40,$00,$BC,$00,$C0,$00
+ELSE
+ DB $00,$01,$0F,$36,$1E,$0C,$00,$00,$04,$0E,$2E,$3B,$07,$07,$00,$00,$00,$C0,$A0,$00,$00,$00,$00,$00,$38,$68,$A0,$F0,$40,$00,$00,$00,$00,$02,$40,$09,$00,$02,$01,$00,$01,$00,$51,$44,$00,$00,$07,$00,$00,$00,$40,$00,$E0,$B0,$B0,$E0,$84,$14,$40,$00,$BC,$00,$C0,$00
+ENDIF
 
 MR_DO_PUSH_RIGHT_00_PAT:
+IFDEF REDNOSE
  DB $00,$00,$01,$07,$0F,$1A,$00,$00,$00,$03,$05,$1F,$16,$01,$00,$00,$00,$E0,$D0,$00,$00,$0C,$0C,$00,$00,$30,$EC,$BC,$C0,$E0,$C0,$00,$00,$00,$02,$00,$00,$05,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$80,$70,$50,$D0,$70,$C0,$01,$13,$43,$00,$00,$3C,$00
+ELSE
+ DB $00,$00,$01,$07,$0F,$1A,$00,$00,$00,$03,$05,$1F,$16,$01,$00,$00,$00,$E0,$D0,$00,$00,$00,$00,$00,$00,$30,$EC,$BC,$C0,$E0,$C0,$00,$00,$00,$02,$00,$00,$05,$20,$00,$00,$00,$02,$60,$69,$40,$40,$00,$00,$00,$20,$80,$70,$58,$D8,$70,$C0,$01,$13,$43,$00,$00,$3C,$00
+ENDIF
+
 MR_DO_PUSH_RIGHT_01_PAT:
+IFDEF REDNOSE
  DB $00,$00,$02,$07,$0D,$03,$00,$00,$07,$0F,$0A,$0F,$05,$03,$00,$00,$00,$F0,$E8,$80,$80,$06,$06,$00,$00,$80,$EC,$BC,$C0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$10,$40,$38,$A8,$68,$38,$60,$01,$13,$43,$00,$00,$E0,$00
+ELSE
+ DB $00,$00,$02,$07,$0D,$03,$00,$00,$07,$0F,$0A,$0F,$05,$03,$00,$00,$00,$F0,$E8,$80,$80,$00,$00,$00,$00,$80,$EC,$BC,$C0,$80,$00,$00,$00,$00,$01,$10,$02,$00,$00,$00,$00,$00,$05,$00,$02,$00,$03,$00,$00,$00,$10,$40,$38,$AC,$6C,$38,$60,$01,$13,$43,$00,$00,$E0,$00
+ENDIF
+
 MR_DO_PUSH_RIGHT_02_PAT:
+IFDEF REDNOSE
  DB $00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0D,$17,$3C,$00,$00,$00,$E0,$68,$C0,$C0,$83,$03,$00,$80,$C0,$F4,$5C,$E0,$C0,$00,$00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3E,$00,$00,$00,$90,$20,$1C,$54,$34,$1C,$30,$01,$0B,$A3,$00,$3C,$00,$00
+ELSE
+ DB $00,$07,$03,$01,$01,$00,$00,$00,$01,$02,$07,$0D,$17,$3C,$00,$00,$00,$E0,$68,$C0,$C0,$80,$00,$00,$80,$C0,$F4,$5C,$E0,$C0,$00,$00,$00,$00,$08,$00,$00,$00,$00,$00,$00,$01,$00,$02,$08,$00,$3E,$00,$00,$00,$90,$20,$1C,$56,$36,$1C,$30,$01,$0B,$A3,$00,$3C,$00,$00
+ENDIF
 
 MR_DO_DEATH_F0:
+IFDEF REDNOSE
  DB $08,$3C,$58,$70,$58,$C0,$8A,$1F,$1A,$07,$0A,$1F,$1A,$04,$00,$00,$00,$00,$00,$00,$00,$60,$66,$0E,$A8,$F0,$B0,$E8,$78,$28,$30,$00,$04,$00,$20,$09,$A3,$01,$04,$20,$A1,$00,$05,$00,$04,$78,$00,$00,$00,$00,$F0,$F8,$6C,$08,$91,$01,$50,$00,$40,$10,$00,$10,$0F,$00
+ELSE
+ DB $08,$3C,$58,$70,$58,$C0,$8A,$1F,$1A,$07,$0A,$1F,$1A,$04,$00,$00,$00,$00,$00,$00,$00,$00,$06,$0E,$A8,$F0,$B0,$E8,$78,$28,$30,$00,$04,$00,$20,$09,$A3,$01,$04,$20,$A1,$00,$05,$00,$04,$78,$00,$00,$00,$00,$F0,$F8,$6C,$68,$F1,$01,$50,$00,$40,$10,$00,$10,$0F,$00
+ENDIF
+
 MR_DO_DEATH_F1:
+IFDEF REDNOSE
  DB $00,$00,$03,$0D,$3F,$7A,$6F,$36,$0C,$08,$10,$28,$38,$00,$00,$00,$00,$00,$60,$B0,$F8,$A8,$FC,$1C,$0E,$06,$00,$C0,$C0,$00,$40,$00,$00,$00,$00,$02,$00,$85,$90,$80,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$00,$E0,$F0,$DA,$12,$22,$02,$80,$00
+ELSE
+ DB $00,$00,$03,$0D,$3F,$7A,$6F,$36,$0C,$08,$10,$28,$38,$00,$00,$00,$00,$00,$60,$B0,$F8,$A8,$FC,$1C,$0E,$06,$00,$00,$00,$00,$40,$00,$00,$00,$00,$02,$00,$85,$90,$80,$81,$83,$06,$12,$01,$30,$01,$00,$00,$00,$00,$40,$00,$50,$00,$00,$E0,$F0,$DA,$D2,$E2,$02,$80,$00
+ENDIF
+
 MR_DO_DEATH_F2:
+IFDEF REDNOSE
  DB $00,$00,$06,$05,$07,$0A,$0F,$0D,$0F,$0C,$00,$00,$40,$71,$01,$00,$00,$00,$00,$1C,$34,$DC,$F8,$50,$F0,$30,$00,$00,$06,$8A,$80,$00,$00,$0F,$38,$02,$00,$05,$00,$02,$00,$00,$03,$07,$AD,$84,$02,$00,$00,$00,$06,$03,$0B,$21,$01,$A1,$00,$00,$C0,$E0,$B1,$25,$40,$00
+ELSE
+ DB $00,$00,$06,$05,$07,$0A,$0F,$0D,$0F,$0C,$00,$00,$40,$70,$00,$00,$00,$00,$00,$1C,$34,$DC,$F8,$50,$F0,$30,$00,$00,$06,$0A,$00,$00,$00,$0F,$38,$02,$00,$05,$00,$02,$00,$00,$03,$07,$AD,$85,$03,$00,$00,$00,$06,$03,$0B,$21,$01,$A1,$00,$00,$C0,$E0,$B1,$A5,$C0,$00
+ENDIF
+
 MR_DO_DEATH_F3:
+IFDEF REDNOSE
  DB $00,$00,$00,$00,$00,$00,$06,$0A,$5F,$7C,$08,$00,$40,$71,$01,$00,$00,$00,$00,$00,$00,$00,$60,$B0,$F6,$3E,$10,$00,$06,$8A,$80,$00,$00,$03,$04,$03,$00,$40,$80,$85,$A0,$80,$03,$07,$AF,$84,$02,$00,$00,$C0,$20,$C0,$00,$02,$01,$41,$09,$01,$C0,$E0,$F1,$25,$40,$00 
+ELSE
+ DB $00,$00,$00,$00,$00,$00,$06,$0A,$5F,$7C,$08,$00,$40,$70,$00,$00,$00,$00,$00,$00,$00,$00,$60,$B0,$F6,$3E,$10,$00,$06,$0A,$00,$00,$00,$03,$04,$03,$00,$40,$80,$85,$A0,$80,$03,$07,$AF,$85,$03,$00,$00,$C0,$20,$C0,$00,$02,$01,$41,$09,$01,$C0,$E0,$F1,$A5,$C0,$00
+ENDIF
+
+
 ; bad guy
 BYTE_C234:      DB 010,011,008,009
 BYTE_C238:      DB 014,015,012,013
@@ -9751,14 +10136,22 @@ BYTE_C278:      DB 087,085,086,084
 BYTE_C27C:      DB 090,088,091,089
 BYTE_C280:      DB 094,092,095,093
 
-; pause screen Mr. Do impatient animation
-; Frame 0: red (body, SPT 176) then white (detail, SPT 180)
+; pause screen Mr. Do impatient animation (body SPT176 red, detail SPT180 white)
 MR_DO_IMPATIENT_F0:
+IFDEF REDNOSE
  DB $00,$03,$0E,$08,$10,$10,$01,$09,$3C,$35,$07,$07,$0E,$1A,$04,$00,$00,$80,$80,$00,$00,$00,$80,$80,$28,$EC,$78,$E0,$C0,$F0,$40,$00,$00,$04,$01,$14,$0B,$05,$24,$12,$00,$0A,$18,$00,$01,$04,$78,$00,$00,$00,$40,$20,$C0,$A6,$2F,$4F,$06,$10,$80,$00,$20,$00,$3C,$00
+ELSE
+ DB $00,$03,$0E,$08,$10,$10,$00,$08,$3C,$35,$07,$07,$0E,$1A,$04,$00,$00,$80,$80,$00,$00,$00,$00,$00,$28,$EC,$78,$E0,$C0,$F0,$40,$00,$00,$04,$01,$14,$0B,$05,$25,$13,$00,$0A,$18,$00,$01,$04,$78,$00,$00,$00,$40,$20,$C0,$A6,$AF,$CF,$06,$10,$80,$00,$20,$00,$3C,$00
+ENDIF
 
-; Frame 1: red (body, SPT 176) then white (detail, SPT 180)
 MR_DO_IMPATIENT_F1:
+IFDEF REDNOSE
  DB $00,$03,$0E,$08,$10,$20,$01,$09,$3C,$35,$07,$0F,$1A,$0C,$04,$00,$00,$80,$80,$00,$00,$00,$80,$98,$2C,$F8,$60,$C0,$C0,$F0,$40,$00,$00,$04,$01,$14,$0B,$45,$04,$12,$00,$0A,$18,$00,$45,$30,$08,$00,$00,$06,$4F,$2F,$C6,$A0,$28,$46,$10,$00,$80,$00,$20,$00,$3C,$00
+ELSE
+ DB $00,$03,$0E,$08,$10,$20,$00,$08,$3C,$35,$07,$0F,$1A,$0C,$04,$00,$00,$80,$80,$00,$00,$00,$00,$18,$2C,$F8,$60,$C0,$C0,$F0,$40,$00,$00,$04,$01,$14,$0B,$45,$05,$13,$00,$0A,$18,$00,$45,$30,$08,$00,$00,$06,$4F,$2F,$C6,$A0,$A8,$C6,$10,$00,$80,$00,$20,$00,$3C,$00
+ENDIF
+
+
 
 ENEMY_GENERATOR:
     DB 000                          ;0
@@ -11445,11 +11838,8 @@ Skill4:     db "4.PR","O" or 128
 ; Select  Number of Players and Skill
 
 GET_GAME_OPTIONS:
-    XOR     A
-    LD      (KONAMI_INDEX),A    ; reset Konami code sequence
     CALL    ShowPlyrNum         ; Show 1 or 2 Players
 .PlyrNumWait:
-    CALL    CheckKonamiCode     ; check for Konami code (Up-Up-Down-Down-Left-Right-Left-Right-B-A)
     LD      A,(KEYBOARD_P1)
     DEC     A                   ; 0-1   valid range
     CP      2
@@ -11912,7 +12302,12 @@ INTERMISSION:
     LD HL,SAT
     LD  A,208
     CALL MyNMI_off
-    CALL MYWRTVRM
+    CALL MYWRTVRM                   ; SAT[0]=$D0: hide all sprites during setup
+    LD HL,SAT+40                    ; slot 10 (4 bytes * 10 animated sprites)
+    LD  A,208
+    CALL MYWRTVRM                   ; SAT[10]=$D0: re-terminate after the 10 monster
+                                    ; sprites so leftover gameplay sprites in slots
+                                    ; 10-19 (e.g. the diamond on slot 13) can't leak in
     CALL cvb_MYCLS
 
     CALL    cvb_INTERMISSION
@@ -14044,241 +14439,11 @@ NEXT_APPLE_IX:
     ADD     IX,DE
     RET
 
-; ============================================================
-; Konami Code detection
-; Up-Up-Down-Down-Left-Right-Left-Right-B-A on player select
-; ============================================================
-
-; Konami sequence: expected bit patterns for each step
-KonamiSequence:
-    db $01, $01             ; Up, Up
-    db $04, $04             ; Down, Down
-    db $08, $02             ; Left, Right
-    db $08, $02             ; Left, Right
-    db $40, $40             ; B, A
-; Konami offsets: which controller buffer byte to read for each step
-; Offset 3 = $7089: joystick directions (bits 0-3)
-; Offset 2 = $7088: left fire / side button (bit 6)
-; Offset 5 = $708B: right fire / arm button (bit 6)
-KonamiOffset:
-    db 3, 3                 ; Up, Up
-    db 3, 3                 ; Down, Down
-    db 3, 3                 ; Left, Right
-    db 3, 3                 ; Left, Right
-    db 2, 5                 ; B (side), A (arm)
-
-; Check one step of the Konami code sequence per call.
-; Uses bit 7 of KONAMI_INDEX as "processing" flag.
-; Counter advances on RELEASE, not on press.
-CheckKonamiCode:
-    LD      A,(KONAMI_INDEX)
-    BIT     7,A
-    JR      NZ,.wait_release
-
-    ; Get current expected input based on index
-    AND     %00011111
-    LD      B,A             ; B = current index
-
-    ; Get expected bit pattern
-    LD      HL,KonamiSequence
-    LD      E,B
-    LD      D,0
-    ADD     HL,DE
-    LD      C,(HL)          ; C = expected bit pattern
-
-    ; Get controller buffer offset for this step
-    LD      HL,KonamiOffset
-    ADD     HL,DE
-    LD      A,(HL)
-    LD      D,A             ; D = correct offset
-
-    ; Check if any input is pressed
-    CALL    AnyInput
-    RET     Z               ; no input at all
-
-.check_input:
-    ; Read from the correct offset for this step
-    LD      HL,CONTROLLER_BUFFER
-    LD      E,D
-    LD      D,0
-    ADD     HL,DE
-    LD      A,(HL)
-
-    AND     C               ; mask to expected bit
-    CP      C               ; must match exactly
-    JR      Z,.correct_input
-
-    ; Wrong input - reset sequence
-    XOR     A
-    LD      (KONAMI_INDEX),A
-    RET
-
-.correct_input:
-    ; Set processing flag, keep current index (advance happens on release)
-    LD      A,B
-    OR      %10000000
-    LD      (KONAMI_INDEX),A
-    RET
-
-.wait_release:
-    ; Check if all inputs are released
-    CALL    AnyInput
-    RET     NZ              ; still pressed - bit 7 already set, just return
-
-    ; All released - advance counter
-    LD      A,(KONAMI_INDEX)
-    AND     %00011111
-    INC     A
-    CP      10
-    JR      NZ,.store_counter
-
-    ; Sequence complete!
-    XOR     A
-    LD      (KONAMI_INDEX),A
-    POP     HL              ; discard return to GET_GAME_OPTIONS .PlyrNumWait loop
-    POP     HL              ; discard return to cvb_ANIMATEDLOGO (CALL GET_GAME_OPTIONS)
-    JP      ShowCredits     ; stack now has original return from CALL cvb_ANIMATEDLOGO
-
-.store_counter:
-    LD      (KONAMI_INDEX),A
-    RET
-
-; ============================================================
-; Credits screen - displayed when Konami code is completed
-; ============================================================
-ShowCredits:
-    LD      A,215           ; space tile (blank, black background from LOADFONTS $F1 color)
-    CALL    cvb_MYCLS.2     ; fill PNT with spaces for clean black screen
-    CALL    REMOVESPRITES   ; hide all sprites in RAM
-
-    ; Print credit lines from table
-    LD      IX,CreditsTable
-.printloop:
-    LD      E,(IX+0)
-    LD      D,(IX+1)        ; DE = VDP address
-    LD      A,D
-    OR      E
-    JR      Z,.printdone    ; $0000 = end of table
-    LD      L,(IX+2)
-    LD      H,(IX+3)        ; HL = string pointer
-    CALL    MYPRINT
-    LD      DE,4
-    ADD     IX,DE
-    JR      .printloop
-.printdone:
-    ; Show Mr. Do sprite on credits screen
-    LD      HL,CREDITS_SAT
-    LD      DE,SAT                  ; SAT in VRAM ($1B00)
-    LD      BC,9                    ; 2 sprites + terminator
-    CALL    MyNMI_off
-    CALL    MYLDIRVM
-    CALL    MyNMI_on
-    ; Set initial impatient frame 0
-    LD      HL,MR_DO_IMPATIENT_F0
-    LD      DE,2D80H                ; SPT + 176*8 (pattern 176 VRAM addr)
-    LD      BC,64                   ; 64 bytes (body + detail)
-    CALL    MYLDIRVM
-
-    CALL    ENABLE_NMI      ; enable display
-    CALL    PLAY_END_OF_ROUND_TUNE
-
-.waitrelease1:              ; first wait for Konami A button to be released
-    CALL    AnyInput
-    JR      NZ,.waitrelease1
-    LD      B,0                     ; delay counter
-    LD      C,0                     ; frame index (0-1)
-.waitpress:                 ; then wait for a new button press
-    PUSH    BC
-    HALT                            ; wait for next vblank NMI
-    POP     BC
-    ; Animate every 15 frames (~0.25 second)
-    INC     B
-    LD      A,B
-    CP      15
-    JR      NZ,.no_anim
-    LD      B,0
-    LD      A,C
-    XOR     1
-    LD      C,A
-    PUSH    BC
-    LD      HL,MR_DO_IMPATIENT_F0
-    AND     A
-    JR      Z,.use_frame
-    LD      HL,MR_DO_IMPATIENT_F1
-.use_frame:
-    LD      DE,2D80H                ; SPT + 176*8
-    LD      BC,64
-    CALL    MyNMI_off
-    CALL    MYLDIRVM
-    CALL    MyNMI_on
-    POP     BC
-.no_anim:
-    CALL    AnyInput
-    JR      Z,.waitpress
-.waitrelease2:              ; wait for that press to be released
-    CALL    AnyInput
-    JR      NZ,.waitrelease2
-
-    JP      cvb_ANIMATEDLOGO ; return to title screen (reinitializes everything)
-
-; Returns Z if no input, NZ if any input pressed
-; Shared by CheckKonamiCode and ShowCredits
-AnyInput:
-    LD      A,(CONTROLLER_BUFFER+3)
-    AND     $0F
-    RET     NZ
-    LD      A,(CONTROLLER_BUFFER+2)
-    AND     $40
-    RET     NZ
-    LD      A,(CONTROLLER_BUFFER+5)
-    AND     $40
-    RET
-
-; Credits table: pairs of (VDP_address, string_pointer), terminated by $0000
-; PNT = $1800, 32 columns per row
-CreditsTable:
-    DW PNT+32*2+12,  cr_title       ; "- CREDITS-"     10 chars
-    DW PNT+32*5+11,  cr_disasm      ; "DISASSEMBLY"    11 chars
-    DW PNT+32*6+9,   cr_cozmos      ; "CAPTAIN COZMOS" 14 chars
-    DW PNT+32*8+13,  cr_sprites     ; "SPRITES"         7 chars
-    DW PNT+32*9+15,  cr_tix         ; "TIX"             3 chars
-    DW PNT+32*11+14, cr_code        ; "CODE"            4 chars
-    DW PNT+32*12+13, cr_artrag      ; "ARTRAG"          6 chars
-    DW PNT+32*14+9,  cr_msc         ; "MUSIC SFX CODE" 14 chars
-    DW PNT+32*15+11, cr_plastic     ; "PLASTICBUGS"    11 chars
-    DW PNT+32*17+15, cr_art         ; "ART"              3 chars
-    DW PNT+32*18+12, cr_hako       ; "HAKOGAME"        8 chars
-    DW PNT+32*19+10, cr_retro      ; "RETROILLUCID"   12 chars
-    DW PNT+32*21+12, cr_thanks     ; "- THANKS-"       9 chars
-    DW PNT+32*22+10, cr_coleco     ; "COLECOFAN1981"  13 chars
-    DW 0                        ; end of table
-
-; Credit strings (bit 7 set on last char = MYPRINT terminator)
-cr_title:   db "-CREDITS","-" or 128
-cr_disasm:  db "DISASSEMBL","Y" or 128
-cr_cozmos:  db "CAPTAIN COZMO","S" or 128
-cr_sprites: db "SPRITE","S" or 128
-cr_tix:     db "TI","X" or 128
-cr_code:    db "COD","E" or 128
-cr_artrag:  db "ARTRA","G" or 128
-cr_msc:     db "MUSIC SFX COD","E" or 128
-cr_plastic: db "PLASTICBUG","S" or 128
-cr_art:     db "AR","T" or 128
-cr_thanks:  db "-THANKS","-" or 128
-cr_coleco:  db "COLECOFAN198","1" or 128
-cr_hako:    db "HAKOGAM","E" or 128
-cr_retro:   db "RETROILLUCI","D" or 128
-
 ; Pause screen data
 PAUSE_TEXT: db "PAUS","E" or 128
 PAUSE_SAT:
     DB  88, 88, 176, 8         ; Mr. Do body layer, left of text (medium red)
     DB  88, 88, 180, 15        ; Mr. Do detail layer, left of text
-    DB  208                     ; SAT terminator ($D0)
-
-CREDITS_SAT:
-    DB  62, 82, 176, 8         ; Mr. Do body layer, left of TIX (medium red)
-    DB  62, 82, 180, 15        ; Mr. Do detail layer
     DB  208                     ; SAT terminator ($D0)
 
 ARCADEFONTS:

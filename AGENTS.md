@@ -1,26 +1,23 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-ColecoVision ROM hack of Mr. Do! written in Z80 assembly. Based on Captain Cosmos's disassembly. The full game lives in `mrdo_core.asm` (~14K lines, the shared source) plus a generated tileset (`tilesetscr2.asm`). Output is a 32KB ROM. **Edit `mrdo_core.asm`** for game changes — `mrdo_arcade.asm` and the `build_*.asm` files are thin wrappers, not the source.
+ColecoVision ROM hack of Mr. Do! written in Z80 assembly. Based on Captain Cosmos's disassembly. The full game lives in `mrdo_core.asm` (~14K lines, the shared source) plus a generated tileset (`tilesetscr2.asm`). Output is a 32KB ROM. **Edit `mrdo_core.asm`** for game changes; `mrdo_arcade.asm` and `build_*.asm` are thin build wrappers.
 
 ## Build & variants
 
-Assembler is **tniASM 0.45** (a 32-bit DOS app, run in a WinXP VM under UTM; the ROM is copied back to the Mac). It only runs on Windows — **do not attempt to build**; the user builds/tests separately. Do **not** read `.rom` files — they are binary.
+Assembler is **tniASM 0.45** (32-bit DOS app, run in a WinXP VM under UTM; ROM copied back to the Mac). Windows-only — **do not attempt to build**; the user builds/tests separately. Do **not** read `.rom` files — they are binary.
 
-Variants are selected by **thin wrapper files** that each set the output name (`FNAME`) and declare flag labels, then `INCLUDE "mrdo_core.asm"`. The core gates variant code with `IFDEF COLECOBOOT / INVINCIBLE / REDNOSE`. Build a variant by assembling its wrapper:
+Each build variant is a wrapper file that sets `FNAME` + declares flag labels, then `INCLUDE "mrdo_core.asm"`; the core gates variant code with `IFDEF COLECOBOOT / INVINCIBLE / REDNOSE`. Assemble the wrapper for the variant you want:
+- `mrdo_arcade.asm` (stock) → `mrdo_arcade.rom`
+- `build_coleco_boot.asm` (COLECOBOOT) → `mrdo_arcade_coleco_boot.rom`
+- `build_red_nose.asm` (REDNOSE) → `mrdo_arcade_red_nose.rom`
+- `build_coleco_red_nose.asm` (COLECOBOOT+REDNOSE) → `mrdo_arcade_coleco_red_nose.rom`
+- `build_invincible.asm` (INVINCIBLE) → `invincibility_for_qa.rom`
 
-| Wrapper (assemble this) | Flags | Output ROM |
-|---|---|---|
-| `mrdo_arcade.asm` | (none = stock) | `mrdo_arcade.rom` |
-| `build_coleco_boot.asm` | COLECOBOOT | `mrdo_arcade_coleco_boot.rom` |
-| `build_red_nose.asm` | REDNOSE | `mrdo_arcade_red_nose.rom` |
-| `build_coleco_red_nose.asm` | COLECOBOOT + REDNOSE | `mrdo_arcade_coleco_red_nose.rom` |
-| `build_invincible.asm` | INVINCIBLE | `invincibility_for_qa.rom` |
-
-When adding a variant toggle, wrap the differing lines in the core with `IFDEF FLAG … ELSE … ENDIF` (directives at column 1) and add/extend a wrapper. The REDNOSE swap lives in the two `IFDEF REDNOSE` blocks (Mr. Do walk/push/death + impatient sprites). To verify a change is safe without building, the stock wrapper must produce a **byte-identical** ROM to before. The stale `mrdo_red_nose.asm` is a pre-build-system divergent copy — ignore it.
+The stale `mrdo_red_nose.asm` is a pre-build-system divergent copy — ignore it.
 
 ## ROM Size Constraint
 
