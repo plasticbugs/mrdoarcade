@@ -29,15 +29,16 @@ Changes:
 - Icon marker for "how" level was completed on "Very Good" screen
 - Wonderful screen every 10th level that shows average score per level along with score and time data for the previous level.
 - displays a 500 sign after a set of cherries has been collected 
-- a credits screen to be activated by a secret combo of keys
 - extended to 24 bits the score (previously at 16 bit)
 - average time to complete each level displayed on Wonderful screen
-- display a 1000 signs after an enemy has been smashed by an apple
+- display a 1000 sign after an enemy has been smashed by an apple
 - cap chomper's max speed (reasonable cap has been added)
 
 Wish list/To do list:
 - add patterns to leftover tiles to match those of the play field
 - add an alternative version of MrDo's sprites as Snowman to be activated by a secret combo of keys
+- a credits screen to be activated by a secret combo of keys (this was implemented and removed due to ROM space constraints)
+
 
 ## Building from source
 
