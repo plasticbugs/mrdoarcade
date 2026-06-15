@@ -32,10 +32,10 @@ Changes:
 - a credits screen to be activated by a secret combo of keys
 - extended to 24 bits the score (previously at 16 bit)
 - average time to complete each level displayed on Wonderful screen
+- display a 1000 signs after an enemy has been smashed by an apple
+- cap chomper's max speed (reasonable cap has been added)
 
 Wish list/To do list:
-- display a 1000 signs after an enemy has been smashed by an apple
-- cap chomper's max speed after level 11 (or make them walk in tunnels only)
 - add patterns to leftover tiles to match those of the play field
 - add an alternative version of MrDo's sprites as Snowman to be activated by a secret combo of keys
 
