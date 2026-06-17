@@ -6850,16 +6850,7 @@ GOT_DIAMOND:
     JR      Z,DIAMOND_COLLECTED
     CP      2                   ; extra MrDo
     JR      NZ,LOC_A969
-    CALL    PLAY_END_OF_ROUND_TUNE
-    LD      HL,103H
-    CALL    REQUEST_SIGNAL
-    PUSH    AF
-LOC_A992:
-    POP     AF
-    PUSH    AF
-    CALL    TEST_SIGNAL
-    JR      Z,LOC_A992
-    POP     AF
+    CALL    PLAY_EOR_AND_WAIT
     JR      LOC_A96C
 LOC_A969:
     CALL  INITIALIZE_THE_SOUND
@@ -6869,6 +6860,7 @@ LOC_A969:
     CALL    ExtraMrDo
     JR      LOC_A96C
 DIAMOND_COLLECTED:
+    CALL    PLAY_EOR_AND_WAIT       ; play round-end tune before the diamond screen
     CALL    CONGRATULATION
     LD      A,2
 LOC_A96C:
@@ -10556,6 +10548,21 @@ PLAY_END_OF_ROUND_TUNE:
     CALL    PLAY_IT
     LD      B,END_OF_ROUND_TUNE_0B
     JP      PLAY_IT
+
+; Play the end-of-round tune and block until it finishes (~259 frames).
+; Input A is ignored; REQUEST_SIGNAL returns the timer id in A.
+PLAY_EOR_AND_WAIT:
+    CALL    PLAY_END_OF_ROUND_TUNE
+    LD      HL,103H
+    CALL    REQUEST_SIGNAL
+    PUSH    AF
+.wait:
+    POP     AF
+    PUSH    AF
+    CALL    TEST_SIGNAL
+    JR      Z,.wait
+    POP     AF
+    RET
 
 PLAY_LOSE_LIFE_SOUND:
     CALL    INITIALIZE_THE_SOUND
