@@ -110,7 +110,7 @@ SFX_COIN_INSERT_SND:    EQU $20
 NO_EXTRA_TUNE_0D:       EQU $21
 NO_EXTRA_TUNE_0E:       EQU $22
 TWINKLE_TWINKLE_0A:     EQU $23
-; TWINKLE_TWINKLE_0B:     EQU $24
+; TWINKLE_TWINKLE_0B:   
 TWINKLE_TWINKLE_0C:     EQU $24
 
 ; RAM DEFINITIONS ***************************
@@ -228,12 +228,12 @@ P1_LEVEL1_SCORE:        RB 3    ; 3 bytes - Level 1 score (24-bit)
 P1_LEVEL2_SCORE:        RB 3    ; 3 bytes - Level 2 score (24-bit)
 P1_LEVEL3_SCORE:        RB 3    ; 3 bytes - Level 3 score (24-bit)
 
-P2_LEVEL1_SEC:          RB 1    ; EQU 07300h ; Player 1 level 1 seconds
-P2_LEVEL1_MIN:          RB 1    ; EQU 07301h ; Player 1 level 1 minutes
-P2_LEVEL2_SEC:          RB 1    ; EQU 07302h ; Player 1 level 2 seconds
-P2_LEVEL2_MIN:          RB 1    ; EQU 07303h ; Player 1 level 2 minutes
-P2_LEVEL3_SEC:          RB 1    ; EQU 07304h ; Player 1 level 3 seconds
-P2_LEVEL3_MIN:          RB 1    ; EQU 07305h ; Player 1 level 3 minutes
+P2_LEVEL1_SEC:          RB 1    ; EQU 07300h ; Player 2 level 1 seconds
+P2_LEVEL1_MIN:          RB 1    ; EQU 07301h ; Player 2 level 1 minutes
+P2_LEVEL2_SEC:          RB 1    ; EQU 07302h ; Player 2 level 2 seconds
+P2_LEVEL2_MIN:          RB 1    ; EQU 07303h ; Player 2 level 2 minutes
+P2_LEVEL3_SEC:          RB 1    ; EQU 07304h ; Player 2 level 3 seconds
+P2_LEVEL3_MIN:          RB 1    ; EQU 07305h ; Player 2 level 3 minutes
 
 P2_PREV_SCORE:          RB 3    ; 3 bytes - Previous total score for P2 (24-bit)
 P2_LEVEL1_SCORE:        RB 3    ; 3 bytes - Level 1 score (24-bit)
@@ -10722,38 +10722,31 @@ NO_EXTRA_TUNE_P4:
 NO_EXTRA_TUNE_P5:
     DB 129,060,000,002,102,016,128,050,032,006,129,101,048,002,102,231,144
 
-LOSE_LIFE_TUNE_P1:
-    ; High B
-    DB 064,056,080,007,099
-    ; High C
-    DB 064,053,090,007,107
-    ; Sec F
-    DB 064,160,080,004,099
-    ; Sec G
-    DB 064,142,080,007,107
-    ; SEcond Highest G#
-    DB 064,067,080,007,099
-    ; B Flat (B5)
-    DB 064,119,080,007,107
-    ; D# (low)
-    DB 064,206,082,007,099
-    ; C (low)
-    DB 064,086,083,007,080
-LOSE_LIFE_TUNE_P2:
-    DB 128,056,096,007,162
-    DB 128,053,096,007,170
-    ; Middle G#
-    DB 128,134,096,004,162
-    ; Middle B (B4)
-    DB 192,142,096,007,235
-    ; D# (D5)
-    DB 192,089,096,007,227
-    ; F# (middle)
-    DB 192,119,096,007,235
-    ; D# (low)
-    DB 192,206,098,007,227
-    ; C (low)
-    DB 192,086,099,007,144
+
+  ; ===== Tone 1 =====
+  LOSE_LIFE_TUNE_P1:
+      DB 064,040,080,007,097 ; F    div 028
+      DB 064,032,080,007,105 ; A    div 020
+      DB 064,045,081,007,097 ; F#   div 12D
+      DB 064,213,080,007,105 ; C    div 0D5
+      DB 064,106,080,007,097 ; C    div 06A
+      DB 064,075,080,007,105 ; F#   div 04B
+      DB 064,036,083,007,097 ; C#   div 324
+      DB 066,188,083,040,026,068 ; A# div 3BC — volume-swept, fades to silence
+      DB 080                 ; END (Tone 1, no repeat)
+
+  ; ===== Tone 2 =====
+  LOSE_LIFE_TUNE_P2:
+      DB 128,047,080,007,161 ; D    div 02F
+      DB 128,040,080,007,169 ; F    div 028
+      DB 128,225,080,007,161 ; B    div 0E1
+      DB 128,253,080,007,169 ; A    div 0FD
+      DB 128,089,080,007,161 ; D#   div 059
+      DB 128,100,080,007,169 ; C#   div 064
+      DB 128,146,081,007,161 ; C#   div 192
+      DB 130,222,081,040,026,068 ; A# div 1DE — volume-swept, fades to silence
+      DB 144                 ; END (Tone 2, no repeat)
+
 DIAMOND_SOUND:
     DB 130,023,080,008,027,017,152
 
