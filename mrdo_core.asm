@@ -11736,65 +11736,23 @@ VERY_GOOD_TUNE_P3:
     DB 192,086,147,014,208 ; 14
 
 SFX_COIN_INSERT:
-; AY volume to SN volume: SN_vol = 0xF - AY_vol
-; AY period to SN period: SN_period = AY_period / 2 (integer division)
-; Pos 000: AY period 0x05F(95) → SN period 95/2=47=0x2F
-
-; Pos 000: SN=0x2F → doubled=0x5E
-  DB 0x40,0x5E,0xA0,1
-
-; 001: 0x32→0x64
-  DB 0x40,0x64,0x90,2
-
-; 002: 0x23→0x46
-  DB 0x40,0x46,0x80,1
-
-; 003: 0x25→0x4A
-  DB 0x40,0x4A,0x70,2
-
-; 004: 0x25→0x4A
-  DB 0x40,0x4A,0x60,1
-
-; 005: 0x20→0x40
-  DB 0x40,0x40,0x60,2
-
-; 006: 0x20→0x40
-  DB 0x40,0x40,0x60,1
-
-; 007: 0x23→0x46
-  DB 0x40,0x46,0x60,2
-
-; 008: 0x25→0x4A
-  DB 0x40,0x4A,0x60,1
-
-; 009: 0x1B→0x36
-  DB 0x40,0x36,0x60,2
-
-; 00A: 0x1E→0x3C
-  DB 0x40,0x3C,0x60,1
-
-; 00B: 0x1E→0x3C
-  DB 0x40,0x3C,0x60,2
-
-; 00C: 0x19→0x32
-  DB 0x40,0x32,0x60,1
-
-; 00D: 0x19→0x32
-  DB 0x40,0x32,0x70,2
-
-; 00E: 0x1B→0x36
-  DB 0x40,0x36,0x80,1
-
-; 00F: 0x1F→0x3E
-  DB 0x40,0x3E,0x90,2
-
-; 010: 0x14→0x28
-  DB 064,040,0xA0,01
-  DB 064,040,0xB0,01
-  DB 064,040,0xC0,01
-
-  DB 0x50
-
+    DB 064,113,048,002 ; B   atten 3
+    DB 064,084,032,002 ; E   atten 2
+    DB 064,100,016,002 ; C#  atten 1
+    DB 064,075,000,002 ; F#  atten 0
+    DB 064,084,000,002 ; E   atten 0
+    DB 064,067,000,002 ; G#  atten 0
+    DB 064,075,016,002 ; F#  atten 1
+    DB 064,056,032,002 ; B   atten 2
+    DB 064,067,048,002 ; G#  atten 3
+    DB 064,050,064,002 ; C#  atten 4
+    DB 064,056,080,002 ; B   atten 5
+    DB 064,042,096,002 ; E   atten 6
+    DB 064,050,112,002 ; C#  atten 7   ← extended
+    DB 064,038,128,002 ; F#  atten 8   ← extended
+    DB 064,042,144,002 ; E   atten 9   ← extended
+    DB 066,028,128,006,023,017 ; B   swept: atten 8→15, quick fade
+    DB 080                     ; END (Tone 1)
 
 
 ; select 1/2 players
