@@ -11751,7 +11751,7 @@ SFX_COIN_INSERT:
     DB 064,050,112,002 ; C#  atten 7   ← extended
     DB 064,038,128,002 ; F#  atten 8   ← extended
     DB 064,042,144,002 ; E   atten 9   ← extended
-    DB 066,028,128,006,023,017 ; B   swept: atten 8→15, quick fade
+    DB 066,028,128,010,023,017 ; B   swept: atten 8→15 (7 ticks), settles to silence
     DB 080                     ; END (Tone 1)
 
 
