@@ -10724,28 +10724,30 @@ NO_EXTRA_TUNE_P5:
 
 
   ; ===== Tone 1 =====
-  LOSE_LIFE_TUNE_P1:
-      DB 064,040,080,007,097 ; F    div 028
-      DB 064,032,080,007,105 ; A    div 020
-      DB 064,045,081,007,097 ; F#   div 12D
-      DB 064,213,080,007,105 ; C    div 0D5
-      DB 064,106,080,007,097 ; C    div 06A
-      DB 064,075,080,007,105 ; F#   div 04B
-      DB 064,036,083,007,097 ; C#   div 324
-      DB 066,188,083,040,026,068 ; A# div 3BC — volume-swept, fades to silence
-      DB 080                 ; END (Tone 1, no repeat)
+LOSE_LIFE_TUNE_P1:
+    DB 064,040,080,007,097 ; F    div 028
+    DB 064,032,080,007,105 ; A    div 020
+    DB 064,045,081,007,097 ; F#   div 12D
+    DB 064,213,080,007,105 ; C    div 0D5
+    DB 064,106,080,007,097 ; C    div 06A
+    DB 064,075,080,007,105 ; F#   div 04B
+    DB 064,036,083,007,097 ; C#   div 324
+    DB 066,188,083,040,026,068 ; A# div 3BC — volume-swept, fades to silence
+    DB 080                 ; END (Tone 1, no repeat)
 
   ; ===== Tone 2 =====
-  LOSE_LIFE_TUNE_P2:
-      DB 128,047,080,007,161 ; D    div 02F
-      DB 128,040,080,007,169 ; F    div 028
-      DB 128,225,080,007,161 ; B    div 0E1
-      DB 128,253,080,007,169 ; A    div 0FD
-      DB 128,089,080,007,161 ; D#   div 059
-      DB 128,100,080,007,169 ; C#   div 064
-      DB 128,146,081,007,161 ; C#   div 192
-      DB 130,222,081,040,026,068 ; A# div 1DE — volume-swept, fades to silence
-      DB 144                 ; END (Tone 2, no repeat)
+LOSE_LIFE_TUNE_P2:
+    DB 128,047,080,007,161 ; D    div 02F
+    DB 128,040,080,007,169 ; F    div 028
+    DB 128,225,080,007,161 ; B    div 0E1
+    DB 128,253,080,007,169 ; A    div 0FD
+    ; DB 128,089,080,007,161 ; D#   div 059
+    ; DB 128,100,080,007,169 ; C#   div 064
+    DB 192,075,080,007,099 ; F#   div 04B
+    DB 192,134,080,007,107 ; G#   div 086
+    DB 128,146,081,007,161 ; C#   div 192
+    DB 130,222,081,040,026,068 ; A# div 1DE — volume-swept, fades to silence
+    DB 144                 ; END (Tone 2, no repeat)
 
 DIAMOND_SOUND:
     DB 130,023,080,008,027,017,152
