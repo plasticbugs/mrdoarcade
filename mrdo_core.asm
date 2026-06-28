@@ -10484,6 +10484,7 @@ PLAY_TWINKLE_TWINKLE_TUNE:
   LD    B,TWINKLE_TWINKLE_0C
   JP  PLAY_IT
 PLAY_COIN_INSERT_SFX:
+  CALL  INITIALIZE_THE_SOUND     ; clear banks first so a rapid re-press retriggers the SFX
   LD    B,SFX_COIN_INSERT_SND
   JP    PLAY_IT
 
@@ -11205,24 +11206,6 @@ NEW_BACKGROUND_TUNE_P1:
     ; DB 064,226,128,010,106
 
 NEW_OPENING_TUNE_P1:
-      DB 107
-      DB 064,070,096,006,100  ; was 080
-      DB 064,104,096,006,100  ; was 119
-      DB 064,104,096,006,100  ; was 119
-      DB 064,104,096,006,100  ; was 119
-      DB 064,078,096,006,100  ; was 089
-      DB 064,111,096,006,100  ; was 127
-      DB 064,111,096,006,100  ; was 127
-      DB 064,111,096,006,100  ; was 127
-      DB 064,070,096,006,100  ; was 080
-      DB 064,078,096,006,100  ; was 089
-      DB 064,083,096,006,100  ; was 095
-      DB 064,093,096,006,100  ; was 106
-      DB 064,104,096,012      ; was 119 (held)
-      DB 126
-      DB 080                  ; terminator
-
-NEW_OPENING_TUNE_P2:
       DB 171
       DB 128,075,097,006,164  ; was 123
       DB 128,075,097,006,164
@@ -11239,6 +11222,24 @@ NEW_OPENING_TUNE_P2:
       DB 128,240,097,012      ; was 056  (byte3 050→049, held)
       DB 190                  ; rest 30
       DB 144                  ; terminator
+
+NEW_OPENING_TUNE_P2:
+      DB 107
+      DB 064,070,096,006,100  ; was 080
+      DB 064,104,096,006,100  ; was 119
+      DB 064,104,096,006,100  ; was 119
+      DB 064,104,096,006,100  ; was 119
+      DB 064,078,096,006,100  ; was 089
+      DB 064,111,096,006,100  ; was 127
+      DB 064,111,096,006,100  ; was 127
+      DB 064,111,096,006,100  ; was 127
+      DB 064,070,096,006,100  ; was 080
+      DB 064,078,096,006,100  ; was 089
+      DB 064,083,096,006,100  ; was 095
+      DB 064,093,096,006,100  ; was 106
+      DB 064,104,096,012      ; was 119 (held)
+      DB 126
+      DB 080                  ; terminator
 
 NEW_OPENING_TUNE_P3:
       DB 235
